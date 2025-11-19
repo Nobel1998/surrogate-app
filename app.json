@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Surrogate Agency USA",
+    "slug": "surrogateagencyusa",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to take photos for sharing your surrogacy journey.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select photos for sharing your surrogacy journey."
+      }
+    },
+    "android": {
+      "backgroundColor": "#2A7BF6",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {},
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them in your surrogacy journey posts.",
+          "cameraPermission": "The app accesses your camera to let you take photos for your surrogacy journey posts."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "22dc9389-73da-409f-a451-1d144bfef2f6"
+      }
+    }
+  }
+}

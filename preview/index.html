@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surrogate Agency USA - App Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #F8F9FB;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 375px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: #2A7BF6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .content {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .page {
+            display: none;
+            min-height: 60vh;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: '600';
+            color: #2A7BF6;
+            margin-bottom: 8px;
+        }
+
+        .section-content {
+            color: #555;
+            font-size: 14px;
+        }
+
+        .button {
+            background: #2A7BF6;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        .fab {
+            position: fixed;
+            right: 24px;
+            bottom: 80px;
+            background: #2A7BF6;
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(42, 123, 246, 0.3);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-bottom: 12px;
+        }
+
+        .progress {
+            height: 6px;
+            background: #2A7BF6;
+            border-radius: 3px;
+            width: 20%;
+            transition: width 0.3s ease;
+        }
+
+        .form-step {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: '600';
+            color: #2A7BF6;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .label {
+            font-size: 16px;
+            margin-bottom: 4px;
+            font-weight: '500';
+            color: #333;
+        }
+
+        .sub-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        .input {
+            width: 100%;
+            background: #F3F4F6;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .text-area {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .secondary-button {
+            background: #fff;
+            border: 1px solid #2A7BF6;
+            color: #2A7BF6;
+        }
+
+        .step-indicator {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 40px;
+            background: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: #bbb;
+            font-size: 18px;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 375px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            cursor: pointer;
+            color: #888;
+            font-size: 12px;
+            transition: color 0.3s;
+        }
+
+        .nav-item.active {
+            color: #2A7BF6;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .placeholder-text {
+            text-align: center;
+            color: #bbb;
+            font-size: 16px;
+            margin-top: 40px;
+        }
+
+        .disclaimer {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            Surrogate Agency USA
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Process Page -->
+            <div id="process" class="page active">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Process Sharing</h2>
+                <div class="placeholder-text">Process sharing content will appear here</div>
+                <button class="fab">+</button>
+            </div>
+
+            <!-- Benefits Page -->
+            <div id="benefits" class="page">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Surrogate Compensation & Benefits</h2>
+                <div class="section">
+                    <div class="section-title">Compensation Details</div>
+                    <div class="section-content">Surrogate compensation details will be displayed here</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Benefits Information</div>
+                    <div class="section-content">Benefits information will be displayed here</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Frequently Asked Questions</div>
+                    <div class="section-content">FAQ content will be displayed here</div>
+                </div>
+            </div>
+
+            <!-- Register Page -->
+            <div id="register" class="page">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px; text-align: center;">Surrogate Application Form</h2>
+                
+                <div class="progress-bar">
+                    <div class="progress" id="progressBar"></div>
+                </div>
+                
+                <div class="step-indicator" id="stepIndicator">Step 1 of 5</div>
+                
+                <!-- Step 1: Personal Information -->
+                <div id="step1" class="form-step">
+                    <div class="step-title">Personal Information</div>
+                    
+                    <div class="form-group">
+                        <label class="label">Full Legal Name *</label>
+                        <div class="sub-label">Please list in first, middle, last format</div>
+                        <input type="text" class="input" placeholder="First Middle Last">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Age *</label>
+                        <input type="number" class="input" placeholder="Enter your age">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Date of Birth *</label>
+                        <div class="sub-label">Please list in month, day, year format</div>
+                        <input type="text" class="input" placeholder="MM/DD/YYYY">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">How did you hear about us? *</label>
+                        <div class="sub-label">Please be specific such as Google, Facebook, a specific friend, etc.</div>
+                        <input type="text" class="input" placeholder="e.g., Google search, Facebook ad, friend referral">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Blood Type *</label>
+                        <input type="text" class="input" placeholder="e.g., A+, B-, O+, AB+">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Height *</label>
+                        <div class="sub-label">If you are unsure please use best guess</div>
+                        <input type="text" class="input" placeholder="e.g., 5'6 or 66 inches">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Weight *</label>
+                        <div class="sub-label">If unsure please use best guess</div>
+                        <input type="number" class="input" placeholder="Enter weight in pounds">
+                    </div>
+                </div>
+
+                <!-- Step 2: Health & Background -->
+                <div id="step2" class="form-step" style="display: none;">
+                    <div class="step-title">Health & Background</div>
+                    
+                    <div class="form-group">
+                        <label class="label">Have you gained/lost a significant amount of weight in the last year? *</label>
+                        <input type="text" class="input" placeholder="Yes/No - If yes, please explain">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Race/Ethnic Background *</label>
+                        <input type="text" class="input" placeholder="e.g., Caucasian, Hispanic, African American, etc.">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Religious Background *</label>
+                        <input type="text" class="input" placeholder="e.g., Christian, Jewish, Muslim, None, etc.">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you currently practicing in your religion? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you a US Citizen? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you vaccinated for COVID-19? *</label>
+                        <input type="text" class="input" placeholder="Yes/No/I would like to be vaccinated">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Do you have any pets? If yes, please list *</label>
+                        <div class="sub-label">If you have cats, will someone be available to change the litter box?</div>
+                        <textarea class="input text-area" placeholder="List pets or write 'None'"></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 3: Marital Status & Family -->
+                <div id="step3" class="form-step" style="display: none;">
+                    <div class="step-title">Marital Status & Family</div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you married? *</label>
+                        <div class="sub-label">If no please skip next 4 questions</div>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Date of Marriage *</label>
+                        <div class="sub-label">Please use month/date/year format</div>
+                        <input type="text" class="input" placeholder="MM/DD/YYYY">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Spouse's Name and Age *</label>
+                        <input type="text" class="input" placeholder="Full name and age">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Spouse's Date of Birth *</label>
+                        <div class="sub-label">Please list in month/day/year format</div>
+                        <input type="text" class="input" placeholder="MM/DD/YYYY">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you widowed? If so, when was your partner deceased? *</label>
+                        <input type="text" class="input" placeholder="Yes/No - If yes, please provide date">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Have you ever experienced marital problems? If yes, please explain *</label>
+                        <textarea class="input text-area" placeholder="Yes/No - If yes, please explain"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are you single? *</label>
+                        <div class="sub-label">If you put yes this means you are not in any type of sexual relationship currently</div>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                </div>
+
+                <!-- Step 4: Legal Background & Transportation -->
+                <div id="step4" class="form-step" style="display: none;">
+                    <div class="step-title">Legal Background & Transportation</div>
+                    
+                    <div class="form-group">
+                        <label class="label">Please list any problems you or your spouse/partner have experienced with the law *</label>
+                        <div class="sub-label">Including arrests, convictions, and/or sentences. If yes please be specific</div>
+                        <textarea class="input text-area" placeholder="List any legal issues or write 'None'"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Have you or your spouse ever served time in jail? If yes, how much time and for what? *</label>
+                        <div class="sub-label">Please be specific with each instance, date of occurrence, and what for</div>
+                        <textarea class="input text-area" placeholder="Yes/No - If yes, please provide details"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Name of nearest airport to your home *</label>
+                        <div class="sub-label">Please only include the name of commercial airports not private</div>
+                        <input type="text" class="input" placeholder="e.g., LAX, JFK, O'Hare">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">How many miles is the airport from your home? *</label>
+                        <input type="number" class="input" placeholder="Enter distance in miles">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Do you own or lease a car? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Do you have a driver's license? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Is your car insured? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                </div>
+
+                <!-- Step 5: Family & Surrogacy Experience -->
+                <div id="step5" class="form-step" style="display: none;">
+                    <div class="step-title">Family & Surrogacy Experience</div>
+                    
+                    <div class="form-group">
+                        <label class="label">How many siblings do you have? *</label>
+                        <input type="number" class="input" placeholder="Enter number of siblings">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">How many siblings does your mother have? *</label>
+                        <input type="number" class="input" placeholder="Enter number of mother's siblings">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Have you been a surrogate before? How many times? *</label>
+                        <input type="text" class="input" placeholder="Yes/No - If yes, how many times?">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Would you like to have any more children of your own in the future? *</label>
+                        <input type="text" class="input" placeholder="Yes/No">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">Are your children biologically related to your husband/partner? *</label>
+                        <div class="sub-label">If no, do you have any outstanding custody issues?</div>
+                        <input type="text" class="input" placeholder="Yes/No - If no, please explain custody situation">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label">If you do not have a license, how will you get to all necessary appointments? *</label>
+                        <div class="sub-label">If you have a license please skip</div>
+                        <textarea class="input text-area" placeholder="Describe your transportation plan"></textarea>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="button-container">
+                    <button class="button secondary-button" id="prevBtn" style="display: none;">Previous</button>
+                    <button class="button" id="nextBtn">Next Step</button>
+                </div>
+                
+                <div class="disclaimer">
+                    * Required fields. Please answer all questions. If something does not apply to you, please write N/A. 
+                    All information provided will be kept confidential and used only for surrogacy matching purposes.
+                </div>
+            </div>
+
+            <!-- Ambassador Page -->
+            <div id="ambassador" class="page">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Recruit Surrogate Ambassadors</h2>
+                <div class="section">
+                    <div class="section-title">Ambassador Program</div>
+                    <div class="section-content">Information about the ambassador program and reward policies will be displayed here</div>
+                </div>
+                <button class="button">Become an Ambassador</button>
+            </div>
+
+            <!-- Protection Page -->
+            <div id="protection" class="page">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">Surrogate Protection Plan</h2>
+                <div class="section">
+                    <div class="section-title">Protection Measures</div>
+                    <div class="section-content">Information about protection measures and insurance will be displayed here</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Frequently Asked Questions</div>
+                    <div class="section-content">FAQ content will be displayed here</div>
+                </div>
+            </div>
+
+            <!-- Company Page -->
+            <div id="company" class="page">
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 20px; text-align: center;">About Our Company</h2>
+                <div class="logo-placeholder">LOGO</div>
+                <p style="color: #555; text-align: center; margin-bottom: 32px;">Company introduction content will be displayed here</p>
+                <button class="button">Visit Website</button>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="showPage('process')">
+                <div class="nav-icon">📊</div>
+                <div>Process</div>
+            </div>
+            <div class="nav-item" onclick="showPage('benefits')">
+                <div class="nav-icon">🎁</div>
+                <div>Benefits</div>
+            </div>
+            <div class="nav-item" onclick="showPage('register')">
+                <div class="nav-icon">✏️</div>
+                <div>Register</div>
+            </div>
+            <div class="nav-item" onclick="showPage('ambassador')">
+                <div class="nav-icon">👥</div>
+                <div>Ambassador</div>
+            </div>
+            <div class="nav-item" onclick="showPage('protection')">
+                <div class="nav-icon">🛡️</div>
+                <div>Protection</div>
+            </div>
+            <div class="nav-item" onclick="showPage('company')">
+                <div class="nav-icon">ℹ️</div>
+                <div>Company</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Find and activate the clicked nav item
+            event.currentTarget.classList.add('active');
+
+            // Reset form steps if showing register page
+            if (pageId === 'register') {
+                resetFormSteps();
+            }
+        }
+
+        function resetFormSteps() {
+            currentStep = 1;
+            updateFormStep();
+        }
+
+        function updateFormStep() {
+            // Hide all steps
+            for (let i = 1; i <= totalSteps; i++) {
+                document.getElementById(`step${i}`).style.display = 'none';
+            }
+            
+            // Show current step
+            document.getElementById(`step${currentStep}`).style.display = 'block';
+            
+            // Update progress bar
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            // Update step indicator
+            document.getElementById('stepIndicator').textContent = `Step ${currentStep} of ${totalSteps}`;
+            
+            // Update buttons
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+            nextBtn.textContent = currentStep === totalSteps ? 'Submit Application' : 'Next Step';
+        }
+
+        // Form navigation
+        document.getElementById('nextBtn').addEventListener('click', function() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateFormStep();
+            } else {
+                alert('Application Submitted!\n\nThank you for your interest in becoming a surrogate! We will review your application and contact you within 24-48 hours.');
+                resetFormSteps();
+            }
+        });
+
+        document.getElementById('prevBtn').addEventListener('click', function() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateFormStep();
+            }
+        });
+
+        // Add some interactivity
+        document.querySelectorAll('.button').forEach(button => {
+            if (!button.id) { // Don't add to navigation buttons
+                button.addEventListener('click', function() {
+                    alert('Button clicked! This would trigger the actual functionality in the real app.');
+                });
+            }
+        });
+
+        document.querySelector('.fab').addEventListener('click', function() {
+            alert('Add new post! This would open the camera/gallery in the real app.');
+        });
+
+        // Initialize form steps
+        updateFormStep();
+    </script>
+</body>
+</html> 
