@@ -13,6 +13,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
 import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen';
+import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -138,6 +139,7 @@ function AppStackNavigator() {
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
     </Stack.Navigator>
   );
 }

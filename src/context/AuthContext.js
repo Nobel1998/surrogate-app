@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorageLib from '../utils/Storage';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -179,56 +180,67 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // Mock registration - in real app would call API
       if (!userData.email || !userData.password) {
         return { success: false, error: 'Email and password are required' };
       }
 
-      // Get all users from storage
-      const allUsers = await getAllStoredUsers();
-      
-      // Check if user already exists
-      const existingUser = allUsers.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
-      if (existingUser) {
-        return { success: false, error: 'An account with this email already exists' };
-      }
-
-      const newUser = {
-        id: Date.now().toString(),
+      // 1. Sign up with Supabase Auth
+      // We pass referralCode in the user metadata so the database trigger can use it immediately
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
-        password: userData.password, // Store password for login validation
-        name: userData.name,
-        phone: userData.phone || '',
-        address: userData.address || '',
-        dateOfBirth: userData.dateOfBirth || '',
-        emergencyContact: userData.emergencyContact || '',
-        medicalHistory: userData.medicalHistory || '',
-        preferences: {
-          notifications: true,
-          emailUpdates: true,
-          smsUpdates: false,
-        },
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      };
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name,
+            phone: userData.phone,
+            referral_code: userData.referralCode || null, // Pass it here!
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // 2. Fetch the full profile including the generated invite_code
+        // We no longer need to manually update referred_by here because the trigger will handle it
+        // But we might need a small delay to ensure the trigger has finished inserting the row
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        // 4. Construct the user object for local state
+        const newUser = {
+          id: authData.user.id,
+          email: userData.email,
+          name: userData.name,
+          phone: userData.phone || '',
+          address: userData.address || '',
+          dateOfBirth: userData.dateOfBirth || '',
+          emergencyContact: userData.emergencyContact || '',
+          inviteCode: profileData?.invite_code || '', // Get the generated code
+          referredBy: profileData?.referred_by || '',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+        };
+        
+        setUser(newUser);
+        setIsAuthenticated(true);
+        await storeUser(newUser);
+        
+        // Keep the old local storage logic as a fallback/cache if you want
+        // but primarily we rely on Supabase now for this session
+        return { success: true, user: newUser };
+      }
       
-      // Add new user to all users array
-      allUsers.push(newUser);
-      
-      // Save all users to storage
-      await saveAllUsers(allUsers);
-      
-      // Remove password from user data before storing
-      const { password: _, ...userDataWithoutPassword } = newUser;
-      
-      setUser(userDataWithoutPassword);
-      setIsAuthenticated(true);
-      await storeUser(userDataWithoutPassword);
-      
-      return { success: true, user: userDataWithoutPassword };
+      return { success: false, error: 'Registration failed' };
+
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: 'Registration failed, please try again' };
+      return { success: false, error: error.message || 'Registration failed, please try again' };
     } finally {
       setIsLoading(false);
     }

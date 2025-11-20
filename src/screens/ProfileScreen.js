@@ -288,6 +288,15 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('AdminDashboard')}>
+            <Text style={styles.actionIcon}>🛠️</Text>
+            <View style={styles.actionInfo}>
+              <Text style={styles.actionTitle}>Admin Dashboard</Text>
+              <Text style={styles.actionDescription}>View incoming applications</Text>
+            </View>
+            <Text style={styles.actionArrow}>›</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionItem}>
             <Text style={styles.actionIcon}>❓</Text>
             <View style={styles.actionInfo}>

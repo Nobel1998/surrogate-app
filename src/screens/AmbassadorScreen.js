@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
 
 export default function AmbassadorScreen() {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -21,15 +23,19 @@ export default function AmbassadorScreen() {
     referrals: '',
     successfulMatches: ''
   });
-  const [referralCode, setReferralCode] = useState('');
+  // Use the referral code from the user profile if available, otherwise fall back to local state (though we don't generate locally anymore)
+  const [referralCode, setReferralCode] = useState(user?.inviteCode || ''); 
   const [ambassadorStatus, setAmbassadorStatus] = useState(null);
   const [ambassadorHistory, setAmbassadorHistory] = useState([]);
   
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
+    if (user?.inviteCode) {
+      setReferralCode(user.inviteCode);
+    }
     loadAmbassadorStatus();
-  }, []);
+  }, [user]);
 
   const scrollToTop = () => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -277,11 +283,8 @@ export default function AmbassadorScreen() {
         <Text style={styles.label}>Your Referral Code</Text>
         <View style={styles.referralCodeContainer}>
           <Text style={styles.referralCodeText}>
-            {referralCode || 'Click Generate to create your code'}
+            {referralCode || 'Code generated upon registration'}
           </Text>
-          <TouchableOpacity style={styles.generateButton} onPress={generateReferralCode}>
-            <Text style={styles.generateButtonText}>Generate</Text>
-          </TouchableOpacity>
         </View>
         <Text style={styles.referralCodeNote}>
           Share this code with potential surrogates. You'll earn $500 for each successful match!

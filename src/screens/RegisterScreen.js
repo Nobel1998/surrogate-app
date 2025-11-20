@@ -13,6 +13,7 @@ export default function RegisterScreen({ navigation }) {
     dateOfBirth: '',
     address: '',
     emergencyContact: '',
+    referralCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -232,6 +233,17 @@ export default function RegisterScreen({ navigation }) {
           value={formData.emergencyContact}
           onChangeText={(value) => updateFormData('emergencyContact', value)}
           placeholder="Enter emergency contact information"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Referral Code (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          value={formData.referralCode}
+          onChangeText={(value) => updateFormData('referralCode', value)}
+          placeholder="Enter referral code if you have one"
+          autoCapitalize="characters"
         />
       </View>
     </View>

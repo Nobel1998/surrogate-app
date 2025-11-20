@@ -23,21 +23,21 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-
+    
     if (!password.trim()) {
       Alert.alert('Error', 'Please enter your password');
       return;
     }
 
     try {
-      const result = await login(email.trim(), password);
-      
-      if (result.success) {
-        Alert.alert('Success', 'Login successful!', [
-          { text: 'OK' }
-        ]);
-      } else {
-        Alert.alert('Login Failed', result.error);
+    const result = await login(email.trim(), password);
+    
+    if (result.success) {
+      Alert.alert('Success', 'Login successful!', [
+        { text: 'OK' }
+      ]);
+    } else {
+      Alert.alert('Login Failed', result.error);
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');

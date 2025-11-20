@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorageLib from '../utils/Storage';
+import { supabase } from '../lib/supabase';
 
 export default function SurrogateApplicationScreen({ navigation }) {
   const { user } = useAuth();
@@ -215,11 +216,27 @@ export default function SurrogateApplicationScreen({ navigation }) {
     setIsLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Construct payload for Supabase
+      const { fullName, phoneNumber, ...otherFields } = applicationData;
+      const payload = {
+        full_name: fullName,
+        phone: phoneNumber,
+        form_data: JSON.stringify(otherFields)
+      };
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('applications')
+        .insert([payload])
+        .select();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Create local application object for history
       const application = {
-        id: `APP-${Date.now()}`,
+        id: data && data[0] ? data[0].id : `APP-${Date.now()}`,
         type: 'Surrogacy Application',
         status: 'pending',
         submittedDate: new Date().toISOString().split('T')[0],
@@ -231,7 +248,7 @@ export default function SurrogateApplicationScreen({ navigation }) {
         data: applicationData,
       };
 
-      // Save application to AsyncStorage
+      // Save application to AsyncStorage (keep local history working)
       try {
         const existingApplications = await AsyncStorageLib.getItem('user_applications');
         let applications = [];
@@ -246,13 +263,13 @@ export default function SurrogateApplicationScreen({ navigation }) {
         // Save updated applications list
         await AsyncStorageLib.setItem('user_applications', JSON.stringify(applications));
       } catch (storageError) {
-        console.error('Error saving application:', storageError);
-        // Continue even if storage fails
+        console.error('Error saving application locally:', storageError);
+        // Continue even if storage fails, as Supabase succeeded
       }
 
       Alert.alert(
         'Application Submitted Successfully! 🎉',
-        'Thank you for submitting your surrogacy application. Our team will review your application and contact you within 5-7 business days.\n\nApplication ID: ' + application.id,
+        'Thank you for submitting your surrogacy application. Our team will review your application and contact you within 5-7 business days.',
         [
           {
             text: 'OK',
@@ -263,7 +280,7 @@ export default function SurrogateApplicationScreen({ navigation }) {
         ]
       );
     } catch (error) {
-      Alert.alert('Submission Error', 'There was an error submitting your application. Please try again.');
+      Alert.alert('Submission Error', error.message || 'There was an error submitting your application. Please try again.');
       console.error('Submission error:', error);
     } finally {
       setIsLoading(false);
