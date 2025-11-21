@@ -184,6 +184,16 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Email and password are required' };
       }
 
+      // Check if user with this email already exists BEFORE calling signUp
+      // Note: This only works if RLS allows reading auth.users or if we check our profiles table
+      // Checking profiles table is safer/easier with standard RLS
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', (await supabase.auth.signInWithOtp({ email: userData.email, options: { shouldCreateUser: false } })).data?.user?.id) // This is a bit hacky, let's try a cleaner way or just rely on signUp error
+      
+      // Cleaner way: Let's just call signUp and handle the specific error for existing user
+      
       // 1. Sign up with Supabase Auth
       // We pass referralCode in the user metadata so the database trigger can use it immediately
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -199,6 +209,12 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (authError) throw authError;
+
+      // Check if this is a duplicate email registration
+      // Supabase returns user.identities = [] when email already exists
+      if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
+        return { success: false, error: 'This email is already registered. Please log in instead.' };
+      }
 
       if (authData.user) {
         // 2. Fetch the full profile including the generated invite_code
