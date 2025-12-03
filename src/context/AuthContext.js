@@ -113,14 +113,136 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      // Check AsyncStorage for stored user credentials
-      const storedUser = await getStoredUser();
-      if (storedUser) {
-        setUser(storedUser);
-        setIsAuthenticated(true);
+      console.log('🔍 Checking auth status...');
+      
+      // Supabase 连接已验证正常
+      
+      // 添加超时机制，防止无限加载
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Auth check timeout')), 8000); // 8秒超时（增加时间）
+      });
+      
+      // 首先检查 Supabase 会话
+      const sessionPromise = supabase.auth.getSession();
+      
+      const { data: { session }, error } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]);
+      
+      if (error) {
+        console.error('🚨 Supabase session error details:', {
+          message: error.message,
+          status: error.status,
+          statusCode: error.statusCode,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        if (error.message === 'Auth check timeout') {
+          console.log('⏱️ Auth check timed out - checking local storage');
+          // 超时时，检查本地存储的用户
+          const storedUser = await getStoredUser();
+          if (storedUser) {
+            console.log('📱 Found stored user, will require re-login for cloud sync');
+            // 有本地用户但没有云端会话，清除本地用户强制重新登录
+            setUser(null);
+            setIsAuthenticated(false);
+            await AsyncStorageLib.removeItem('current_user');
+          } else {
+            console.log('❌ No stored user found');
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } else {
+          console.error('Error getting Supabase session:', error);
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Session check result:', session ? 'Session found' : 'No session', error ? `Error: ${error.message}` : '');
+      
+      if (session?.user) {
+        // Supabase 会话存在，使用它
+        console.log('✅ Supabase session found, user:', session.user.email);
+        
+        try {
+          // Fetch user profile with timeout
+          const profilePromise = supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          const { data: profileData } = await Promise.race([
+            profilePromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
+          ]);
+          
+          const userData = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+            phone: session.user.user_metadata?.phone || '',
+            inviteCode: profileData?.invite_code || '',
+            referredBy: profileData?.referred_by || '',
+            createdAt: session.user.created_at,
+            lastLogin: new Date().toISOString(),
+          };
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+          await storeUser(userData);
+          console.log('✅ User authenticated with Supabase session');
+        } catch (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // 即使 profile 获取失败，也可以使用基本用户信息
+          const basicUserData = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+            phone: session.user.user_metadata?.phone || '',
+            inviteCode: '',
+            referredBy: '',
+            createdAt: session.user.created_at,
+            lastLogin: new Date().toISOString(),
+          };
+          
+          setUser(basicUserData);
+          setIsAuthenticated(true);
+          await storeUser(basicUserData);
+          console.log('✅ User authenticated with basic session data');
+        }
+      } else {
+        // 没有 Supabase 会话
+        console.log('⚠️ No Supabase session found');
+        const storedUser = await getStoredUser();
+        if (storedUser) {
+          console.log('Found stored user locally:', storedUser.email);
+          console.log('⚠️ User will need to re-login to create Supabase session');
+          // 清除本地用户，强制重新登录
+          setUser(null);
+          setIsAuthenticated(false);
+          await AsyncStorageLib.removeItem('current_user');
+        } else {
+          // 没有本地用户，设置为未认证状态
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       }
     } catch (error) {
-      console.error('Error checking auth status:', error);
+      if (error.message === 'Auth check timeout') {
+        console.log('⏱️ Auth check timed out - this is normal for slow connections');
+      } else {
+        console.error('Error checking auth status:', error);
+      }
+      // 发生错误时，设置为未认证状态，让用户可以重新登录
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -130,46 +252,162 @@ export const AuthProvider = ({ children }) => {
     // Initialize storage and check if user is already logged in
     initializeStorage();
     checkAuthStatus();
+    
+    // 监听 Supabase 认证状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          const userData = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+            phone: session.user.user_metadata?.phone || '',
+            inviteCode: profileData?.invite_code || '',
+            referredBy: profileData?.referred_by || '',
+            createdAt: session.user.created_at,
+            lastLogin: new Date().toISOString(),
+          };
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+          await storeUser(userData);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
+        await AsyncStorageLib.removeItem('current_user');
+      }
+    });
+    
+    // 清理订阅
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
     try {
       setIsLoading(true);
       
-      // Mock login with password validation - in real app would call API
       if (!email || !password) {
         return { success: false, error: 'Email and password cannot be empty' };
       }
 
-      // Get all users from storage (includes registered users)
-      const allUsers = await getAllStoredUsers();
-      
-      // Find user by email
-      const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (!user) {
-        return { success: false, error: 'Invalid email or password' };
+      console.log('🔐 Starting login process for:', email);
+
+      // Supabase 连接已验证正常
+
+      // 添加登录超时机制
+      const loginTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timeout')), 15000); // 15秒超时
+      });
+
+      // Use Supabase Auth to sign in with timeout
+      console.log('🔑 Attempting Supabase authentication...');
+      const loginPromise = supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
+      });
+
+      const { data: authData, error: authError } = await Promise.race([
+        loginPromise,
+        loginTimeout
+      ]);
+
+      if (authError) {
+        console.error('🚨 Detailed Supabase login error:', {
+          message: authError.message,
+          status: authError.status,
+          statusCode: authError.statusCode,
+          details: authError.details,
+          hint: authError.hint,
+          code: authError.code,
+          name: authError.name
+        });
+        
+        if (authError.message.includes('Invalid login credentials')) {
+          return { success: false, error: 'Invalid email or password' };
+        }
+        if (authError.message.includes('Email not confirmed')) {
+          return { success: false, error: 'Please check your email and confirm your account' };
+        }
+        if (authError.status === 400) {
+          return { success: false, error: 'Invalid request. Please check your credentials.' };
+        }
+        if (authError.status === 401) {
+          return { success: false, error: 'Authentication failed. Please check your email and password.' };
+        }
+        if (authError.status === 429) {
+          return { success: false, error: 'Too many login attempts. Please wait and try again.' };
+        }
+        return { success: false, error: `Login failed: ${authError.message}` };
       }
 
-      // Check password
-      if (user.password !== password) {
-        return { success: false, error: 'Invalid email or password' };
+      if (!authData.user) {
+        return { success: false, error: 'Login failed, please try again' };
       }
 
-      // Update last login time
-      user.lastLogin = new Date().toISOString();
-      await saveAllUsers(allUsers);
+      console.log('✅ Supabase login successful');
 
-      // Remove password from user data before storing
-      const { password: _, ...userData } = user;
+      // Fetch user profile from profiles table with timeout
+      const profileTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000); // 5秒超时
+      });
+
+      let profileData = null;
+      try {
+        const profilePromise = supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        const { data, error: profileError } = await Promise.race([
+          profilePromise,
+          profileTimeout
+        ]);
+
+        if (profileError) {
+          console.log('⚠️ Profile fetch failed, using basic user data:', profileError.message);
+        } else {
+          profileData = data;
+          console.log('✅ Profile data fetched successfully');
+        }
+      } catch (profileError) {
+        console.log('⚠️ Profile fetch timed out, using basic user data');
+      }
+
+      // Construct user data
+      const userData = {
+        id: authData.user.id,
+        email: authData.user.email,
+        name: authData.user.user_metadata?.name || email.split('@')[0],
+        phone: authData.user.user_metadata?.phone || '',
+        inviteCode: profileData?.invite_code || '',
+        referredBy: profileData?.referred_by || '',
+        createdAt: authData.user.created_at,
+        lastLogin: new Date().toISOString(),
+      };
       
       setUser(userData);
       setIsAuthenticated(true);
       await storeUser(userData);
       
+      console.log('🎉 Login completed successfully');
       return { success: true, user: userData };
     } catch (error) {
       console.error('Login error:', error);
+      if (error.message === 'Login timeout') {
+        return { success: false, error: 'Login timed out. Please check your internet connection and try again.' };
+      }
       return { success: false, error: 'Login failed, please try again' };
     } finally {
       setIsLoading(false);
@@ -184,16 +422,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Email and password are required' };
       }
 
-      // Check if user with this email already exists BEFORE calling signUp
-      // Note: This only works if RLS allows reading auth.users or if we check our profiles table
-      // Checking profiles table is safer/easier with standard RLS
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', (await supabase.auth.signInWithOtp({ email: userData.email, options: { shouldCreateUser: false } })).data?.user?.id) // This is a bit hacky, let's try a cleaner way or just rely on signUp error
-      
-      // Cleaner way: Let's just call signUp and handle the specific error for existing user
-      
       // 1. Sign up with Supabase Auth
       // We pass referralCode in the user metadata so the database trigger can use it immediately
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -203,17 +431,46 @@ export const AuthProvider = ({ children }) => {
           data: {
             name: userData.name,
             phone: userData.phone,
-            referral_code: userData.referralCode || null, // Pass it here!
+            referral_code: userData.referralCode || null,
           }
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Check for specific duplicate email error
+        if (authError.message && (authError.message.includes('already registered') || authError.message.includes('User already registered'))) {
+          return { success: false, error: 'This email is already registered. Please login instead.' };
+        }
+        throw authError;
+      }
 
-      // Check if this is a duplicate email registration
-      // Supabase returns user.identities = [] when email already exists
-      if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
-        return { success: false, error: 'This email is already registered. Please log in instead.' };
+      // CRITICAL: Check if this is truly a new registration
+      // If user already exists, Supabase returns user data but:
+      // - authData.user.identities will be an empty array []
+      // - authData.session will be null
+      if (!authData.user) {
+        return { success: false, error: 'Registration failed. Please try again.' };
+      }
+
+      // Check if this is a duplicate signup attempt (user exists)
+      if (authData.user.identities && authData.user.identities.length === 0) {
+        return { success: false, error: 'This email is already registered. Please login instead.' };
+      }
+
+      // Additional check: if we have a user but no session, it might be a duplicate or email confirmation pending
+      if (!authData.session) {
+        // This could be either:
+        // 1. Email confirmation is required (legitimate new user)
+        // 2. User already exists (duplicate)
+        // Let's check the created_at timestamp - if it's old, it's likely a duplicate
+        const userCreatedAt = new Date(authData.user.created_at);
+        const now = new Date();
+        const timeDiff = now - userCreatedAt;
+        
+        // If user was created more than 10 seconds ago, it's likely an existing user
+        if (timeDiff > 10000) {
+          return { success: false, error: 'This email is already registered. Please login instead.' };
+        }
       }
 
       if (authData.user) {
@@ -264,6 +521,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
       setUser(null);
       setIsAuthenticated(false);
       // Clear stored user credentials

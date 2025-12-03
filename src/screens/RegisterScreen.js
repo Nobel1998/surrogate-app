@@ -70,8 +70,16 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Error', 'Please enter your date of birth');
       return false;
     }
+    
+    // Optional: Add simple validation for MM/DD/YYYY format
+    // const dobRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
+    // if (!dobRegex.test(formData.dateOfBirth.trim())) {
+    //   Alert.alert('Error', 'Please enter Date of Birth in MM/DD/YYYY format');
+    //   return false;
+    // }
+
     if (!formData.address.trim()) {
-      Alert.alert('Error', 'Please enter your address');
+      Alert.alert('Error', 'Please enter your location');
       return false;
     }
     return true;
@@ -106,7 +114,7 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const navigateToLogin = () => {
-    navigation.navigate('Login');
+    navigation.navigate('LoginScreen');
   };
 
   const renderStep1 = () => (
@@ -210,29 +218,29 @@ export default function RegisterScreen({ navigation }) {
           style={styles.input}
           value={formData.dateOfBirth}
           onChangeText={(value) => updateFormData('dateOfBirth', value)}
-          placeholder="YYYY-MM-DD"
+          placeholder="MM/DD/YYYY"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Address *</Text>
+        <Text style={styles.label}>Location *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={formData.address}
           onChangeText={(value) => updateFormData('address', value)}
-          placeholder="Enter your address"
+          placeholder="Enter your location"
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Emergency Contact</Text>
+        <Text style={styles.label}>Race</Text>
         <TextInput
           style={styles.input}
           value={formData.emergencyContact}
           onChangeText={(value) => updateFormData('emergencyContact', value)}
-          placeholder="Enter emergency contact information"
+          placeholder="Enter your race"
         />
       </View>
 

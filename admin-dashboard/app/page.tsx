@@ -1,6 +1,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 import ApproveButton from '../components/ApproveButton';
+import DashboardStats from '../components/DashboardStats';
 
 export const revalidate = 0;
 
@@ -19,10 +20,17 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Surrogacy Applications</h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+          <p className="text-gray-600">Manage surrogate applications and events</p>
+        </div>
+        
+        <DashboardStats />
+        
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Recent Applications</h2>
           <div className="text-sm text-gray-500">
             Total: {applications?.length || 0}
           </div>

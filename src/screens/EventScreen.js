@@ -1,165 +1,194 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, TextInput, SafeAreaView, StatusBar } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
-import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, StatusBar, RefreshControl, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 
 export default function EventScreen() {
-  const { addEvent } = useAppContext();
-  const [eventData, setEventData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    date: '',
-    location: '',
-    image: null,
-    publisher: 'company'
-  });
+  const navigation = useNavigation();
+  const { isAuthenticated } = useAuth();
+  const { 
+    events, 
+    likedEvents, 
+    handleEventLike, 
+    registerForEvent, 
+    refreshData,
+    isLoading 
+  } = useAppContext();
+  
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-      Alert.alert('Permission Required', 'We need camera and photo library permissions to share photos and videos.');
-      return false;
+  // 下拉刷新
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (error) {
+      console.error('Error refreshing events:', error);
+    } finally {
+      setRefreshing(false);
     }
-    return true;
-  };
+  }, [refreshData]);
 
-  const pickEventImage = async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setEventData(prev => ({ ...prev, image: result.assets[0] }));
-    }
-  };
-
-  const publishEvent = () => {
-    if (!eventData.title || !eventData.description || !eventData.category) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+  // 处理事件报名
+  const handleRegister = async (event) => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Login Required',
+        'Please log in to register for events.',
+        [{ text: 'OK', onPress: () => navigation.navigate('LoginScreen') }]
+      );
       return;
     }
 
-    // 将事件添加到全局状态
-    addEvent(eventData);
-
-    Alert.alert('Success', 'Event published successfully!', [
-      {
-        text: 'OK',
-        onPress: () => {
-          setEventData({
-            title: '',
-            description: '',
-            category: '',
-            date: '',
-            location: '',
-            image: null,
-            publisher: 'company'
-          });
+    Alert.alert(
+      'Register for Event',
+      `Do you want to register for "${event.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Register', 
+          onPress: async () => {
+            const result = await registerForEvent(event.id);
+            if (result.success) {
+              Alert.alert('Success', 'You have been registered for this event!');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to register for event');
+            }
+          }
         }
-      }
-    ]);
+      ]
+    );
+  };
+
+  // 处理点赞
+  const handleLike = async (eventId) => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Login Required',
+        'Please log in to like events.',
+        [{ text: 'OK', onPress: () => navigation.navigate('LoginScreen') }]
+      );
+      return;
+    }
+
+    await handleEventLike(eventId);
+  };
+
+  const renderEventItem = ({ item }) => {
+    const isLiked = likedEvents?.has(item.id) || false;
+    const isUpcoming = new Date(item.eventDate) > new Date();
+    
+    return (
+      <View style={styles.card}>
+        {item.image && (
+          <Image source={{ uri: item.image }} style={styles.cardImage} />
+        )}
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>{item.category}</Text>
+            </View>
+            {item.isFeatured && (
+              <View style={styles.featuredBadge}>
+                <Text style={styles.featuredText}>⭐ Featured</Text>
+              </View>
+            )}
+          </View>
+          
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardDate}>{item.date} • {item.location}</Text>
+          <Text style={styles.cardDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+
+          {/* 事件统计和操作 */}
+          <View style={styles.cardFooter}>
+            <View style={styles.statsContainer}>
+              <TouchableOpacity 
+                style={styles.likeButton}
+                onPress={() => handleLike(item.id)}
+              >
+                <Text style={[styles.likeIcon, isLiked && styles.likedIcon]}>
+                  {isLiked ? '❤️' : '🤍'}
+                </Text>
+                <Text style={styles.statText}>{item.likesCount || 0}</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.statItem}>
+                <Text style={styles.statIcon}>👥</Text>
+                <Text style={styles.statText}>
+                  {item.registrationCount || 0}
+                  {item.maxParticipants ? `/${item.maxParticipants}` : ''}
+                </Text>
+              </View>
+            </View>
+
+            {isAuthenticated && isUpcoming && (
+              <TouchableOpacity 
+                style={styles.registerButton}
+                onPress={() => handleRegister(item)}
+              >
+                <Text style={styles.registerButtonText}>Register</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const handleLoginPress = () => {
+    // If inside GuestTab, we might need to navigate to a specific route
+    // But standard 'Login' route should work if defined in the navigator
+    navigation.navigate('LoginScreen');
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Create Event</Text>
-        <Text style={styles.subtitle}>BabyTree Surrogacy - Company Events</Text>
+        <Text style={styles.title}>Events</Text>
+        <Text style={styles.subtitle}>Upcoming Company Events</Text>
       </View>
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.userInfo}>
-          <View style={[styles.userAvatar, styles.companyAvatar]}>
-            <Icon name="briefcase" size={20} color="#fff" />
+      <FlatList
+        data={events}
+        renderItem={renderEventItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A7BF6']}
+            tintColor="#2A7BF6"
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No Events Available</Text>
+            <Text style={styles.emptyText}>
+              {isLoading ? 'Loading events...' : 'Check back later for upcoming events!'}
+            </Text>
           </View>
-          <Text style={styles.userName}>BabyTree Surrogacy</Text>
-        </View>
-        
-        <Text style={styles.inputLabel}>Event Title *</Text>
-        <TextInput
-          style={styles.textInput}
-          placeholder="Enter event title..."
-          value={eventData.title}
-          onChangeText={(text) => setEventData(prev => ({ ...prev, title: text }))}
+        }
         />
         
-        <Text style={styles.inputLabel}>Description *</Text>
-        <TextInput
-          style={[styles.textInput, styles.textArea]}
-          placeholder="Describe your event..."
-          value={eventData.description}
-          onChangeText={(text) => setEventData(prev => ({ ...prev, description: text }))}
-          multiline
-          numberOfLines={3}
-        />
-        
-        <Text style={styles.inputLabel}>Category *</Text>
-        <View style={styles.categoryContainer}>
-          {[
-            { key: 'transplant', label: '🌱 Transplant', value: 'transplant' },
-            { key: 'medical', label: '🏥 Medical', value: 'medical' },
-            { key: 'gathering', label: '🎉 Gathering', value: 'gathering' },
-            { key: 'celebration', label: '🎊 Celebration', value: 'celebration' }
-          ].map((category) => (
-            <TouchableOpacity
-              key={category.key}
-              style={[
-                styles.categoryButton,
-                eventData.category === category.value && styles.categoryButtonSelected
-              ]}
-              onPress={() => setEventData(prev => ({ ...prev, category: category.value }))}
-            >
-              <Text style={[
-                styles.categoryButtonText,
-                eventData.category === category.value && styles.categoryButtonTextSelected
-              ]}>
-                {category.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        
-        <Text style={styles.inputLabel}>Date (Optional)</Text>
-        <TextInput
-          style={styles.textInput}
-          placeholder="e.g., March 15, 2024"
-          value={eventData.date}
-          onChangeText={(text) => setEventData(prev => ({ ...prev, date: text }))}
-        />
-        
-        <Text style={styles.inputLabel}>Location (Optional)</Text>
-        <TextInput
-          style={styles.textInput}
-          placeholder="e.g., Los Angeles, CA"
-          value={eventData.location}
-          onChangeText={(text) => setEventData(prev => ({ ...prev, location: text }))}
-        />
-        
-        <TouchableOpacity style={styles.imageButton} onPress={pickEventImage}>
-          <Text style={styles.imageButtonText}>
-            {eventData.image ? '📷 Change Image' : '📷 Add Image'}
+      {!isAuthenticated && (
+        <View style={styles.authPromptContainer}>
+          <Text style={styles.authPromptText}>
+            Join our community to access full features
           </Text>
-        </TouchableOpacity>
-        
-        {eventData.image && (
-          <Image source={{ uri: eventData.image.uri }} style={styles.previewImage} />
-        )}
-        
-        <TouchableOpacity style={styles.publishButton} onPress={publishEvent}>
-          <Text style={styles.publishButtonText}>Publish Event</Text>
-        </TouchableOpacity>
-      </ScrollView>
+            <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLoginPress}
+            >
+            <Text style={styles.loginButtonText}>Log In / Register</Text>
+            </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -167,144 +196,188 @@ export default function EventScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8F9FB' 
+    backgroundColor: '#F8F9FB',
   },
   headerContainer: {
+    paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   title: { 
-    fontSize: 24, 
+    fontSize: 28,
     fontWeight: 'bold', 
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 8,
-    color: '#333'
+    color: '#333',
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
-    marginHorizontal: 20,
-    marginBottom: 10
+    marginTop: 4,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20
+  listContent: {
+    padding: 20,
+    paddingBottom: 100, // Add padding for the bottom auth prompt
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
+  card: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
   },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12
+  cardImage: {
+    width: '100%',
+    height: 180,
+    resizeMode: 'cover',
   },
-  companyAvatar: {
-    backgroundColor: '#2A7BF6'
+  cardContent: {
+    padding: 16,
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333'
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8
-  },
-  textInput: {
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    marginBottom: 8
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top'
-  },
-  categoryContainer: {
+  cardHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  categoryButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
+  badgeContainer: {
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    color: '#2A7BF6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  featuredBadge: {
+    backgroundColor: '#FFF3CD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  featuredText: {
+    color: '#856404',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  cardDate: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 8,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  likeIcon: {
+    fontSize: 16,
+  },
+  likedIcon: {
+    fontSize: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statIcon: {
+    fontSize: 14,
+  },
+  statText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  registerButton: {
+    backgroundColor: '#2A7BF6',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef'
+    borderRadius: 20,
   },
-  categoryButtonSelected: {
-    backgroundColor: '#28a745',
-    borderColor: '#28a745'
-  },
-  categoryButtonText: {
+  registerButtonText: {
+    color: '#fff',
     fontSize: 14,
-    color: '#666'
+    fontWeight: '600',
   },
-  categoryButtonTextSelected: {
-    color: '#fff',
-    fontWeight: '600'
-  },
-  imageButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
+  emptyContainer: {
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e9ecef'
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
-  imageButtonText: {
-    fontSize: 16,
-    color: '#28a745',
-    fontWeight: '600'
-  },
-  previewImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 16
-  },
-  publishButton: {
-    backgroundColor: '#28a745',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 32,
-    shadowColor: '#28a745',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4
-  },
-  publishButtonText: {
+  emptyTitle: {
     fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  authPromptContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    flexDirection: 'column',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  authPromptText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  loginButton: {
+    backgroundColor: '#2A7BF6',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 25,
+    width: '100%',
+    alignItems: 'center',
+  },
+  loginButtonText: {
     color: '#fff',
-    fontWeight: '600'
-  }
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 

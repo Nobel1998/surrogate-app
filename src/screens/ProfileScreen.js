@@ -163,13 +163,13 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address</Text>
+            <Text style={styles.label}>Location</Text>
             {isEditing ? (
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={editData.address}
                 onChangeText={(value) => setEditData({...editData, address: value})}
-                placeholder="Enter your address"
+                placeholder="Enter your location"
                 multiline
                 numberOfLines={3}
               />
@@ -179,13 +179,13 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Emergency Contact</Text>
+            <Text style={styles.label}>Race</Text>
             {isEditing ? (
               <TextInput
                 style={styles.input}
                 value={editData.emergencyContact}
                 onChangeText={(value) => setEditData({...editData, emergencyContact: value})}
-                placeholder="Enter emergency contact information"
+                placeholder="Enter your race"
               />
             ) : (
               <Text style={styles.value}>{user.emergencyContact || 'Not set'}</Text>

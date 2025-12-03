@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
 export default function AmbassadorScreen() {
   const { user } = useAuth();
@@ -32,8 +31,6 @@ export default function AmbassadorScreen() {
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    console.log('AmbassadorScreen - User object:', user);
-    console.log('AmbassadorScreen - User inviteCode:', user?.inviteCode);
     if (user?.inviteCode) {
       setReferralCode(user.inviteCode);
     }
@@ -162,48 +159,24 @@ export default function AmbassadorScreen() {
     setIsLoading(true);
     
     try {
-      // Prepare data for Supabase
-      const payload = {
-        user_id: user?.id,
-        full_name: ambassadorData.fullName,
-        email: ambassadorData.email,
-        phone: ambassadorData.phone,
-        experience: ambassadorData.experience,
-        motivation: ambassadorData.motivation,
-        referral_code: referralCode || ambassadorData.referralCode || user?.inviteCode,
-        social_media: ambassadorData.socialMedia || null,
-        expected_referrals: ambassadorData.expectedReferrals || null,
-        status: 'pending'
-      };
-
-      // Submit to Supabase
-      const { data, error } = await supabase
-        .from('ambassador_applications')
-        .insert([payload])
-        .select();
-
-      if (error) {
-        throw error;
-      }
-
-      console.log('Ambassador application submitted to Supabase:', data);
-
-      // Create local application object for display
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const application = {
-        id: data[0].id,
+        id: Date.now().toString(),
         ...ambassadorData,
-        submittedAt: data[0].created_at,
+        submittedAt: new Date().toISOString(),
         status: 'pending',
-        referralCode: referralCode || ambassadorData.referralCode || user?.inviteCode
+        referralCode: referralCode || ambassadorData.referralCode
       };
 
-      // Update local state and storage for display purposes
+      // 添加到历史记录
       const updatedHistory = [application, ...ambassadorHistory];
       setAmbassadorHistory(updatedHistory);
       setAmbassadorStatus(application);
       setCurrentStep(4);
       
-      // Save to local storage as cache
+      // 保存到本地存储
       await AsyncStorage.setItem('ambassador_status', JSON.stringify(application));
       await AsyncStorage.setItem('ambassador_history', JSON.stringify(updatedHistory));
 
@@ -213,7 +186,7 @@ export default function AmbassadorScreen() {
         [{ text: 'OK', onPress: () => {} }]
       );
     } catch (error) {
-      Alert.alert('Submission Error', error.message || 'There was an error submitting your application. Please try again.');
+      Alert.alert('Submission Error', 'There was an error submitting your application. Please try again.');
       console.error('Submission error:', error);
     } finally {
       setIsLoading(false);
