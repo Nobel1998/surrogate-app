@@ -17,7 +17,7 @@ export default function Home() {
 
   // 解析申请数据的辅助函数
   const parseApplicationData = (app: any) => {
-    let formData = {};
+    let formData: any = {};
     try {
       if (app.form_data) {
         formData = JSON.parse(app.form_data);
