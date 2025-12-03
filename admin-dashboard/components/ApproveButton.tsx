@@ -15,15 +15,29 @@ export default function ApproveButton({ id, currentStatus, onUpdate }: ApproveBu
   const updateStatus = async (newStatus: 'approved' | 'rejected' | 'pending') => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      console.log('Attempting to update application:', { id, newStatus });
+      
+      const { data, error } = await supabase
         .from('applications')
         .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
+          status: newStatus
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
-      if (error) throw error;
+      console.log('Update result:', { data, error });
+
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+      
+      console.log('Application updated successfully:', data);
       
       // 触发页面刷新
       if (onUpdate) {
@@ -31,9 +45,9 @@ export default function ApproveButton({ id, currentStatus, onUpdate }: ApproveBu
       } else {
         window.location.reload();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating application:', error);
-      alert('Error updating application status');
+      alert(`Error updating application status: ${error.message || error.toString()}`);
     } finally {
       setLoading(false);
     }
