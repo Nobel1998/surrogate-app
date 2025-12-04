@@ -82,24 +82,52 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       };
 
       if (event?.id) {
-        // 更新事件
-        console.log('Updating event with data:', submitData);
-        const { error } = await supabase
+        // 更新事件 - 使用 .match() 确保精确匹配
+        console.log('Updating event with ID:', event.id);
+        console.log('Update data:', submitData);
+        
+        const { data: updateResult, error: updateError, count } = await supabase
           .from('events')
           .update(submitData)
-          .eq('id', event.id);
+          .eq('id', event.id)
+          .select();
 
-        console.log('Update completed, error:', error);
-        if (error) throw error;
+        console.log('Update result:', { 
+          updateResult, 
+          updateError, 
+          count,
+          rowsAffected: updateResult?.length 
+        });
         
-        // 验证更新是否成功 - 重新查询该事件
-        const { data: updatedEvent, error: fetchError } = await supabase
+        if (updateError) {
+          console.error('Update failed:', updateError);
+          throw updateError;
+        }
+        
+        if (!updateResult || updateResult.length === 0) {
+          throw new Error('Update succeeded but no rows were affected. This may be a permission issue.');
+        }
+        
+        console.log('Update successful! Updated event:', updateResult[0]);
+        
+        // 等待一下确保数据库提交
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 验证更新是否真的生效
+        const { data: verifyData, error: verifyError } = await supabase
           .from('events')
-          .select('*')
+          .select('id, title, event_date, updated_at')
           .eq('id', event.id)
           .single();
           
-        console.log('Verification query result:', { updatedEvent, fetchError });
+        console.log('Verification result:', { verifyData, verifyError });
+        
+        if (verifyData && verifyData.event_date !== submitData.event_date) {
+          console.error('❌ CRITICAL: Event date mismatch after update!');
+          console.error('Expected:', submitData.event_date);
+          console.error('Got:', verifyData.event_date);
+          throw new Error(`Update verification failed: date is still ${verifyData.event_date} instead of ${submitData.event_date}`);
+        }
       } else {
         // 创建新事件
         const { error } = await supabase
