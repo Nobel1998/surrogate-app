@@ -31,19 +31,12 @@ export default function EventsManagement() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🚀 Events Management page loaded - debugging enabled');
     loadEvents();
   }, []);
 
   const loadEvents = async () => {
     try {
       setLoading(true);
-      console.log('Loading events from database...');
-      
-      // Query events directly from the base table to avoid view caching issues
-      // Add timestamp to force fresh query and bypass any caching
-      const timestamp = Date.now();
-      console.log('🔍 Querying events at timestamp:', timestamp);
       
       // Use a filter that always returns true to bypass cache
       const { data: eventsData, error: eventsError } = await supabase
@@ -54,16 +47,6 @@ export default function EventsManagement() {
 
       if (eventsError) throw eventsError;
       
-      console.log('📊 Raw events data from database:', eventsData);
-      // Log the specific event we care about
-      const targetEvent = eventsData?.find(e => e.id === 'da96dcc3-6dae-4a56-afd7-d116ece7d733');
-      if (targetEvent) {
-        console.log('🎯 Target event (New Year Wellness Workshop):', {
-          id: targetEvent.id,
-          title: targetEvent.title,
-          event_date: targetEvent.event_date
-        });
-      }
 
       // Get registration counts
       const { data: registrations, error: regError } = await supabase
@@ -89,15 +72,7 @@ export default function EventsManagement() {
         };
       });
 
-      console.log('Events loaded with fresh data:', eventsWithStats);
-      console.log('Setting events state with:', eventsWithStats.map(e => ({
-        id: e.id,
-        title: e.title,
-        event_date: e.event_date
-      })));
-      
-      // Force state update by creating new array
-      setEvents([...eventsWithStats]);
+      setEvents(eventsWithStats);
     } catch (err: any) {
       console.error('Error loading events:', err);
       setError(err.message);
@@ -125,13 +100,10 @@ export default function EventsManagement() {
     setShowForm(false);
     setEditingEvent(null);
     
-    // Force immediate refresh of events list with delay to ensure DB commit
-    console.log('🔄 Form success - refreshing events list...');
-    
-    // Add a small delay to ensure database transaction is fully committed
-    setTimeout(async () => {
-      await loadEvents();
-    }, 1000);
+    // Small delay to ensure database transaction is committed
+    setTimeout(() => {
+      loadEvents();
+    }, 500);
   };
 
   const handleDelete = async (eventId: string) => {
@@ -204,16 +176,10 @@ export default function EventsManagement() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              🔧 Debug Mode - Last loaded: {new Date().toLocaleString()}
-            </p>
           </div>
           <div className="flex space-x-3">
             <button
-              onClick={() => {
-                console.log('🔄 Manual refresh triggered');
-                loadEvents();
-              }}
+              onClick={loadEvents}
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               🔄 Refresh
@@ -250,9 +216,7 @@ export default function EventsManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {events.map((event) => {
-                  console.log('Rendering event:', event.id, 'with date:', event.event_date);
-                  return (
+                {events.map((event) => (
                   <tr key={event.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-start space-x-3">
@@ -286,7 +250,6 @@ export default function EventsManagement() {
                         <div>{new Date(event.event_date).toLocaleDateString()}</div>
                         <div className="text-xs">{new Date(event.event_date).toLocaleTimeString()}</div>
                         <div className="mt-1 text-xs text-gray-400">{event.location}</div>
-                        <div className="text-xs text-red-500">Raw: {event.event_date}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -337,8 +300,7 @@ export default function EventsManagement() {
                       </div>
                     </td>
                   </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>

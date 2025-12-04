@@ -26,8 +26,6 @@ interface EventFormProps {
 const categories = ['General', 'Medical', 'Legal', 'Support', 'Gathering', 'Workshop', 'Webinar'];
 
 export default function EventForm({ event, onClose, onSuccess }: EventFormProps) {
-  console.log('📝 EventForm loaded with event:', event);
-  
   const [formData, setFormData] = useState<Event>({
     title: '',
     description: '',
@@ -122,11 +120,22 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           
         console.log('Verification result:', { verifyData, verifyError });
         
-        if (verifyData && verifyData.event_date !== submitData.event_date) {
-          console.error('❌ CRITICAL: Event date mismatch after update!');
-          console.error('Expected:', submitData.event_date);
-          console.error('Got:', verifyData.event_date);
-          throw new Error(`Update verification failed: date is still ${verifyData.event_date} instead of ${submitData.event_date}`);
+        if (verifyData) {
+          // Compare dates as Date objects to handle timezone format differences
+          const expectedDate = new Date(submitData.event_date);
+          const actualDate = new Date(verifyData.event_date);
+          
+          if (expectedDate.getTime() !== actualDate.getTime()) {
+            console.error('❌ CRITICAL: Event date mismatch after update!');
+            console.error('Expected:', submitData.event_date, '→', expectedDate);
+            console.error('Got:', verifyData.event_date, '→', actualDate);
+            throw new Error(`Update verification failed: date is ${verifyData.event_date} instead of ${submitData.event_date}`);
+          } else {
+            console.log('✅ Date verification passed! Times match:', {
+              expected: expectedDate.toISOString(),
+              actual: actualDate.toISOString()
+            });
+          }
         }
       } else {
         // 创建新事件
