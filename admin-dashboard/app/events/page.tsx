@@ -41,16 +41,29 @@ export default function EventsManagement() {
       console.log('Loading events from database...');
       
       // Query events directly from the base table to avoid view caching issues
-      // Add timestamp to force fresh query
+      // Add timestamp to force fresh query and bypass any caching
       const timestamp = Date.now();
       console.log('🔍 Querying events at timestamp:', timestamp);
       
+      // Use a filter that always returns true to bypass cache
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
+        .not('id', 'is', null)  // This filter always returns all records but bypasses cache
         .order('created_at', { ascending: false });
 
       if (eventsError) throw eventsError;
+      
+      console.log('📊 Raw events data from database:', eventsData);
+      // Log the specific event we care about
+      const targetEvent = eventsData?.find(e => e.id === 'da96dcc3-6dae-4a56-afd7-d116ece7d733');
+      if (targetEvent) {
+        console.log('🎯 Target event (New Year Wellness Workshop):', {
+          id: targetEvent.id,
+          title: targetEvent.title,
+          event_date: targetEvent.event_date
+        });
+      }
 
       // Get registration counts
       const { data: registrations, error: regError } = await supabase
