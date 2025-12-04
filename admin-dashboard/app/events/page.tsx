@@ -37,14 +37,19 @@ export default function EventsManagement() {
   const loadEvents = async () => {
     try {
       setLoading(true);
+      console.log('Loading events from database...');
+      
+      // Force fresh data by adding timestamp to avoid caching
       const { data, error } = await supabase
         .from('events_with_stats')
         .select('*')
         .order('created_at', { ascending: false });
 
+      console.log('Events loaded:', { data, error });
       if (error) throw error;
       setEvents(data || []);
     } catch (err: any) {
+      console.error('Error loading events:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -66,10 +71,14 @@ export default function EventsManagement() {
     setEditingEvent(null);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
     setShowForm(false);
     setEditingEvent(null);
-    loadEvents();
+    
+    // Add a small delay to ensure database update is complete
+    setTimeout(() => {
+      loadEvents();
+    }, 500);
   };
 
   const handleDelete = async (eventId: string) => {

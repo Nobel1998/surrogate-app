@@ -81,11 +81,14 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
       if (event?.id) {
         // 更新事件
-        const { error } = await supabase
+        console.log('Updating event with data:', submitData);
+        const { data, error } = await supabase
           .from('events')
           .update(submitData)
-          .eq('id', event.id);
+          .eq('id', event.id)
+          .select();
 
+        console.log('Update result:', { data, error });
         if (error) throw error;
       } else {
         // 创建新事件
