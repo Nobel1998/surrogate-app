@@ -40,15 +40,40 @@ export default function EventsManagement() {
       setLoading(true);
       console.log('Loading events from database...');
       
-      // Force fresh data by adding timestamp to avoid caching
-      const { data, error } = await supabase
-        .from('events_with_stats')
+      // Query events directly from the base table to avoid view caching issues
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Events loaded:', { data, error });
-      if (error) throw error;
-      setEvents(data || []);
+      if (eventsError) throw eventsError;
+
+      // Get registration counts
+      const { data: registrations, error: regError } = await supabase
+        .from('event_registrations')
+        .select('event_id')
+        .eq('status', 'registered');
+
+      // Get likes counts  
+      const { data: likes, error: likesError } = await supabase
+        .from('event_likes')
+        .select('event_id');
+
+      // Combine data
+      const eventsWithStats = (eventsData || []).map(event => {
+        const registrationCount = registrations?.filter(r => r.event_id === event.id).length || 0;
+        const likesCount = likes?.filter(l => l.event_id === event.id).length || 0;
+        
+        return {
+          ...event,
+          registration_count: registrationCount,
+          likes_count: likesCount,
+          current_participants: registrationCount
+        };
+      });
+
+      console.log('Events loaded with fresh data:', eventsWithStats);
+      setEvents(eventsWithStats);
     } catch (err: any) {
       console.error('Error loading events:', err);
       setError(err.message);
