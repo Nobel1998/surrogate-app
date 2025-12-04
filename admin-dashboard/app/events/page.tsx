@@ -29,6 +29,7 @@ export default function EventsManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     console.log('🚀 Events Management page loaded - debugging enabled');
@@ -74,6 +75,7 @@ export default function EventsManagement() {
 
       console.log('Events loaded with fresh data:', eventsWithStats);
       setEvents(eventsWithStats);
+      setRefreshKey(prev => prev + 1); // Force component re-render
     } catch (err: any) {
       console.error('Error loading events:', err);
       setError(err.message);
@@ -210,9 +212,9 @@ export default function EventsManagement() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200" key={refreshKey}>
                 {events.map((event) => (
-                  <tr key={event.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={`${event.id}-${refreshKey}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-start space-x-3">
                         {event.image_url && (
@@ -245,6 +247,9 @@ export default function EventsManagement() {
                         <div>{new Date(event.event_date).toLocaleDateString()}</div>
                         <div className="text-xs">{new Date(event.event_date).toLocaleTimeString()}</div>
                         <div className="mt-1 text-xs text-gray-400">{event.location}</div>
+                        <div className="text-xs text-red-500 mt-1">
+                          Debug: {event.event_date} → {new Date(event.event_date).toISOString()}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
