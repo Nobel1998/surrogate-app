@@ -41,6 +41,10 @@ export default function EventsManagement() {
       console.log('Loading events from database...');
       
       // Query events directly from the base table to avoid view caching issues
+      // Add timestamp to force fresh query
+      const timestamp = Date.now();
+      console.log('🔍 Querying events at timestamp:', timestamp);
+      
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -108,9 +112,13 @@ export default function EventsManagement() {
     setShowForm(false);
     setEditingEvent(null);
     
-    // Force immediate refresh of events list
+    // Force immediate refresh of events list with delay to ensure DB commit
     console.log('🔄 Form success - refreshing events list...');
-    await loadEvents();
+    
+    // Add a small delay to ensure database transaction is fully committed
+    setTimeout(async () => {
+      await loadEvents();
+    }, 1000);
   };
 
   const handleDelete = async (eventId: string) => {
@@ -187,12 +195,23 @@ export default function EventsManagement() {
               🔧 Debug Mode - Last loaded: {new Date().toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Create New Event
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered');
+                loadEvents();
+              }}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              🔄 Refresh
+            </button>
+            <button
+              onClick={handleCreate}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Create New Event
+            </button>
+          </div>
         </div>
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
