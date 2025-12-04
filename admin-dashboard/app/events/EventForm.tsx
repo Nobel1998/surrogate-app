@@ -56,9 +56,17 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
     setError(null);
 
     try {
+      // 只提交 events 表中实际存在的字段，排除统计字段
       const submitData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        content: formData.content,
         event_date: new Date(formData.event_date).toISOString(),
+        location: formData.location,
+        category: formData.category,
+        image_url: formData.image_url,
+        status: formData.status,
+        is_featured: formData.is_featured,
         max_participants: formData.max_participants || null,
       };
 
@@ -295,3 +303,4 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
     </div>
   );
 }
+

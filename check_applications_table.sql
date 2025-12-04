@@ -75,3 +75,4 @@ JOIN pg_class pc ON pol.polrelid = pc.oid
 JOIN pg_namespace pn ON pc.relnamespace = pn.oid
 WHERE pn.nspname = 'public' 
 AND pc.relname = 'applications';
+

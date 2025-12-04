@@ -80,7 +80,11 @@ export default function EventScreen() {
     const isUpcoming = new Date(item.eventDate) > new Date();
     
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('EventDetailScreen', { eventId: item.id })}
+        activeOpacity={0.7}
+      >
         {item.image && (
           <Image source={{ uri: item.image }} style={styles.cardImage} />
         )}
@@ -102,12 +106,15 @@ export default function EventScreen() {
             {item.description}
           </Text>
 
-          {/* 事件统计和操作 */}
+          {/* 事件统计和快速操作 */}
           <View style={styles.cardFooter}>
             <View style={styles.statsContainer}>
               <TouchableOpacity 
                 style={styles.likeButton}
-                onPress={() => handleLike(item.id)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleLike(item.id);
+                }}
               >
                 <Text style={[styles.likeIcon, isLiked && styles.likedIcon]}>
                   {isLiked ? '❤️' : '🤍'}
@@ -124,17 +131,29 @@ export default function EventScreen() {
               </View>
             </View>
 
-            {isAuthenticated && isUpcoming && (
+            <View style={styles.cardActions}>
+              {isAuthenticated && isUpcoming && (
+                <TouchableOpacity 
+                  style={styles.quickRegisterButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleRegister(item);
+                  }}
+                >
+                  <Text style={styles.quickRegisterText}>Register</Text>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity 
-                style={styles.registerButton}
-                onPress={() => handleRegister(item)}
+                style={styles.viewDetailButton}
+                onPress={() => navigation.navigate('EventDetailScreen', { eventId: item.id })}
               >
-                <Text style={styles.registerButtonText}>Register</Text>
+                <Text style={styles.viewDetailText}>View Details →</Text>
               </TouchableOpacity>
-            )}
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -317,15 +336,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-  registerButton: {
-    backgroundColor: '#2A7BF6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  cardActions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
   },
-  registerButtonText: {
+  quickRegisterButton: {
+    backgroundColor: '#2A7BF6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  quickRegisterText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewDetailButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  viewDetailText: {
+    color: '#2A7BF6',
+    fontSize: 13,
     fontWeight: '600',
   },
   emptyContainer: {

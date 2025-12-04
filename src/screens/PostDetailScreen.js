@@ -4,18 +4,37 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
   const player = useVideoPlayer(source, player => {
     player.loop = false;
-    player.play();
+    // 不自动播放，等待用户点击
   });
 
+  const togglePlayback = () => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
   return (
-    <VideoView
-      style={style}
-      player={player}
-      allowsFullscreen
-      allowsPictureInPicture
-    />
+    <TouchableOpacity onPress={togglePlayback} style={style}>
+      <VideoView
+        style={style}
+        player={player}
+        allowsFullscreen
+        allowsPictureInPicture
+      />
+      {!isPlaying && (
+        <View style={styles.playButtonOverlay}>
+          <View style={styles.playButton}>
+            <Text style={styles.playButtonText}>▶️</Text>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 };
 import Icon from 'react-native-vector-icons/Feather';
@@ -635,6 +654,34 @@ const styles = StyleSheet.create({
   replyingToName: {
     fontWeight: '600',
     color: '#2A7BF6',
+  },
+  playButtonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 8,
+  },
+  playButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  playButtonText: {
+    fontSize: 24,
+    marginLeft: 4, // 微调播放图标位置
   },
 });
 

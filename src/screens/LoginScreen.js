@@ -7,6 +7,8 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginProgress, setLoginProgress] = useState('');
+  const [showCancelButton, setShowCancelButton] = useState(false);
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,17 +32,68 @@ export default function LoginScreen({ navigation }) {
     }
 
     try {
-    const result = await login(email.trim(), password);
-    
-    if (result.success) {
-        // Optional: You might not need an alert here if the app auto-redirects on auth state change
-        // But keeping it for feedback is fine
-    } else {
-      Alert.alert('Login Failed', result.error);
+      // 显示取消按钮和进度
+      setShowCancelButton(true);
+      setLoginProgress('Connecting to server...');
+      
+      // 5秒后显示取消按钮提示
+      const cancelTimeout = setTimeout(() => {
+        setLoginProgress('This may take a while on slower connections...');
+      }, 5000);
+
+      const result = await login(email.trim(), password);
+      
+      clearTimeout(cancelTimeout);
+      setShowCancelButton(false);
+      setLoginProgress('');
+      
+      if (result.success) {
+          // Optional: You might not need an alert here if the app auto-redirects on auth state change
+          // But keeping it for feedback is fine
+      } else {
+        Alert.alert('Login Failed', result.error);
       }
     } catch (error) {
+      setShowCancelButton(false);
+      setLoginProgress('');
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
       console.error('Login error:', error);
+    }
+  };
+
+  const handleCancelLogin = () => {
+    setShowCancelButton(false);
+    setLoginProgress('');
+    // 强制刷新页面状态
+    navigation.replace('LoginScreen');
+  };
+
+  const testConnection = async () => {
+    setLoginProgress('Testing connection...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch('https://api.supabase.com/health', {
+        method: 'GET',
+        timeout: 10000
+      });
+      const endTime = Date.now();
+      const latency = endTime - startTime;
+      
+      if (response.ok) {
+        Alert.alert(
+          'Connection Test Result', 
+          `✅ Connection successful!\nLatency: ${latency}ms\n\n${latency > 3000 ? 'Your connection seems slow. Try switching networks or moving closer to WiFi.' : 'Your connection looks good!'}`
+        );
+      } else {
+        Alert.alert('Connection Test', '❌ Connection failed. Please check your internet connection.');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Connection Test', 
+        '❌ Cannot reach servers. Please check:\n• WiFi/mobile data is on\n• No firewall blocking\n• Try switching networks'
+      );
+    } finally {
+      setLoginProgress('');
     }
   };
 
@@ -103,9 +156,28 @@ export default function LoginScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testConnectionButton}
+              onPress={testConnection}
+              disabled={isLoading}
+            >
+              <Text style={styles.testConnectionText}>🔧 Test Connection</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 登录进度显示 */}
+          {loginProgress ? (
+            <View style={styles.progressContainer}>
+              <Text style={styles.progressText}>{loginProgress}</Text>
+              <Text style={styles.progressSubtext}>
+                Please wait while we connect you...
+              </Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.loginButton, isLoading && styles.disabledButton]}
@@ -116,6 +188,18 @@ export default function LoginScreen({ navigation }) {
               {isLoading ? 'Signing In...' : 'Sign In'}
             </Text>
           </TouchableOpacity>
+
+          {/* 取消按钮 */}
+          {showCancelButton && (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelLogin}
+            >
+              <Text style={styles.cancelButtonText}>
+                Cancel Login
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -292,5 +376,57 @@ const styles = StyleSheet.create({
     color: '#1A1D1E', // 链接颜色改深色
     fontWeight: '600',
     textDecorationLine: 'none', // 移除下划线
+  },
+  progressContainer: {
+    backgroundColor: '#F8F9FB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  progressText: {
+    color: '#2A7BF6',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  progressSubtext: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  testConnectionButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  testConnectionText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

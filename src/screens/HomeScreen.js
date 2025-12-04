@@ -7,18 +7,37 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
   const player = useVideoPlayer(source, player => {
     player.loop = false;
-    player.play();
+    // 不自动播放，等待用户点击
   });
 
+  const togglePlayback = () => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
   return (
-    <VideoView
-      style={style}
-      player={player}
-      allowsFullscreen
-      allowsPictureInPicture
-    />
+    <TouchableOpacity onPress={togglePlayback} style={style}>
+      <VideoView
+        style={style}
+        player={player}
+        allowsFullscreen
+        allowsPictureInPicture
+      />
+      {!isPlaying && (
+        <View style={styles.playButtonOverlay}>
+          <View style={styles.playButton}>
+            <Text style={styles.playButtonText}>▶️</Text>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 };
 import { useAppContext } from '../context/AppContext';
@@ -26,7 +45,7 @@ import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 
 export default function HomeScreen() {
-  const { posts, events, likedPosts, likedEvents, likedComments, addPost, deletePost, handleLike, handleEventLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
+  const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -414,197 +433,9 @@ export default function HomeScreen() {
     }
   };
 
-  const handleEventComment = (eventId) => {
-    Alert.alert('Comment', 'Comment feature will be implemented soon!');
-  };
+  // Events功能已移到EventScreen中
 
-  const handleEventShare = async (eventId) => {
-    try {
-      const event = events.find(e => e.id === eventId);
-      if (!event) return;
 
-      let shareMessage = '📅 BabyTree Surrogacy Event\n\n';
-      
-      shareMessage += `${event.title}\n\n`;
-      
-      if (event.description) {
-        shareMessage += `${event.description}\n\n`;
-      }
-      
-      if (event.date) {
-        shareMessage += `📅 Date: ${event.date}\n`;
-      }
-      
-      if (event.location) {
-        shareMessage += `📍 Location: ${event.location}\n`;
-      }
-      
-      shareMessage += `\nShared from BabyTree Surrogacy Community`;
-
-      const shareOptions = [];
-
-      // Add save media option if event has image
-      if (event.image) {
-        shareOptions.push({
-          text: '💾 Save Image to Gallery',
-          onPress: async () => {
-            try {
-              const { status } = await MediaLibrary.requestPermissionsAsync();
-              if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Please grant media library permission to save.');
-                return;
-              }
-              
-              const imageUri = event.image.uri || event.image;
-              console.log('Attempting to save image:', imageUri);
-              
-              // Create an asset from the file
-              const asset = await MediaLibrary.createAssetAsync(imageUri);
-              console.log('Asset created:', asset);
-              
-              // Optionally, create an album and add the asset to it
-              const album = await MediaLibrary.getAlbumAsync('BabyTree Surrogacy');
-              if (album == null) {
-                await MediaLibrary.createAlbumAsync('BabyTree Surrogacy', asset, false);
-              } else {
-                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-              }
-              
-              Alert.alert(
-                'Saved!', 
-                'Image saved to your gallery in "BabyTree Surrogacy" album.\n\nYou can now:\n1. Open any messaging app\n2. Select the image from your photos\n3. Send it to your contact'
-              );
-            } catch (error) {
-              console.error('Save error:', error);
-              console.error('Error details:', JSON.stringify(error, null, 2));
-              Alert.alert('Error', `Failed to save image to gallery.\n\nError: ${error.message || 'Unknown error'}`);
-            }
-          },
-        });
-      }
-
-      shareOptions.push({
-        text: '📋 Copy Text Only',
-        onPress: async () => {
-          await Clipboard.setStringAsync(shareMessage);
-          Alert.alert('Copied!', 'Event details copied to clipboard. You can now paste it in any messaging app.');
-        },
-      });
-
-      shareOptions.push({
-        text: '📤 Share via Other Apps',
-        onPress: async () => {
-          try {
-            await Share.share({
-              message: shareMessage,
-              title: 'Share Event',
-            });
-          } catch (error) {
-            console.error('Share error:', error);
-            await Clipboard.setStringAsync(shareMessage);
-            Alert.alert('Copied!', 'Share failed. Content copied to clipboard instead.');
-          }
-        },
-      });
-
-      shareOptions.push({ text: 'Cancel', style: 'cancel' });
-
-      Alert.alert(
-        'Share Event',
-        event.image
-          ? 'Choose the best way to share:'
-          : 'Choose how to share:',
-        shareOptions
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share event');
-      console.error('Share error:', error);
-    }
-  };
-
-  const renderEvent = (event) => (
-    <View key={event.id} style={styles.eventCard}>
-      <View style={styles.eventHeader}>
-        <View style={[
-          styles.userAvatar,
-          event.publisher === 'company' && styles.companyAvatar
-        ]}>
-          <Icon 
-            name={event.publisher === 'company' ? 'briefcase' : 'user'} 
-            size={20} 
-            color={event.publisher === 'company' ? '#fff' : '#666'} 
-          />
-        </View>
-        <View style={styles.eventInfo}>
-          <Text style={styles.userName}>
-            {event.publisher === 'company' ? 'BabyTree Surrogacy' : 'Surrogate Mom'}
-          </Text>
-          <Text style={styles.timestamp}>{event.timestamp}</Text>
-        </View>
-        <View style={styles.eventCategory}>
-          <Text style={styles.categoryText}>
-            {event.category === 'transplant' ? '🌱 Transplant' :
-             event.category === 'medical' ? '🏥 Medical' :
-             event.category === 'gathering' ? '🎉 Gathering' :
-             event.category === 'celebration' ? '🎊 Celebration' :
-             '📅 Event'}
-          </Text>
-        </View>
-      </View>
-      
-      <Text style={styles.eventTitle}>{event.title}</Text>
-      <Text style={styles.eventDescription}>{event.description}</Text>
-      
-      {event.date && (
-        <View style={styles.eventDetail}>
-          <Text style={styles.eventDetailLabel}>📅 Date:</Text>
-          <Text style={styles.eventDetailText}>{event.date}</Text>
-        </View>
-      )}
-      
-      {event.location && (
-        <View style={styles.eventDetail}>
-          <Text style={styles.eventDetailLabel}>📍 Location:</Text>
-          <Text style={styles.eventDetailText}>{event.location}</Text>
-        </View>
-      )}
-      
-      {event.image && (
-        <Image source={{ uri: event.image.uri || event.image }} style={styles.eventImage} />
-      )}
-      
-      <View style={styles.eventActions}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => handleEventLike(event.id)}
-        >
-          <Text style={[
-            styles.actionIcon, 
-            likedEvents.has(event.id) && styles.likedIcon
-          ]}>
-            {likedEvents.has(event.id) ? '❤️' : '🤍'}
-          </Text>
-          <Text style={styles.actionText}>
-            {event.likes > 0 ? event.likes : ''} {event.likes > 1 ? 'Likes' : 'Like'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => handleEventComment(event.id)}
-        >
-          <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>{event.comments > 1 ? 'Comments' : 'Comment'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => handleEventShare(event.id)}
-        >
-          <Text style={styles.actionIcon}>📤</Text>
-          <Text style={styles.actionText}>Share</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   const renderPost = (post) => {
     const postComments = getComments(post.id);
@@ -692,21 +523,14 @@ export default function HomeScreen() {
   );
   };
 
-  // 合并 events 和 posts 到单个数组，使用 useMemo 优化
+  // Community 只显示帖子，不包含 events
   const feedData = useMemo(() => {
-    return [
-      ...events.map(event => ({ ...event, type: 'event' })),
-      ...posts.map(post => ({ ...post, type: 'post' }))
-    ];
-  }, [events, posts]);
+    return posts.map(post => ({ ...post, type: 'post' }));
+  }, [posts]);
 
   const renderItem = useCallback(({ item }) => {
-    if (item.type === 'event') {
-      return renderEvent(item);
-    } else {
-      return renderPost(item);
-    }
-  }, [likedPosts, likedEvents, user, getComments]);
+    return renderPost(item);
+  }, [likedPosts, user, getComments]);
 
   const keyExtractor = useCallback((item) => item.id, []);
 
@@ -1574,5 +1398,32 @@ const styles = StyleSheet.create({
   replyingToName: {
     fontWeight: '600',
     color: '#2A7BF6',
+  },
+  playButtonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  playButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  playButtonText: {
+    fontSize: 24,
+    marginLeft: 4, // 微调播放图标位置
   },
 }); 

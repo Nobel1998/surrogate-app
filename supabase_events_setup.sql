@@ -128,3 +128,4 @@ INSERT INTO public.events (title, description, content, event_date, location, ca
 ('Legal Workshop: Understanding Your Rights', 'Essential legal information for surrogates and intended parents.', 'This workshop covers the legal aspects of surrogacy, including contracts, rights and responsibilities, and state-specific regulations. Led by experienced surrogacy attorneys.', '2024-05-25 13:00:00+00', 'Phoenix, AZ', 'Legal', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', true);
 
 COMMIT;
+

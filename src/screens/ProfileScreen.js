@@ -62,9 +62,16 @@ export default function ProfileScreen({ navigation }) {
         { 
           text: 'Sign Out', 
           style: 'destructive',
-          onPress: () => {
-            logout();
-            navigation.navigate('Login');
+          onPress: async () => {
+            try {
+              console.log('🚪 Starting logout process...');
+              await logout();
+              console.log('✅ Logout completed successfully');
+              // 不需要手动导航，AuthContext的状态变化会自动切换到GuestStackNavigator
+            } catch (error) {
+              console.error('❌ Logout failed:', error);
+              Alert.alert('Logout Error', 'Failed to sign out. Please try again.');
+            }
           }
         }
       ]

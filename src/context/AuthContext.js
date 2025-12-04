@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       
       // 添加超时机制，防止无限加载
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth check timeout')), 8000); // 8秒超时（增加时间）
+        setTimeout(() => reject(new Error('Auth check timeout')), 20000); // 20秒超时
       });
       
       // 首先检查 Supabase 会话
@@ -294,124 +294,154 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      setIsLoading(true);
-      
-      if (!email || !password) {
-        return { success: false, error: 'Email and password cannot be empty' };
-      }
-
-      console.log('🔐 Starting login process for:', email);
-
-      // Supabase 连接已验证正常
-
-      // 添加登录超时机制
-      const loginTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Login timeout')), 15000); // 15秒超时
-      });
-
-      // Use Supabase Auth to sign in with timeout
-      console.log('🔑 Attempting Supabase authentication...');
-      const loginPromise = supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password: password,
-      });
-
-      const { data: authData, error: authError } = await Promise.race([
-        loginPromise,
-        loginTimeout
-      ]);
-
-      if (authError) {
-        console.error('🚨 Detailed Supabase login error:', {
-          message: authError.message,
-          status: authError.status,
-          statusCode: authError.statusCode,
-          details: authError.details,
-          hint: authError.hint,
-          code: authError.code,
-          name: authError.name
-        });
-        
-        if (authError.message.includes('Invalid login credentials')) {
-          return { success: false, error: 'Invalid email or password' };
-        }
-        if (authError.message.includes('Email not confirmed')) {
-          return { success: false, error: 'Please check your email and confirm your account' };
-        }
-        if (authError.status === 400) {
-          return { success: false, error: 'Invalid request. Please check your credentials.' };
-        }
-        if (authError.status === 401) {
-          return { success: false, error: 'Authentication failed. Please check your email and password.' };
-        }
-        if (authError.status === 429) {
-          return { success: false, error: 'Too many login attempts. Please wait and try again.' };
-        }
-        return { success: false, error: `Login failed: ${authError.message}` };
-      }
-
-      if (!authData.user) {
-        return { success: false, error: 'Login failed, please try again' };
-      }
-
-      console.log('✅ Supabase login successful');
-
-      // Fetch user profile from profiles table with timeout
-      const profileTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000); // 5秒超时
-      });
-
-      let profileData = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
       try {
-        const profilePromise = supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single();
+        setIsLoading(true);
+        attempts++;
+        
+        if (!email || !password) {
+          return { success: false, error: 'Email and password cannot be empty' };
+        }
 
-        const { data, error: profileError } = await Promise.race([
-          profilePromise,
-          profileTimeout
+        console.log(`🔐 Starting login attempt ${attempts}/${maxAttempts} for:`, email);
+
+        // 添加登录超时机制 - 增加到60秒以适应慢网络
+        const loginTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Login timeout. Please check your internet connection and try again.')), 60000); // 60秒超时
+        });
+
+        // Use Supabase Auth to sign in with timeout
+        console.log('🔑 Attempting Supabase authentication...');
+        const loginPromise = supabase.auth.signInWithPassword({
+          email: email.toLowerCase().trim(),
+          password: password,
+        });
+
+        const { data: authData, error: authError } = await Promise.race([
+          loginPromise,
+          loginTimeout
         ]);
 
-        if (profileError) {
-          console.log('⚠️ Profile fetch failed, using basic user data:', profileError.message);
-        } else {
-          profileData = data;
-          console.log('✅ Profile data fetched successfully');
+        if (authError) {
+          console.error('🚨 Detailed Supabase login error:', {
+            message: authError.message,
+            status: authError.status,
+            statusCode: authError.statusCode,
+            details: authError.details,
+            hint: authError.hint,
+            code: authError.code,
+            name: authError.name
+          });
+          
+          // 这些错误不需要重试
+          if (authError.message.includes('Invalid login credentials') ||
+              authError.message.includes('Email not confirmed') ||
+              authError.status === 401) {
+            return { 
+              success: false, 
+              error: authError.message.includes('Invalid login credentials') 
+                ? 'Invalid email or password' 
+                : authError.message 
+            };
+          }
+          
+          // 网络或服务器错误，可能需要重试
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Login attempt ${attempts} failed, retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          
+          return { success: false, error: `Login failed after ${maxAttempts} attempts: ${authError.message}` };
         }
-      } catch (profileError) {
-        console.log('⚠️ Profile fetch timed out, using basic user data');
-      }
 
-      // Construct user data
-      const userData = {
-        id: authData.user.id,
-        email: authData.user.email,
-        name: authData.user.user_metadata?.name || email.split('@')[0],
-        phone: authData.user.user_metadata?.phone || '',
-        inviteCode: profileData?.invite_code || '',
-        referredBy: profileData?.referred_by || '',
-        createdAt: authData.user.created_at,
-        lastLogin: new Date().toISOString(),
-      };
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      await storeUser(userData);
-      
-      console.log('🎉 Login completed successfully');
-      return { success: true, user: userData };
-    } catch (error) {
-      console.error('Login error:', error);
-      if (error.message === 'Login timeout') {
-        return { success: false, error: 'Login timed out. Please check your internet connection and try again.' };
+        if (!authData.user) {
+          if (attempts < maxAttempts) {
+            console.log(`⏳ No user data received, retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          return { success: false, error: 'Login failed, please try again' };
+        }
+
+        console.log('✅ Supabase login successful');
+
+        // Fetch user profile from profiles table with timeout - 增加到30秒
+        const profileTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Profile loading timeout. Please try again.')), 30000); // 30秒超时
+        });
+
+        let profileData = null;
+        try {
+          const profilePromise = supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+          const { data, error: profileError } = await Promise.race([
+            profilePromise,
+            profileTimeout
+          ]);
+
+          if (profileError) {
+            console.log('⚠️ Profile fetch failed, using basic user data:', profileError.message);
+          } else {
+            profileData = data;
+            console.log('✅ Profile data fetched successfully');
+          }
+        } catch (profileError) {
+          console.log('⚠️ Profile fetch timed out, using basic user data');
+        }
+
+        // Construct user data
+        const userData = {
+          id: authData.user.id,
+          email: authData.user.email,
+          name: authData.user.user_metadata?.name || email.split('@')[0],
+          phone: authData.user.user_metadata?.phone || '',
+          inviteCode: profileData?.invite_code || '',
+          referredBy: profileData?.referred_by || '',
+          createdAt: authData.user.created_at,
+          lastLogin: new Date().toISOString(),
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        await storeUser(userData);
+        
+        console.log('🎉 Login completed successfully');
+        return { success: true, user: userData };
+        
+      } catch (error) {
+        console.error(`Login attempt ${attempts} error:`, error);
+        
+        if (error.message === 'Login timeout') {
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Login timed out, retrying in 3 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            continue;
+          }
+          return { success: false, error: 'Login timed out after multiple attempts. Please check your internet connection.' };
+        }
+        
+        if (attempts < maxAttempts) {
+          console.log(`⏳ Unexpected error, retrying in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        
+        return { success: false, error: `Login failed after ${maxAttempts} attempts. Please try again later.` };
+      } finally {
+        setIsLoading(false);
       }
-      return { success: false, error: 'Login failed, please try again' };
-    } finally {
-      setIsLoading(false);
     }
+    
+    // 如果所有尝试都失败了
+    return { success: false, error: `Unable to login after ${maxAttempts} attempts. Please check your connection and try again.` };
   };
 
   const register = async (userData) => {
@@ -521,16 +551,33 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('🚪 Starting logout process...');
+      
       // Sign out from Supabase
+      console.log('📤 Signing out from Supabase...');
       await supabase.auth.signOut();
       
+      // Clear local state
+      console.log('🧹 Clearing local state...');
       setUser(null);
       setIsAuthenticated(false);
+      
       // Clear stored user credentials
+      console.log('💾 Clearing stored credentials...');
       await AsyncStorageLib.removeItem('current_user');
-      console.log('User logged out');
+      
+      // Also clear application cache to ensure fresh start
+      await AsyncStorageLib.removeItem('user_applications');
+      
+      console.log('✅ User logged out successfully');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
+      // Even if there's an error, clear local state
+      setUser(null);
+      setIsAuthenticated(false);
+      await AsyncStorageLib.removeItem('current_user');
+      await AsyncStorageLib.removeItem('user_applications');
+      throw error; // Re-throw to let the UI handle the error
     }
   };
 

@@ -216,13 +216,23 @@ export default function SurrogateApplicationScreen({ navigation }) {
     setIsLoading(true);
     
     try {
+      // 获取当前认证用户ID
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !authUser) {
+        throw new Error('Please log in to submit an application');
+      }
+
       // Construct payload for Supabase
       const { fullName, phoneNumber, ...otherFields } = applicationData;
       const payload = {
         full_name: fullName,
         phone: phoneNumber,
-        form_data: JSON.stringify(otherFields)
+        form_data: JSON.stringify(otherFields),
+        user_id: authUser.id  // 添加用户ID
       };
+
+      console.log('📝 Submitting application for user:', authUser.id);
 
       // Insert into Supabase
       const { data, error } = await supabase

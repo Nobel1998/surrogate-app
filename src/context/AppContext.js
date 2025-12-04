@@ -17,6 +17,7 @@ export const AppProvider = ({ children }) => {
   const [posts, setPosts] = useState([]);
   const [events, setEvents] = useState([]);
   const [userLikes, setUserLikes] = useState({}); // userId -> { posts: Set, events: Set }
+  const [userRegistrations, setUserRegistrations] = useState({}); // userId -> Set of eventIds
   const [commentLikes, setCommentLikes] = useState({}); // userId -> Set of commentIds
   const [comments, setComments] = useState({}); // postId -> array of comments
   const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +87,7 @@ export const AppProvider = ({ children }) => {
       
       // 添加超时机制，防止无限加载
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Data loading timeout')), 8000); // 8秒超时
+        setTimeout(() => reject(new Error('Data loading timeout')), 25000); // 25秒超时
       });
       
       // 并行加载帖子和评论，限制数量以提高性能
@@ -270,29 +271,55 @@ export const AppProvider = ({ children }) => {
   // 加载用户点赞状态
   const loadUserLikes = async () => {
     try {
-      // 加载帖子点赞
-      const { data: postLikesData } = await supabase
-        .from('post_likes')
-        .select('post_id, user_id');
+      // 并行加载所有类型的数据
+      const [postLikesResult, commentLikesResult, eventLikesResult, eventRegistrationsResult] = await Promise.all([
+        supabase.from('post_likes').select('post_id, user_id'),
+        supabase.from('comment_likes').select('comment_id, user_id'),
+        supabase.from('event_likes').select('event_id, user_id'),
+        supabase.from('event_registrations').select('event_id, user_id').eq('status', 'registered')
+      ]);
 
-      // 加载评论点赞
-      const { data: commentLikesData } = await supabase
-        .from('comment_likes')
-        .select('comment_id, user_id');
-
-      // 组织帖子点赞数据
+      // 组织帖子和事件点赞数据
       const likesMap = {};
-      (postLikesData || []).forEach(like => {
+      
+      // 处理帖子点赞
+      (postLikesResult.data || []).forEach(like => {
         if (!likesMap[like.user_id]) {
           likesMap[like.user_id] = { posts: new Set(), events: new Set() };
         }
         likesMap[like.user_id].posts.add(like.post_id);
       });
+      
+      // 处理事件点赞
+      (eventLikesResult.data || []).forEach(like => {
+        if (!likesMap[like.user_id]) {
+          likesMap[like.user_id] = { posts: new Set(), events: new Set() };
+        }
+        likesMap[like.user_id].events.add(like.event_id);
+      });
+      
       setUserLikes(likesMap);
+
+      // 组织用户注册数据
+      const registrationsMap = {};
+      (eventRegistrationsResult.data || []).forEach(registration => {
+        if (!registrationsMap[registration.user_id]) {
+          registrationsMap[registration.user_id] = new Set();
+        }
+        registrationsMap[registration.user_id].add(registration.event_id);
+      });
+      setUserRegistrations(registrationsMap);
+      
+      console.log('✅ User data loaded:', {
+        posts: postLikesResult.data?.length || 0,
+        events: eventLikesResult.data?.length || 0,
+        comments: commentLikesResult.data?.length || 0,
+        registrations: eventRegistrationsResult.data?.length || 0
+      });
 
       // 组织评论点赞数据
       const commentLikesMap = {};
-      (commentLikesData || []).forEach(like => {
+      (commentLikesResult.data || []).forEach(like => {
         if (!commentLikesMap[like.user_id]) {
           commentLikesMap[like.user_id] = new Set();
         }
@@ -308,11 +335,12 @@ export const AppProvider = ({ children }) => {
   // 从本地加载数据（回退方案）
   const loadDataFromLocal = async () => {
     try {
-      const [storedPosts, storedEvents, storedComments, storedUserLikes] = await Promise.all([
+      const [storedPosts, storedEvents, storedComments, storedUserLikes, storedUserRegistrations] = await Promise.all([
         AsyncStorageLib.getItem('community_posts'),
         AsyncStorageLib.getItem('community_events'),
         AsyncStorageLib.getItem('community_comments'),
         AsyncStorageLib.getItem('community_user_likes'),
+        AsyncStorageLib.getItem('community_user_registrations'),
       ]);
 
       if (storedPosts) {
@@ -334,6 +362,14 @@ export const AppProvider = ({ children }) => {
           };
         });
         setUserLikes(converted);
+      }
+      if (storedUserRegistrations) {
+        const parsedRegistrations = JSON.parse(storedUserRegistrations);
+        const convertedRegistrations = {};
+        Object.keys(parsedRegistrations).forEach(userId => {
+          convertedRegistrations[userId] = new Set(parsedRegistrations[userId] || []);
+        });
+        setUserRegistrations(convertedRegistrations);
       }
 
       const storedCommentLikes = await AsyncStorageLib.getItem('community_comment_likes');
@@ -388,6 +424,11 @@ export const AppProvider = ({ children }) => {
   const getLikedEvents = () => {
     if (!currentUserId || !userLikes[currentUserId]) return new Set();
     return userLikes[currentUserId].events || new Set();
+  };
+
+  const getRegisteredEvents = () => {
+    if (!currentUserId || !userRegistrations[currentUserId]) return new Set();
+    return userRegistrations[currentUserId] || new Set();
   };
 
   // 添加帖子（云端）- 支持媒体上传
@@ -989,11 +1030,23 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
-      const currentLikes = getLikedEvents();
-      const isCurrentlyLiked = currentLikes.has(eventId);
+      // 首先查询数据库中的实际状态，而不是依赖本地状态
+      const { data: existingLike, error: checkError } = await supabase
+        .from('event_likes')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', authUser.id)
+        .single();
 
-      if (isCurrentlyLiked) {
-        // 取消点赞
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing like:', checkError);
+        return;
+      }
+
+      const isLikedInDB = !!existingLike;
+
+      if (isLikedInDB) {
+        // 取消点赞 - 数据库中存在记录
         const { error } = await supabase
           .from('event_likes')
           .delete()
@@ -1005,9 +1058,14 @@ export const AppProvider = ({ children }) => {
           return;
         }
 
+        console.log('✅ Event like removed from database');
+
         // 更新本地状态
         setUserLikes(prev => {
           const newUserLikes = { ...prev };
+          if (!newUserLikes[currentUserId]) {
+            newUserLikes[currentUserId] = { posts: new Set(), events: new Set() };
+          }
           const newEventLikes = new Set(newUserLikes[currentUserId].events);
           newEventLikes.delete(eventId);
           newUserLikes[currentUserId] = {
@@ -1025,7 +1083,7 @@ export const AppProvider = ({ children }) => {
           )
         );
       } else {
-        // 添加点赞
+        // 添加点赞 - 数据库中不存在记录
         const { error } = await supabase
           .from('event_likes')
           .insert({
@@ -1037,6 +1095,8 @@ export const AppProvider = ({ children }) => {
           console.error('Error adding event like:', error);
           return;
         }
+
+        console.log('✅ Event like added to database');
 
         // 更新本地状态
         setUserLikes(prev => {
@@ -1144,6 +1204,19 @@ export const AppProvider = ({ children }) => {
         )
       );
 
+      // 更新本地注册状态
+      setUserRegistrations(prev => {
+        const newRegistrations = { ...prev };
+        if (!newRegistrations[currentUserId]) {
+          newRegistrations[currentUserId] = new Set();
+        }
+        const newUserRegistrations = new Set(newRegistrations[currentUserId]);
+        newUserRegistrations.add(eventId);
+        newRegistrations[currentUserId] = newUserRegistrations;
+        return newRegistrations;
+      });
+
+      console.log('✅ Event registration successful');
       return { success: true, data };
     } catch (error) {
       console.error('Error in registerForEvent:', error);
@@ -1162,6 +1235,7 @@ export const AppProvider = ({ children }) => {
     events,
     likedPosts: getLikedPosts(),
     likedEvents: getLikedEvents(),
+    registeredEvents: getRegisteredEvents(),
     likedComments: getLikedComments(),
     comments,
     addPost,

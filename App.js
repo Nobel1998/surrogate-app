@@ -15,6 +15,7 @@ import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
 import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
+import EventDetailScreen from './src/screens/EventDetailScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -171,6 +172,7 @@ function AppStackNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
@@ -206,14 +208,14 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [forceShowApp, setForceShowApp] = useState(false);
 
-  // 全局超时机制：如果加载超过8秒，强制显示App
+  // 全局超时机制：如果加载超过15秒，强制显示App
   useEffect(() => {
     const globalTimeout = setTimeout(() => {
       if (isLoading) {
         console.log('⚠️ Global timeout reached, forcing app to show');
         setForceShowApp(true);
       }
-    }, 8000); // 8秒全局超时
+    }, 15000); // 15秒全局超时
 
     return () => clearTimeout(globalTimeout);
   }, [isLoading]);
