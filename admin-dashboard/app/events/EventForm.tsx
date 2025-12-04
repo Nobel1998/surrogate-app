@@ -84,14 +84,22 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       if (event?.id) {
         // 更新事件
         console.log('Updating event with data:', submitData);
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('events')
           .update(submitData)
-          .eq('id', event.id)
-          .select();
+          .eq('id', event.id);
 
-        console.log('Update result:', { data, error });
+        console.log('Update completed, error:', error);
         if (error) throw error;
+        
+        // 验证更新是否成功 - 重新查询该事件
+        const { data: updatedEvent, error: fetchError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', event.id)
+          .single();
+          
+        console.log('Verification query result:', { updatedEvent, fetchError });
       } else {
         // 创建新事件
         const { error } = await supabase

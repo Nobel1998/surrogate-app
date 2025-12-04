@@ -76,10 +76,9 @@ export default function EventsManagement() {
     setShowForm(false);
     setEditingEvent(null);
     
-    // Add a small delay to ensure database update is complete
-    setTimeout(() => {
-      loadEvents();
-    }, 500);
+    // Force immediate refresh of events list
+    console.log('🔄 Form success - refreshing events list...');
+    await loadEvents();
   };
 
   const handleDelete = async (eventId: string) => {
