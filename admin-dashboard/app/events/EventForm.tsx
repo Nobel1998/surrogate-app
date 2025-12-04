@@ -43,9 +43,18 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
   useEffect(() => {
     if (event) {
+      // Only extract fields that belong to the Event interface, excluding stats columns
       setFormData({
-        ...event,
+        title: event.title,
+        description: event.description,
+        content: event.content,
         event_date: new Date(event.event_date).toISOString().slice(0, 16),
+        location: event.location,
+        category: event.category,
+        image_url: event.image_url,
+        status: event.status,
+        is_featured: event.is_featured,
+        max_participants: event.max_participants,
       });
     }
   }, [event]);
