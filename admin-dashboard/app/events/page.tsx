@@ -31,6 +31,7 @@ export default function EventsManagement() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🚀 Events Management page loaded - debugging enabled');
     loadEvents();
   }, []);
 
@@ -149,7 +150,12 @@ export default function EventsManagement() {
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              🔧 Debug Mode - Last loaded: {new Date().toLocaleString()}
+            </p>
+          </div>
           <button
             onClick={handleCreate}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"

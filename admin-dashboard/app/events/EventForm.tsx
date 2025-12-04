@@ -26,6 +26,8 @@ interface EventFormProps {
 const categories = ['General', 'Medical', 'Legal', 'Support', 'Gathering', 'Workshop', 'Webinar'];
 
 export default function EventForm({ event, onClose, onSuccess }: EventFormProps) {
+  console.log('📝 EventForm loaded with event:', event);
+  
   const [formData, setFormData] = useState<Event>({
     title: '',
     description: '',
