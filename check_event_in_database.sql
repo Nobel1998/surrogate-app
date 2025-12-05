@@ -15,3 +15,6 @@ WHERE id = 'da96dcc3-6dae-4a56-afd7-d116ece7d733';
 -- SET event_date = '2026-01-15 18:00:00+00'
 -- WHERE id = 'da96dcc3-6dae-4a56-afd7-d116ece7d733';
 
+
+
+

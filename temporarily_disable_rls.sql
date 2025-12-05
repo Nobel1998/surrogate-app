@@ -7,3 +7,6 @@ ALTER TABLE public.events DISABLE ROW LEVEL SECURITY;
 -- 测试完成后，重新启用 RLS：
 -- ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
+
+
+

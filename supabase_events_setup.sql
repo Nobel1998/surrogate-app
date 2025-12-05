@@ -129,3 +129,6 @@ INSERT INTO public.events (title, description, content, event_date, location, ca
 
 COMMIT;
 
+
+
+
