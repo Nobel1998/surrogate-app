@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Linking } from 'react-native';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
 
@@ -111,18 +112,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = async (retryCount = 0) => {
+    const maxRetries = 3;
+    
     try {
-      console.log('🔍 Checking auth status...');
+      console.log(`🔍 Checking auth status... (attempt ${retryCount + 1}/${maxRetries + 1})`);
       
-      // Supabase 连接已验证正常
+      // 首先进行网络连接测试
+      if (retryCount === 0) {
+        try {
+          console.log('🌐 Testing network connectivity...');
+          const networkTest = await fetch('https://www.google.com', { 
+            method: 'HEAD',
+            timeout: 5000 
+          });
+          console.log('✅ Network connectivity confirmed');
+        } catch (networkError) {
+          console.log('⚠️ Network connectivity issue detected:', networkError.message);
+        }
+      }
+      
+      // 根据重试次数调整超时时间
+      const timeoutDuration = 15000 + (retryCount * 10000); // 15s, 25s, 35s
+      console.log(`⏱️ Using timeout duration: ${timeoutDuration}ms`);
       
       // 添加超时机制，防止无限加载
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth check timeout')), 20000); // 20秒超时
+        setTimeout(() => reject(new Error('Auth check timeout')), timeoutDuration);
       });
       
       // 首先检查 Supabase 会话
+      console.log('🔑 Requesting Supabase session...');
       const sessionPromise = supabase.auth.getSession();
       
       const { data: { session }, error } = await Promise.race([
@@ -141,7 +161,16 @@ export const AuthProvider = ({ children }) => {
         });
         
         if (error.message === 'Auth check timeout') {
-          console.log('⏱️ Auth check timed out - checking local storage');
+          console.log('⏱️ Auth check timed out');
+          
+          // 如果还有重试次数，进行重试
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying auth check in 2 seconds... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return checkAuthStatus(retryCount + 1);
+          }
+          
+          console.log('⏱️ All auth check attempts timed out - checking local storage');
           // 超时时，检查本地存储的用户
           const storedUser = await getStoredUser();
           if (storedUser) {
@@ -157,6 +186,14 @@ export const AuthProvider = ({ children }) => {
           }
         } else {
           console.error('Error getting Supabase session:', error);
+          
+          // 对于其他错误，也尝试重试
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying auth check due to error in 2 seconds... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return checkAuthStatus(retryCount + 1);
+          }
+          
           setUser(null);
           setIsAuthenticated(false);
         }
@@ -236,10 +273,27 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       if (error.message === 'Auth check timeout') {
-        console.log('⏱️ Auth check timed out - this is normal for slow connections');
+        console.log('⏱️ Auth check timed out');
+        
+        // 如果还有重试次数，进行重试
+        if (retryCount < maxRetries) {
+          console.log(`🔄 Retrying auth check due to timeout in 3 seconds... (${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          return checkAuthStatus(retryCount + 1);
+        }
+        
+        console.log('⏱️ All auth check attempts timed out');
       } else {
         console.error('Error checking auth status:', error);
+        
+        // 对于其他错误，也尝试重试
+        if (retryCount < maxRetries) {
+          console.log(`🔄 Retrying auth check due to error in 3 seconds... (${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          return checkAuthStatus(retryCount + 1);
+        }
       }
+      
       // 发生错误时，设置为未认证状态，让用户可以重新登录
       setUser(null);
       setIsAuthenticated(false);
@@ -251,7 +305,30 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Initialize storage and check if user is already logged in
     initializeStorage();
-    checkAuthStatus();
+    
+    // 检查是否是通过深度链接打开的app
+    const checkDeepLinkAndAuth = async () => {
+      try {
+        // 检查初始URL
+        const initialUrl = await Linking.getInitialURL();
+        console.log('🔗 App opened with URL:', initialUrl);
+        
+        if (initialUrl) {
+          console.log('📱 App opened via deep link, adjusting auth check strategy');
+          // 如果是通过深度链接打开，给更多时间进行认证检查
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒让深度链接处理完成
+        }
+        
+        // 进行认证状态检查
+        checkAuthStatus();
+      } catch (error) {
+        console.error('Error checking deep link:', error);
+        // 即使深度链接检查失败，也要进行认证检查
+        checkAuthStatus();
+      }
+    };
+    
+    checkDeepLinkAndAuth();
     
     // 监听 Supabase 认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -259,31 +336,37 @@ export const AuthProvider = ({ children }) => {
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          const userData = {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-            phone: session.user.user_metadata?.phone || '',
-            inviteCode: profileData?.invite_code || '',
-            referredBy: profileData?.referred_by || '',
-            createdAt: session.user.created_at,
-            lastLogin: new Date().toISOString(),
-          };
-          
-          setUser(userData);
-          setIsAuthenticated(true);
-          await storeUser(userData);
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            const userData = {
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+              phone: session.user.user_metadata?.phone || '',
+              inviteCode: profileData?.invite_code || '',
+              referredBy: profileData?.referred_by || '',
+              createdAt: session.user.created_at,
+              lastLogin: new Date().toISOString(),
+            };
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+            await storeUser(userData);
+            console.log('✅ User authenticated via auth state change');
+          } catch (error) {
+            console.error('Error in auth state change handler:', error);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsAuthenticated(false);
         await AsyncStorageLib.removeItem('current_user');
+        console.log('🚪 User signed out via auth state change');
       }
     });
     

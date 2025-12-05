@@ -17,7 +17,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: supabaseStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true, // 启用URL会话检测，支持深度链接登录
+    flowType: 'implicit', // 使用隐式流程，更适合移动应用
   },
   global: {
     headers: {

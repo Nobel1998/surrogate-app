@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Linking } from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import EventScreen from './src/screens/EventScreen';
 import BenefitsScreen from './src/screens/BenefitsScreen';
@@ -201,6 +202,28 @@ const linking = {
       RegisterScreen: 'register',
     },
   },
+  // 添加深度链接处理的回调
+  async getInitialURL() {
+    // 检查是否有待处理的深度链接
+    const url = await Linking.getInitialURL();
+    console.log('🔗 Initial deep link URL:', url);
+    return url;
+  },
+  subscribe(listener) {
+    // 监听深度链接变化
+    const onReceiveURL = ({ url }) => {
+      console.log('🔗 Received deep link URL:', url);
+      listener(url);
+    };
+
+    // 添加事件监听器
+    const subscription = Linking.addEventListener('url', onReceiveURL);
+
+    return () => {
+      // 清理订阅
+      subscription?.remove();
+    };
+  },
 };
 
 // Main App Component with Auth Logic
@@ -208,14 +231,14 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [forceShowApp, setForceShowApp] = useState(false);
 
-  // 全局超时机制：如果加载超过15秒，强制显示App
+  // 全局超时机制：如果加载超过30秒，强制显示App
   useEffect(() => {
     const globalTimeout = setTimeout(() => {
       if (isLoading) {
         console.log('⚠️ Global timeout reached, forcing app to show');
         setForceShowApp(true);
       }
-    }, 15000); // 15秒全局超时
+    }, 30000); // 增加到30秒全局超时，给深度链接更多时间
 
     return () => clearTimeout(globalTimeout);
   }, [isLoading]);
