@@ -17,6 +17,7 @@ import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
+import MyMatchScreen from './src/screens/MyMatchScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -54,6 +55,9 @@ function MainTabNavigator() {
               break;
             case 'Company':
               iconEmoji = 'ℹ️';
+              break;
+            case 'MyMatch':
+              iconEmoji = '💕';
               break;
             case 'Profile':
               iconEmoji = '👤';
@@ -108,6 +112,7 @@ function MainTabNavigator() {
       <Tab.Screen name="Event" component={EventScreen} />
       <Tab.Screen name="Benefits" component={BenefitsScreen} />
       <Tab.Screen name="Apply" component={SurrogateApplicationScreen} />
+      <Tab.Screen name="MyMatch" component={MyMatchScreen} />
       <Tab.Screen name="Ambassador" component={AmbassadorScreen} />
       <Tab.Screen name="Protection" component={ProtectionScreen} />
       <Tab.Screen name="Company" component={CompanyScreen} />
@@ -174,6 +179,7 @@ function AppStackNavigator() {
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
+      <Stack.Screen name="MyMatch" component={MyMatchScreen} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />

@@ -158,7 +158,13 @@ export const AppProvider = ({ children }) => {
         .from('events_with_stats')
         .select('*')
         .eq('status', 'active')
-        .order('event_date', { ascending: true });
+        .order('created_at', { ascending: false }); // 改为按创建时间倒序，最新的在前面
+
+      console.log('📊 Raw events query result:', { 
+        count: eventsData?.length || 0, 
+        error: eventsError,
+        firstEvent: eventsData?.[0]
+      });
 
       if (eventsError) {
         console.error('Error loading events:', eventsError);
