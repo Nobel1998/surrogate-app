@@ -8,7 +8,7 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/', label: 'Applications', icon: '📋' },
-    { href: '/events', label: 'Events', icon: '📅' },
+    { href: '/events', label: 'Blog', icon: '📝' },
   ];
 
   return (
