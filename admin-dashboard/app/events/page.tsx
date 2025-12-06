@@ -23,7 +23,7 @@ interface Event {
   likes_count?: number;
 }
 
-export default function EventsManagement() {
+export default function BlogManagement() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -107,7 +107,7 @@ export default function EventsManagement() {
   };
 
   const handleDelete = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) {
+    if (!confirm('Are you sure you want to delete this blog article?')) {
       return;
     }
 
@@ -120,7 +120,7 @@ export default function EventsManagement() {
       if (error) throw error;
       loadEvents();
     } catch (err: any) {
-      alert('Error deleting event: ' + err.message);
+      alert('Error deleting blog article: ' + err.message);
     }
   };
 
@@ -136,7 +136,7 @@ export default function EventsManagement() {
       if (error) throw error;
       loadEvents();
     } catch (err: any) {
-      alert('Error updating event status: ' + err.message);
+      alert('Error updating article status: ' + err.message);
     }
   };
 
@@ -157,7 +157,7 @@ export default function EventsManagement() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-xl text-gray-600">Loading events...</div>
+        <div className="text-xl text-gray-600">Loading blog articles...</div>
       </div>
     );
   }
@@ -165,7 +165,7 @@ export default function EventsManagement() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 text-red-500">
-        Error loading events: {error}
+        Error loading blog articles: {error}
       </div>
     );
   }
@@ -175,7 +175,7 @@ export default function EventsManagement() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Blog Management</h1>
           </div>
           <div className="flex space-x-3">
             <button
@@ -188,7 +188,7 @@ export default function EventsManagement() {
               onClick={handleCreate}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              Create New Event
+              Create New Blog
             </button>
           </div>
         </div>
@@ -199,7 +199,7 @@ export default function EventsManagement() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Event
+                    Article
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date & Location
@@ -308,7 +308,7 @@ export default function EventsManagement() {
           {events.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-500">
-                No events found. Create your first event to get started!
+                No blog articles found. Create your first article to get started!
               </div>
             </div>
           )}

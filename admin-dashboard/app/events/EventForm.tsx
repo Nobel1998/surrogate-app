@@ -23,7 +23,7 @@ interface EventFormProps {
   onSuccess: () => void;
 }
 
-const categories = ['General', 'Medical', 'Legal', 'Support', 'Gathering', 'Workshop', 'Webinar'];
+const categories = ['News', 'Policy', 'Medical', 'Legal', 'Event', 'Health', 'General'];
 
 export default function EventForm({ event, onClose, onSuccess }: EventFormProps) {
   const [formData, setFormData] = useState<Event>({
@@ -80,8 +80,8 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       };
 
       if (event?.id) {
-        // 更新事件 - 使用 .match() 确保精确匹配
-        console.log('Updating event with ID:', event.id);
+        // 更新文章 - 使用 .match() 确保精确匹配
+        console.log('Updating article with ID:', event.id);
         console.log('Update data:', submitData);
         
         const { data: updateResult, error: updateError, count } = await supabase
@@ -106,7 +106,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           throw new Error('Update succeeded but no rows were affected. This may be a permission issue.');
         }
         
-        console.log('Update successful! Updated event:', updateResult[0]);
+        console.log('Update successful! Updated article:', updateResult[0]);
         
         // 等待一下确保数据库提交
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -126,7 +126,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           const actualDate = new Date(verifyData.event_date);
           
           if (expectedDate.getTime() !== actualDate.getTime()) {
-            console.error('❌ CRITICAL: Event date mismatch after update!');
+            console.error('❌ CRITICAL: Article date mismatch after update!');
             console.error('Expected:', submitData.event_date, '→', expectedDate);
             console.error('Got:', verifyData.event_date, '→', actualDate);
             throw new Error(`Update verification failed: date is ${verifyData.event_date} instead of ${submitData.event_date}`);
@@ -138,7 +138,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           }
         }
       } else {
-        // 创建新事件
+        // 创建新文章
         const { error } = await supabase
           .from('events')
           .insert([submitData]);
@@ -167,7 +167,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {event ? 'Edit Event' : 'Create New Event'}
+              {event ? 'Edit Blog Article' : 'Create New Blog Article'}
             </h2>
             <button
               onClick={onClose}
@@ -188,7 +188,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Event Title *
+                Article Title *
               </label>
               <input
                 type="text"
@@ -201,7 +201,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Short Description *
+                Short Summary *
               </label>
               <textarea
                 value={formData.description}
@@ -209,26 +209,27 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 required
+                placeholder="Brief summary that will appear in the article list"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Detailed Content
+                Article Content
               </label>
               <textarea
                 value={formData.content}
                 onChange={(e) => handleInputChange('content', e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={5}
-                placeholder="Detailed description of the event, agenda, what to expect, etc."
+                placeholder="Full article content, news details, policy information, etc."
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date & Time *
+                  Publish Date & Time *
                 </label>
                 <input
                   type="datetime-local"
@@ -241,15 +242,14 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location *
+                  Location / Source
                 </label>
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Los Angeles, CA or Online Webinar"
-                  required
+                  placeholder="e.g., Los Angeles, CA or Online or leave blank for general articles"
                 />
               </div>
             </div>
@@ -272,14 +272,14 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Participants
+                  Max Participants (Events Only)
                 </label>
                 <input
                   type="number"
                   value={formData.max_participants || ''}
                   onChange={(e) => handleInputChange('max_participants', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Leave empty for unlimited"
+                  placeholder="Only for Event category articles"
                   min="1"
                 />
               </div>
@@ -334,7 +334,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
                     onChange={(e) => handleInputChange('is_featured', e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Featured Event</span>
+                  <span className="ml-2 text-sm text-gray-700">Featured Article</span>
                 </label>
               </div>
             </div>
@@ -353,7 +353,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 disabled={loading}
               >
-                {loading ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
+                {loading ? 'Saving...' : (event ? 'Update Article' : 'Create Article')}
               </button>
             </div>
           </form>
