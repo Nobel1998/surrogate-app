@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 
 type Profile = {
   id: string;
@@ -49,45 +48,30 @@ export default function MatchesPage() {
     setLoading(true);
     setError(null);
     try {
-      // 优先使用已有匹配，若表为空依然加载候选列表
-      const [{ data: surData, error: surError }, { data: parData, error: parError }, { data: matchData, error: matchError }] =
-        await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id, name, phone, role')
-            .in('role', ['surrogate', 'parent'])
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('profiles')
-            .select('id, name, phone, role')
-            .in('role', ['surrogate', 'parent'])
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('surrogate_matches')
-            .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes')
-            .order('created_at', { ascending: false })
-        ]);
+      const res = await fetch('/api/matches/data', { cache: 'no-store' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to load matches data: ${res.status}`);
+      }
+      const body = await res.json();
+      const profiles: Profile[] = body.profiles || [];
+      const matchData: Match[] = body.matches || [];
 
-      if (surError) throw surError;
-      if (parError) throw parError;
-      if (matchError) throw matchError;
-
-      const allProfiles = surData || [];
-      const surList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
-      const parList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'parent');
+      const surList = profiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
+      const parList = profiles.filter((p) => (p.role || '').toLowerCase() === 'parent');
 
       console.log('🧭 Matches loadData result', {
-        allProfiles: allProfiles.length,
+        allProfiles: profiles.length,
         surrogates: surList.length,
         parents: parList.length,
-        matches: matchData?.length || 0,
-        firstProfile: allProfiles?.[0],
+        matches: matchData.length,
+        firstProfile: profiles?.[0],
         firstMatch: matchData?.[0],
       });
 
       setSurrogates(surList);
       setParents(parList);
-      setMatches(matchData || []);
+      setMatches(matchData);
     } catch (err: any) {
       console.error('Error loading matches data:', err);
       setError(err.message || 'Failed to load data');
