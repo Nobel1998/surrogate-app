@@ -9,6 +9,10 @@ export default function SurrogateApplicationScreen({ navigation }) {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const [isLoading, setIsLoading] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   
   const [applicationData, setApplicationData] = useState({
     // Step 1: Personal Information
@@ -197,6 +201,13 @@ export default function SurrogateApplicationScreen({ navigation }) {
   };
 
   const handleNext = () => {
+    // Lazy registration: require auth after Step 1 if not logged in
+    if (currentStep === 1 && !user) {
+      if (!validateStep(1)) return;
+      setShowAuthPrompt(true);
+      return;
+    }
+
     if (validateStep(currentStep)) {
       if (currentStep < totalSteps) {
         setCurrentStep(currentStep + 1);
@@ -207,6 +218,76 @@ export default function SurrogateApplicationScreen({ navigation }) {
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Lazy sign-up for surrogates to save progress after step 1
+  const handleLazySignup = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+    if (!validateEmail(authEmail.trim())) {
+      Alert.alert('Error', 'Please enter a valid email');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const role = 'surrogate';
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: authEmail.trim(),
+        password: authPassword,
+        options: {
+          data: {
+            role,
+            name: applicationData.fullName,
+            phone: applicationData.phoneNumber,
+            location: applicationData.address || '',
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      const userId = authData?.user?.id;
+      if (userId) {
+        // Upsert profile
+        await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: userId,
+              role,
+              name: applicationData.fullName,
+              phone: applicationData.phoneNumber,
+              location: applicationData.address || '',
+              date_of_birth: applicationData.dateOfBirth || null,
+              email: authEmail.trim(),
+            },
+            { onConflict: 'id' }
+          );
+
+        // Save partial application as draft
+        const payload = {
+          full_name: applicationData.fullName,
+          phone: applicationData.phoneNumber,
+          form_data: JSON.stringify({ ...applicationData, draft: true }),
+          user_id: userId,
+          status: 'pending',
+        };
+        await supabase.from('applications').insert([payload]);
+      }
+
+      // Store email into form for continuity
+      updateField('email', authEmail.trim());
+      setShowAuthPrompt(false);
+      setCurrentStep(2);
+      Alert.alert('Progress Saved', 'Account created and progress saved. Please continue.');
+    } catch (error) {
+      console.error('Lazy signup error:', error);
+      Alert.alert('Error', error.message || 'Failed to save progress');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -721,6 +802,49 @@ export default function SurrogateApplicationScreen({ navigation }) {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Lazy auth modal */}
+      {showAuthPrompt && (
+        <View style={styles.authModalOverlay}>
+          <View style={styles.authModal}>
+            <Text style={styles.authTitle}>Save Progress</Text>
+            <Text style={styles.authSubtitle}>
+              Create an account to save your application progress.
+            </Text>
+            <TextInput
+              style={styles.authInput}
+              placeholder="Email"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={authEmail}
+              onChangeText={setAuthEmail}
+            />
+            <TextInput
+              style={styles.authInput}
+              placeholder="Password"
+              secureTextEntry
+              value={authPassword}
+              onChangeText={setAuthPassword}
+            />
+            <View style={styles.authActions}>
+              <TouchableOpacity
+                style={[styles.authButton, styles.authCancel]}
+                onPress={() => setShowAuthPrompt(false)}
+                disabled={authLoading}
+              >
+                <Text style={styles.authCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.authButton, styles.authSave]}
+                onPress={handleLazySignup}
+                disabled={authLoading}
+              >
+                <Text style={styles.authSaveText}>{authLoading ? 'Saving...' : 'Save & Continue'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -901,5 +1025,75 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Auth modal styles
+  authModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  authModal: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  authTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1D1E',
+    marginBottom: 6,
+  },
+  authSubtitle: {
+    fontSize: 14,
+    color: '#6E7191',
+    marginBottom: 16,
+  },
+  authInput: {
+    backgroundColor: '#F5F7FA',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1A1D1E',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7EE',
+  },
+  authActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  authButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  authCancel: {
+    backgroundColor: '#F5F7FA',
+  },
+  authCancelText: {
+    color: '#6E7191',
+    fontWeight: '600',
+  },
+  authSave: {
+    backgroundColor: '#2A7BF6',
+  },
+  authSaveText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

@@ -17,7 +17,6 @@ import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 
 export default function MyMatchScreen({ navigation }) {
-  // ... existing state
   const { user } = useAuth();
   const [matchData, setMatchData] = useState(null);
   const [partnerProfile, setPartnerProfile] = useState(null);
@@ -26,9 +25,158 @@ export default function MyMatchScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState('surrogate');
 
-  // ... existing loadMatchData logic
+  useEffect(() => {
+    loadMatchData();
+  }, [user]);
 
-  // ... existing helper functions
+  const loadMatchData = async () => {
+    console.log('[MyMatch] loadMatchData start', { userId: user?.id });
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // 1) 角色
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error loading profile role:', profileError);
+      }
+
+      const role = (profileData?.role || user?.role || 'surrogate').toLowerCase();
+      setUserRole(role);
+      const isSurrogate = role === 'surrogate';
+      console.log('[MyMatch] role:', role);
+
+      // 2) 匹配记录
+      let match = null;
+      let matchError = null;
+
+      if (isSurrogate) {
+        const { data, error } = await supabase
+          .from('surrogate_matches')
+          .select('*')
+          .eq('surrogate_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        match = data?.[0];
+        matchError = error;
+      } else {
+        const { data, error } = await supabase
+          .from('surrogate_matches')
+          .select('*')
+          .eq('parent_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        match = data?.[0];
+        matchError = error;
+      }
+
+      if (matchError && matchError.code !== 'PGRST116') {
+        console.error('Error loading match:', matchError);
+      }
+      console.log('[MyMatch] match:', match);
+
+      if (match) {
+        // 3) 对方资料
+        if (isSurrogate && match.parent_id) {
+          const { data: parentProfile, error: parentError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', match.parent_id)
+            .single();
+
+          if (parentError && parentError.code !== 'PGRST116') {
+            console.error('Error loading parent profile:', parentError);
+          } else {
+            console.log('Loaded parent profile for match:', parentProfile);
+            setPartnerProfile(parentProfile);
+          }
+        } else if (!isSurrogate && match.surrogate_id) {
+          const { data: surrogateProfile, error: surrogateError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', match.surrogate_id)
+            .single();
+
+          if (surrogateError && surrogateError.code !== 'PGRST116') {
+            console.error('Error loading surrogate profile:', surrogateError);
+          } else {
+            console.log('Loaded surrogate profile for match:', surrogateProfile);
+            setPartnerProfile(surrogateProfile);
+          }
+        }
+
+        setMatchData(match);
+
+        // 4) 文档
+        const targetUserId = isSurrogate ? user.id : match.surrogate_id;
+        const { data: docs, error: docsError } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .in('document_type', [
+            'surrogacy_contract',
+            'legal_contract',
+            'agency_contract',
+            'insurance_policy',
+            'parental_rights',
+            'medical_records'
+          ])
+          .order('created_at', { ascending: false });
+
+        if (docsError) {
+          console.error('Error loading documents:', docsError);
+        } else {
+          setDocuments(docs || []);
+          console.log('[MyMatch] documents count:', docs?.length || 0);
+        }
+      } else {
+        console.log('[MyMatch] no active match, unmatched state');
+        setMatchData(null);
+        setPartnerProfile(null);
+        setDocuments([]);
+      }
+    } catch (error) {
+      console.error('Error in loadMatchData:', error);
+      Alert.alert('Error', 'Failed to load match information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadMatchData();
+    setRefreshing(false);
+  };
+
+  const handleDocumentPress = async (document) => {
+    if (document.file_url) {
+      try {
+        const supported = await Linking.canOpenURL(document.file_url);
+        if (supported) {
+          await Linking.openURL(document.file_url);
+        } else {
+          Alert.alert('Error', 'Cannot open this document');
+        }
+      } catch (error) {
+        console.error('Error opening document:', error);
+        Alert.alert('Error', 'Failed to open document');
+      }
+    } else {
+      Alert.alert('Info', 'Document file is not available yet');
+    }
+  };
 
   // Render Unmatched State
   const renderUnmatchedState = () => (

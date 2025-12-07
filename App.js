@@ -15,6 +15,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
 import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
+import LandingScreen from './src/screens/LandingScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import MyMatchScreen from './src/screens/MyMatchScreen';
@@ -35,6 +36,18 @@ function MainTabNavigator() {
           let iconEmoji;
           const iconSize = size * 0.6; // Very small icons to maximize text space
           switch (route.name) {
+            case 'My Journey':
+              iconEmoji = '📖';
+              break;
+            case 'My Match':
+              iconEmoji = '💝';
+              break;
+            case 'Blog':
+              iconEmoji = '📰';
+              break;
+            case 'User Center':
+              iconEmoji = '👤';
+              break;
             case 'Community':
               iconEmoji = '👥';
               break;
@@ -55,9 +68,6 @@ function MainTabNavigator() {
               break;
             case 'Company':
               iconEmoji = 'ℹ️';
-              break;
-            case 'MyMatch':
-              iconEmoji = '💕';
               break;
             case 'Profile':
               iconEmoji = '👤';
@@ -108,15 +118,10 @@ function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Community" component={HomeScreen} />
-      <Tab.Screen name="Event" component={EventScreen} />
-      <Tab.Screen name="Benefits" component={BenefitsScreen} />
-      <Tab.Screen name="Apply" component={SurrogateApplicationScreen} />
-      <Tab.Screen name="MyMatch" component={MyMatchScreen} />
-      <Tab.Screen name="Ambassador" component={AmbassadorScreen} />
-      <Tab.Screen name="Protection" component={ProtectionScreen} />
-      <Tab.Screen name="Company" component={CompanyScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="My Journey" component={HomeScreen} />
+      <Tab.Screen name="My Match" component={MyMatchScreen} />
+      <Tab.Screen name="Blog" component={EventScreen} />
+      <Tab.Screen name="User Center" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -132,8 +137,8 @@ function GuestTabNavigator() {
         tabBarIcon: ({ color, size }) => {
           let iconEmoji;
           const iconSize = size * 0.8;
-          if (route.name === 'Event') {
-            iconEmoji = '📅';
+          if (route.name === 'Blog') {
+            iconEmoji = '📰';
           } else if (route.name === 'LoginTab') {
             iconEmoji = '🔑';
           }
@@ -144,7 +149,7 @@ function GuestTabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Event" component={EventScreen} />
+      <Tab.Screen name="Blog" component={EventScreen} />
       <Tab.Screen 
         name="LoginTab" 
         component={LoginTabPlaceholder}
@@ -164,10 +169,13 @@ function GuestTabNavigator() {
 function GuestStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="GuestTabs" component={GuestTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
       <Stack.Screen name="LoginScreen" component={LoginScreen} />
       <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+      <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
     </Stack.Navigator>
   );
 }
@@ -179,10 +187,13 @@ function AppStackNavigator() {
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
-      <Stack.Screen name="MyMatch" component={MyMatchScreen} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="Benefits" component={BenefitsScreen} />
+      <Stack.Screen name="Ambassador" component={AmbassadorScreen} />
+      <Stack.Screen name="Protection" component={ProtectionScreen} />
+      <Stack.Screen name="Company" component={CompanyScreen} />
     </Stack.Navigator>
   );
 }
@@ -194,14 +205,16 @@ const linking = {
     screens: {
       MainTabs: {
         screens: {
-          Community: 'community',
-          Event: 'events',
+          'My Journey': 'journey',
+          'My Match': 'match',
+          Blog: 'blog',
+          'User Center': 'profile',
         },
       },
       PostDetail: 'post/:postId',
       GuestTabs: {
         screens: {
-          Event: 'events',
+          Blog: 'blog',
         },
       },
       LoginScreen: 'login',
