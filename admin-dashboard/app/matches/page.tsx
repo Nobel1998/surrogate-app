@@ -76,6 +76,15 @@ export default function MatchesPage() {
       const surList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
       const parList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'parent');
 
+      console.log('🧭 Matches loadData result', {
+        allProfiles: allProfiles.length,
+        surrogates: surList.length,
+        parents: parList.length,
+        matches: matchData?.length || 0,
+        firstProfile: allProfiles?.[0],
+        firstMatch: matchData?.[0],
+      });
+
       setSurrogates(surList);
       setParents(parList);
       setMatches(matchData || []);
