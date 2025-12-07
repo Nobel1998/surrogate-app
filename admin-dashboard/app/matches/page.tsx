@@ -88,19 +88,20 @@ export default function MatchesPage() {
     }
     setSubmitting(true);
     try {
-      const payload = {
-        surrogate_id: selectedSurrogate,
-        parent_id: selectedParent,
-        status,
-        notes: notes.trim() || null,
-      };
-
-      const { error: upsertError } = await supabase
-        .from('surrogate_matches')
-        .upsert(payload, { onConflict: 'surrogate_id,parent_id' });
-
-      if (upsertError) throw upsertError;
-
+      const res = await fetch('/api/matches/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surrogate_id: selectedSurrogate,
+          parent_id: selectedParent,
+          status,
+          notes: notes.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Create match failed: ${res.status} ${errText}`);
+      }
       await loadData();
       setNotes('');
       alert('Match saved successfully');
@@ -114,11 +115,15 @@ export default function MatchesPage() {
 
   const updateMatchStatus = async (id: string, newStatus: string) => {
     try {
-      const { error: updError } = await supabase
-        .from('surrogate_matches')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (updError) throw updError;
+      const res = await fetch('/api/matches/options', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Update status failed: ${res.status} ${errText}`);
+      }
       await loadData();
     } catch (err: any) {
       console.error('Error updating status:', err);
