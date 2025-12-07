@@ -101,6 +101,7 @@ export default function MyMatchScreen({ navigation }) {
           if (parentError && parentError.code !== 'PGRST116') {
             console.error('Error loading parent profile:', parentError);
           } else {
+            console.log('Loaded parent profile for match:', parentProfile);
             setPartnerProfile(parentProfile);
           }
         } else if (!isSurrogate && match.surrogate_id) {
@@ -113,6 +114,7 @@ export default function MyMatchScreen({ navigation }) {
           if (surrogateError && surrogateError.code !== 'PGRST116') {
             console.error('Error loading surrogate profile:', surrogateError);
           } else {
+            console.log('Loaded surrogate profile for match:', surrogateProfile);
             setPartnerProfile(surrogateProfile);
           }
         }
@@ -268,12 +270,9 @@ export default function MyMatchScreen({ navigation }) {
             '#FF9800', 
             () => {
               if (partnerProfile) {
-                // Debug log to ensure location is populated
-                console.log('Partner profile for display:', partnerProfile);
-                const location = partnerProfile.location || partnerProfile.address || '';
                 Alert.alert(
                   isSurrogate ? 'IP Profile' : 'Surrogate Profile',
-                  `Name: ${partnerProfile.name || ''}\nEmail: ${partnerProfile.email || ''}\nPhone: ${partnerProfile.phone || ''}\nLocation: ${location}\nBio: ${partnerProfile.background || ''}`
+                  `Name: ${partnerProfile.name || ''}\nEmail: ${partnerProfile.email || ''}\nPhone: ${partnerProfile.phone || ''}\nLocation: ${partnerProfile.location || ''}`
                 );
               } else {
                 Alert.alert('Info', 'No match found yet.');
