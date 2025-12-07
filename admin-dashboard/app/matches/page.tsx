@@ -50,7 +50,8 @@ export default function MatchesPage() {
     try {
       const res = await fetch('/api/matches/options');
       if (!res.ok) {
-        throw new Error(`Options request failed: ${res.status}`);
+        const errText = await res.text();
+        throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
       }
       const { profiles = [], matches: matchData = [] } = await res.json();
 
