@@ -268,9 +268,12 @@ export default function MyMatchScreen({ navigation }) {
             '#FF9800', 
             () => {
               if (partnerProfile) {
+                // Debug log to ensure location is populated
+                console.log('Partner profile for display:', partnerProfile);
+                const location = partnerProfile.location || partnerProfile.address || '';
                 Alert.alert(
                   isSurrogate ? 'IP Profile' : 'Surrogate Profile',
-                  `Name: ${partnerProfile.name || ''}\nEmail: ${partnerProfile.email || ''}\nPhone: ${partnerProfile.phone || ''}\nAddress: ${partnerProfile.address || ''}\nBio: ${partnerProfile.background || ''}`
+                  `Name: ${partnerProfile.name || ''}\nEmail: ${partnerProfile.email || ''}\nPhone: ${partnerProfile.phone || ''}\nLocation: ${location}\nBio: ${partnerProfile.background || ''}`
                 );
               } else {
                 Alert.alert('Info', 'No match found yet.');
