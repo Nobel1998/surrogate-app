@@ -15,6 +15,12 @@ export async function GET() {
     );
   }
 
+  // Runtime env quick check (does not log secret value)
+  console.log('[matches/options] env check', {
+    supabaseUrl,
+    hasServiceKey: !!serviceKey,
+  });
+
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
