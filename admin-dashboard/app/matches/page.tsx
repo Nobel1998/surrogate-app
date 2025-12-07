@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 type Profile = {
   id: string;
   name?: string;
+  // profiles 表无 email 字段，保持可选仅为兼容未来扩展
   email?: string;
   phone?: string;
   role?: string;
@@ -48,10 +49,19 @@ export default function MatchesPage() {
     setLoading(true);
     setError(null);
     try {
+      // 优先使用已有匹配，若表为空依然加载候选列表
       const [{ data: surData, error: surError }, { data: parData, error: parError }, { data: matchData, error: matchError }] =
         await Promise.all([
-          supabase.from('profiles').select('id, name, email, phone, role').eq('role', 'surrogate').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('id, name, email, phone, role').eq('role', 'parent').order('created_at', { ascending: false }),
+          supabase
+            .from('profiles')
+            .select('id, name, phone, role')
+            .in('role', ['surrogate', 'parent'])
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('profiles')
+            .select('id, name, phone, role')
+            .in('role', ['surrogate', 'parent'])
+            .order('created_at', { ascending: false }),
           supabase
             .from('surrogate_matches')
             .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes')
@@ -62,8 +72,12 @@ export default function MatchesPage() {
       if (parError) throw parError;
       if (matchError) throw matchError;
 
-      setSurrogates(surData || []);
-      setParents(parData || []);
+      const allProfiles = surData || [];
+      const surList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
+      const parList = allProfiles.filter((p) => (p.role || '').toLowerCase() === 'parent');
+
+      setSurrogates(surList);
+      setParents(parList);
       setMatches(matchData || []);
     } catch (err: any) {
       console.error('Error loading matches data:', err);
@@ -159,7 +173,7 @@ export default function MatchesPage() {
                 <option value="">Select a surrogate</option>
                 {surrogates.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name || s.email || s.id} {s.email ? `(${s.email})` : ''} {s.phone ? `• ${s.phone}` : ''}
+                    {s.name || s.id} {s.phone ? `• ${s.phone}` : ''}
                   </option>
                 ))}
               </select>
@@ -175,7 +189,7 @@ export default function MatchesPage() {
                 <option value="">Select a parent</option>
                 {parents.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name || p.email || p.id} {p.email ? `(${p.email})` : ''} {p.phone ? `• ${p.phone}` : ''}
+                    {p.name || p.id} {p.phone ? `• ${p.phone}` : ''}
                   </option>
                 ))}
               </select>
@@ -249,12 +263,12 @@ export default function MatchesPage() {
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{surrogate?.name || surrogate?.email || m.surrogate_id}</div>
-                        <div className="text-xs text-gray-500">{surrogate?.email}</div>
+                        <div className="font-medium">{surrogate?.name || m.surrogate_id}</div>
+                        <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{parent?.name || parent?.email || m.parent_id}</div>
-                        <div className="text-xs text-gray-500">{parent?.email}</div>
+                        <div className="font-medium">{parent?.name || m.parent_id}</div>
+                        <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span
