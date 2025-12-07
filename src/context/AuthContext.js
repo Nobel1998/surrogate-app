@@ -215,18 +215,23 @@ export const AuthProvider = ({ children }) => {
             .eq('id', session.user.id)
             .single();
           
-          const { data: profileData } = await Promise.race([
-            profilePromise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
-          ]);
+        const { data: profileData } = await Promise.race([
+          profilePromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
+        ]);
           
           const userData = {
             id: session.user.id,
             email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-            phone: session.user.user_metadata?.phone || '',
+            name: profileData?.name || session.user.user_metadata?.name || session.user.email.split('@')[0],
+            phone: profileData?.phone || session.user.user_metadata?.phone || '',
+            address: profileData?.location || session.user.user_metadata?.location || '',
+            dateOfBirth: profileData?.date_of_birth || session.user.user_metadata?.date_of_birth || '',
+            race: profileData?.race || session.user.user_metadata?.race || '',
             inviteCode: profileData?.invite_code || '',
             referredBy: profileData?.referred_by || '',
+            role: profileData?.role || session.user.user_metadata?.role || 'surrogate',
+            location: profileData?.location || session.user.user_metadata?.location || '',
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
           };
@@ -243,8 +248,13 @@ export const AuthProvider = ({ children }) => {
             email: session.user.email,
             name: session.user.user_metadata?.name || session.user.email.split('@')[0],
             phone: session.user.user_metadata?.phone || '',
+            address: session.user.user_metadata?.location || '',
+            dateOfBirth: session.user.user_metadata?.date_of_birth || '',
+            race: session.user.user_metadata?.race || '',
             inviteCode: '',
             referredBy: '',
+            role: session.user.user_metadata?.role || 'surrogate',
+            location: session.user.user_metadata?.location || '',
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
           };
@@ -346,10 +356,15 @@ export const AuthProvider = ({ children }) => {
             const userData = {
               id: session.user.id,
               email: session.user.email,
-              name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-              phone: session.user.user_metadata?.phone || '',
+              name: profileData?.name || session.user.user_metadata?.name || session.user.email.split('@')[0],
+              phone: profileData?.phone || session.user.user_metadata?.phone || '',
+              address: profileData?.location || session.user.user_metadata?.location || '',
+              dateOfBirth: profileData?.date_of_birth || session.user.user_metadata?.date_of_birth || '',
+              race: profileData?.race || session.user.user_metadata?.race || '',
               inviteCode: profileData?.invite_code || '',
               referredBy: profileData?.referred_by || '',
+              role: profileData?.role || session.user.user_metadata?.role || 'surrogate',
+              location: profileData?.location || session.user.user_metadata?.location || '',
               createdAt: session.user.created_at,
               lastLogin: new Date().toISOString(),
             };
@@ -484,10 +499,15 @@ export const AuthProvider = ({ children }) => {
         const userData = {
           id: authData.user.id,
           email: authData.user.email,
-          name: authData.user.user_metadata?.name || email.split('@')[0],
-          phone: authData.user.user_metadata?.phone || '',
+          name: profileData?.name || authData.user.user_metadata?.name || email.split('@')[0],
+          phone: profileData?.phone || authData.user.user_metadata?.phone || '',
+          address: profileData?.location || authData.user.user_metadata?.location || '',
+          dateOfBirth: profileData?.date_of_birth || authData.user.user_metadata?.date_of_birth || '',
+          race: profileData?.race || authData.user.user_metadata?.race || '',
           inviteCode: profileData?.invite_code || '',
           referredBy: profileData?.referred_by || '',
+          role: profileData?.role || authData.user.user_metadata?.role || 'surrogate',
+          location: profileData?.location || authData.user.user_metadata?.location || '',
           createdAt: authData.user.created_at,
           lastLogin: new Date().toISOString(),
         };
@@ -537,6 +557,19 @@ export const AuthProvider = ({ children }) => {
 
       // 1. Sign up with Supabase Auth
       // We pass referralCode in the user metadata so the database trigger can use it immediately
+      const role = (userData.role || 'surrogate').toLowerCase();
+
+      console.log('📝 Register payload (sending to auth):', {
+        email: userData.email,
+        role,
+        name: userData.name,
+        phone: userData.phone,
+        dateOfBirth: userData.dateOfBirth,
+        race: userData.emergencyContact,
+        location: userData.address,
+        referralCode: userData.referralCode,
+      });
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -545,8 +578,19 @@ export const AuthProvider = ({ children }) => {
             name: userData.name,
             phone: userData.phone,
             referral_code: userData.referralCode || null,
+            role, // 写入 auth metadata
+            date_of_birth: userData.dateOfBirth || null,
+            race: userData.emergencyContact || null,
+            location: userData.address || null,
           }
         }
+      });
+
+      console.log('✅ Auth signup result:', {
+        userId: authData?.user?.id,
+        hasSession: !!authData?.session,
+        identities: authData?.user?.identities?.length,
+        authError: authError?.message,
       });
 
       if (authError) {
@@ -587,38 +631,91 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (authData.user) {
-        // 2. Fetch the full profile including the generated invite_code
-        // We no longer need to manually update referred_by here because the trigger will handle it
-        // But we might need a small delay to ensure the trigger has finished inserting the row
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 2. Upsert profile with role
+        await new Promise(resolve => setTimeout(resolve, 300)); // give DB trigger a moment
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single();
+        // 2a. Upsert profile; invite_code 必须唯一且非空，重复时自动生成新 code 重试一次
+        let profileData = null;
+        let profileError = null;
+
+        const generateInviteCode = () => {
+          // 生成 6 位字母数字邀请码（大写）
+          const chars = 'ABCDEFGHJKLMNOPQRSTUVWXYZ0123456789';
+          let code = '';
+          for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return code;
+        };
+
+        let inviteCodeToUse = generateInviteCode();
+
+        const upsertProfile = async (inviteCode) => {
+          const payload = {
+            id: authData.user.id,
+            role,
+            name: userData.name,
+            phone: userData.phone || '',
+            date_of_birth: userData.dateOfBirth || null,
+            race: userData.emergencyContact || null,
+            location: userData.address || '',
+            invite_code: inviteCode,
+            // referred_by: 填写他人邀请码则记录，否则允许为 null
+            referred_by: userData.referralCode?.trim() || null,
+          };
+          console.log('🧾 Profile upsert payload:', payload);
+          return supabase
+            .from('profiles')
+            .upsert(payload, { onConflict: 'id' })
+            .select('*')
+            .single();
+        };
+
+        ({ data: profileData, error: profileError } = await upsertProfile(inviteCodeToUse));
+
+        if (profileError && profileError.message?.includes('profiles_invite_code_key')) {
+          inviteCodeToUse = generateInviteCode();
+          console.log('⚠️ Duplicate invite_code, retrying with new 6-char code:', inviteCodeToUse);
+          ({ data: profileData, error: profileError } = await upsertProfile(inviteCodeToUse));
+        }
+
+        if (profileError) {
+          console.log('⚠️ Upsert profiles failed (RLS?)', profileError.message);
+        } else {
+          console.log('✅ Profile upserted:', {
+            id: profileData?.id,
+            role: profileData?.role,
+            name: profileData?.name,
+            phone: profileData?.phone,
+            date_of_birth: profileData?.date_of_birth,
+            race: profileData?.race,
+            location: profileData?.location,
+            invite_code: profileData?.invite_code,
+          });
+        }
 
         // 4. Construct the user object for local state
-        const newUser = {
-          id: authData.user.id,
-          email: userData.email,
-          name: userData.name,
-          phone: userData.phone || '',
-          address: userData.address || '',
-          dateOfBirth: userData.dateOfBirth || '',
-          emergencyContact: userData.emergencyContact || '',
-          inviteCode: profileData?.invite_code || '', // Get the generated code
-          referredBy: profileData?.referred_by || '',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        };
+          const newUser = {
+            id: authData.user.id,
+            email: userData.email,
+            name: userData.name,
+            phone: userData.phone || '',
+            address: userData.address || '',
+            dateOfBirth: userData.dateOfBirth || '',
+            race: userData.emergencyContact || '',
+            location: userData.address || '',
+            inviteCode: profileData?.invite_code || '',
+            referredBy: profileData?.referred_by || '',
+            role: profileData?.role || role,
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+          };
+        console.log('🏁 Local newUser constructed:', newUser);
         
         setUser(newUser);
         setIsAuthenticated(true);
         await storeUser(newUser);
         
-        // Keep the old local storage logic as a fallback/cache if you want
-        // but primarily we rely on Supabase now for this session
         return { success: true, user: newUser };
       }
       

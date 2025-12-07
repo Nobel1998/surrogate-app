@@ -1,9 +1,22 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, SafeAreaView, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { supabase } from '../lib/supabase';
+
+// Normalize stage values to lowercase for consistent filtering
+const normalizeStage = (value = 'pregnancy') => {
+  if (!value) return 'pregnancy';
+  return String(value).toLowerCase();
+};
+
+const STAGE_OPTIONS = [
+  { key: 'pre', label: 'Pre-pregnancy', icon: 'heart', description: 'Preparation & Matching' },
+  { key: 'pregnancy', label: 'Pregnancy', icon: 'heart', description: 'Updates & Checkups' },
+  { key: 'delivery', label: 'Delivery', icon: 'gift', description: 'Birth & Post-birth' },
+];
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
@@ -50,6 +63,9 @@ export default function HomeScreen() {
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [postText, setPostText] = useState('');
+  const [postStage, setPostStage] = useState('pregnancy'); // pre-pregnancy, pregnancy, delivery
+  const [stageFilter, setStageFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('timeline'); // 'timeline' or 'feed'
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [selectedPostForComment, setSelectedPostForComment] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -58,6 +74,11 @@ export default function HomeScreen() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
+  const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
+  const roleLower = (user?.role || '').toLowerCase();
+  const isSurrogateRole = roleLower === 'surrogate';
+  const isParentRole = roleLower === 'parent';
 
   // 设置当前用户ID当用户登录时
   useEffect(() => {
@@ -91,6 +112,58 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   }, [refreshData]);
+
+  // Fetch matched surrogate id for parent users (surrogate can skip)
+  useEffect(() => {
+    const fetchMatchedSurrogate = async () => {
+      if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
+        setMatchedSurrogateId(null);
+        return;
+      }
+      setMatchCheckInProgress(true);
+      try {
+        // Try parent_id (most likely schema)
+        const { data: parentMatches, error: parentMatchError } = await supabase
+          .from('surrogate_matches')
+          .select('surrogate_id')
+          .eq('parent_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (parentMatchError) {
+          console.log('Error loading match by parent_id:', parentMatchError.message);
+        }
+
+        let surrogateId = parentMatches?.[0]?.surrogate_id || null;
+
+        // Fallback: some schemas may use parent_user_id
+        if (!surrogateId) {
+          const { data: altMatches, error: altError } = await supabase
+            .from('surrogate_matches')
+            .select('surrogate_id')
+            .eq('parent_user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (altError) {
+            console.log('Error loading match by parent_user_id:', altError.message);
+          }
+          surrogateId = altMatches?.[0]?.surrogate_id || null;
+        }
+
+        setMatchedSurrogateId(surrogateId);
+        console.log('Matched surrogate for parent:', surrogateId);
+      } catch (error) {
+        console.error('Error fetching matched surrogate:', error);
+        setMatchedSurrogateId(null);
+      } finally {
+        setMatchCheckInProgress(false);
+      }
+    };
+
+    fetchMatchedSurrogate();
+  }, [user?.id, user?.role]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -174,11 +247,19 @@ export default function HomeScreen() {
   };
 
   const showImagePicker = () => {
+    if (isParentRole) {
+      Alert.alert('Restricted', 'Only surrogates can create posts.');
+      return;
+    }
     // 直接打开发帖窗口
     setShowModal(true);
   };
 
   const publishPost = async () => {
+    if (isParentRole) {
+      Alert.alert('Restricted', 'Only surrogates can create posts.');
+      return;
+    }
     // 验证：至少要有文字或图片/视频
     if (!postText.trim() && !selectedImage) {
       Alert.alert('Error', 'Please add some text or media to your post.');
@@ -205,6 +286,7 @@ export default function HomeScreen() {
       mediaType: mediaType,
       userName: user?.name || 'Surrogate Member',
       userId: user?.id || 'guest',
+      stage: normalizeStage(postStage || 'pregnancy'),
     };
 
     try {
@@ -221,6 +303,7 @@ export default function HomeScreen() {
       setShowModal(false);
       setSelectedImage(null);
       setPostText('');
+      setPostStage('pregnancy');
       setUploadProgress(0);
       setUploadStatus('');
       Alert.alert('Success', 'Your post has been published!');
@@ -523,61 +606,156 @@ export default function HomeScreen() {
   );
   };
 
-  // Community 只显示帖子，不包含 events
+  // Community 只显示帖子，不包含 events，并按阶段过滤（大小写不敏感）
   const feedData = useMemo(() => {
-    return posts.map(post => ({ ...post, type: 'post' }));
-  }, [posts]);
+    const safePosts = Array.isArray(posts) ? posts : [];
+    const normalized = safePosts.map(post => ({
+      ...post,
+      type: 'post',
+      stage: normalizeStage(post.stage || 'pregnancy'),
+    }));
+
+    let scoped = normalized;
+
+    if (isSurrogateRole) {
+      scoped = normalized.filter(p => p.userId === user?.id);
+    } else if (isParentRole) {
+      // Parent can only see matched surrogate's posts
+      if (matchedSurrogateId) {
+        scoped = normalized.filter(p => p.userId === matchedSurrogateId);
+      } else {
+        scoped = [];
+      }
+    }
+
+    if (stageFilter === 'all') return scoped;
+    const filterStage = normalizeStage(stageFilter);
+    return scoped.filter(p => normalizeStage(p.stage) === filterStage);
+  }, [posts, stageFilter, user?.id, matchedSurrogateId, isSurrogateRole, isParentRole]);
+
+  // Key extractor for feed items
+  const keyExtractor = useCallback((item) => {
+    if (!item?.id) return Math.random().toString();
+    return String(item.id);
+  }, []);
 
   const renderItem = useCallback(({ item }) => {
     return renderPost(item);
   }, [likedPosts, user, getComments]);
 
-  const keyExtractor = useCallback((item) => item.id, []);
+  const renderTimelineView = () => {
+    return (
+      <ScrollView style={styles.timelineContainer}>
+        {STAGE_OPTIONS.map((stage, index) => (
+          <View key={stage.key} style={styles.timelineItem}>
+            {/* Left Column: Date/Icon + Line */}
+            <View style={styles.timelineLeftCol}>
+              <View style={styles.timelineIconContainer}>
+                <Icon name={stage.icon} size={20} color="#FF8EA4" />
+              </View>
+              {index < STAGE_OPTIONS.length - 1 && <View style={styles.timelineLine} />}
+            </View>
+
+            {/* Right Column: Content */}
+            <View style={styles.timelineContent}>
+              <View style={styles.timelineCard}>
+                <Text style={styles.timelineStepText}>{index + 1}. {stage.label}</Text>
+                <Text style={styles.timelineDescText}>{stage.description}</Text>
+                <TouchableOpacity 
+                  style={styles.viewStepsButton}
+                  onPress={() => {
+                    setStageFilter(stage.key);
+                    setViewMode('feed');
+                  }}
+                >
+                  <Text style={styles.viewStepsText}>VIEW DETAILS</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.headerContainer}>
-        <Text style={styles.title}>👥 Surrogate Community</Text>
-        <Text style={styles.subtitle}>Share and connect with other surrogates</Text>
-      </View>
       
-              {isLoading ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator size="large" color="#2A7BF6" />
-                  <Text style={styles.loadingText}>Loading posts...</Text>
-                </View>
-              ) : feedData.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <Icon name="users" size={48} color="#ccc" />
-                    <Text style={styles.emptyText}>No posts yet in the community</Text>
-                    <Text style={styles.emptySubtext}>Be the first to share your surrogacy journey with other surrogates!</Text>
-                  </View>
-                ) : (
-                <FlatList
-                  data={feedData}
-                  renderItem={renderItem}
-                  keyExtractor={keyExtractor}
-                  style={styles.feed}
-                  showsVerticalScrollIndicator={false}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      colors={['#2A7BF6']}
-                      tintColor="#2A7BF6"
-                    />
-                  }
-                  removeClippedSubviews={true}
-                  maxToRenderPerBatch={5}
-                  updateCellsBatchingPeriod={100}
-                  windowSize={10}
-                />
-              )}
-      
-      <TouchableOpacity style={styles.fab} onPress={showImagePicker}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {viewMode === 'timeline' ? (
+        <>
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>My Journey</Text>
+            <Text style={styles.subtitle}>Track your surrogacy progress</Text>
+          </View>
+          {renderTimelineView()}
+          {isSurrogateRole && (
+            <TouchableOpacity 
+              style={styles.fabLarge} 
+              onPress={() => {
+                setPostStage('pregnancy'); // Default or logic to pick current stage
+                showImagePicker();
+              }}
+            >
+              <Icon name="plus" size={32} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <>
+          <View style={styles.feedHeader}>
+            <TouchableOpacity onPress={() => setViewMode('timeline')} style={styles.backButton}>
+              <Icon name="chevron-left" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.feedTitle}>
+              {STAGE_OPTIONS.find(s => s.key === stageFilter)?.label || 'All Updates'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={styles.feedContainer}>
+            {/* Feed List */}
+            {isLoading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color="#2A7BF6" />
+                <Text style={styles.loadingText}>Loading posts...</Text>
+              </View>
+            ) : !feedData || feedData.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Icon name="activity" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>No updates in this stage yet</Text>
+                <Text style={styles.emptySubtext}>Share your first update!</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={feedData}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                style={styles.feed}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#2A7BF6']}
+                    tintColor="#2A7BF6"
+                  />
+                }
+              />
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.fab} 
+            onPress={() => {
+              setPostStage(stageFilter === 'all' ? 'pregnancy' : stageFilter);
+              showImagePicker();
+            }}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* Post Modal */}
       <Modal
@@ -630,6 +808,32 @@ export default function HomeScreen() {
               <View style={styles.userInfo}>
                 <Avatar name={user?.name || 'Surrogate Member'} size={40} />
                 <Text style={[styles.userName, { marginLeft: 12 }]}>{user?.name || 'Surrogate Member'}</Text>
+              </View>
+
+              {/* Stage selection */}
+              <View style={styles.stageSelector}>
+                <Text style={styles.stageSelectorLabel}>Stage</Text>
+                <View style={styles.stageChipsRow}>
+                  {STAGE_OPTIONS.map(option => (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[
+                        styles.stageChip,
+                        postStage === option.key && styles.stageChipActive,
+                      ]}
+                      onPress={() => setPostStage(option.key)}
+                    >
+                      <Text
+                        style={[
+                          styles.stageChipText,
+                          postStage === option.key && styles.stageChipTextActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               
               <TextInput
@@ -808,6 +1012,108 @@ const styles = StyleSheet.create({
     textAlign: 'left', // 左对齐
     marginBottom: 8,
   },
+  timelineContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 30,
+  },
+  timelineLeftCol: {
+    alignItems: 'center',
+    marginRight: 20,
+    width: 40,
+  },
+  timelineIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF0F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF8EA4',
+    zIndex: 2,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#FFE4E8',
+    position: 'absolute',
+    top: 40,
+    bottom: -30,
+    zIndex: 1,
+  },
+  timelineContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  timelineCard: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  timelineStepText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  timelineDescText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  viewStepsButton: {
+    backgroundColor: '#FFE4E8',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  viewStepsText: {
+    color: '#FF8EA4',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  feedContainer: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  fabLarge: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FF8EA4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  feedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  feedTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  backButton: {
+    padding: 8,
+  },
   feed: { 
     flex: 1,
     paddingHorizontal: 20, // 增加左右间距
@@ -906,6 +1212,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1D1E',
     marginBottom: 2,
+  },
+  stageSelector: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  stageSelectorLabel: {
+    fontSize: 14,
+    color: '#4E4B66',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  stageChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  stageChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F0F2F5',
+  },
+  stageChipActive: {
+    backgroundColor: '#FF8EA4',
+  },
+  stageChipText: {
+    fontSize: 12,
+    color: '#555',
+    fontWeight: '600',
+  },
+  stageChipTextActive: {
+    color: '#fff',
   },
   timestamp: {
     fontSize: 13,

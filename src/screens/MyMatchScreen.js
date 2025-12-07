@@ -5,86 +5,145 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
   SafeAreaView,
   StatusBar,
-  Image,
   RefreshControl,
   Alert,
-  Linking
+  Linking,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { Feather as Icon } from '@expo/vector-icons';
 
-export default function MyMatchScreen() {
-  const { user, userProfile } = useAuth();
-  const [match, setMatch] = useState(null);
-  const [clientProfile, setClientProfile] = useState(null);
-  const [contracts, setContracts] = useState([]);
-  const [journeyUpdates, setJourneyUpdates] = useState([]);
+const { width } = Dimensions.get('window');
+
+export default function MyMatchScreen({ navigation }) {
+  const { user } = useAuth();
+  const [matchData, setMatchData] = useState(null);
+  const [partnerProfile, setPartnerProfile] = useState(null); // 对方资料（代母/客人）
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userRole, setUserRole] = useState('surrogate'); // 默认代母
 
   useEffect(() => {
-    if (user) {
-      loadMatchData();
-    }
+    loadMatchData();
   }, [user]);
 
   const loadMatchData = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // 获取当前用户的匹配信息
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches_with_details')
-        .select('*')
-        .eq('surrogate_id', user.id)
-        .eq('status', 'active')
+      // 1) 加载当前用户的角色（profiles 表中的 role 字段）
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .single();
 
-      if (matchError && matchError.code !== 'PGRST116') {
-        throw matchError;
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error loading profile role:', profileError);
       }
 
-      if (matchData) {
-        setMatch(matchData);
+      const role = (profileData?.role || user?.role || 'surrogate').toLowerCase();
+      setUserRole(role);
 
-        // 获取客人详细信息
-        const { data: clientData, error: clientError } = await supabase
-          .from('client_profiles')
+      const isSurrogate = role === 'surrogate';
+
+      // 2) 根据角色加载匹配信息
+      let match = null;
+      let matchError = null;
+
+      if (isSurrogate) {
+        const { data, error } = await supabase
+          .from('surrogate_matches')
           .select('*')
-          .eq('user_id', matchData.client_id)
-          .single();
+          .eq('surrogate_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        match = data?.[0];
+        matchError = error;
+      } else {
+        // 客人侧：直接以 auth 用户 id 作为 parent 关联
+        const { data, error } = await supabase
+          .from('surrogate_matches')
+          .select('*')
+          .eq('parent_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        match = data?.[0];
+        matchError = error;
+      }
 
-        if (!clientError) {
-          setClientProfile(clientData);
+      if (matchError && matchError.code !== 'PGRST116') {
+        console.error('Error loading match:', matchError);
+      }
+
+      if (match) {
+        // 3) 加载对方资料
+        if (isSurrogate && match.parent_id) {
+          const { data: parentProfile, error: parentError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', match.parent_id)
+            .single();
+
+          if (parentError && parentError.code !== 'PGRST116') {
+            console.error('Error loading parent profile:', parentError);
+          } else {
+            setPartnerProfile(parentProfile);
+          }
+        } else if (!isSurrogate && match.surrogate_id) {
+          const { data: surrogateProfile, error: surrogateError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', match.surrogate_id)
+            .single();
+
+          if (surrogateError && surrogateError.code !== 'PGRST116') {
+            console.error('Error loading surrogate profile:', surrogateError);
+          } else {
+            setPartnerProfile(surrogateProfile);
+          }
         }
 
-        // 获取合同文档
-        const { data: contractsData, error: contractsError } = await supabase
-          .from('contracts')
+        // 4) 合并匹配信息
+        setMatchData(match);
+
+        // 5) 加载相关文档：代母上传的文档由双方查看，因此取代母 id
+        const targetUserId = isSurrogate ? user.id : match.surrogate_id;
+        const { data: docs, error: docsError } = await supabase
+          .from('documents')
           .select('*')
-          .eq('match_id', matchData.id)
+          .eq('user_id', targetUserId)
+          .in('document_type', [
+            'surrogacy_contract',
+            'legal_contract',
+            'agency_contract',
+            'insurance_policy',
+            'parental_rights',
+            'medical_records'
+          ])
           .order('created_at', { ascending: false });
 
-        if (!contractsError) {
-          setContracts(contractsData || []);
-        }
-
-        // 获取旅程更新
-        const { data: updatesData, error: updatesError } = await supabase
-          .from('journey_updates')
-          .select('*')
-          .eq('match_id', matchData.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (!updatesError) {
-          setJourneyUpdates(updatesData || []);
+        if (docsError) {
+          console.error('Error loading documents:', docsError);
+        } else {
+          setDocuments(docs || []);
         }
       }
     } catch (error) {
-      console.error('Error loading match data:', error);
+      console.error('Error in loadMatchData:', error);
       Alert.alert('Error', 'Failed to load match information');
     } finally {
       setLoading(false);
@@ -97,233 +156,189 @@ export default function MyMatchScreen() {
     setRefreshing(false);
   };
 
-  const openDocument = async (contract) => {
-    if (contract.file_url) {
+  const handleDocumentPress = async (document) => {
+    if (document.file_url) {
       try {
-        await Linking.openURL(contract.file_url);
+        const supported = await Linking.canOpenURL(document.file_url);
+        if (supported) {
+          await Linking.openURL(document.file_url);
+        } else {
+          Alert.alert('Error', 'Cannot open this document');
+        }
       } catch (error) {
-        Alert.alert('Error', 'Unable to open document');
+        console.error('Error opening document:', error);
+        Alert.alert('Error', 'Failed to open document');
       }
+    } else {
+      Alert.alert('Info', 'Document file is not available yet');
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return '#10B981';
-      case 'pending': return '#F59E0B';
-      case 'completed': return '#6B7280';
-      case 'cancelled': return '#EF4444';
-      default: return '#6B7280';
-    }
-  };
+  const renderMenuItem = (label, iconName, iconColor, onPress, isLock = false) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+      <View style={styles.menuItemLeft}>
+        <View style={styles.iconContainer}>
+          <Icon name={isLock ? 'lock' : iconName} size={20} color={isLock ? '#999' : iconColor} />
+        </View>
+        <Text style={[styles.menuItemText, isLock && styles.disabledText]}>{label}</Text>
+      </View>
+      <Icon name="chevron-right" size={20} color="#CCC" />
+    </TouchableOpacity>
+  );
 
-  const getDocumentIcon = (type) => {
-    switch (type) {
-      case 'contract': return '📄';
-      case 'medical': return '🏥';
-      case 'legal': return '⚖️';
-      case 'insurance': return '🛡️';
-      default: return '📎';
-    }
+  // 映射文档类型到列表显示名称
+  const getDocumentLabel = (type) => {
+    const names = {
+      surrogacy_contract: 'Surrogacy Contract',
+      legal_contract: 'Attorney Retainer Agreement',
+      agency_contract: 'Agency Contract',
+      insurance_policy: 'Surrogate Life Insurance Policy',
+      parental_rights: 'PBO (Parental Birth Order)',
+      medical_records: 'Surrogate Health Insurance Bill',
+    };
+    return names[type] || 'Document';
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading your match...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF8EA4" />
+        <Text style={styles.loadingText}>Loading match info...</Text>
+      </View>
     );
   }
 
-  if (!match) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={styles.emptyTitle}>No Active Match</Text>
-          <Text style={styles.emptyText}>
-            You don't have an active match yet. Once you're matched with intended parents, 
-            you'll see their information and documents here.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const isSurrogate = userRole === 'surrogate';
+  const matchDate = matchData ? new Date(matchData.created_at).toLocaleDateString() : '---';
+  const partnerName = partnerProfile?.name || (isSurrogate ? 'Waiting...' : 'Surrogate');
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#FF8EA4" />
       
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF8EA4" />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Match</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(match.status) }]}>
-            <Text style={styles.statusText}>{match.status.toUpperCase()}</Text>
-          </View>
-        </View>
-
-        {/* Client Information Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Intended Parents</Text>
-          </View>
-          
-          {clientProfile && (
-            <View style={styles.clientInfo}>
-              {clientProfile.profile_image_url && (
-                <Image 
-                  source={{ uri: clientProfile.profile_image_url }} 
-                  style={styles.clientImage}
-                />
-              )}
-              <View style={styles.clientDetails}>
-                <Text style={styles.clientName}>
-                  {clientProfile.first_name} {clientProfile.last_name}
-                  {clientProfile.partner_name && ` & ${clientProfile.partner_name}`}
-                </Text>
-                <Text style={styles.clientLocation}>
-                  📍 {clientProfile.city}, {clientProfile.state}
-                </Text>
-                {clientProfile.occupation && (
-                  <Text style={styles.clientOccupation}>
-                    💼 {clientProfile.occupation}
-                  </Text>
-                )}
-                <Text style={styles.matchDate}>
-                  Matched on {new Date(match.match_date).toLocaleDateString()}
-                </Text>
+        {/* Hero Section with Curve */}
+        <View style={styles.heroContainer}>
+          <View style={styles.heroContent}>
+            {/* User Avatar */}
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'M'}</Text>
               </View>
+              <Text style={styles.avatarLabel}>{user?.name || 'Me'}</Text>
             </View>
-          )}
 
-          {match.expected_due_date && (
-            <View style={styles.dueDateContainer}>
-              <Text style={styles.dueDateLabel}>Expected Due Date</Text>
-              <Text style={styles.dueDate}>
-                {new Date(match.expected_due_date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </Text>
+            {/* Match Connection */}
+            <View style={styles.matchConnection}>
+              <View style={styles.checkCircle}>
+                <Icon name="check" size={40} color="#FF8EA4" />
+              </View>
+              <Text style={styles.matchDateText}>{matchDate}</Text>
             </View>
-          )}
-        </View>
 
-        {/* Contract Documents */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Documents & Contracts</Text>
-            <Text style={styles.documentCount}>{contracts.length}</Text>
-          </View>
-          
-          {contracts.length > 0 ? (
-            contracts.map((contract) => (
-              <TouchableOpacity
-                key={contract.id}
-                style={styles.documentItem}
-                onPress={() => openDocument(contract)}
-              >
-                <View style={styles.documentInfo}>
-                  <Text style={styles.documentIcon}>
-                    {getDocumentIcon(contract.document_type)}
-                  </Text>
-                  <View style={styles.documentDetails}>
-                    <Text style={styles.documentTitle}>{contract.title}</Text>
-                    <Text style={styles.documentMeta}>
-                      {contract.document_type.charAt(0).toUpperCase() + contract.document_type.slice(1)} • 
-                      {new Date(contract.created_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.documentStatus}>
-                  {contract.is_signed ? (
-                    <Text style={styles.signedBadge}>✅ Signed</Text>
-                  ) : (
-                    <Text style={styles.pendingBadge}>📝 {contract.status}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyDocuments}>
-              <Text style={styles.emptyDocumentsText}>No documents uploaded yet</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Recent Journey Updates */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Recent Updates</Text>
-            <TouchableOpacity style={styles.viewAllButton}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {journeyUpdates.length > 0 ? (
-            journeyUpdates.map((update) => (
-              <View key={update.id} style={styles.updateItem}>
-                <View style={styles.updateHeader}>
-                  <Text style={styles.updateTitle}>{update.title}</Text>
-                  <Text style={styles.updateDate}>
-                    {new Date(update.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                {update.content && (
-                  <Text style={styles.updateContent} numberOfLines={2}>
-                    {update.content}
-                  </Text>
-                )}
-                {update.week_number && (
-                  <Text style={styles.updateWeek}>Week {update.week_number}</Text>
+            {/* Partner Avatar */}
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatar}>
+                {partnerProfile?.name ? (
+                  <Text style={styles.avatarText}>{partnerProfile.name?.charAt(0)}</Text>
+                ) : (
+                  <Icon name="user" size={30} color="#FF8EA4" />
                 )}
               </View>
-            ))
-          ) : (
-            <View style={styles.emptyUpdates}>
-              <Text style={styles.emptyUpdatesText}>No journey updates yet</Text>
+              <Text style={styles.avatarLabel}>{partnerName}</Text>
             </View>
-          )}
+          </View>
+          
+          {/* Curved Bottom Background */}
+          <View style={styles.curveBackground} />
         </View>
 
-        {/* Contact Information */}
-        {clientProfile && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Contact Information</Text>
-            
-            {clientProfile.email && (
-              <TouchableOpacity
-                style={styles.contactItem}
-                onPress={() => Linking.openURL(`mailto:${clientProfile.email}`)}
-              >
-                <Text style={styles.contactIcon}>📧</Text>
-                <Text style={styles.contactText}>{clientProfile.email}</Text>
-              </TouchableOpacity>
-            )}
-            
-            {clientProfile.phone && (
-              <TouchableOpacity
-                style={styles.contactItem}
-                onPress={() => Linking.openURL(`tel:${clientProfile.phone}`)}
-              >
-                <Text style={styles.contactIcon}>📞</Text>
-                <Text style={styles.contactText}>{clientProfile.phone}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        {/* List Section */}
+        <View style={styles.listContainer}>
+          
+          {/* Profile */}
+          {renderMenuItem(
+            isSurrogate ? 'Intended Parents Profile' : 'Surrogate Profile', 
+            'tag', 
+            '#FF9800', 
+            () => {
+              if (partnerProfile) {
+                Alert.alert(
+                  isSurrogate ? 'IP Profile' : 'Surrogate Profile',
+                  `Name: ${partnerProfile.name || ''}\nEmail: ${partnerProfile.email || ''}\nPhone: ${partnerProfile.phone || ''}\nAddress: ${partnerProfile.address || ''}\nBio: ${partnerProfile.background || ''}`
+                );
+              } else {
+                Alert.alert('Info', 'No match found yet.');
+              }
+            }
+          )}
+
+          {/* Documents - Dynamically rendered or placeholders */}
+          {/* We map common document types to the UI list. If doc exists, it's clickable. If not, it shows as locked/grey */}
+          
+          {renderMenuItem(
+            'Attorney Retainer Agreement', 
+            'file-text', 
+            '#999', 
+            () => handleDocumentPress(documents.find(d => d.document_type === 'legal_contract') || {}),
+            !documents.find(d => d.document_type === 'legal_contract')
+          )}
+
+          {renderMenuItem(
+            'Surrogacy Contract', 
+            'file-text', 
+            '#999', 
+            () => handleDocumentPress(documents.find(d => d.document_type === 'surrogacy_contract') || {}),
+            !documents.find(d => d.document_type === 'surrogacy_contract')
+          )}
+
+          {renderMenuItem(
+            'Surrogate Life Insurance Policy', 
+            'shield', 
+            '#999', 
+            () => handleDocumentPress(documents.find(d => d.document_type === 'insurance_policy') || {}),
+            !documents.find(d => d.document_type === 'insurance_policy')
+          )}
+
+          {renderMenuItem(
+            'Surrogate Health Insurance Bill', 
+            'activity', 
+            '#999', 
+            () => handleDocumentPress(documents.find(d => d.document_type === 'medical_records') || {}),
+            !documents.find(d => d.document_type === 'medical_records')
+          )}
+
+          {renderMenuItem(
+            'PBO (Parental Birth Order)', 
+            'file', 
+            '#999', 
+            () => handleDocumentPress(documents.find(d => d.document_type === 'parental_rights') || {}),
+            !documents.find(d => d.document_type === 'parental_rights')
+          )}
+
+          {/* New Features */}
+          {renderMenuItem(
+            'Online Claims', 
+            'file-text', 
+            '#9C27B0', 
+            () => Alert.alert('Coming Soon', 'Online claims feature will be available soon.')
+          )}
+
+          {renderMenuItem(
+            'Payment Record', 
+            'dollar-sign', 
+            '#4CAF50', 
+            () => Alert.alert('Coming Soon', 'Payment records will be available soon.')
+          )}
+
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -332,260 +347,123 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FB',
   },
-  scrollView: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#666',
+    marginTop: 10,
+    color: '#999',
   },
-  emptyContainer: {
+  scrollView: {
     flex: 1,
+  },
+  heroContainer: {
+    backgroundColor: '#FF8EA4',
+    paddingTop: 60, // Safe area roughly
+    paddingBottom: 40,
+    position: 'relative',
+    marginBottom: 20,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-start',
+    zIndex: 2,
+    paddingHorizontal: 20,
+  },
+  avatarWrapper: {
+    alignItems: 'center',
+    width: 80,
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
+  avatarText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FF8EA4',
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  avatarLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  statusText: {
+  matchConnection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  checkCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  matchDateText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    opacity: 0.9,
   },
-  card: {
-    backgroundColor: '#fff',
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  curveBackground: {
+    position: 'absolute',
+    bottom: -30,
+    left: -10,
+    right: -10,
+    height: 60,
+    backgroundColor: '#F8F9FB',
+    borderTopLeftRadius: width / 2,
+    borderTopRightRadius: width / 2,
+    transform: [{ scaleX: 1.2 }], // Stretch the curve
+    zIndex: 1,
   },
-  cardHeader: {
+  listContainer: {
+    paddingHorizontal: 0, // Full width items
+    paddingBottom: 40,
+    backgroundColor: '#F8F9FB',
+    zIndex: 3,
+  },
+  menuItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: '#fff',
+    marginBottom: 1, // Thin separator
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  clientInfo: {
+  menuItemLeft: {
     flexDirection: 'row',
-    marginBottom: 16,
+    alignItems: 'center',
   },
-  clientImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  iconContainer: {
+    width: 24,
+    alignItems: 'center',
     marginRight: 16,
   },
-  clientDetails: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  menuItemText: {
+    fontSize: 16,
     color: '#333',
-    marginBottom: 4,
+    fontWeight: '500',
   },
-  clientLocation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  clientOccupation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  matchDate: {
-    fontSize: 12,
+  disabledText: {
     color: '#999',
-    marginTop: 4,
-  },
-  dueDateContainer: {
-    backgroundColor: '#F0F9FF',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2A7BF6',
-  },
-  dueDateLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  dueDate: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2A7BF6',
-  },
-  documentCount: {
-    fontSize: 14,
-    color: '#666',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  documentItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  documentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  documentIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  documentDetails: {
-    flex: 1,
-  },
-  documentTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  documentMeta: {
-    fontSize: 12,
-    color: '#666',
-  },
-  documentStatus: {
-    marginLeft: 12,
-  },
-  signedBadge: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  pendingBadge: {
-    fontSize: 12,
-    color: '#F59E0B',
-    fontWeight: '600',
-  },
-  emptyDocuments: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyDocumentsText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  viewAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  viewAllText: {
-    fontSize: 14,
-    color: '#2A7BF6',
-    fontWeight: '600',
-  },
-  updateItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  updateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  updateTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-  },
-  updateDate: {
-    fontSize: 12,
-    color: '#666',
-  },
-  updateContent: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  updateWeek: {
-    fontSize: 12,
-    color: '#2A7BF6',
-    fontWeight: '600',
-  },
-  emptyUpdates: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyUpdatesText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  contactIcon: {
-    fontSize: 20,
-    marginRight: 12,
-    width: 24,
-  },
-  contactText: {
-    fontSize: 16,
-    color: '#2A7BF6',
-    flex: 1,
   },
 });
+
