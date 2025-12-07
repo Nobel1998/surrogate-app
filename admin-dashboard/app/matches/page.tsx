@@ -48,30 +48,27 @@ export default function MatchesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/matches/data', { cache: 'no-store' });
+      const res = await fetch('/api/matches/options');
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Failed to load matches data: ${res.status}`);
+        throw new Error(`Options request failed: ${res.status}`);
       }
-      const body = await res.json();
-      const profiles: Profile[] = body.profiles || [];
-      const matchData: Match[] = body.matches || [];
+      const { profiles = [], matches: matchData = [] } = await res.json();
 
-      const surList = profiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
-      const parList = profiles.filter((p) => (p.role || '').toLowerCase() === 'parent');
+      const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
+      const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
 
       console.log('🧭 Matches loadData result', {
         allProfiles: profiles.length,
         surrogates: surList.length,
         parents: parList.length,
-        matches: matchData.length,
+        matches: matchData?.length || 0,
         firstProfile: profiles?.[0],
         firstMatch: matchData?.[0],
       });
 
       setSurrogates(surList);
       setParents(parList);
-      setMatches(matchData);
+      setMatches(matchData || []);
     } catch (err: any) {
       console.error('Error loading matches data:', err);
       setError(err.message || 'Failed to load data');
@@ -315,3 +312,4 @@ export default function MatchesPage() {
     </div>
   );
 }
+
