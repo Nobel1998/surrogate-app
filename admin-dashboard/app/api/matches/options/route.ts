@@ -60,18 +60,46 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const payload = {
-      surrogate_id: body.surrogate_id,
-      parent_id: body.parent_id,
-      status: body.status || 'active',
-      notes: body.notes || null,
-    };
+    const surrogateId = body.surrogate_id;
+    const parentId = body.parent_id;
+    if (!surrogateId || !parentId) {
+      return NextResponse.json(
+        { error: 'surrogate_id and parent_id are required' },
+        { status: 400 }
+      );
+    }
 
-    const { error } = await supabase
+    const status = body.status || 'active';
+    const notes = body.notes || null;
+
+    // Manual upsert: check existing pair first
+    const { data: existing, error: findError } = await supabase
       .from('surrogate_matches')
-      .upsert(payload, { onConflict: 'surrogate_id,parent_id' });
+      .select('id')
+      .eq('surrogate_id', surrogateId)
+      .eq('parent_id', parentId)
+      .limit(1)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (findError) throw findError;
+
+    if (existing?.id) {
+      const { error: updateError } = await supabase
+        .from('surrogate_matches')
+        .update({ status, notes, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('surrogate_matches')
+        .insert({
+          surrogate_id: surrogateId,
+          parent_id: parentId,
+          status,
+          notes,
+        });
+      if (insertError) throw insertError;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
