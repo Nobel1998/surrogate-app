@@ -10,6 +10,7 @@ type Profile = {
   phone?: string;
   role?: string;
   progress_stage?: string | null;
+  stage_updated_by?: string | null;
 };
 
 type Match = {
@@ -127,7 +128,7 @@ export default function MatchesPage() {
       const res = await fetch('/api/matches/options', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ surrogate_id: surrogateId, progress_stage: newStage }),
+        body: JSON.stringify({ surrogate_id: surrogateId, progress_stage: newStage, stage_updated_by: 'admin' }),
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -315,6 +316,7 @@ export default function MatchesPage() {
                   const surrogate = profileLookup[m.surrogate_id];
                   const parent = profileLookup[m.parent_id];
                   const surrogateStage = (surrogate?.progress_stage || 'pre').toUpperCase();
+                  const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -340,9 +342,14 @@ export default function MatchesPage() {
                           >
                             {m.status?.toUpperCase() || 'UNKNOWN'}
                           </span>
-                          <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-                            STAGE: {surrogateStage}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                              STAGE: {surrogateStage}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                              BY: {stageUpdater}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">

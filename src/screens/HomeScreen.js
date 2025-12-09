@@ -60,12 +60,18 @@ import Avatar from '../components/Avatar';
 
 export default function HomeScreen() {
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [postText, setPostText] = useState('');
   const [postStage, setPostStage] = useState('pre'); // will sync with serverStage
   const [serverStage, setServerStage] = useState('pre'); // fetched from backend (admin controlled)
+  const [stageLoaded, setStageLoaded] = useState(false); // block interactions until fetched
+  // Use ref to track the REAL stage synchronously (avoids React state batching issues)
+  const realStageRef = React.useRef('pre');
+  const realMatchIdRef = React.useRef(null);
+  const stageDataReadyRef = React.useRef(false); // Track if stage data has been fetched
+  const [stageVersion, setStageVersion] = useState(0); // force re-render when stage changes locally
   const [stageFilter, setStageFilter] = useState('all');
   const [viewMode, setViewMode] = useState('timeline'); // 'timeline' or 'feed'
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -79,6 +85,7 @@ export default function HomeScreen() {
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
+  const [stageUpdateLoading, setStageUpdateLoading] = useState(false);
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
   const isParentRole = roleLower === 'parent';
@@ -105,6 +112,45 @@ export default function HomeScreen() {
     return 'future';
   }, [isParentRole, matchedSurrogateId, getCurrentStageKey]);
 
+  // Surrogate updates own stage (writes to profiles.progress_stage)
+  const updateSurrogateStage = useCallback(
+    async (nextStage) => {
+      const normalized = normalizeStage(nextStage);
+      if (!isSurrogateRole || !user?.id) return;
+      if (!STAGE_ORDER.includes(normalized)) {
+        Alert.alert('Invalid stage', 'Please select a valid stage.');
+        return;
+      }
+      try {
+        setStageUpdateLoading(true);
+        const { error } = await supabase
+          .from('profiles')
+          .update({ progress_stage: normalized, stage_updated_by: 'surrogate' })
+          .eq('id', user.id);
+        if (error) {
+          console.log('Error updating stage (surrogate):', error.message);
+          Alert.alert('Update failed', 'Could not update stage. Please try again.');
+          return;
+        }
+        // Sync local state/refs immediately
+        realStageRef.current = normalized;
+        stageDataReadyRef.current = true;
+        setServerStage(normalized);
+        setPostStage(normalized);
+        setStageLoaded(true);
+        setStageVersion((v) => v + 1);
+        Alert.alert('Stage updated', `Your stage is now set to ${normalized}.`);
+        console.log('✅ Surrogate stage updated', { stage: normalized });
+      } catch (e) {
+        console.log('Error updating stage (surrogate):', e.message);
+        Alert.alert('Update failed', 'Could not update stage. Please try again.');
+      } finally {
+        setStageUpdateLoading(false);
+      }
+    },
+    [isSurrogateRole, user?.id]
+  );
+
   // 设置当前用户ID当用户登录时
   useEffect(() => {
     if (user?.id && currentUserId !== user.id) {
@@ -114,54 +160,186 @@ export default function HomeScreen() {
   }, [user, currentUserId, setCurrentUser]);
 
   // Fetch current stage from backend (admin-controlled)
+  // WAIT for authLoading to complete before fetching stage
+  // This ensures user data is fully ready
   useEffect(() => {
-    const fetchStage = async () => {
-      try {
-        if (!user?.id) {
+    // Still waiting for auth to complete - don't do anything yet
+    if (authLoading) {
+      console.log('⏳ Auth still loading, waiting before fetchStage...');
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchMatchAndStage = async () => {
+      // Calculate role inside the function to ensure we have latest values
+      const currentRole = (user?.role || '').toLowerCase();
+      const isSurrogate = currentRole === 'surrogate';
+      const isParent = currentRole === 'parent';
+      
+      console.log('🔄 fetchStage start', { 
+        userId: user?.id, 
+        role: user?.role,
+        isSurrogate,
+        isParent,
+        authLoading 
+      });
+
+      // No user - guest mode
+      if (!user?.id) {
+        if (!cancelled) {
+          realStageRef.current = 'pre';
+          realMatchIdRef.current = null;
+          stageDataReadyRef.current = true;
           setServerStage('pre');
           setPostStage('pre');
-          return;
+          setMatchedSurrogateId(null);
+          setMatchedProfile(null);
+          setStageLoaded(true);
+          console.log('✅ fetchStage done (guest)', { stage: 'pre' });
         }
+        return;
+      }
+
+      try {
         // Surrogate: read own profile.progress_stage
-        if (isSurrogateRole) {
+        if (isSurrogate) {
           const { data, error } = await supabase
             .from('profiles')
             .select('progress_stage')
             .eq('id', user.id)
             .maybeSingle();
-          if (error) {
-            console.log('Error loading progress_stage (surrogate):', error.message);
-          }
+          if (error) console.log('Error loading progress_stage (surrogate):', error.message);
           const stage = data?.progress_stage || 'pre';
-          setServerStage(stage);
-          setPostStage(stage);
+          if (!cancelled) {
+            // Update ref FIRST (synchronous)
+            realStageRef.current = stage;
+            stageDataReadyRef.current = true;
+            // Then update state
+            setServerStage(stage);
+            setPostStage(stage);
+            setStageLoaded(true);
+            console.log('✅ fetchStage done (surrogate)', { stage, refStage: realStageRef.current });
+          }
           return;
         }
-        // Parent: use matched surrogate's stage
-        if (isParentRole && matchedSurrogateId) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('progress_stage')
-            .eq('id', matchedSurrogateId)
-            .maybeSingle();
-          if (error) {
-            console.log('Error loading progress_stage (parent):', error.message);
+
+        // Parent: fetch match first, then get surrogate's stage
+        if (isParent) {
+          console.log('🔄 Parent: fetching matched surrogate...');
+          setMatchCheckInProgress(true);
+          
+          let surrogateId = null;
+          try {
+            // Try parent_id first
+            const { data: parentMatches, error: parentMatchError } = await supabase
+              .from('surrogate_matches')
+              .select('surrogate_id')
+              .eq('parent_id', user.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1);
+            if (parentMatchError) {
+              console.log('Error loading match by parent_id:', parentMatchError.message);
+            }
+            surrogateId = parentMatches?.[0]?.surrogate_id || null;
+
+            // Fallback: try parent_user_id
+            if (!surrogateId) {
+              const { data: altMatches, error: altError } = await supabase
+                .from('surrogate_matches')
+                .select('surrogate_id')
+                .eq('parent_user_id', user.id)
+                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1);
+              if (altError) {
+                console.log('Error loading match by parent_user_id:', altError.message);
+              }
+              surrogateId = altMatches?.[0]?.surrogate_id || null;
+            }
+          } catch (matchErr) {
+            console.error('Error fetching match:', matchErr);
           }
-          const stage = data?.progress_stage || 'pre';
-          setServerStage(stage);
-          setPostStage(stage);
-        } else {
+
+          if (cancelled) return;
+
+          // Update ref FIRST (synchronous)
+          realMatchIdRef.current = surrogateId;
+          // Update matched state
+          setMatchedSurrogateId(surrogateId);
+          if (surrogateId) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', surrogateId)
+              .single();
+            if (!cancelled) setMatchedProfile(profile);
+          } else {
+            setMatchedProfile(null);
+          }
+          setMatchCheckInProgress(false);
+
+          console.log('Matched surrogate for parent:', surrogateId);
+
+          // Now fetch stage based on match
+          if (surrogateId) {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('progress_stage')
+              .eq('id', surrogateId)
+              .maybeSingle();
+            if (error) console.log('Error loading progress_stage (parent):', error.message);
+            const stage = data?.progress_stage || 'pre';
+            if (!cancelled) {
+              // Update ref FIRST (synchronous)
+              realStageRef.current = stage;
+              stageDataReadyRef.current = true;
+              setServerStage(stage);
+              setPostStage(stage);
+              setStageLoaded(true);
+              console.log('✅ fetchStage done (parent matched)', { stage, matchedSurrogateId: surrogateId, refStage: realStageRef.current });
+            }
+          } else {
+            // No match - default to pre
+            if (!cancelled) {
+              realStageRef.current = 'pre';
+              stageDataReadyRef.current = true;
+              setServerStage('pre');
+              setPostStage('pre');
+              setStageLoaded(true);
+              console.log('✅ fetchStage done (parent no match)', { stage: 'pre' });
+            }
+          }
+          return;
+        }
+
+        // Fallback for unknown role
+        if (!cancelled) {
+          realStageRef.current = 'pre';
+          stageDataReadyRef.current = true;
           setServerStage('pre');
           setPostStage('pre');
+          setStageLoaded(true);
+          console.log('✅ fetchStage done (fallback)', { stage: 'pre' });
         }
       } catch (e) {
-        console.log('Error fetching stage:', e.message);
-        setServerStage('pre');
-        setPostStage('pre');
+        console.log('Error in fetchMatchAndStage:', e.message);
+        if (!cancelled) {
+          realStageRef.current = 'pre';
+          stageDataReadyRef.current = true;
+          setServerStage('pre');
+          setPostStage('pre');
+          setStageLoaded(true);
+        }
       }
     };
-    fetchStage();
-  }, [user?.id, user?.role, isSurrogateRole, isParentRole, matchedSurrogateId]);
+
+    fetchMatchAndStage();
+    return () => { cancelled = true; };
+  // Only depend on authLoading and user?.id - role is derived from user
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id]);
 
   // 当用户登录时，如果还在加载状态，强制完成加载
   useEffect(() => {
@@ -178,12 +356,17 @@ export default function HomeScreen() {
 
   // Fetch matched surrogate id for parent users (surrogate can skip)
   const fetchMatchedSurrogate = useCallback(async () => {
+    console.log('🔄 fetchMatchedSurrogate start', {
+      userId: user?.id,
+      role: user?.role,
+    });
     if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
       setMatchedSurrogateId(null);
       setMatchedProfile(null);
-      return;
+      return null;
     }
     setMatchCheckInProgress(true);
+    let finalId = null;
     try {
       // Try parent_id (most likely schema)
       const { data: parentMatches, error: parentMatchError } = await supabase
@@ -215,45 +398,88 @@ export default function HomeScreen() {
         surrogateId = altMatches?.[0]?.surrogate_id || null;
       }
 
-      setMatchedSurrogateId(surrogateId);
-      if (surrogateId) {
+      finalId = surrogateId;
+      setMatchedSurrogateId(finalId);
+      if (finalId) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', surrogateId)
+          .eq('id', finalId)
           .single();
         setMatchedProfile(profile);
       } else {
         setMatchedProfile(null);
       }
-      console.log('Matched surrogate for parent:', surrogateId);
+      console.log('Matched surrogate for parent:', finalId);
     } catch (error) {
       console.error('Error fetching matched surrogate:', error);
       setMatchedSurrogateId(null);
       setMatchedProfile(null);
+      finalId = null;
     } finally {
       setMatchCheckInProgress(false);
     }
+    console.log('🔄 fetchMatchedSurrogate done', { matchedSurrogateId: finalId });
+    return finalId;
   }, [user?.id, user?.role]);
 
-  // 下拉刷新：刷新帖子 + 重新拉取匹配
+  // Reusable stage refresh function for pull-to-refresh
+  const refreshStageData = useCallback(async () => {
+    console.log('🔄 refreshStageData start');
+    try {
+      if (!user?.id) {
+        setServerStage('pre');
+        setPostStage('pre');
+        return;
+      }
+      if (isSurrogateRole) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('progress_stage')
+          .eq('id', user.id)
+          .maybeSingle();
+        const stage = data?.progress_stage || 'pre';
+        setServerStage(stage);
+        setPostStage(stage);
+        console.log('✅ refreshStageData done (surrogate)', { stage });
+        return;
+      }
+      if (isParentRole) {
+        const targetSurrogateId = await fetchMatchedSurrogate();
+        if (targetSurrogateId) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('progress_stage')
+            .eq('id', targetSurrogateId)
+            .maybeSingle();
+          const stage = data?.progress_stage || 'pre';
+          setServerStage(stage);
+          setPostStage(stage);
+          console.log('✅ refreshStageData done (parent)', { stage });
+        } else {
+          setServerStage('pre');
+          setPostStage('pre');
+        }
+      }
+    } catch (e) {
+      console.log('Error in refreshStageData:', e.message);
+    }
+  }, [user?.id, isSurrogateRole, isParentRole, fetchMatchedSurrogate]);
+
+  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([
         refreshData(),
-        fetchMatchedSurrogate(),
+        refreshStageData(),
       ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, fetchMatchedSurrogate]);
-
-  useEffect(() => {
-    fetchMatchedSurrogate();
-  }, [fetchMatchedSurrogate]);
+  }, [refreshData, refreshStageData]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -341,7 +567,9 @@ export default function HomeScreen() {
       Alert.alert('Restricted', 'Only surrogates can create posts.');
       return;
     }
-    const status = getStageStatus(postStage);
+    const currentStage = getCurrentStageKey();
+    setPostStage(currentStage);
+    const status = getStageStatus(currentStage);
     if (status !== 'current') {
       Alert.alert('Locked', 'You can only post in the current stage.');
       return;
@@ -360,7 +588,9 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Please add some text or media to your post.');
       return;
     }
-    const status = getStageStatus(postStage);
+    const currentStage = getCurrentStageKey();
+    setPostStage(currentStage);
+    const status = getStageStatus(currentStage);
     if (status !== 'current') {
       Alert.alert('Locked', 'You can only post in the current stage.');
       return;
@@ -386,7 +616,7 @@ export default function HomeScreen() {
       mediaType: mediaType,
       userName: user?.name || 'Surrogate Member',
       userId: user?.id || 'guest',
-      stage: normalizeStage(postStage || 'pregnancy'),
+      stage: normalizeStage(currentStage || 'pregnancy'),
     };
 
     try {
@@ -403,7 +633,7 @@ export default function HomeScreen() {
       setShowModal(false);
       setSelectedImage(null);
       setPostText('');
-      setPostStage('pregnancy');
+      setPostStage(getCurrentStageKey());
       setUploadProgress(0);
       setUploadStatus('');
       Alert.alert('Success', 'Your post has been published!');
@@ -624,10 +854,54 @@ export default function HomeScreen() {
     const postComments = getComments(post.id);
     const totalCommentCount = countAllComments(postComments);
     const isOwnPost = post.userId === user?.id;
-    const stageStatus = getStageStatus(post.stage || 'pregnancy');
-    const isReadOnlyStage = stageStatus !== 'current';
-    const isReadOnly = isReadOnlyStage || !isSurrogateRole;
+    
+    // Use ref values for immediate access (no state batching delay)
+    const currentStageFromRef = realStageRef.current;
+    const matchIdFromRef = realMatchIdRef.current;
+    const dataReady = stageDataReadyRef.current;
+    
+    // Calculate stage status using ref values
+    const postStageNorm = normalizeStage(post.stage || 'pregnancy');
+    const currentStageNorm = normalizeStage(currentStageFromRef);
+    const postIdx = STAGE_ORDER.indexOf(postStageNorm);
+    const currentIdx = STAGE_ORDER.indexOf(currentStageNorm);
+    
+    let stageStatus;
+    if (isParentRole && !matchIdFromRef) {
+      // Unmatched parent: only pre is "current", rest is future
+      stageStatus = postStageNorm === 'pre' ? 'current' : 'future';
+    } else if (postIdx === -1 || currentIdx === -1) {
+      stageStatus = 'future';
+    } else if (postIdx < currentIdx) {
+      stageStatus = 'past';
+    } else if (postIdx === currentIdx) {
+      stageStatus = 'current';
+    } else {
+      stageStatus = 'future';
+    }
+    
+    // isReadOnly logic:
+    // - If data not ready yet, default to read-only (safe default)
+    // - Parent can only interact with posts in the CURRENT stage
+    // - Surrogate can interact with own posts in CURRENT stage
+    // - Past stages are read-only for everyone
+    // - Future stages are locked
+    const isReadOnly = !dataReady || stageStatus !== 'current';
     const isLockedFuture = stageStatus === 'future';
+    
+    console.log('Post render', {
+      postId: post.id,
+      postStage: post.stage,
+      postStageNorm,
+      currentStageFromRef,
+      currentStageNorm,
+      stageStatus,
+      isParentRole,
+      isSurrogateRole,
+      isReadOnly,
+      matchIdFromRef,
+      dataReady,
+    });
     
     // 兼容新旧数据结构
     const postContent = post.content || post.text;
@@ -679,7 +953,7 @@ export default function HomeScreen() {
           style={[styles.actionButton, isReadOnly && styles.actionButtonDisabled]} 
           onPress={() => {
             if (isReadOnly) {
-              Alert.alert('Read-only', 'Past or future stages are view-only.');
+              Alert.alert('Read-only', 'Only current stage posts can be interacted with.');
               return;
             }
             handleLike(post.id);
@@ -700,7 +974,7 @@ export default function HomeScreen() {
           style={[styles.actionButton, isReadOnly && styles.actionButtonDisabled]}
           onPress={() => {
             if (isReadOnly) {
-              Alert.alert('Read-only', 'Past or future stages are view-only.');
+              Alert.alert('Read-only', 'Only current stage posts can be interacted with.');
               return;
             }
             handleComment(post.id);
@@ -886,6 +1160,31 @@ export default function HomeScreen() {
     );
   };
 
+  // Show loading state while auth is loading OR stage is not yet loaded
+  if (authLoading || !stageLoaded) {
+    console.log('🔒 Showing loading screen', { authLoading, stageLoaded });
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#2A7BF6" />
+          <Text style={styles.loadingText}>
+            {authLoading ? 'Loading user data...' : 'Loading journey stage...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Log when we're past loading
+  console.log('✅ Past loading, rendering content', { 
+    stageLoaded, 
+    serverStage, 
+    realStageRef: realStageRef.current,
+    realMatchIdRef: realMatchIdRef.current,
+    stageDataReady: stageDataReadyRef.current 
+  });
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -896,6 +1195,45 @@ export default function HomeScreen() {
             <Text style={styles.title}>My Journey</Text>
             <Text style={styles.subtitle}>Track your surrogacy progress</Text>
           </View>
+          {isSurrogateRole && (
+            <View style={styles.stageUpdateCard}>
+              <Text style={styles.stageUpdateLabel}>Update your stage</Text>
+              <View style={styles.stageChipRow}>
+                {STAGE_OPTIONS.map((option) => {
+                  const isActive = normalizeStage(serverStage) === option.key;
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[
+                        styles.stageChip,
+                        isActive && styles.stageChipActive,
+                        stageUpdateLoading && styles.stageChipDisabled,
+                      ]}
+                      onPress={() => updateSurrogateStage(option.key)}
+                      disabled={stageUpdateLoading || isActive}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.stageChipLabel, isActive && styles.stageChipLabelActive]}>
+                        {option.label}
+                      </Text>
+                      <Text style={[styles.stageChipSubtitle, isActive && styles.stageChipSubtitleActive]}>
+                        {option.description}
+                      </Text>
+                      {isActive && <Text style={styles.stageChipBadge}>Current</Text>}
+                      {stageUpdateLoading && isActive && (
+                        <View style={styles.stageChipSpinner}>
+                          <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.stageUpdateHint}>
+                Changes are saved to your profile and visible to matched parents.
+              </Text>
+            </View>
+          )}
           {renderTimelineView()}
           {isSurrogateRole && (
             <TouchableOpacity 
@@ -956,7 +1294,16 @@ export default function HomeScreen() {
           <TouchableOpacity 
             style={styles.fab} 
             onPress={() => {
-              setPostStage(stageFilter === 'all' ? 'pregnancy' : stageFilter);
+              if (isParentRole) {
+                Alert.alert('Restricted', 'Only surrogates can create posts.');
+                return;
+              }
+              const filterStatus = stageFilter === 'all' ? 'current' : getStageStatus(stageFilter);
+              if (filterStatus !== 'current') {
+                Alert.alert('Posting restricted', 'You can only post in the current stage (e.g., Pregnancy).');
+                return;
+              }
+              setPostStage(getCurrentStageKey());
               showImagePicker();
             }}
           >
@@ -1018,32 +1365,6 @@ export default function HomeScreen() {
                 <Text style={[styles.userName, { marginLeft: 12 }]}>{user?.name || 'Surrogate Member'}</Text>
               </View>
 
-              {/* Stage selection */}
-              <View style={styles.stageSelector}>
-                <Text style={styles.stageSelectorLabel}>Stage</Text>
-                <View style={styles.stageChipsRow}>
-                  {STAGE_OPTIONS.map(option => (
-                    <TouchableOpacity
-                      key={option.key}
-                      style={[
-                        styles.stageChip,
-                        postStage === option.key && styles.stageChipActive,
-                      ]}
-                      onPress={() => setPostStage(option.key)}
-                    >
-                      <Text
-                        style={[
-                          styles.stageChipText,
-                          postStage === option.key && styles.stageChipTextActive,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              
               <TextInput
                 style={styles.textInput}
                 placeholder="Share your journey, experiences, or thoughts with other surrogates..."
@@ -1219,6 +1540,83 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'left', // 左对齐
     marginBottom: 8,
+  },
+  stageUpdateCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  stageUpdateLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 10,
+  },
+  stageChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+    justifyContent: 'space-between',
+  },
+  stageChip: {
+    flexBasis: '48%',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F4F6FB',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minWidth: 100,
+    marginBottom: 10,
+  },
+  stageChipActive: {
+    backgroundColor: '#1F6FE0',
+    borderColor: '#1F6FE0',
+  },
+  stageChipDisabled: {
+    opacity: 0.7,
+  },
+  stageChipLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 4,
+  },
+  stageChipLabelActive: {
+    color: '#fff',
+  },
+  stageChipSubtitle: {
+    fontSize: 12,
+    color: '#4A5164',
+  },
+  stageChipSubtitleActive: {
+    color: '#EAF2FF',
+  },
+  stageChipBadge: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  stageChipSpinner: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  stageUpdateHint: {
+    fontSize: 12,
+    color: '#4A5164',
   },
   timelineContainer: {
     flex: 1,
@@ -1420,38 +1818,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1D1E',
     marginBottom: 2,
-  },
-  stageSelector: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  stageSelectorLabel: {
-    fontSize: 14,
-    color: '#4E4B66',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  stageChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  stageChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#F0F2F5',
-  },
-  stageChipActive: {
-    backgroundColor: '#FF8EA4',
-  },
-  stageChipText: {
-    fontSize: 12,
-    color: '#555',
-    fontWeight: '600',
-  },
-  stageChipTextActive: {
-    color: '#fff',
   },
   timestamp: {
     fontSize: 13,

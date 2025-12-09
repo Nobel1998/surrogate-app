@@ -30,7 +30,7 @@ export async function GET() {
       await Promise.all([
         supabase
           .from('profiles')
-          .select('id, name, phone, role, email, progress_stage')
+          .select('id, name, phone, role, email, progress_stage, stage_updated_by')
           .in('role', ['surrogate', 'parent'])
           .order('created_at', { ascending: false }),
         supabase
@@ -135,9 +135,10 @@ export async function PATCH(req: Request) {
     // 1) Update match status (body.id + status)
     // 2) Update surrogate progress stage (body.surrogate_id + progress_stage)
     if (body.surrogate_id && body.progress_stage) {
+      const updater = body.stage_updated_by || 'admin';
       const { error } = await supabase
         .from('profiles')
-        .update({ progress_stage: body.progress_stage })
+        .update({ progress_stage: body.progress_stage, stage_updated_by: updater })
         .eq('id', body.surrogate_id);
       if (error) throw error;
     } else {
