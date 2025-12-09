@@ -17,6 +17,7 @@ const STAGE_OPTIONS = [
   { key: 'pregnancy', label: 'Pregnancy', icon: 'heart', description: 'Updates & Checkups' },
   { key: 'delivery', label: 'Delivery', icon: 'gift', description: 'Birth & Post-birth' },
 ];
+const STAGE_ORDER = ['pre', 'pregnancy', 'delivery'];
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
@@ -63,7 +64,8 @@ export default function HomeScreen() {
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [postText, setPostText] = useState('');
-  const [postStage, setPostStage] = useState('pregnancy'); // pre-pregnancy, pregnancy, delivery
+  const [postStage, setPostStage] = useState('pre'); // will sync with serverStage
+  const [serverStage, setServerStage] = useState('pre'); // fetched from backend (admin controlled)
   const [stageFilter, setStageFilter] = useState('all');
   const [viewMode, setViewMode] = useState('timeline'); // 'timeline' or 'feed'
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -75,10 +77,33 @@ export default function HomeScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
+  const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
   const isParentRole = roleLower === 'parent';
+  const getCurrentStageKey = React.useCallback(() => {
+    // 如果后台有设置，优先使用后台控制阶段
+    const normalized = normalizeStage(serverStage || 'pre');
+    if (STAGE_ORDER.includes(normalized)) return normalized;
+    return 'pre';
+  }, [serverStage]);
+
+  const getStageStatus = React.useCallback((stageKey) => {
+    const key = normalizeStage(stageKey);
+    // 未匹配的父母：仅第一阶段可见，其余视为未来锁定
+    if (isParentRole && !matchedSurrogateId) {
+      if (key === 'pre') return 'current';
+      return 'future';
+    }
+    const currentKey = getCurrentStageKey();
+    const idx = STAGE_ORDER.indexOf(key);
+    const currentIdx = STAGE_ORDER.indexOf(currentKey);
+    if (idx === -1 || currentIdx === -1) return 'future';
+    if (idx < currentIdx) return 'past';
+    if (idx === currentIdx) return 'current';
+    return 'future';
+  }, [isParentRole, matchedSurrogateId, getCurrentStageKey]);
 
   // 设置当前用户ID当用户登录时
   useEffect(() => {
@@ -87,6 +112,56 @@ export default function HomeScreen() {
       setCurrentUser(user.id);
     }
   }, [user, currentUserId, setCurrentUser]);
+
+  // Fetch current stage from backend (admin-controlled)
+  useEffect(() => {
+    const fetchStage = async () => {
+      try {
+        if (!user?.id) {
+          setServerStage('pre');
+          setPostStage('pre');
+          return;
+        }
+        // Surrogate: read own profile.progress_stage
+        if (isSurrogateRole) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('progress_stage')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (error) {
+            console.log('Error loading progress_stage (surrogate):', error.message);
+          }
+          const stage = data?.progress_stage || 'pre';
+          setServerStage(stage);
+          setPostStage(stage);
+          return;
+        }
+        // Parent: use matched surrogate's stage
+        if (isParentRole && matchedSurrogateId) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('progress_stage')
+            .eq('id', matchedSurrogateId)
+            .maybeSingle();
+          if (error) {
+            console.log('Error loading progress_stage (parent):', error.message);
+          }
+          const stage = data?.progress_stage || 'pre';
+          setServerStage(stage);
+          setPostStage(stage);
+        } else {
+          setServerStage('pre');
+          setPostStage('pre');
+        }
+      } catch (e) {
+        console.log('Error fetching stage:', e.message);
+        setServerStage('pre');
+        setPostStage('pre');
+      }
+    };
+    fetchStage();
+  }, [user?.id, user?.role, isSurrogateRole, isParentRole, matchedSurrogateId]);
 
   // 当用户登录时，如果还在加载状态，强制完成加载
   useEffect(() => {
@@ -153,10 +228,21 @@ export default function HomeScreen() {
         }
 
         setMatchedSurrogateId(surrogateId);
+        if (surrogateId) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', surrogateId)
+            .single();
+          setMatchedProfile(profile);
+        } else {
+          setMatchedProfile(null);
+        }
         console.log('Matched surrogate for parent:', surrogateId);
       } catch (error) {
         console.error('Error fetching matched surrogate:', error);
         setMatchedSurrogateId(null);
+        setMatchedProfile(null);
       } finally {
         setMatchCheckInProgress(false);
       }
@@ -251,6 +337,11 @@ export default function HomeScreen() {
       Alert.alert('Restricted', 'Only surrogates can create posts.');
       return;
     }
+    const status = getStageStatus(postStage);
+    if (status !== 'current') {
+      Alert.alert('Locked', 'You can only post in the current stage.');
+      return;
+    }
     // 直接打开发帖窗口
     setShowModal(true);
   };
@@ -263,6 +354,11 @@ export default function HomeScreen() {
     // 验证：至少要有文字或图片/视频
     if (!postText.trim() && !selectedImage) {
       Alert.alert('Error', 'Please add some text or media to your post.');
+      return;
+    }
+    const status = getStageStatus(postStage);
+    if (status !== 'current') {
+      Alert.alert('Locked', 'You can only post in the current stage.');
       return;
     }
 
@@ -524,6 +620,10 @@ export default function HomeScreen() {
     const postComments = getComments(post.id);
     const totalCommentCount = countAllComments(postComments);
     const isOwnPost = post.userId === user?.id;
+    const stageStatus = getStageStatus(post.stage || 'pregnancy');
+    const isReadOnlyStage = stageStatus !== 'current';
+    const isReadOnly = isReadOnlyStage || !isSurrogateRole;
+    const isLockedFuture = stageStatus === 'future';
     
     // 兼容新旧数据结构
     const postContent = post.content || post.text;
@@ -538,7 +638,7 @@ export default function HomeScreen() {
             <Text style={styles.userName}>{post.userName || 'Surrogate Member'}</Text>
           <Text style={styles.timestamp}>{post.timestamp}</Text>
         </View>
-          {isOwnPost && (
+          {isOwnPost && !isReadOnly && (
             <TouchableOpacity 
               style={styles.deleteButton}
               onPress={() => handleDeletePost(post.id)}
@@ -572,8 +672,15 @@ export default function HomeScreen() {
       
       <View style={styles.postActions}>
         <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => handleLike(post.id)}
+          style={[styles.actionButton, isReadOnly && styles.actionButtonDisabled]} 
+          onPress={() => {
+            if (isReadOnly) {
+              Alert.alert('Read-only', 'Past or future stages are view-only.');
+              return;
+            }
+            handleLike(post.id);
+          }}
+          disabled={isReadOnly}
         >
           <Text style={[
             styles.actionIcon, 
@@ -586,8 +693,15 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => handleComment(post.id)}
+          style={[styles.actionButton, isReadOnly && styles.actionButtonDisabled]}
+          onPress={() => {
+            if (isReadOnly) {
+              Alert.alert('Read-only', 'Past or future stages are view-only.');
+              return;
+            }
+            handleComment(post.id);
+          }}
+          disabled={isReadOnly}
         >
           <Text style={styles.actionIcon}>💬</Text>
             <Text style={styles.actionText}>
@@ -597,6 +711,7 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={() => handleShare(post.id)}
+          disabled={isLockedFuture}
         >
           <Text style={styles.actionIcon}>📤</Text>
           <Text style={styles.actionText}>Share</Text>
@@ -628,10 +743,13 @@ export default function HomeScreen() {
       }
     }
 
+    // 过滤掉未来阶段（锁定/隐藏）
+    scoped = scoped.filter(p => getStageStatus(p.stage) !== 'future');
+
     if (stageFilter === 'all') return scoped;
     const filterStage = normalizeStage(stageFilter);
     return scoped.filter(p => normalizeStage(p.stage) === filterStage);
-  }, [posts, stageFilter, user?.id, matchedSurrogateId, isSurrogateRole, isParentRole]);
+  }, [posts, stageFilter, user?.id, matchedSurrogateId, isSurrogateRole, isParentRole, getStageStatus]);
 
   // Key extractor for feed items
   const keyExtractor = useCallback((item) => {
@@ -645,35 +763,110 @@ export default function HomeScreen() {
 
   const renderTimelineView = () => {
     return (
-      <ScrollView style={styles.timelineContainer}>
-        {STAGE_OPTIONS.map((stage, index) => (
+      <ScrollView style={styles.timelineContainer} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Match Status Hero Card */}
+        {isParentRole && (
+          <View style={[styles.heroCard, !matchedSurrogateId && styles.heroCardUnmatched]}>
+            <View style={styles.heroContent}>
+              <View style={styles.heroTextContainer}>
+                <Text style={styles.heroTitle}>
+                  {matchedSurrogateId ? 'Your Surrogate' : 'Matching Status'}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {matchedSurrogateId 
+                    ? `Journey with ${matchedProfile?.name || 'your surrogate'}`
+                    : 'We are finding the perfect match for you.'}
+                </Text>
+              </View>
+              {matchedSurrogateId ? (
+                <Avatar name={matchedProfile?.name || 'S'} size={60} style={styles.heroAvatar} />
+              ) : (
+                <View style={styles.heroIconContainer}>
+                  <Icon name="search" size={30} color="#fff" />
+                </View>
+              )}
+            </View>
+            {!matchedSurrogateId && (
+              <View style={styles.progressBarContainer}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: '20%' }]} />
+                </View>
+                <Text style={styles.progressText}>In Progress</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {STAGE_OPTIONS.map((stage, index) => {
+          const status = getStageStatus(stage.key); // past | current | future
+          const isLocked = status === 'future';
+          const isCompleted = status === 'past';
+          const isCurrent = status === 'current';
+
+          return (
           <View key={stage.key} style={styles.timelineItem}>
             {/* Left Column: Date/Icon + Line */}
             <View style={styles.timelineLeftCol}>
-              <View style={styles.timelineIconContainer}>
-                <Icon name={stage.icon} size={20} color="#FF8EA4" />
+              <View style={[
+                styles.timelineIconContainer, 
+                isCompleted && styles.iconCompleted,
+                isCurrent && styles.iconCurrent,
+                isLocked && styles.iconLocked
+              ]}>
+                {isCompleted ? (
+                  <Icon name="check" size={20} color="#fff" />
+                ) : (
+                  <Icon name={stage.icon} size={20} color={isCurrent ? '#fff' : '#A0A3BD'} />
+                )}
               </View>
-              {index < STAGE_OPTIONS.length - 1 && <View style={styles.timelineLine} />}
+              {index < STAGE_OPTIONS.length - 1 && (
+                <View style={[
+                  styles.timelineLine, 
+                  (isCompleted || isCurrent) && styles.lineActive
+                ]} />
+              )}
             </View>
 
             {/* Right Column: Content */}
             <View style={styles.timelineContent}>
-              <View style={styles.timelineCard}>
-                <Text style={styles.timelineStepText}>{index + 1}. {stage.label}</Text>
-                <Text style={styles.timelineDescText}>{stage.description}</Text>
-                <TouchableOpacity 
-                  style={styles.viewStepsButton}
-                  onPress={() => {
+              <TouchableOpacity 
+                style={[
+                  styles.timelineCard,
+                  isCurrent && styles.cardCurrent,
+                  isLocked && styles.cardLocked
+                ]}
+                activeOpacity={isLocked ? 1 : 0.7}
+                onPress={() => {
+                  if (!isLocked) {
                     setStageFilter(stage.key);
                     setViewMode('feed');
-                  }}
-                >
-                  <Text style={styles.viewStepsText}>VIEW DETAILS</Text>
-                </TouchableOpacity>
-              </View>
+                  } else {
+                    Alert.alert('Locked', 'Future stages are hidden until unlocked.');
+                  }
+                }}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.timelineStepText, isCurrent && styles.textCurrent]}>
+                    {stage.label}
+                  </Text>
+                  {isCurrent && <View style={styles.statusBadge}><Text style={styles.statusText}>In Progress</Text></View>}
+                  {isCompleted && <View style={styles.statusBadgeCompleted}><Text style={styles.statusTextCompleted}>Completed</Text></View>}
+                </View>
+                <Text style={[styles.timelineDescText, isCurrent && styles.textCurrentSub]}>
+                  {stage.description}
+                </Text>
+                
+                {!isLocked && (
+                  <View style={styles.cardFooter}>
+                    <Text style={[styles.viewDetailsText, isCurrent && styles.textCurrentLink]}>
+                      View Updates &rarr;
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
-        ))}
+        )})}
       </ScrollView>
     );
   };
@@ -693,7 +886,7 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={styles.fabLarge} 
               onPress={() => {
-                setPostStage('pregnancy'); // Default or logic to pick current stage
+                setPostStage(getCurrentStageKey()); // Default to current stage (backend-controlled)
                 showImagePicker();
               }}
             >
@@ -1286,6 +1479,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
   },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
   actionIcon: {
     fontSize: 18,
     marginRight: 8,
@@ -1764,4 +1960,168 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginLeft: 4, // 微调播放图标位置
   },
+  // Premium Timeline Styles
+  heroCard: {
+    backgroundColor: '#2A7BF6',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 32,
+    shadowColor: '#2A7BF6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  heroCardUnmatched: {
+    backgroundColor: '#6E7191', // Neutral color for unmatched
+    shadowColor: '#6E7191',
+  },
+  heroContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  heroTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  heroTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 30,
+  },
+  heroAvatar: {
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  heroIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBarContainer: {
+    marginTop: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'right',
+  },
+  
+  // Enhanced Timeline Items
+  iconCompleted: {
+    backgroundColor: '#2A7BF6',
+    borderColor: '#2A7BF6',
+  },
+  iconCurrent: {
+    backgroundColor: '#2A7BF6',
+    borderColor: 'rgba(42, 123, 246, 0.3)',
+    borderWidth: 4,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginLeft: -2, // Center due to size change
+  },
+  iconLocked: {
+    backgroundColor: '#F5F7FA',
+    borderColor: '#E0E7EE',
+  },
+  lineActive: {
+    backgroundColor: '#2A7BF6',
+  },
+  
+  timelineCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  cardCurrent: {
+    borderColor: '#2A7BF6',
+    backgroundColor: '#F0F7FF',
+    shadowColor: '#2A7BF6',
+    shadowOpacity: 0.1,
+  },
+  cardLocked: {
+    backgroundColor: '#FAFAFA',
+    opacity: 0.8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    backgroundColor: '#2A7BF6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  statusBadgeCompleted: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusTextCompleted: {
+    color: '#2A7BF6',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  textCurrent: {
+    color: '#2A7BF6',
+  },
+  textCurrentSub: {
+    color: '#5C6F88',
+  },
+  cardFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2A7BF6',
+  },
+  textCurrentLink: {
+    color: '#2A7BF6',
+  }
 }); 

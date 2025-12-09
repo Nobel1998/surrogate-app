@@ -14,6 +14,7 @@ export default function RegisterScreen({ navigation }) {
     address: '',
     emergencyContact: '',
     referralCode: '',
+    role: 'surrogate', // 默认代母，可选 parent
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -154,6 +155,28 @@ export default function RegisterScreen({ navigation }) {
           placeholder="Enter your phone number"
           keyboardType="phone-pad"
         />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>I am *</Text>
+        <View style={styles.roleRow}>
+          <TouchableOpacity
+            style={[styles.roleOption, formData.role === 'surrogate' && styles.roleOptionActive]}
+            onPress={() => updateFormData('role', 'surrogate')}
+          >
+            <Text style={[styles.roleText, formData.role === 'surrogate' && styles.roleTextActive]}>
+              Surrogate
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleOption, formData.role === 'parent' && styles.roleOptionActive]}
+            onPress={() => updateFormData('role', 'parent')}
+          >
+            <Text style={[styles.roleText, formData.role === 'parent' && styles.roleTextActive]}>
+              Parent
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -404,6 +427,31 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     backgroundColor: '#F8F9FB',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  roleOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#F8F9FB',
+  },
+  roleOptionActive: {
+    borderColor: '#2A7BF6',
+    backgroundColor: '#EAF2FF',
+  },
+  roleText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  roleTextActive: {
+    color: '#2A7BF6',
   },
   textArea: {
     height: 80,

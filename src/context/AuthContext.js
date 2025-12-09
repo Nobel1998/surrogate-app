@@ -234,6 +234,8 @@ export const AuthProvider = ({ children }) => {
             location: profileData?.location || session.user.user_metadata?.location || '',
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
+            // Include raw user_metadata for application form fields (age, hear_about_us)
+            user_metadata: session.user.user_metadata || {},
           };
           
           setUser(userData);
@@ -257,6 +259,8 @@ export const AuthProvider = ({ children }) => {
             location: session.user.user_metadata?.location || '',
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
+            // Include raw user_metadata for application form fields (age, hear_about_us)
+            user_metadata: session.user.user_metadata || {},
           };
           
           setUser(basicUserData);
@@ -367,6 +371,8 @@ export const AuthProvider = ({ children }) => {
               location: profileData?.location || session.user.user_metadata?.location || '',
               createdAt: session.user.created_at,
               lastLogin: new Date().toISOString(),
+              // Include raw user_metadata for application form fields (age, hear_about_us)
+              user_metadata: session.user.user_metadata || {},
             };
             
             setUser(userData);
@@ -510,6 +516,8 @@ export const AuthProvider = ({ children }) => {
           location: profileData?.location || authData.user.user_metadata?.location || '',
           createdAt: authData.user.created_at,
           lastLogin: new Date().toISOString(),
+          // Include raw user_metadata for application form fields (age, hear_about_us)
+          user_metadata: authData.user.user_metadata || {},
         };
         
         setUser(userData);
@@ -710,6 +718,8 @@ export const AuthProvider = ({ children }) => {
             role: profileData?.role || role,
             createdAt: new Date().toISOString(),
             lastLogin: new Date().toISOString(),
+            // Include raw user_metadata for application form fields (age, hear_about_us)
+            user_metadata: authData.user.user_metadata || {},
           };
         console.log('🏁 Local newUser constructed:', newUser);
         

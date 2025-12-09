@@ -1,57 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { Feather as Icon } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, updateProfile, updatePreferences, logout } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    emergencyContact: user?.emergencyContact || '',
-    medicalHistory: user?.medicalHistory || '',
-  });
-  const [preferences, setPreferences] = useState(user?.preferences || {
-    notifications: true,
-    emailUpdates: true,
-    smsUpdates: false,
-  });
-
-  const handleSave = async () => {
-    const result = await updateProfile(editData);
-    if (result.success) {
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
-    } else {
-      Alert.alert('Error', result.error);
-    }
-  };
-
-  const handleCancel = () => {
-    setEditData({
-      name: user?.name || '',
-      phone: user?.phone || '',
-      address: user?.address || '',
-      dateOfBirth: user?.dateOfBirth || '',
-      emergencyContact: user?.emergencyContact || '',
-      medicalHistory: user?.medicalHistory || '',
-    });
-    setIsEditing(false);
-  };
-
-  const handlePreferenceChange = async (key, value) => {
-    const newPreferences = { ...preferences, [key]: value };
-    setPreferences(newPreferences);
-    
-    const result = await updatePreferences(newPreferences);
-    if (!result.success) {
-      Alert.alert('错误', result.error);
-      // Revert on error
-      setPreferences(preferences);
-    }
-  };
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -67,7 +20,6 @@ export default function ProfileScreen({ navigation }) {
               console.log('🚪 Starting logout process...');
               await logout();
               console.log('✅ Logout completed successfully');
-              // 不需要手动导航，AuthContext的状态变化会自动切换到GuestStackNavigator
             } catch (error) {
               console.error('❌ Logout failed:', error);
               Alert.alert('Logout Error', 'Failed to sign out. Please try again.');
@@ -78,9 +30,27 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  const navigateToApplicationHistory = () => {
-    navigation.navigate('ApplicationHistory');
-  };
+  const renderHeaderButton = (icon, label, onPress, color) => (
+    <TouchableOpacity style={styles.headerButton} onPress={onPress}>
+      <View style={[styles.headerIconContainer, { backgroundColor: color }]}>
+        <Icon name={icon} size={24} color="#fff" />
+      </View>
+      <Text style={styles.headerButtonText}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderMenuItem = (label, icon, onPress, iconColor = '#333', value = null) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+      <View style={styles.menuItemLeft}>
+        <Icon name={icon} size={20} color={iconColor} style={styles.menuIcon} />
+        <Text style={styles.menuItemText}>{label}</Text>
+      </View>
+      <View style={styles.menuItemRight}>
+        {value && <Text style={styles.menuItemValue}>{value}</Text>}
+        <Icon name="chevron-right" size={20} color="#CCC" />
+      </View>
+    </TouchableOpacity>
+  );
 
   if (!user) {
     return (
@@ -91,237 +61,53 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      {/* User Info Header - Simplified */}
       <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>Manage your account information</Text>
-      </View>
-
-      {/* User Info Card */}
-      <View style={styles.card}>
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{user.name?.charAt(0)?.toUpperCase() || 'U'}</Text>
           </View>
-          <View style={styles.userDetails}>
+          <View>
             <Text style={styles.userName}>{user.name}</Text>
             <Text style={styles.userEmail}>{user.email}</Text>
-            <Text style={styles.memberSince}>Member since: {new Date(user.createdAt).toLocaleDateString()}</Text>
-          </View>
-        </View>
-        
-        {!isEditing && (
-          <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <Text style={styles.editButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Personal Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        <View style={styles.card}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={editData.name}
-                onChangeText={(value) => setEditData({...editData, name: value})}
-                placeholder="Enter your full name"
-              />
-            ) : (
-              <Text style={styles.value}>{user.name || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{user.email}</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={editData.phone}
-                onChangeText={(value) => setEditData({...editData, phone: value})}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-              />
-            ) : (
-              <Text style={styles.value}>{user.phone || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={editData.dateOfBirth}
-                onChangeText={(value) => setEditData({...editData, dateOfBirth: value})}
-                placeholder="YYYY-MM-DD"
-              />
-            ) : (
-              <Text style={styles.value}>{user.dateOfBirth || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
-            {isEditing ? (
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={editData.address}
-                onChangeText={(value) => setEditData({...editData, address: value})}
-                placeholder="Enter your location"
-                multiline
-                numberOfLines={3}
-              />
-            ) : (
-              <Text style={styles.value}>{user.address || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Race</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={editData.emergencyContact}
-                onChangeText={(value) => setEditData({...editData, emergencyContact: value})}
-                placeholder="Enter your race"
-              />
-            ) : (
-              <Text style={styles.value}>{user.emergencyContact || 'Not set'}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Medical History</Text>
-            {isEditing ? (
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={editData.medicalHistory}
-                onChangeText={(value) => setEditData({...editData, medicalHistory: value})}
-                placeholder="Enter medical history information"
-                multiline
-                numberOfLines={3}
-              />
-            ) : (
-              <Text style={styles.value}>{user.medicalHistory || 'Not set'}</Text>
-            )}
-          </View>
-
-          {isEditing && (
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Preferences */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notification Preferences</Text>
-        <View style={styles.card}>
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Text style={styles.preferenceTitle}>Push Notifications</Text>
-              <Text style={styles.preferenceDescription}>Receive in-app notifications</Text>
-            </View>
-            <Switch
-              value={preferences.notifications}
-              onValueChange={(value) => handlePreferenceChange('notifications', value)}
-              trackColor={{ false: '#767577', true: '#2A7BF6' }}
-              thumbColor={preferences.notifications ? '#fff' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Text style={styles.preferenceTitle}>Email Updates</Text>
-              <Text style={styles.preferenceDescription}>Receive email notifications</Text>
-            </View>
-            <Switch
-              value={preferences.emailUpdates}
-              onValueChange={(value) => handlePreferenceChange('emailUpdates', value)}
-              trackColor={{ false: '#767577', true: '#2A7BF6' }}
-              thumbColor={preferences.emailUpdates ? '#fff' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.preferenceItem}>
-            <View style={styles.preferenceInfo}>
-              <Text style={styles.preferenceTitle}>SMS Notifications</Text>
-              <Text style={styles.preferenceDescription}>Receive SMS notifications</Text>
-            </View>
-            <Switch
-              value={preferences.smsUpdates}
-              onValueChange={(value) => handlePreferenceChange('smsUpdates', value)}
-              trackColor={{ false: '#767577', true: '#2A7BF6' }}
-              thumbColor={preferences.smsUpdates ? '#fff' : '#f4f3f4'}
-            />
           </View>
         </View>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.actionItem} onPress={navigateToApplicationHistory}>
-            <Text style={styles.actionIcon}>📋</Text>
-            <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Application History</Text>
-              <Text style={styles.actionDescription}>View your application records</Text>
-            </View>
-            <Text style={styles.actionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionItem}>
-            <Text style={styles.actionIcon}>🔒</Text>
-            <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Change Password</Text>
-              <Text style={styles.actionDescription}>Update your login password</Text>
-            </View>
-            <Text style={styles.actionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('AdminDashboard')}>
-            <Text style={styles.actionIcon}>🛠️</Text>
-            <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Admin Dashboard</Text>
-              <Text style={styles.actionDescription}>View incoming applications</Text>
-            </View>
-            <Text style={styles.actionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionItem}>
-            <Text style={styles.actionIcon}>❓</Text>
-            <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Help Center</Text>
-              <Text style={styles.actionDescription}>Get help and support</Text>
-            </View>
-            <Text style={styles.actionArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Top Action Bar (FAQ, Customer Service, About Us) */}
+      <View style={styles.topActionBar}>
+        {renderHeaderButton('help-circle', 'FAQ', () => Alert.alert('FAQ', 'Coming Soon'), '#9C27B0')}
+        {renderHeaderButton('message-circle', 'Customer Service', () => Alert.alert('Service', 'Coming Soon'), '#9C27B0')}
+        {renderHeaderButton('info', 'About Us', () => navigation.navigate('Company'), '#9C27B0')}
       </View>
 
-      {/* Logout */}
-      <View style={styles.section}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Section 1 */}
+        <View style={styles.section}>
+          {renderMenuItem('My Info', 'tag', () => Alert.alert('My Info', 'Edit Profile Coming Soon'), '#FF9800')}
+          {renderMenuItem('Agency Retainer Agreement', 'eye-off', () => Alert.alert('Agreement', 'Coming Soon'), '#666')}
+          {renderMenuItem('HIPPA Release', 'info', () => Alert.alert('HIPPA', 'Coming Soon'), '#333')}
+          {renderMenuItem('Photo Release', 'camera', () => Alert.alert('Photo Release', 'Coming Soon'), '#333')}
+          {renderMenuItem('Benefit Package', 'gift', () => navigation.navigate('Benefits'), '#333')}
+          {renderMenuItem('Injection Tutorial Videos', 'play-circle', () => Alert.alert('Videos', 'Coming Soon'), '#FFC107')}
+        </View>
+
+        {/* Section 2 */}
+        <View style={styles.section}>
+          {renderMenuItem('En/中文/Spanish', 'globe', () => Alert.alert('Language', 'Coming Soon'), '#FF9800')}
+          {renderMenuItem('Refer', 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
+          {renderMenuItem('Rate The App', 'star', () => Alert.alert('Rate', 'Coming Soon'), '#4CAF50')}
+          {renderMenuItem('Rate Us', 'thumbs-up', () => Alert.alert('Rate Us', 'Coming Soon'), '#FF9800')}
+          {renderMenuItem('Contact Us', 'phone', () => navigation.navigate('Company'), '#4CAF50')}
+          {renderMenuItem('About App', 'info', () => Alert.alert('About', 'Version 1.0.0'), '#2196F3')}
+        </View>
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Sign Out</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -330,41 +116,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FB',
   },
-  scrollContent: {
-    paddingBottom: 60,
-    paddingTop: 40,
-  },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2A7BF6',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  card: {
     backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingTop: 60, // Safe area
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   avatar: {
     width: 60,
@@ -380,9 +142,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  userDetails: {
-    flex: 1,
-  },
   userName: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -392,145 +151,91 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
   },
-  memberSince: {
+  topActionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#fff',
+    paddingVertical: 20,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerButton: {
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerButtonText: {
     fontSize: 12,
-    color: '#999',
-  },
-  editButton: {
-    backgroundColor: '#2A7BF6',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignSelf: 'flex-end',
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: '#666',
     fontWeight: '600',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   section: {
-    marginBottom: 8,
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    paddingVertical: 0,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  value: {
-    fontSize: 16,
-    color: '#666',
-    paddingVertical: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: '#F8F9FB',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 16,
-  },
-  cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginRight: 12,
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  saveButton: {
-    backgroundColor: '#28A745',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  preferenceItem: {
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  preferenceInfo: {
-    flex: 1,
-  },
-  preferenceTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  preferenceDescription: {
-    fontSize: 14,
-    color: '#666',
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  actionIcon: {
-    fontSize: 24,
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuIcon: {
     marginRight: 16,
+    width: 24,
+    textAlign: 'center',
   },
-  actionInfo: {
-    flex: 1,
-  },
-  actionTitle: {
+  menuItemText: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#333',
-    marginBottom: 2,
   },
-  actionDescription: {
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItemValue: {
     fontSize: 14,
-    color: '#666',
-  },
-  actionArrow: {
-    fontSize: 20,
-    color: '#CCC',
+    color: '#999',
+    marginRight: 8,
   },
   logoutButton: {
-    backgroundColor: '#DC3545',
-    marginHorizontal: 20,
-    marginBottom: 20,
+    backgroundColor: '#fff',
+    marginTop: 20,
+    marginBottom: 40,
     paddingVertical: 16,
-    borderRadius: 12,
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
   logoutButtonText: {
-    color: '#fff',
+    color: '#DC3545',
     fontSize: 16,
     fontWeight: '600',
   },

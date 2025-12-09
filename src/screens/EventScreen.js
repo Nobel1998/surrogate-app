@@ -167,8 +167,8 @@ export default function EventScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Events</Text>
-        <Text style={styles.subtitle}>Upcoming Company Events</Text>
+        <Text style={styles.title}>Blogs</Text>
+        <Text style={styles.subtitle}>News, Policies & Updates</Text>
       </View>
       
       <FlatList
@@ -187,9 +187,9 @@ export default function EventScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No Events Available</Text>
+            <Text style={styles.emptyTitle}>No Blogs Available</Text>
             <Text style={styles.emptyText}>
-              {isLoading ? 'Loading events...' : 'Check back later for upcoming events!'}
+              {isLoading ? 'Loading blogs...' : 'Check back later for new updates!'}
             </Text>
           </View>
         }

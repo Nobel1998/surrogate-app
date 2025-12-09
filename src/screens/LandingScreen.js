@@ -50,7 +50,7 @@ export default function LandingScreen({ navigation }) {
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
 
-            {/* Parent Path */}
+            {/* Auth Path (parents & surrogates) */}
             <TouchableOpacity
               style={styles.actionCard}
               activeOpacity={0.9}
@@ -60,8 +60,8 @@ export default function LandingScreen({ navigation }) {
                 <Icon name="users" size={24} color="#FF8EA4" />
               </View>
               <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>Parents Login / Sign Up</Text>
-                <Text style={styles.cardSubtitle}>Access your family portal</Text>
+                <Text style={styles.cardTitle}>Login / Sign Up</Text>
+                <Text style={styles.cardSubtitle}>Access your portal to apply or connect</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>

@@ -134,6 +134,7 @@ export const AppProvider = ({ children }) => {
         comments: post.comments_count || 0,
         timestamp: new Date(post.created_at).toLocaleString(),
         createdAt: post.created_at,
+        stage: post.stage || 'pregnancy',
       }));
 
       setPosts(cloudPosts);
@@ -463,6 +464,7 @@ export const AppProvider = ({ children }) => {
         id: tempId,
         timestamp: new Date().toLocaleString(),
         isUploading: true, // 标记正在上传
+        stage: post.stage || 'pregnancy',
       };
       setPosts(prev => [tempPost, ...prev]);
 
@@ -509,6 +511,7 @@ export const AppProvider = ({ children }) => {
           content: post.content,
           media_uri: cloudMediaUri, // 使用云端 URL 而不是本地路径
           media_type: post.mediaType || null,
+          stage: post.stage || 'pregnancy',
         })
         .select()
         .single();
@@ -549,6 +552,7 @@ export const AppProvider = ({ children }) => {
         comments: data.comments_count || 0,
         timestamp: new Date(data.created_at).toLocaleString(),
         createdAt: data.created_at,
+        stage: data.stage || post.stage || 'pregnancy',
       };
 
       setPosts(prev => prev.map(p => p.id === tempId ? cloudPost : p));

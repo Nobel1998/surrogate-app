@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
-export default function SurrogateApplicationScreen({ navigation }) {
+export default function SurrogateApplicationScreen({ navigation, route }) {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
@@ -12,17 +13,20 @@ export default function SurrogateApplicationScreen({ navigation }) {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-  
+  const [formVersion, setFormVersion] = useState(0);
   const [applicationData, setApplicationData] = useState({
     // Step 1: Personal Information
     fullName: user?.name || '',
-    age: '',
-    dateOfBirth: user?.dateOfBirth || '',
+    age: user?.user_metadata?.age || '',
+    dateOfBirth: user?.user_metadata?.date_of_birth || user?.dateOfBirth || '',
     phoneNumber: user?.phone || '',
     email: user?.email || '',
-    address: user?.address || '',
-    hearAboutUs: '',
+    location: user?.address || '',
+    hearAboutUs: user?.user_metadata?.hear_about_us || '',
+    race: user?.user_metadata?.race || user?.race || '',
+    referralCode: user?.user_metadata?.referred_by || '',
     
     // Step 2: Medical Information
     previousPregnancies: '',
@@ -56,6 +60,119 @@ export default function SurrogateApplicationScreen({ navigation }) {
   const updateField = (field, value) => {
     setApplicationData(prev => ({ ...prev, [field]: value }));
   };
+
+  const generateInviteCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const hasDigit = (str) => /\d/.test(str);
+    let code = '';
+    // ensure at least one digit
+    do {
+      code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+    } while (!hasDigit(code));
+    return code;
+  };
+
+  // Draft storage helpers
+  const getDraftKey = () => (user?.id ? `application_draft_${user.id}` : 'application_draft_guest');
+
+  const loadDraft = async (userIdOverride = null) => {
+    try {
+      const uid = userIdOverride || user?.id;
+      // Only restore for authenticated users to keep first-time guests blank
+      if (!uid) {
+        return;
+      }
+      // 1) If logged in, try to pull latest application from Supabase
+      {
+        const { data: latest, error } = await supabase
+          .from('applications')
+          .select('full_name, phone, form_data, status, created_at')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.log('⚠️ Load draft from Supabase failed:', error.message);
+        }
+
+        if (latest) {
+          let parsed = {};
+          try {
+            parsed = latest.form_data ? JSON.parse(latest.form_data) : {};
+          } catch (e) {
+            // ignore parse error, fallback to parsed = {}
+          }
+          const merged = {
+            fullName: latest.full_name || parsed.fullName || applicationData.fullName,
+            phoneNumber: latest.phone || parsed.phoneNumber || applicationData.phoneNumber,
+            age: parsed.age || applicationData.age || '',
+            dateOfBirth: parsed.dateOfBirth || applicationData.dateOfBirth || '',
+            location: parsed.location || applicationData.location,
+            hearAboutUs: parsed.hearAboutUs || applicationData.hearAboutUs,
+          race: parsed.race || applicationData.race || '',
+          referralCode: parsed.referralCode || applicationData.referralCode || '',
+            ...parsed,
+          };
+          // ensure state updates flush before formVersion bump
+          setApplicationData(prev => ({ ...prev, ...merged }));
+          setTimeout(() => {
+            const newVersion = Date.now();
+            setFormVersion(newVersion);
+            setCurrentStep(1);
+          }, 0);
+          return;
+        }
+      }
+
+      // 2) Fallback to local draft (authenticated users only)
+      const draft = await AsyncStorageLib.getItem(userIdOverride ? `application_draft_${uid}` : getDraftKey());
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        setApplicationData(prev => ({ ...prev, ...parsed }));
+        setTimeout(() => {
+          const newVersion = Date.now();
+          setFormVersion(newVersion);
+          setCurrentStep(1);
+        }, 0);
+      }
+    } catch (err) {
+      console.log('⚠️ loadDraft error:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    loadDraft();
+  }, [user?.id]);
+
+  // Fallback: when user logs in and has user_metadata, update form fields directly
+  useEffect(() => {
+    if (user?.user_metadata) {
+      const meta = user.user_metadata;
+      setApplicationData(prev => ({
+        ...prev,
+        age: prev.age || meta.age || '',
+        dateOfBirth: prev.dateOfBirth || meta.date_of_birth || '',
+        hearAboutUs: prev.hearAboutUs || meta.hear_about_us || '',
+        fullName: prev.fullName || meta.name || user?.name || '',
+        phoneNumber: prev.phoneNumber || meta.phone || user?.phone || '',
+        location: prev.location || meta.location || user?.address || '',
+        race: prev.race || meta.race || user?.race || '',
+        referralCode: prev.referralCode || meta.referred_by || '',
+      }));
+    }
+  }, [user?.user_metadata]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.id) {
+        loadDraft(user.id);
+      }
+    }, [user?.id])
+  );
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -204,6 +321,10 @@ export default function SurrogateApplicationScreen({ navigation }) {
     // Lazy registration: require auth after Step 1 if not logged in
     if (currentStep === 1 && !user) {
       if (!validateStep(1)) return;
+      // Save local draft before prompting auth
+      AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData))
+        .then(() => console.log('💾 Draft saved locally before auth:', applicationData))
+        .catch(() => {});
       setShowAuthPrompt(true);
       return;
     }
@@ -227,10 +348,21 @@ export default function SurrogateApplicationScreen({ navigation }) {
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
+    if (!authPasswordConfirm.trim()) {
+      Alert.alert('Error', 'Please confirm your password');
+      return;
+    }
+    if (authPassword !== authPasswordConfirm) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
     if (!validateEmail(authEmail.trim())) {
       Alert.alert('Error', 'Please enter a valid email');
       return;
     }
+    // Mark intent to resume application flow before auth state changes
+    console.log('🔖 pre-signup: setting resume_application_flow=true');
+    await AsyncStorageLib.setItem('resume_application_flow', 'true');
     setAuthLoading(true);
     try {
       const role = 'surrogate';
@@ -242,7 +374,12 @@ export default function SurrogateApplicationScreen({ navigation }) {
             role,
             name: applicationData.fullName,
             phone: applicationData.phoneNumber,
-            location: applicationData.address || '',
+            location: applicationData.location || '',
+            age: applicationData.age || '',
+            date_of_birth: applicationData.dateOfBirth || '',
+            hear_about_us: applicationData.hearAboutUs || '',
+            race: applicationData.race || '',
+            referred_by: applicationData.referralCode?.trim() || null,
           },
         },
       });
@@ -252,40 +389,62 @@ export default function SurrogateApplicationScreen({ navigation }) {
       const userId = authData?.user?.id;
       if (userId) {
         // Upsert profile
-        await supabase
-          .from('profiles')
-          .upsert(
-            {
-              id: userId,
-              role,
-              name: applicationData.fullName,
-              phone: applicationData.phoneNumber,
-              location: applicationData.address || '',
-              date_of_birth: applicationData.dateOfBirth || null,
-              email: authEmail.trim(),
-            },
-            { onConflict: 'id' }
-          );
+        let inviteCode = generateInviteCode();
+        let attempts = 0;
+        while (attempts < 3) {
+          const profilePayload = {
+            id: userId,
+            role,
+            name: applicationData.fullName,
+            phone: applicationData.phoneNumber,
+            date_of_birth: applicationData.dateOfBirth || null,
+            email: authEmail.trim(),
+            location: applicationData.location || '',
+            invite_code: inviteCode,
+            race: applicationData.race || '',
+            referred_by: applicationData.referralCode?.trim() || null,
+          };
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(profilePayload, { onConflict: 'id' });
 
-        // Save partial application as draft
-        const payload = {
-          full_name: applicationData.fullName,
-          phone: applicationData.phoneNumber,
-          form_data: JSON.stringify({ ...applicationData, draft: true }),
-          user_id: userId,
-          status: 'pending',
-        };
-        await supabase.from('applications').insert([payload]);
+          if (!profileError) break;
+
+          if (profileError.code === '23505') {
+            // duplicate invite_code, regenerate and retry
+            inviteCode = generateInviteCode();
+            attempts += 1;
+            continue;
+          }
+
+          throw profileError;
+        }
+
+        // Mark that we should stay on application flow after auth switch
+        console.log('🔖 setting resume_application_flow=true after lazy signup');
+        await AsyncStorageLib.setItem('resume_application_flow', 'true');
+
+        // Save local draft under the new user key
+        await AsyncStorageLib.setItem(`application_draft_${userId}`, JSON.stringify(applicationData));
+
+        // Force state reapply immediately by reloading draft with the new user id
+        await loadDraft(userId);
+        const newVersion = Date.now();
+        setFormVersion(newVersion);
+        setCurrentStep(1);
       }
 
       // Store email into form for continuity
       updateField('email', authEmail.trim());
       setShowAuthPrompt(false);
-      setCurrentStep(2);
+      // pass draft via route params to survive navigator remounts
+      navigation.setParams({ draft: applicationData, draftVersion: Date.now() });
+      setCurrentStep(1);
       Alert.alert('Progress Saved', 'Account created and progress saved. Please continue.');
     } catch (error) {
       console.error('Lazy signup error:', error);
       Alert.alert('Error', error.message || 'Failed to save progress');
+      await AsyncStorageLib.removeItem('resume_application_flow');
     } finally {
       setAuthLoading(false);
     }
@@ -302,6 +461,37 @@ export default function SurrogateApplicationScreen({ navigation }) {
       
       if (authError || !authUser) {
         throw new Error('Please log in to submit an application');
+      }
+
+      // Ensure profile carries latest race / referred_by and contact info, preserving invite_code
+      let existingInviteCode = null;
+      try {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('invite_code')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        existingInviteCode = existingProfile?.invite_code || null;
+      } catch (_) {
+        existingInviteCode = null;
+      }
+      const ensuredInviteCode = existingInviteCode || generateInviteCode();
+      const profileUpdate = {
+        id: authUser.id,
+        name: applicationData.fullName,
+        phone: applicationData.phoneNumber,
+        date_of_birth: applicationData.dateOfBirth || null,
+        email: applicationData.email || authUser.email,
+        location: applicationData.location || '',
+        race: applicationData.race || '',
+        referred_by: applicationData.referralCode?.trim() || null,
+        invite_code: ensuredInviteCode,
+      };
+      const { error: profileUpsertError } = await supabase
+        .from('profiles')
+        .upsert(profileUpdate, { onConflict: 'id' });
+      if (profileUpsertError) {
+        throw new Error(profileUpsertError.message);
       }
 
       // Construct payload for Supabase
@@ -324,6 +514,9 @@ export default function SurrogateApplicationScreen({ navigation }) {
       if (error) {
         throw new Error(error.message);
       }
+
+      // Application submitted successfully; clear resume flag
+      await AsyncStorageLib.removeItem('resume_application_flow');
 
       // Create local application object for history
       const application = {
@@ -365,7 +558,15 @@ export default function SurrogateApplicationScreen({ navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              navigation.goBack();
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else if (navigation.navigate) {
+                if (user) {
+                  navigation.navigate('MainTabs');
+                } else {
+                  navigation.navigate('GuestTabs');
+                }
+              }
             }
           }
         ]
@@ -397,8 +598,9 @@ export default function SurrogateApplicationScreen({ navigation }) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Age *</Text>
         <TextInput
+          key={`age-${formVersion}`}
           style={styles.input}
-          value={applicationData.age}
+          value={applicationData.age || ''}
           onChangeText={(value) => updateField('age', value)}
           placeholder="Enter your age (21-40)"
           keyboardType="numeric"
@@ -409,8 +611,9 @@ export default function SurrogateApplicationScreen({ navigation }) {
         <Text style={styles.label}>Date of Birth *</Text>
         <Text style={styles.subLabel}>Please list in month, day, year format</Text>
         <TextInput
+          key={`dob-${formVersion}`}
           style={styles.input}
-          value={applicationData.dateOfBirth}
+          value={applicationData.dateOfBirth || ''}
           onChangeText={(value) => updateField('dateOfBirth', value)}
           placeholder="MM/DD/YYYY"
         />
@@ -440,12 +643,22 @@ export default function SurrogateApplicationScreen({ navigation }) {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Address</Text>
+        <Text style={styles.label}>Race</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.race}
+          onChangeText={(value) => updateField('race', value)}
+          placeholder="Enter your race (optional)"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Location</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.address}
-          onChangeText={(value) => updateField('address', value)}
-          placeholder="Enter your full address"
+          value={applicationData.location}
+          onChangeText={(value) => updateField('location', value)}
+          placeholder="Enter your location"
           multiline
           numberOfLines={3}
         />
@@ -455,8 +668,9 @@ export default function SurrogateApplicationScreen({ navigation }) {
         <Text style={styles.label}>How did you hear about us? *</Text>
         <Text style={styles.subLabel}>Please be specific (e.g., Google, Facebook, friend referral)</Text>
         <TextInput
+          key={`hear-${formVersion}`}
           style={styles.input}
-          value={applicationData.hearAboutUs}
+          value={applicationData.hearAboutUs || ''}
           onChangeText={(value) => updateField('hearAboutUs', value)}
           placeholder="e.g., Google search, Facebook ad, friend referral"
         />
@@ -746,6 +960,18 @@ export default function SurrogateApplicationScreen({ navigation }) {
           numberOfLines={4}
         />
       </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Invite Code</Text>
+        <Text style={styles.subLabel}>If someone invited you, enter their code (optional)</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.referralCode}
+          onChangeText={(value) => updateField('referralCode', value)}
+          placeholder="Enter invite code (optional)"
+          autoCapitalize="none"
+        />
+      </View>
     </View>
   );
 
@@ -756,8 +982,20 @@ export default function SurrogateApplicationScreen({ navigation }) {
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView contentContainerStyle={styles.scrollContainer} key={formVersion}>
           <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backHomeButton}
+              onPress={() => {
+                if (user) {
+                  navigation.navigate('MainTabs');
+                } else {
+                  navigation.navigate('Landing');
+                }
+              }}
+            >
+              <Text style={styles.backHomeText}>← Back to Home</Text>
+            </TouchableOpacity>
             <Text style={styles.title}>Surrogacy Application</Text>
             <Text style={styles.subtitle}>Complete your application to become a surrogate</Text>
           
@@ -805,45 +1043,54 @@ export default function SurrogateApplicationScreen({ navigation }) {
 
       {/* Lazy auth modal */}
       {showAuthPrompt && (
-        <View style={styles.authModalOverlay}>
-          <View style={styles.authModal}>
-            <Text style={styles.authTitle}>Save Progress</Text>
-            <Text style={styles.authSubtitle}>
-              Create an account to save your application progress.
-            </Text>
-            <TextInput
-              style={styles.authInput}
-              placeholder="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={authEmail}
-              onChangeText={setAuthEmail}
-            />
-            <TextInput
-              style={styles.authInput}
-              placeholder="Password"
-              secureTextEntry
-              value={authPassword}
-              onChangeText={setAuthPassword}
-            />
-            <View style={styles.authActions}>
-              <TouchableOpacity
-                style={[styles.authButton, styles.authCancel]}
-                onPress={() => setShowAuthPrompt(false)}
-                disabled={authLoading}
-              >
-                <Text style={styles.authCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.authButton, styles.authSave]}
-                onPress={handleLazySignup}
-                disabled={authLoading}
-              >
-                <Text style={styles.authSaveText}>{authLoading ? 'Saving...' : 'Save & Continue'}</Text>
-              </TouchableOpacity>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.authModalOverlay}>
+            <View style={styles.authModal}>
+              <Text style={styles.authTitle}>Save Progress</Text>
+              <Text style={styles.authSubtitle}>
+                Create an account to save your application progress.
+              </Text>
+              <TextInput
+                style={styles.authInput}
+                placeholder="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={authEmail}
+                onChangeText={setAuthEmail}
+              />
+              <TextInput
+                style={styles.authInput}
+                placeholder="Password"
+                secureTextEntry
+                value={authPassword}
+                onChangeText={setAuthPassword}
+              />
+              <TextInput
+                style={styles.authInput}
+                placeholder="Confirm Password"
+                secureTextEntry
+                value={authPasswordConfirm}
+                onChangeText={setAuthPasswordConfirm}
+              />
+              <View style={styles.authActions}>
+                <TouchableOpacity
+                  style={[styles.authButton, styles.authCancel]}
+                  onPress={() => setShowAuthPrompt(false)}
+                  disabled={authLoading}
+                >
+                  <Text style={styles.authCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.authButton, styles.authSave]}
+                  onPress={handleLazySignup}
+                  disabled={authLoading}
+                >
+                  <Text style={styles.authSaveText}>{authLoading ? 'Saving...' : 'Save & Continue'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       )}
     </SafeAreaView>
   );
@@ -868,6 +1115,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     paddingTop: 10,
+  },
+  backHomeButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  backHomeText: {
+    color: '#2A7BF6',
+    fontWeight: '600',
+    fontSize: 14,
   },
   title: {
     fontSize: 28,

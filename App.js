@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Linking } from 'react-native';
+import AsyncStorageLib from './src/utils/Storage';
 import HomeScreen from './src/screens/HomeScreen';
 import EventScreen from './src/screens/EventScreen';
 import BenefitsScreen from './src/screens/BenefitsScreen';
@@ -181,9 +182,9 @@ function GuestStackNavigator() {
 }
 
 // Main App Stack Navigator
-function AppStackNavigator() {
+function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
@@ -249,6 +250,7 @@ const linking = {
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [forceShowApp, setForceShowApp] = useState(false);
+  const [resumeApplication, setResumeApplication] = useState(false);
 
   // 全局超时机制：如果加载超过30秒，强制显示App
   useEffect(() => {
@@ -261,6 +263,26 @@ function AppContent() {
 
     return () => clearTimeout(globalTimeout);
   }, [isLoading]);
+
+  // Detect if we should resume the application flow after lazy signup
+  useEffect(() => {
+    const checkResume = async () => {
+      if (isAuthenticated) {
+        const flag = await AsyncStorageLib.getItem('resume_application_flow');
+        console.log('🔁 resume_application_flow flag (auth):', flag);
+        setResumeApplication(flag === 'true');
+        if (flag === 'true') {
+          await AsyncStorageLib.removeItem('resume_application_flow');
+          console.log('🧹 cleared resume_application_flow after consume');
+        }
+      } else {
+        console.log('🔁 resume_application_flow cleared (not authenticated)');
+        setResumeApplication(false);
+        await AsyncStorageLib.removeItem('resume_application_flow');
+      }
+    };
+    checkResume();
+  }, [isAuthenticated]);
 
   // 如果还在加载且没有达到强制显示条件，显示加载界面
   if (isLoading && !forceShowApp) {
@@ -275,9 +297,17 @@ function AppContent() {
     );
   }
 
+  const navKey = isAuthenticated
+    ? (resumeApplication ? 'auth-resume' : 'auth-nav')
+    : 'guest-nav';
+
   return (
-    <NavigationContainer linking={linking}>
-      {isAuthenticated ? <AppStackNavigator /> : <GuestStackNavigator />}
+    <NavigationContainer linking={linking} key={navKey}>
+      {isAuthenticated ? (
+        <AppStackNavigator initialRouteName={resumeApplication ? 'SurrogateApplication' : 'MainTabs'} />
+      ) : (
+        <GuestStackNavigator />
+      )}
     </NavigationContainer>
   );
 }
