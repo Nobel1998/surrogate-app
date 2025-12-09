@@ -23,6 +23,16 @@ type Match = {
   notes?: string | null;
 };
 
+type Post = {
+  id: string;
+  user_id: string;
+  content?: string | null;
+  text?: string | null;
+  media_url?: string | null;
+  stage?: string | null;
+  created_at?: string | null;
+};
+
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'delivery'];
 
@@ -30,6 +40,7 @@ export default function MatchesPage() {
   const [surrogates, setSurrogates] = useState<Profile[]>([]);
   const [parents, setParents] = useState<Profile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +68,7 @@ export default function MatchesPage() {
         const errText = await res.text();
         throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
       }
-      const { profiles = [], matches: matchData = [] } = await res.json();
+      const { profiles = [], matches: matchData = [], posts: postsData = [] } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
       const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
@@ -74,6 +85,7 @@ export default function MatchesPage() {
       setSurrogates(surList);
       setParents(parList);
       setMatches(matchData || []);
+      setPosts(postsData || []);
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -307,6 +319,7 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -317,6 +330,8 @@ export default function MatchesPage() {
                   const parent = profileLookup[m.parent_id];
                   const surrogateStage = (surrogate?.progress_stage || 'pre').toUpperCase();
                   const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
+                  const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
+                  const latestPosts = surrogatePosts.slice(0, 3);
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -350,6 +365,36 @@ export default function MatchesPage() {
                               BY: {stageUpdater}
                             </span>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700">
+                        <div className="flex flex-col gap-1">
+                          <div className="font-semibold text-sm">Count: {surrogatePosts.length}</div>
+                          {latestPosts.length === 0 ? (
+                            <div className="text-gray-500">No posts</div>
+                          ) : (
+                            latestPosts.map((p) => (
+                              <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
+                                <div className="text-[11px] text-gray-500">
+                                  {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
+                                  {p.stage ? ` · ${p.stage}` : ''}
+                                </div>
+                                <div className="text-sm text-gray-900 line-clamp-2">
+                                  {p.content || p.text || '(no text)'}
+                                </div>
+                                {p.media_url && (
+                                  <a
+                                    href={p.media_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    Media
+                                  </a>
+                                )}
+                              </div>
+                            ))
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">

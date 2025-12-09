@@ -42,7 +42,26 @@ export async function GET() {
     if (profilesError) throw profilesError;
     if (matchesError) throw matchesError;
 
-    return NextResponse.json({ profiles, matches });
+    // 拉取代母的帖子，供后台展示
+    const surrogateIds = Array.from(
+      new Set((matches || []).map((m) => m.surrogate_id).filter(Boolean))
+    );
+
+    let posts: any[] = [];
+    if (surrogateIds.length > 0) {
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('id, user_id, content, text, media_url, stage, created_at')
+        .in('user_id', surrogateIds)
+        .order('created_at', { ascending: false });
+      if (postsError) {
+        console.error('[matches/options] load posts error', postsError);
+      } else {
+        posts = postsData || [];
+      }
+    }
+
+    return NextResponse.json({ profiles, matches, posts });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(

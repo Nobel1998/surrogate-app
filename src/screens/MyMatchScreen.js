@@ -119,19 +119,32 @@ export default function MyMatchScreen({ navigation }) {
         setMatchData(match);
 
         // 4) 文档
+        // 4) 文档
         const targetUserId = isSurrogate ? user.id : match.surrogate_id;
+        const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000';
+        // 拉取匹配用户文档 + 全局模板文档（占位 UUID），并兼容旧数据 user_id 为 null 的情况
+        const userIdOrClause = [
+          targetUserId ? `user_id.eq.${targetUserId}` : null,
+          `user_id.eq.${GLOBAL_CONTRACT_USER_ID}`,
+          'user_id.is.null',
+        ]
+          .filter(Boolean)
+          .join(',');
+
         const { data: docs, error: docsError } = await supabase
           .from('documents')
           .select('*')
-          .eq('user_id', targetUserId)
           .in('document_type', [
             'surrogacy_contract',
             'legal_contract',
             'agency_contract',
             'insurance_policy',
             'parental_rights',
-            'medical_records'
+            'medical_records',
+            'parent_contract',
+            'surrogate_contract',
           ])
+          .or(userIdOrClause)
           .order('created_at', { ascending: false });
 
         if (docsError) {
@@ -161,11 +174,12 @@ export default function MyMatchScreen({ navigation }) {
   };
 
   const handleDocumentPress = async (document) => {
-    if (document.file_url) {
+    const url = document.file_url || document.url;
+    if (url) {
       try {
-        const supported = await Linking.canOpenURL(document.file_url);
+        const supported = await Linking.canOpenURL(url);
         if (supported) {
-          await Linking.openURL(document.file_url);
+          await Linking.openURL(url);
         } else {
           Alert.alert('Error', 'Cannot open this document');
         }
@@ -292,7 +306,20 @@ export default function MyMatchScreen({ navigation }) {
               { key: 'medical_records', label: 'Medical Records', icon: 'activity' },
               { key: 'insurance_policy', label: 'Insurance Policy', icon: 'shield' },
             ].map((doc) => {
-              const docData = documents.find(d => d.document_type === doc.key);
+              // 对 Legal Contract 做角色优先匹配：
+              //  - 代母优先 surrogate_contract，其次 parent_contract，其次 legal_contract
+              //  - 父母优先 parent_contract，其次 surrogate_contract，其次 legal_contract
+              let docData;
+              if (doc.key === 'legal_contract') {
+                const primaryType = isSurrogate ? 'surrogate_contract' : 'parent_contract';
+                const secondaryType = isSurrogate ? 'parent_contract' : 'surrogate_contract';
+                docData =
+                  documents.find(d => d.document_type === primaryType) ||
+                  documents.find(d => d.document_type === secondaryType) ||
+                  documents.find(d => d.document_type === 'legal_contract');
+              } else {
+                docData = documents.find(d => d.document_type === doc.key);
+              }
               const isLocked = !docData;
               
               return (
