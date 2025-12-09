@@ -48,6 +48,9 @@ export async function GET() {
     );
 
     let posts: any[] = [];
+    let comments: any[] = [];
+    let postLikes: any[] = [];
+
     if (surrogateIds.length > 0) {
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
@@ -59,9 +62,34 @@ export async function GET() {
       } else {
         posts = postsData || [];
       }
+
+      const postIds = posts.map((p) => p.id).filter(Boolean);
+      if (postIds.length > 0) {
+        const [{ data: commentsData, error: commentsError }, { data: likesData, error: likesError }] =
+          await Promise.all([
+            supabase
+              .from('comments')
+              .select('id, post_id')
+              .in('post_id', postIds),
+            supabase
+              .from('post_likes')
+              .select('id, post_id')
+              .in('post_id', postIds),
+          ]);
+        if (commentsError) {
+          console.error('[matches/options] load comments error', commentsError);
+        } else {
+          comments = commentsData || [];
+        }
+        if (likesError) {
+          console.error('[matches/options] load post likes error', likesError);
+        } else {
+          postLikes = likesData || [];
+        }
+      }
     }
 
-    return NextResponse.json({ profiles, matches, posts });
+    return NextResponse.json({ profiles, matches, posts, comments, postLikes });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(

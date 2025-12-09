@@ -32,6 +32,8 @@ type Post = {
   stage?: string | null;
   created_at?: string | null;
 };
+type CommentRow = { id: string; post_id: string };
+type LikeRow = { id: string; post_id: string };
 
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'delivery'];
@@ -41,6 +43,8 @@ export default function MatchesPage() {
   const [parents, setParents] = useState<Profile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<CommentRow[]>([]);
+  const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +72,13 @@ export default function MatchesPage() {
         const errText = await res.text();
         throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
       }
-      const { profiles = [], matches: matchData = [], posts: postsData = [] } = await res.json();
+      const {
+        profiles = [],
+        matches: matchData = [],
+        posts: postsData = [],
+        comments: commentsData = [],
+        postLikes: likesData = [],
+      } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
       const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
@@ -86,6 +96,8 @@ export default function MatchesPage() {
       setParents(parList);
       setMatches(matchData || []);
       setPosts(postsData || []);
+      setComments(commentsData || []);
+      setPostLikes(likesData || []);
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -332,6 +344,8 @@ export default function MatchesPage() {
                   const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
                   const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
                   const latestPosts = surrogatePosts.slice(0, 3);
+                  const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
+                  const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -369,7 +383,9 @@ export default function MatchesPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-1">
-                          <div className="font-semibold text-sm">Count: {surrogatePosts.length}</div>
+                          <div className="font-semibold text-sm">
+                            Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
+                          </div>
                           {latestPosts.length === 0 ? (
                             <div className="text-gray-500">No posts</div>
                           ) : (
