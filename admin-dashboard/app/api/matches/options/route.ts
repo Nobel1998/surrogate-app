@@ -30,7 +30,7 @@ export async function GET() {
       await Promise.all([
         supabase
           .from('profiles')
-          .select('id, name, phone, role, email')
+          .select('id, name, phone, role, email, progress_stage')
           .in('role', ['surrogate', 'parent'])
           .order('created_at', { ascending: false }),
         supabase
@@ -131,19 +131,30 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    if (!body.id) {
-      return NextResponse.json(
-        { error: 'Missing match id' },
-        { status: 400 }
-      );
+    // Support two patch modes:
+    // 1) Update match status (body.id + status)
+    // 2) Update surrogate progress stage (body.surrogate_id + progress_stage)
+    if (body.surrogate_id && body.progress_stage) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ progress_stage: body.progress_stage })
+        .eq('id', body.surrogate_id);
+      if (error) throw error;
+    } else {
+      if (!body.id) {
+        return NextResponse.json(
+          { error: 'Missing match id' },
+          { status: 400 }
+        );
+      }
+
+      const { error } = await supabase
+        .from('surrogate_matches')
+        .update({ status: body.status || 'active', updated_at: new Date().toISOString() })
+        .eq('id', body.id);
+
+      if (error) throw error;
     }
-
-    const { error } = await supabase
-      .from('surrogate_matches')
-      .update({ status: body.status || 'active', updated_at: new Date().toISOString() })
-      .eq('id', body.id);
-
-    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

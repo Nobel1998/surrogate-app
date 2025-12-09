@@ -767,7 +767,18 @@ export default function HomeScreen() {
 
   const renderTimelineView = () => {
     return (
-      <ScrollView style={styles.timelineContainer} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        style={styles.timelineContainer}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A7BF6']}
+            tintColor="#2A7BF6"
+          />
+        }
+      >
         {/* Match Status Hero Card */}
         {isParentRole && (
           <View style={[styles.heroCard, !matchedSurrogateId && styles.heroCardUnmatched]}>
