@@ -176,80 +176,84 @@ export default function HomeScreen() {
     }
   }, [user, isLoading, forceCompleteLoading]);
 
-  // 下拉刷新
+  // Fetch matched surrogate id for parent users (surrogate can skip)
+  const fetchMatchedSurrogate = useCallback(async () => {
+    if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
+      setMatchedSurrogateId(null);
+      setMatchedProfile(null);
+      return;
+    }
+    setMatchCheckInProgress(true);
+    try {
+      // Try parent_id (most likely schema)
+      const { data: parentMatches, error: parentMatchError } = await supabase
+        .from('surrogate_matches')
+        .select('surrogate_id')
+        .eq('parent_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (parentMatchError) {
+        console.log('Error loading match by parent_id:', parentMatchError.message);
+      }
+
+      let surrogateId = parentMatches?.[0]?.surrogate_id || null;
+
+      // Fallback: some schemas may use parent_user_id
+      if (!surrogateId) {
+        const { data: altMatches, error: altError } = await supabase
+          .from('surrogate_matches')
+          .select('surrogate_id')
+          .eq('parent_user_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (altError) {
+          console.log('Error loading match by parent_user_id:', altError.message);
+        }
+        surrogateId = altMatches?.[0]?.surrogate_id || null;
+      }
+
+      setMatchedSurrogateId(surrogateId);
+      if (surrogateId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', surrogateId)
+          .single();
+        setMatchedProfile(profile);
+      } else {
+        setMatchedProfile(null);
+      }
+      console.log('Matched surrogate for parent:', surrogateId);
+    } catch (error) {
+      console.error('Error fetching matched surrogate:', error);
+      setMatchedSurrogateId(null);
+      setMatchedProfile(null);
+    } finally {
+      setMatchCheckInProgress(false);
+    }
+  }, [user?.id, user?.role]);
+
+  // 下拉刷新：刷新帖子 + 重新拉取匹配
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshData();
+      await Promise.all([
+        refreshData(),
+        fetchMatchedSurrogate(),
+      ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData]);
+  }, [refreshData, fetchMatchedSurrogate]);
 
-  // Fetch matched surrogate id for parent users (surrogate can skip)
   useEffect(() => {
-    const fetchMatchedSurrogate = async () => {
-      if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
-        setMatchedSurrogateId(null);
-        return;
-      }
-      setMatchCheckInProgress(true);
-      try {
-        // Try parent_id (most likely schema)
-        const { data: parentMatches, error: parentMatchError } = await supabase
-          .from('surrogate_matches')
-          .select('surrogate_id')
-          .eq('parent_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (parentMatchError) {
-          console.log('Error loading match by parent_id:', parentMatchError.message);
-        }
-
-        let surrogateId = parentMatches?.[0]?.surrogate_id || null;
-
-        // Fallback: some schemas may use parent_user_id
-        if (!surrogateId) {
-          const { data: altMatches, error: altError } = await supabase
-            .from('surrogate_matches')
-            .select('surrogate_id')
-            .eq('parent_user_id', user.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (altError) {
-            console.log('Error loading match by parent_user_id:', altError.message);
-          }
-          surrogateId = altMatches?.[0]?.surrogate_id || null;
-        }
-
-        setMatchedSurrogateId(surrogateId);
-        if (surrogateId) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', surrogateId)
-            .single();
-          setMatchedProfile(profile);
-        } else {
-          setMatchedProfile(null);
-        }
-        console.log('Matched surrogate for parent:', surrogateId);
-      } catch (error) {
-        console.error('Error fetching matched surrogate:', error);
-        setMatchedSurrogateId(null);
-        setMatchedProfile(null);
-      } finally {
-        setMatchCheckInProgress(false);
-      }
-    };
-
     fetchMatchedSurrogate();
-  }, [user?.id, user?.role]);
+  }, [fetchMatchedSurrogate]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
