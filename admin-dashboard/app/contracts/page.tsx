@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react';
 type Contract = {
   id: string;
   document_type: string;
-  url: string;
+  file_url: string;
   file_name?: string | null;
   created_at?: string | null;
-  stage_updated_by?: string | null;
+  user_id?: string | null;
 };
 
 const typeOptions = [
@@ -82,8 +82,7 @@ export default function ContractsPage() {
       <div className="bg-white shadow-sm border border-gray-200 rounded-xl p-6 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Contracts</h1>
         <p className="text-sm text-gray-600 mb-6">
-          Upload the latest contracts for parents and surrogates. These files will be stored in Supabase
-          storage (bucket: <code>contracts</code>) and recorded in the <code>documents</code> table.
+          Upload parent/surrogate contract templates. Files are stored in Supabase storage bucket <code>contracts</code> and recorded in the <code>documents</code> table.
         </p>
 
         <div className="grid md:grid-cols-3 gap-4 items-end">
@@ -144,7 +143,6 @@ export default function ContractsPage() {
           <div className="divide-y divide-gray-200">
             {contracts.map((c) => {
               const label = c.document_type === 'parent_contract' ? 'Parent' : 'Surrogate';
-              const by = (c.stage_updated_by || 'admin').toUpperCase();
               return (
                 <div key={c.id} className="py-3 flex items-center justify-between">
                   <div>
@@ -152,13 +150,13 @@ export default function ContractsPage() {
                       {label} Contract
                     </div>
                     <div className="text-xs text-gray-500">
-                      {c.file_name || 'Unnamed file'} · BY: {by}{' '}
+                      {c.file_name || 'Unnamed file'}{' '}
                       {c.created_at ? `· ${new Date(c.created_at).toLocaleString()}` : ''}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <a
-                      href={c.url}
+                      href={c.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"

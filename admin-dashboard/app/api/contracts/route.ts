@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const STORAGE_BUCKET = 'contracts';
+const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000'; // 模板合同占位 user_id
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export async function GET() {
   try {
     const { data, error } = await supabase
       .from('documents')
-      .select('id, document_type, url, file_name, created_at, stage_updated_by')
+      .select('id, document_type, file_url, file_name, created_at, user_id')
       .in('document_type', ['parent_contract', 'surrogate_contract'])
       .order('created_at', { ascending: false });
 
@@ -75,10 +76,9 @@ export async function POST(req: Request) {
       .from('documents')
       .insert({
         document_type: documentType,
-        url: publicUrl,
+        file_url: publicUrl,
         file_name: file.name,
-        user_id: null,
-        stage_updated_by: 'admin',
+        user_id: GLOBAL_CONTRACT_USER_ID,
       });
 
     if (insertError) throw insertError;
