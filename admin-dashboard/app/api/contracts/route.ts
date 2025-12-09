@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const STORAGE_BUCKET = 'contracts';
+// 存储桶名称：请在 Supabase Storage 中确保存在同名 bucket
+// 如未创建过，建议使用已有的 documents bucket 复用
+const STORAGE_BUCKET = 'documents';
 const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000'; // 模板合同占位 user_id
 
 export const dynamic = 'force-dynamic';
