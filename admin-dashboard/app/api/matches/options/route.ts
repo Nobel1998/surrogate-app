@@ -43,27 +43,34 @@ export async function GET() {
     if (profilesError) throw profilesError;
     if (matchesError) throw matchesError;
 
-    // 拉取代母的帖子，供后台展示
-    const surrogateIds = Array.from(
-      new Set((matches || []).map((m) => m.surrogate_id).filter(Boolean))
+    // 拉取所有代母的帖子，供后台展示（不仅仅是匹配的代母）
+    const allSurrogateIds = Array.from(
+      new Set(
+        (profiles || [])
+          .filter((p: any) => (p.role || '').toLowerCase() === 'surrogate')
+          .map((p: any) => p.id)
+          .filter(Boolean)
+      )
     );
-    console.log('[matches/options] surrogateIds for posts', surrogateIds);
+    console.log('[matches/options] allSurrogateIds for posts', allSurrogateIds);
 
     let posts: any[] = [];
     let comments: any[] = [];
     let postLikes: any[] = [];
 
-    if (surrogateIds.length > 0) {
-      console.log('[matches/options] fetching posts for surrogates...');
+    if (allSurrogateIds.length > 0) {
+      console.log('[matches/options] fetching posts for all surrogates...');
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('id, user_id, content, text, media_url, stage, created_at')
-        .in('user_id', surrogateIds)
-        .order('created_at', { ascending: false });
+        .select('id, user_id, content, media_uri, media_type, stage, created_at')
+        .in('user_id', allSurrogateIds)
+        .order('created_at', { ascending: false })
+        .limit(1000); // Add limit to prevent timeout
       if (postsError) {
         console.error('[matches/options] load posts error', postsError);
       } else {
         posts = postsData || [];
+        console.log('[matches/options] loaded posts', posts.length);
       }
 
       const postIds = posts.map((p) => p.id).filter(Boolean);

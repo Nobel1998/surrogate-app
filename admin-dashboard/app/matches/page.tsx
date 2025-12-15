@@ -29,6 +29,8 @@ type Post = {
   content?: string | null;
   text?: string | null;
   media_url?: string | null;
+  media_uri?: string | null;
+  media_type?: string | null;
   stage?: string | null;
   created_at?: string | null;
 };
@@ -405,16 +407,16 @@ export default function MatchesPage() {
                                 <div className="text-sm text-gray-900 line-clamp-2">
                                   {p.content || p.text || '(no text)'}
                                 </div>
-                                {p.media_url && (
+                                {((p.media_url || p.media_uri) && (
                                   <a
-                                    href={p.media_url}
+                                    href={String(p.media_url || p.media_uri || '#')}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-xs text-blue-600 hover:text-blue-800"
                                   >
                                     Media
                                   </a>
-                                )}
+                                ))}
                               </div>
                             ))
                           )}

@@ -185,7 +185,23 @@ export default function MedicalReportFormScreen({ route }) {
       await submitReport(imageUrl);
     } catch (error) {
       console.error('Error submitting report:', error);
-      Alert.alert('Error', 'Failed to submit medical report. Please try again.');
+      
+      // Show detailed error message
+      let errorMessage = 'Failed to submit medical report.';
+      if (error?.message) {
+        errorMessage += `\n\nError: ${error.message}`;
+      }
+      if (error?.code) {
+        errorMessage += `\nCode: ${error.code}`;
+      }
+      if (error?.details) {
+        errorMessage += `\nDetails: ${error.details}`;
+      }
+      if (error?.hint) {
+        errorMessage += `\nHint: ${error.hint}`;
+      }
+      
+      Alert.alert('Error', errorMessage);
       setSaving(false);
       setUploading(false);
     }
@@ -195,17 +211,33 @@ export default function MedicalReportFormScreen({ route }) {
     try {
       const visitDateISO = formatDateToISO(parseMMDDYYToISO(visitDate));
 
-      const { error } = await supabase.from('medical_reports').insert({
+      // Store provider contact in report_data if provided
+      const reportDataWithContact = {
+        ...formData,
+        ...(providerContact.trim() && { provider_contact: providerContact.trim() }),
+      };
+
+      const { error, data } = await supabase.from('medical_reports').insert({
         user_id: user.id,
         visit_date: visitDateISO,
         provider_name: providerName.trim() || null,
-        provider_contact: providerContact.trim() || null,
         stage: currentStage,
-        report_data: formData,
+        report_data: reportDataWithContact,
         proof_image_url: imageUrl,
-      });
+      }).select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
+
+      console.log('Report submitted successfully:', data);
 
       Alert.alert('Success', 'Medical report submitted successfully!', [
         { 

@@ -3279,6 +3279,7 @@ const styles = StyleSheet.create({
   },
   // Premium Timeline Styles
   heroCard: {
+    marginHorizontal: 16,
     backgroundColor: '#2A7BF6',
     borderRadius: 24,
     padding: 24,
