@@ -57,6 +57,7 @@ export async function GET() {
     let posts: any[] = [];
     let comments: any[] = [];
     let postLikes: any[] = [];
+    let medicalReports: any[] = [];
 
     if (allSurrogateIds.length > 0) {
       console.log('[matches/options] fetching posts for all surrogates...');
@@ -99,6 +100,21 @@ export async function GET() {
         }
         console.log('[matches/options] comments count', comments.length, 'likes count', postLikes.length);
       }
+
+      // Fetch medical reports for all surrogates
+      console.log('[matches/options] fetching medical reports for all surrogates...');
+      const { data: reportsData, error: reportsError } = await supabase
+        .from('medical_reports')
+        .select('id, user_id, visit_date, provider_name, stage, report_data, proof_image_url, created_at')
+        .in('user_id', allSurrogateIds)
+        .order('visit_date', { ascending: false })
+        .limit(1000);
+      if (reportsError) {
+        console.error('[matches/options] load medical reports error', reportsError);
+      } else {
+        medicalReports = reportsData || [];
+        console.log('[matches/options] loaded medical reports', medicalReports.length);
+      }
     }
 
     console.log('[matches/options] returning payload', {
@@ -107,9 +123,10 @@ export async function GET() {
       posts: posts.length,
       comments: comments.length,
       postLikes: postLikes.length,
+      medicalReports: medicalReports.length,
     });
 
-    return NextResponse.json({ profiles, matches, posts, comments, postLikes });
+    return NextResponse.json({ profiles, matches, posts, comments, postLikes, medicalReports });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(

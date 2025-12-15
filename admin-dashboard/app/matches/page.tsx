@@ -36,6 +36,16 @@ type Post = {
 };
 type CommentRow = { id: string; post_id: string };
 type LikeRow = { id: string; post_id: string };
+type MedicalReport = {
+  id: string;
+  user_id: string;
+  visit_date: string;
+  provider_name?: string | null;
+  stage: string;
+  report_data: any;
+  proof_image_url?: string | null;
+  created_at: string;
+};
 
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
@@ -53,6 +63,7 @@ export default function MatchesPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
+  const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,6 +97,7 @@ export default function MatchesPage() {
         posts: postsData = [],
         comments: commentsData = [],
         postLikes: likesData = [],
+        medicalReports: reportsData = [],
       } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
@@ -106,6 +118,7 @@ export default function MatchesPage() {
       setPosts(postsData || []);
       setComments(commentsData || []);
       setPostLikes(likesData || []);
+      setMedicalReports(reportsData || []);
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -355,6 +368,8 @@ export default function MatchesPage() {
                   const latestPosts = surrogatePosts.slice(0, 3);
                   const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
                   const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
+                  const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
+                  const latestReports = surrogateReports.slice(0, 3);
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -391,12 +406,12 @@ export default function MatchesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-2">
                           <div className="font-semibold text-sm">
                             Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
                           </div>
                           {latestPosts.length === 0 ? (
-                            <div className="text-gray-500">No posts</div>
+                            <div className="text-gray-500 text-xs">No posts</div>
                           ) : (
                             latestPosts.map((p) => (
                               <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
@@ -420,6 +435,61 @@ export default function MatchesPage() {
                               </div>
                             ))
                           )}
+                          
+                          <div className="mt-2 pt-2 border-t border-gray-300">
+                            <div className="font-semibold text-sm text-green-700">
+                              Medical Check-ins: {surrogateReports.length}
+                            </div>
+                            {latestReports.length === 0 ? (
+                              <div className="text-gray-500 text-xs">No medical reports</div>
+                            ) : (
+                              latestReports.map((r) => {
+                                const reportData = r.report_data || {};
+                                const visitDate = r.visit_date ? new Date(r.visit_date).toLocaleDateString() : '';
+                                let keyMetrics: string[] = [];
+                                
+                                if (r.stage === 'Pre-Transfer') {
+                                  if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness}mm`);
+                                  if (reportData.follicle_1_mm) keyMetrics.push(`Follicle: ${reportData.follicle_1_mm}mm`);
+                                  if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
+                                    keyMetrics.push(`Labs: ${reportData.labs.slice(0, 2).join(', ')}`);
+                                  }
+                                } else if (r.stage === 'Post-Transfer') {
+                                  if (reportData.fetal_heart_rate) keyMetrics.push(`HR: ${reportData.fetal_heart_rate}bpm`);
+                                  if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter}mm`);
+                                  if (reportData.beta_hcg) keyMetrics.push(`Beta HCG: ${reportData.beta_hcg}`);
+                                } else if (r.stage === 'OBGYN') {
+                                  if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight}lbs`);
+                                  if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
+                                  if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats}bpm`);
+                                }
+                                
+                                return (
+                                  <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50 mt-1">
+                                    <div className="text-[11px] text-gray-600 font-semibold">
+                                      {r.stage} · {visitDate}
+                                      {r.provider_name && ` · ${r.provider_name}`}
+                                    </div>
+                                    {keyMetrics.length > 0 && (
+                                      <div className="text-xs text-gray-700 mt-1">
+                                        {keyMetrics.join(' · ')}
+                                      </div>
+                                    )}
+                                    {r.proof_image_url && (
+                                      <a
+                                        href={r.proof_image_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-block"
+                                      >
+                                        📎 View Proof
+                                      </a>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">
