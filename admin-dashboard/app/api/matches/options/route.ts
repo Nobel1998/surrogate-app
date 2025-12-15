@@ -26,11 +26,12 @@ export async function GET() {
   });
 
   try {
+    console.log('[matches/options] fetching profiles and matches...');
     const [{ data: profiles, error: profilesError }, { data: matches, error: matchesError }] =
       await Promise.all([
         supabase
           .from('profiles')
-          .select('id, name, phone, role, email')
+          .select('id, name, phone, role, email, progress_stage, stage_updated_by')
           .in('role', ['surrogate', 'parent'])
           .order('created_at', { ascending: false }),
         supabase
@@ -42,70 +43,66 @@ export async function GET() {
     if (profilesError) throw profilesError;
     if (matchesError) throw matchesError;
 
-    // === Debug + load surrogate posts/likes/comments from Supabase tables ===
+    // 拉取代母的帖子，供后台展示
     const surrogateIds = Array.from(
-      new Set((matches || []).map((m: any) => m.surrogate_id).filter(Boolean))
+      new Set((matches || []).map((m) => m.surrogate_id).filter(Boolean))
     );
-
-    console.log('[matches/options] loaded matches', {
-      profiles: profiles?.length || 0,
-      matches: matches?.length || 0,
-      surrogateIds: surrogateIds.length,
-      sampleSurrogateId: surrogateIds?.[0],
-    });
+    console.log('[matches/options] surrogateIds for posts', surrogateIds);
 
     let posts: any[] = [];
-    let postLikes: any[] = [];
     let comments: any[] = [];
+    let postLikes: any[] = [];
 
     if (surrogateIds.length > 0) {
+      console.log('[matches/options] fetching posts for surrogates...');
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        // posts 表字段：id, user_id, user_name, content, media_uri, media_type, likes, comments_count, created_at, updated_at, stage
-        .select('id, user_id, user_name, content, media_uri, media_type, likes, comments_count, created_at, updated_at, stage')
+        .select('id, user_id, content, text, media_url, stage, created_at')
         .in('user_id', surrogateIds)
         .order('created_at', { ascending: false });
-
       if (postsError) {
-        console.error('[matches/options] posts query error', postsError);
+        console.error('[matches/options] load posts error', postsError);
       } else {
         posts = postsData || [];
       }
 
-      const postIds = posts.map((p: any) => p.id).filter(Boolean);
-      console.log('[matches/options] posts loaded', { count: posts.length, postIds: postIds.length });
-
+      const postIds = posts.map((p) => p.id).filter(Boolean);
+      console.log('[matches/options] loaded posts count', posts.length, 'postIds', postIds.length);
       if (postIds.length > 0) {
-        const [
-          { data: likesData, error: likesError },
-          { data: commentsData, error: commentsError },
-        ] = await Promise.all([
-          supabase.from('post_likes').select('id, post_id, user_id').in('post_id', postIds),
-          supabase.from('comments').select('id, post_id').in('post_id', postIds),
-        ]);
-
-        if (likesError) console.error('[matches/options] post_likes query error', likesError);
-        else postLikes = likesData || [];
-
-        if (commentsError) console.error('[matches/options] comments query error', commentsError);
-        else comments = commentsData || [];
-
-        console.log('[matches/options] likes/comments loaded', {
-          likes: postLikes.length,
-          comments: comments.length,
-        });
+        const [{ data: commentsData, error: commentsError }, { data: likesData, error: likesError }] =
+          await Promise.all([
+            supabase
+              .from('comments')
+              .select('id, post_id')
+              .in('post_id', postIds),
+            supabase
+              .from('post_likes')
+              .select('id, post_id')
+              .in('post_id', postIds),
+          ]);
+        if (commentsError) {
+          console.error('[matches/options] load comments error', commentsError);
+        } else {
+          comments = commentsData || [];
+        }
+        if (likesError) {
+          console.error('[matches/options] load post likes error', likesError);
+        } else {
+          postLikes = likesData || [];
+        }
+        console.log('[matches/options] comments count', comments.length, 'likes count', postLikes.length);
       }
     }
 
-    console.log('[matches/options] returning', {
+    console.log('[matches/options] returning payload', {
       profiles: profiles?.length || 0,
       matches: matches?.length || 0,
       posts: posts.length,
-      postLikes: postLikes.length,
       comments: comments.length,
+      postLikes: postLikes.length,
     });
 
-    return NextResponse.json({ profiles, matches, posts, postLikes, comments });
+    return NextResponse.json({ profiles, matches, posts, comments, postLikes });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(
@@ -194,19 +191,31 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    if (!body.id) {
-      return NextResponse.json(
-        { error: 'Missing match id' },
-        { status: 400 }
-      );
+    // Support two patch modes:
+    // 1) Update match status (body.id + status)
+    // 2) Update surrogate progress stage (body.surrogate_id + progress_stage)
+    if (body.surrogate_id && body.progress_stage) {
+      const updater = body.stage_updated_by || 'admin';
+      const { error } = await supabase
+        .from('profiles')
+        .update({ progress_stage: body.progress_stage, stage_updated_by: updater })
+        .eq('id', body.surrogate_id);
+      if (error) throw error;
+    } else {
+      if (!body.id) {
+        return NextResponse.json(
+          { error: 'Missing match id' },
+          { status: 400 }
+        );
+      }
+
+      const { error } = await supabase
+        .from('surrogate_matches')
+        .update({ status: body.status || 'active', updated_at: new Date().toISOString() })
+        .eq('id', body.id);
+
+      if (error) throw error;
     }
-
-    const { error } = await supabase
-      .from('surrogate_matches')
-      .update({ status: body.status || 'active', updated_at: new Date().toISOString() })
-      .eq('id', body.id);
-
-    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

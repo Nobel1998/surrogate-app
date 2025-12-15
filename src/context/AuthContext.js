@@ -209,16 +209,51 @@ export const AuthProvider = ({ children }) => {
         
         try {
           // Fetch user profile with timeout
+          console.log('🔍 Fetching profile for user:', session.user.id);
           const profilePromise = supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
           
-        const { data: profileData } = await Promise.race([
+        const { data: profileData, error: profileError } = await Promise.race([
           profilePromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 10000))
         ]);
+          
+          if (profileError) {
+            if (profileError.code === 'PGRST116') {
+              // PGRST116 means no rows returned, which is OK for new users
+              console.log('ℹ️ No profile found (new user)');
+            } else {
+              console.error('❌ Profile fetch error:', profileError);
+            }
+          }
+          
+          console.log('📥 Fetched profile data:', {
+            transfer_date: profileData?.transfer_date,
+            transfer_embryo_day: profileData?.transfer_embryo_day,
+            hasProfileData: !!profileData,
+            profileDataKeys: profileData ? Object.keys(profileData) : [],
+            profileError: profileError?.message,
+          });
+          
+          // Extract transfer_date and transfer_embryo_day with proper fallback
+          const transferDate = (profileData?.transfer_date || '').trim() || 
+                              (session.user.user_metadata?.transfer_date || '').trim() || 
+                              '';
+          const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() || 
+                                   (session.user.user_metadata?.transfer_embryo_day || '').trim() || 
+                                   '';
+          
+          console.log('🔍 Extracted values:', {
+            transferDate,
+            transferEmbryoDay,
+            fromProfile: !!profileData?.transfer_date,
+            fromMetadata: !!session.user.user_metadata?.transfer_date,
+            profileDataTransferDate: profileData?.transfer_date,
+            profileDataTransferEmbryoDay: profileData?.transfer_embryo_day,
+          });
           
           const userData = {
             id: session.user.id,
@@ -232,18 +267,54 @@ export const AuthProvider = ({ children }) => {
             referredBy: profileData?.referred_by || '',
             role: profileData?.role || session.user.user_metadata?.role || 'surrogate',
             location: profileData?.location || session.user.user_metadata?.location || '',
+            transfer_date: transferDate,
+            transfer_embryo_day: transferEmbryoDay,
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
             // Include raw user_metadata for application form fields (age, hear_about_us)
             user_metadata: session.user.user_metadata || {},
           };
           
+          console.log('✅ User data prepared:', {
+            transfer_date: userData.transfer_date,
+            transfer_embryo_day: userData.transfer_embryo_day,
+            userId: userData.id,
+            userDataKeys: Object.keys(userData),
+          });
+          
           setUser(userData);
           setIsAuthenticated(true);
           await storeUser(userData);
-          console.log('✅ User authenticated with Supabase session');
+          console.log('✅ User authenticated with Supabase session, user set:', {
+            transfer_date: userData.transfer_date,
+            transfer_embryo_day: userData.transfer_embryo_day,
+          });
         } catch (profileError) {
-          console.error('Error fetching profile:', profileError);
+          console.error('❌ Error fetching profile:', profileError);
+          
+          // Try to fetch just transfer_date and transfer_embryo_day as fallback
+          let fallbackTransferDate = '';
+          let fallbackTransferEmbryoDay = '';
+          
+          try {
+            const { data: transferData } = await supabase
+              .from('profiles')
+              .select('transfer_date, transfer_embryo_day')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (transferData) {
+              fallbackTransferDate = (transferData.transfer_date || '').trim();
+              fallbackTransferEmbryoDay = (transferData.transfer_embryo_day || '').trim();
+              console.log('✅ Fallback fetch successful:', {
+                transfer_date: fallbackTransferDate,
+                transfer_embryo_day: fallbackTransferEmbryoDay,
+              });
+            }
+          } catch (fallbackError) {
+            console.warn('⚠️ Fallback fetch also failed:', fallbackError);
+          }
+          
           // 即使 profile 获取失败，也可以使用基本用户信息
           const basicUserData = {
             id: session.user.id,
@@ -257,11 +328,19 @@ export const AuthProvider = ({ children }) => {
             referredBy: '',
             role: session.user.user_metadata?.role || 'surrogate',
             location: session.user.user_metadata?.location || '',
+            transfer_date: fallbackTransferDate || session.user.user_metadata?.transfer_date || '',
+            transfer_embryo_day: fallbackTransferEmbryoDay || session.user.user_metadata?.transfer_embryo_day || '',
             createdAt: session.user.created_at,
             lastLogin: new Date().toISOString(),
             // Include raw user_metadata for application form fields (age, hear_about_us)
             user_metadata: session.user.user_metadata || {},
           };
+          
+          console.log('✅ User data prepared (fallback):', {
+            transfer_date: basicUserData.transfer_date,
+            transfer_embryo_day: basicUserData.transfer_embryo_day,
+            userId: basicUserData.id,
+          });
           
           setUser(basicUserData);
           setIsAuthenticated(true);
@@ -501,6 +580,22 @@ export const AuthProvider = ({ children }) => {
           console.log('⚠️ Profile fetch timed out, using basic user data');
         }
 
+        // Extract transfer_date and transfer_embryo_day with proper fallback
+        const transferDate = (profileData?.transfer_date || '').trim() || 
+                            (authData.user.user_metadata?.transfer_date || '').trim() || 
+                            '';
+        const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() || 
+                                 (authData.user.user_metadata?.transfer_embryo_day || '').trim() || 
+                                 '';
+        
+        console.log('🔍 Login - Extracted transfer data:', {
+          transferDate,
+          transferEmbryoDay,
+          fromProfile: !!profileData?.transfer_date,
+          fromMetadata: !!authData.user.user_metadata?.transfer_date,
+          profileDataTransferDate: profileData?.transfer_date,
+        });
+        
         // Construct user data
         const userData = {
           id: authData.user.id,
@@ -514,11 +609,19 @@ export const AuthProvider = ({ children }) => {
           referredBy: profileData?.referred_by || '',
           role: profileData?.role || authData.user.user_metadata?.role || 'surrogate',
           location: profileData?.location || authData.user.user_metadata?.location || '',
+          transfer_date: transferDate,
+          transfer_embryo_day: transferEmbryoDay,
           createdAt: authData.user.created_at,
           lastLogin: new Date().toISOString(),
           // Include raw user_metadata for application form fields (age, hear_about_us)
           user_metadata: authData.user.user_metadata || {},
         };
+        
+        console.log('✅ Login - User data prepared:', {
+          transfer_date: userData.transfer_date,
+          transfer_embryo_day: userData.transfer_embryo_day,
+          userId: userData.id,
+        });
         
         setUser(userData);
         setIsAuthenticated(true);
@@ -774,8 +877,31 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updatedData) => {
     try {
-      if (user) {
-        const updatedUser = { ...user, ...updatedData };
+      if (user && user.id) {
+        // Update Supabase profiles table first
+        const { data: updatedProfileData, error: updateError } = await supabase
+          .from('profiles')
+          .update(updatedData)
+          .eq('id', user.id)
+          .select()
+          .single();
+        
+        if (updateError) {
+          console.error('Error updating profile in Supabase:', updateError);
+          return { success: false, error: updateError.message || 'Failed to update profile in database' };
+        }
+        
+        console.log('✅ Profile updated in Supabase:', updatedProfileData);
+        
+        // Merge updated data from Supabase with existing user data
+        const updatedUser = {
+          ...user,
+          ...updatedData,
+          // Also include any fields that might have been updated by Supabase triggers
+          ...(updatedProfileData || {}),
+        };
+        
+        // Update local state
         setUser(updatedUser);
         await storeUser(updatedUser);
         return { success: true, user: updatedUser };

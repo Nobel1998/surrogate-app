@@ -4,7 +4,9 @@ import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
+import AsyncStorageLib from '../utils/Storage';
 
 // Normalize stage values to lowercase for consistent filtering
 const normalizeStage = (value = 'pregnancy') => {
@@ -13,11 +15,12 @@ const normalizeStage = (value = 'pregnancy') => {
 };
 
 const STAGE_OPTIONS = [
-  { key: 'pre', label: 'Pre-pregnancy', icon: 'heart', description: 'Preparation & Matching' },
-  { key: 'pregnancy', label: 'Pregnancy', icon: 'heart', description: 'Updates & Checkups' },
+  { key: 'pre', label: 'Pre-Transfer', icon: 'heart', description: 'Preparation & Matching' },
+  { key: 'pregnancy', label: 'Post-Transfer', icon: 'heart', description: 'Updates & Checkups' },
+  { key: 'ob_visit', label: 'OB Office Visit', icon: 'user', description: 'OB/GYN Care' },
   { key: 'delivery', label: 'Delivery', icon: 'gift', description: 'Birth & Post-birth' },
 ];
-const STAGE_ORDER = ['pre', 'pregnancy', 'delivery'];
+const STAGE_ORDER = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
@@ -59,8 +62,9 @@ import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, updateProfile } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [postText, setPostText] = useState('');
@@ -85,10 +89,15 @@ export default function HomeScreen() {
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
+  const [medicalReports, setMedicalReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
   const [stageUpdateLoading, setStageUpdateLoading] = useState(false);
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
   const isParentRole = roleLower === 'parent';
+  const [transferDateDraft, setTransferDateDraft] = useState('');
+  const [savingTransferDate, setSavingTransferDate] = useState(false);
+  const [transferEmbryoDayDraft, setTransferEmbryoDayDraft] = useState('day5'); // 'day3' | 'day5'
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
     const normalized = normalizeStage(serverStage || 'pre');
@@ -111,6 +120,470 @@ export default function HomeScreen() {
     if (idx === currentIdx) return 'current';
     return 'future';
   }, [isParentRole, matchedSurrogateId, getCurrentStageKey]);
+
+  // ===== Pregnancy business logic (based on transfer_date) =====
+  const transferDateStr = useMemo(() => {
+    // For parent users, get transfer_date from matched surrogate's profile
+    // For surrogate users, get from their own profile
+    let v = '';
+    if (isParentRole && matchedProfile?.transfer_date) {
+      v = matchedProfile.transfer_date;
+    } else {
+      v =
+        user?.transfer_date ||
+        user?.transferDate ||
+        user?.user_metadata?.transfer_date ||
+        user?.user_metadata?.transferDate ||
+        '';
+    }
+    const result = String(v || '').trim();
+    console.log('📊 transferDateStr computed:', { 
+      result, 
+      fromUser: user?.transfer_date,
+      fromMatchedProfile: matchedProfile?.transfer_date,
+      fromMetadata: user?.user_metadata?.transfer_date,
+      userId: user?.id,
+      isParent: isParentRole,
+      hasMatchedProfile: !!matchedProfile,
+    });
+    return result;
+  }, [user?.transfer_date, user?.transferDate, user?.user_metadata, user?.id, isParentRole, matchedProfile?.transfer_date]);
+
+  const normalizeEmbryoDayKey = (v) => {
+    const s = String(v || '').trim().toLowerCase();
+    if (s === 'day3' || s === 'd3' || s === '3' || s === '3day') return 'day3';
+    if (s === 'day5' || s === 'd5' || s === '5' || s === '5day') return 'day5';
+    return 'day5';
+  };
+
+  const EMBRYO_DAY_OPTIONS = [
+    { key: 'day5', label: 'Day 5 Embryo', transferGestationalDays: 14 }, // spec: 2w+0d
+    { key: 'day3', label: 'Day 3 Embryo', transferGestationalDays: 19 }, // spec: 2w+5d
+  ];
+
+  const transferEmbryoDayStr = useMemo(() => {
+    // For parent users, get transfer_embryo_day from matched surrogate's profile
+    // For surrogate users, get from their own profile
+    let v = '';
+    if (isParentRole && matchedProfile?.transfer_embryo_day) {
+      v = matchedProfile.transfer_embryo_day;
+    } else {
+      v =
+        user?.transfer_embryo_day ||
+        user?.transferEmbryoDay ||
+        user?.user_metadata?.transfer_embryo_day ||
+        user?.user_metadata?.transferEmbryoDay ||
+        '';
+    }
+    return String(v || '').trim();
+  }, [user?.transfer_embryo_day, user?.transferEmbryoDay, user?.user_metadata, isParentRole, matchedProfile?.transfer_embryo_day]);
+
+  // Convert MM/DD/YY to YYYY-MM-DD (for storage)
+  const parseMMDDYYToISO = (s) => {
+    if (!s || typeof s !== 'string') return null;
+    const trimmed = s.trim();
+    // Accept MM/DD/YY or MM/DD/YYYY
+    const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (!match) return null;
+    const month = parseInt(match[1], 10);
+    const day = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    // Convert 2-digit year to 4-digit (assume 2000-2099)
+    if (year < 100) {
+      year = year < 50 ? 2000 + year : 1900 + year;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const d = new Date(year, month - 1, day, 0, 0, 0, 0);
+    if (Number.isNaN(d.getTime())) return null;
+    // Validate the date (e.g., Feb 30 is invalid)
+    if (d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+    return d;
+  };
+
+  // Convert YYYY-MM-DD to MM/DD/YY (for display)
+  const formatISOToMMDDYY = (isoDate) => {
+    if (!isoDate) return '';
+    const d = parseISODateOnlyToLocalMidnight(isoDate);
+    if (!d) return '';
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${month}/${day}/${year}`;
+  };
+
+  const parseISODateOnlyToLocalMidnight = (s) => {
+    // Accepts YYYY-MM-DD
+    if (!s || typeof s !== 'string') return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const d = new Date(`${s}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    // Normalize to local midnight to avoid timezone drift
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  };
+
+  // Convert Date object to YYYY-MM-DD (for storage)
+  const formatDateToISO = (date) => {
+    if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const addDays = (date, days) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  };
+
+  const todayLocalMidnight = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  };
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+  const pregnancyMetrics = useMemo(() => {
+    const transfer = parseISODateOnlyToLocalMidnight(transferDateStr);
+    if (!transfer) return null;
+
+    const today = todayLocalMidnight();
+    const diffDaysRaw = Math.floor((today.getTime() - transfer.getTime()) / (24 * 60 * 60 * 1000));
+    const diffDays = Math.max(0, diffDaysRaw);
+
+    // Per spec:
+    // Transfer Day is considered:
+    // - Day 3 embryo: 2w + 5d (19 days)
+    // - Day 5 embryo: 2w + 0d (14 days)
+    const embryoKey = normalizeEmbryoDayKey(transferEmbryoDayStr || transferEmbryoDayDraft || 'day5');
+    const embryoCfg = EMBRYO_DAY_OPTIONS.find((x) => x.key === embryoKey) || EMBRYO_DAY_OPTIONS[0];
+    const transferGestationalDays = embryoCfg.transferGestationalDays;
+    const gestationalDays = diffDays + transferGestationalDays;
+    const weeks = Math.floor(gestationalDays / 7);
+    const days = gestationalDays % 7;
+
+    // EDD: 40w (280 days) - transferGestationalDays
+    const dueDate = addDays(transfer, 280 - transferGestationalDays);
+    const daysToDue = Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+
+    const progress = clamp(gestationalDays / 280, 0, 1); // 40w * 7d
+    const isGraduated = gestationalDays >= 70; // >=10w
+
+    return {
+      transfer,
+      today,
+      gestationalDays,
+      weeks,
+      days,
+      dueDate,
+      daysToDue,
+      progress,
+      isGraduated,
+      embryoKey,
+    };
+  }, [transferDateStr, transferEmbryoDayStr, transferEmbryoDayDraft]);
+
+  // Initialize draft input when user loads/changes
+  useEffect(() => {
+    console.log('🔄 useEffect triggered for transfer date:', {
+      transferDateStr,
+      transferDateDraft,
+      userId: user?.id,
+      userTransferDate: user?.transfer_date,
+      matchedProfileTransferDate: matchedProfile?.transfer_date,
+      isParent: isParentRole,
+      hasMatchedProfile: !!matchedProfile,
+    });
+    
+    // Update date draft when transferDateStr changes (e.g., after save or on load)
+    if (transferDateStr) {
+      const formatted = formatISOToMMDDYY(transferDateStr);
+      console.log('📅 Formatting date:', { transferDateStr, formatted });
+      // Always update if the formatted value is different from current draft
+      if (transferDateDraft !== formatted) {
+        console.log('✅ Updating transferDateDraft to:', formatted);
+        setTransferDateDraft(formatted);
+      }
+    } else {
+      // If no transfer date, clear the draft
+      if (transferDateDraft) {
+        console.log('🧹 Clearing transferDateDraft');
+        setTransferDateDraft('');
+      }
+    }
+    
+    // Update embryo day draft
+    const newEmbryoDay = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
+    if (transferEmbryoDayDraft !== newEmbryoDay) {
+      console.log('✅ Updating transferEmbryoDayDraft to:', newEmbryoDay);
+      setTransferEmbryoDayDraft(newEmbryoDay);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, transferDateStr, transferEmbryoDayStr, matchedProfile?.transfer_date, matchedProfile?.transfer_embryo_day]);
+
+  // Trigger: when Current_Weeks >= 10 → popup (only once)
+  useEffect(() => {
+    const run = async () => {
+      if (!pregnancyMetrics?.isGraduated) return;
+      const uid = user?.id || 'guest';
+      const key = `graduation_prompt_shown_${uid}`;
+      const already = await AsyncStorageLib.getItem(key);
+      if (already === 'true') return;
+      Alert.alert('Congratulations!', 'Congratulations! Transfer to OB/GYN recommended.');
+      await AsyncStorageLib.setItem(key, 'true');
+    };
+    run().catch((e) => console.warn('Graduation prompt error:', e));
+  }, [pregnancyMetrics?.isGraduated, user?.id]);
+
+  const saveTransferDate = useCallback(async () => {
+    const v = String(transferDateDraft || '').trim();
+    // Parse MM/DD/YY format
+    const parsed = parseMMDDYYToISO(v);
+    if (!parsed) {
+      Alert.alert('Invalid Format', 'Please enter transfer date in format: MM/DD/YY (e.g., 12/01/25).');
+      return;
+    }
+    // Convert to ISO format (YYYY-MM-DD) for storage
+    const isoDate = formatDateToISO(parsed);
+    const embryoKey = normalizeEmbryoDayKey(transferEmbryoDayDraft || 'day5');
+    
+    console.log('💾 Saving transfer date:', { isoDate, embryoKey });
+    
+    setSavingTransferDate(true);
+    try {
+      // Store on current user object (local) so HomeScreen can compute immediately
+      const res = await updateProfile?.({ transfer_date: isoDate, transfer_embryo_day: embryoKey });
+      if (res?.success === false) {
+        console.error('❌ Save failed:', res?.error);
+        Alert.alert('Save Failed', res?.error || 'Failed to save transfer date. Please try again.');
+        return;
+      }
+      console.log('✅ Save successful:', { 
+        transfer_date: res?.user?.transfer_date,
+        transfer_embryo_day: res?.user?.transfer_embryo_day,
+      });
+      Alert.alert('Saved', 'Transfer date saved.');
+    } catch (e) {
+      console.error('❌ Save transfer_date error:', e);
+      Alert.alert('Save Failed', 'Failed to save transfer date. Please try again.');
+    } finally {
+      setSavingTransferDate(false);
+    }
+  }, [transferDateDraft, transferEmbryoDayDraft, updateProfile]);
+
+  const saveEmbryoDay = useCallback(
+    async (nextKey) => {
+      const embryoKey = normalizeEmbryoDayKey(nextKey || 'day5');
+      setTransferEmbryoDayDraft(embryoKey);
+      try {
+        await updateProfile?.({ transfer_embryo_day: embryoKey });
+      } catch (e) {
+        console.warn('Save transfer_embryo_day error:', e);
+      }
+    },
+    [updateProfile]
+  );
+
+  const renderPregnancyDashboard = () => {
+    const currentStageKey = getCurrentStageKey();
+    const shouldShow =
+      currentStageKey === 'pregnancy' ||
+      !!pregnancyMetrics ||
+      (!!transferDateDraft && /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(transferDateDraft));
+
+    if (!shouldShow) return null;
+
+    if (!pregnancyMetrics) {
+      // Parent users can see but not edit
+      if (isParentRole) {
+        return (
+          <View style={styles.pregDashboardCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconContainer}>
+                <Icon name="calendar" size={24} color="#1F6FE0" />
+              </View>
+              <View>
+                <Text style={styles.cardTitle}>Transfer Date</Text>
+                <Text style={styles.cardSubtitle}>
+                  {matchedProfile?.name ? `Waiting for ${matchedProfile.name} to set transfer date` : 'Waiting for surrogate to set transfer date'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.infoBox}>
+              <Icon name="info" size={16} color="#1E40AF" />
+              <Text style={styles.infoText}>
+                The transfer date will be set by your matched surrogate. Once set, you'll be able to track the pregnancy progress here.
+              </Text>
+            </View>
+          </View>
+        );
+      }
+      
+      // Surrogate users can set the date
+      return (
+        <View style={styles.pregDashboardCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconContainer}>
+              <Icon name="calendar" size={24} color="#1F6FE0" />
+            </View>
+            <View>
+              <Text style={styles.cardTitle}>Set Transfer Date</Text>
+              <Text style={styles.cardSubtitle}>Start tracking your pregnancy journey</Text>
+            </View>
+          </View>
+
+          <Text style={styles.sectionLabel}>Embryo Type</Text>
+          <View style={styles.segmentedControl}>
+            {EMBRYO_DAY_OPTIONS.map((opt) => {
+              const active = normalizeEmbryoDayKey(transferEmbryoDayDraft || 'day5') === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.segment, active && styles.segmentActive]}
+                  onPress={() => setTransferEmbryoDayDraft(opt.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.sectionLabel}>Transfer Date (MM/DD/YY)</Text>
+          <View style={styles.inputContainer}>
+            <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+            <TextInput
+              value={transferDateDraft}
+              onChangeText={setTransferDateDraft}
+              placeholder="e.g. 12/01/25"
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+              style={styles.fancyInput}
+            />
+          </View>
+          <Text style={styles.helperText}>
+            Enter the date when the transfer procedure took place.
+          </Text>
+
+          <View style={styles.infoBox}>
+            <Icon name="info" size={16} color="#1E40AF" />
+            <Text style={styles.infoText}>
+              Calculation: Day 3 embryo is considered 2 weeks + 5 days pregnant at transfer. Day 5 embryo is 2 weeks + 0 days.
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.fullWidthButton, savingTransferDate && styles.fullWidthButtonDisabled]}
+            onPress={saveTransferDate}
+            disabled={savingTransferDate}
+            activeOpacity={0.8}
+          >
+            {savingTransferDate ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Save & Start Tracking</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const { weeks, days, daysToDue, progress, isGraduated, embryoKey } = pregnancyMetrics;
+    const daysLeftText = daysToDue >= 0 ? `${daysToDue} days` : '0 days';
+    const progressPct = `${Math.round(progress * 100)}%`;
+
+    return (
+      <View style={styles.pregDashboardCard}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: '#ECFDF5' }]}>
+            <Icon name="heart" size={24} color="#10B981" />
+          </View>
+          <View>
+            <Text style={styles.cardTitle}>Current Progress</Text>
+            <Text style={styles.cardSubtitle}>
+              {weeks} weeks {days} days
+            </Text>
+          </View>
+          <View style={{ flex: 1 }} />
+          <View style={styles.pregDashboardBadge}>
+            <Text style={styles.pregDashboardBadgeText}>{progressPct}</Text>
+          </View>
+        </View>
+
+        <View style={{ marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={styles.sectionLabel}>Due Date Countdown</Text>
+            <Text style={[styles.sectionLabel, { color: '#1F6FE0' }]}>{daysLeftText}</Text>
+          </View>
+          <View style={styles.pregProgressTrack}>
+            <View style={[styles.pregProgressFill, { width: `${Math.round(progress * 100)}%` }]} />
+          </View>
+        </View>
+
+        {isGraduated && (
+          <View style={styles.pregGraduationBanner}>
+            <Text style={styles.pregGraduationText}>🎉 Congratulations! Transfer to OB/GYN recommended</Text>
+          </View>
+        )}
+
+        <Text style={styles.sectionLabel}>
+          Embryo Type {isParentRole ? '(Set by Surrogate)' : '(Tap to change)'}
+        </Text>
+        <View style={styles.segmentedControl}>
+          {EMBRYO_DAY_OPTIONS.map((opt) => {
+            const active = embryoKey === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[
+                  styles.segment, 
+                  active && styles.segmentActive,
+                  isParentRole && styles.segmentDisabled
+                ]}
+                onPress={() => {
+                  if (!isParentRole) {
+                    saveEmbryoDay(opt.key);
+                  }
+                }}
+                activeOpacity={isParentRole ? 1 : 0.8}
+                disabled={isParentRole}
+              >
+                <Text style={[
+                  styles.segmentText, 
+                  active && styles.segmentTextActive,
+                  isParentRole && !active && styles.segmentTextDisabled
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {isParentRole && (
+          <Text style={[styles.helperText, { marginTop: 8, marginLeft: 4 }]}>
+            This information is set by your matched surrogate and cannot be changed.
+          </Text>
+        )}
+
+        <TouchableOpacity
+          style={styles.fullWidthButton}
+          onPress={() => {
+            if (isParentRole) {
+              Alert.alert('Restricted', 'Only surrogates can create posts.');
+              return;
+            }
+            showImagePicker();
+          }}
+          activeOpacity={0.85}
+        >
+          <Icon name="upload" size={20} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.buttonText}>Upload Weekly Report</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   // Surrogate updates own stage (writes to profiles.progress_stage)
   const updateSurrogateStage = useCallback(
@@ -139,8 +612,11 @@ export default function HomeScreen() {
         setPostStage(normalized);
         setStageLoaded(true);
         setStageVersion((v) => v + 1);
-        Alert.alert('Stage updated', `Your stage is now set to ${normalized}.`);
-        console.log('✅ Surrogate stage updated', { stage: normalized });
+        // Get the display label for the stage
+        const stageOption = STAGE_OPTIONS.find(opt => opt.key === normalized);
+        const stageLabel = stageOption ? stageOption.label : normalized;
+        Alert.alert('Stage updated', `Your stage is now set to ${stageLabel}.`);
+        console.log('✅ Surrogate stage updated', { stage: normalized, label: stageLabel });
       } catch (e) {
         console.log('Error updating stage (surrogate):', e.message);
         Alert.alert('Update failed', 'Could not update stage. Please try again.');
@@ -231,7 +707,6 @@ export default function HomeScreen() {
           
           let surrogateId = null;
           try {
-            // Try parent_id first
             const { data: parentMatches, error: parentMatchError } = await supabase
               .from('surrogate_matches')
               .select('surrogate_id')
@@ -243,21 +718,6 @@ export default function HomeScreen() {
               console.log('Error loading match by parent_id:', parentMatchError.message);
             }
             surrogateId = parentMatches?.[0]?.surrogate_id || null;
-
-            // Fallback: try parent_user_id
-            if (!surrogateId) {
-              const { data: altMatches, error: altError } = await supabase
-                .from('surrogate_matches')
-                .select('surrogate_id')
-                .eq('parent_user_id', user.id)
-                .eq('status', 'active')
-                .order('created_at', { ascending: false })
-                .limit(1);
-              if (altError) {
-                console.log('Error loading match by parent_user_id:', altError.message);
-              }
-              surrogateId = altMatches?.[0]?.surrogate_id || null;
-            }
           } catch (matchErr) {
             console.error('Error fetching match:', matchErr);
           }
@@ -274,7 +734,14 @@ export default function HomeScreen() {
               .select('*')
               .eq('id', surrogateId)
               .single();
-            if (!cancelled) setMatchedProfile(profile);
+            if (!cancelled) {
+              console.log('📥 Fetched matched surrogate profile:', {
+                transfer_date: profile?.transfer_date,
+                transfer_embryo_day: profile?.transfer_embryo_day,
+                name: profile?.name,
+              });
+              setMatchedProfile(profile);
+            }
           } else {
             setMatchedProfile(null);
           }
@@ -368,7 +835,6 @@ export default function HomeScreen() {
     setMatchCheckInProgress(true);
     let finalId = null;
     try {
-      // Try parent_id (most likely schema)
       const { data: parentMatches, error: parentMatchError } = await supabase
         .from('surrogate_matches')
         .select('surrogate_id')
@@ -381,24 +847,7 @@ export default function HomeScreen() {
         console.log('Error loading match by parent_id:', parentMatchError.message);
       }
 
-      let surrogateId = parentMatches?.[0]?.surrogate_id || null;
-
-      // Fallback: some schemas may use parent_user_id
-      if (!surrogateId) {
-        const { data: altMatches, error: altError } = await supabase
-          .from('surrogate_matches')
-          .select('surrogate_id')
-          .eq('parent_user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        if (altError) {
-          console.log('Error loading match by parent_user_id:', altError.message);
-        }
-        surrogateId = altMatches?.[0]?.surrogate_id || null;
-      }
-
-      finalId = surrogateId;
+      finalId = parentMatches?.[0]?.surrogate_id || null;
       setMatchedSurrogateId(finalId);
       if (finalId) {
         const { data: profile } = await supabase
@@ -406,6 +855,11 @@ export default function HomeScreen() {
           .select('*')
           .eq('id', finalId)
           .single();
+        console.log('📥 Fetched matched surrogate profile (fetchMatchedSurrogate):', {
+          transfer_date: profile?.transfer_date,
+          transfer_embryo_day: profile?.transfer_embryo_day,
+          name: profile?.name,
+        });
         setMatchedProfile(profile);
       } else {
         setMatchedProfile(null);
@@ -466,20 +920,57 @@ export default function HomeScreen() {
     }
   }, [user?.id, isSurrogateRole, isParentRole, fetchMatchedSurrogate]);
 
-  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段
+  // Fetch medical reports
+  const fetchMedicalReports = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setLoadingReports(true);
+    try {
+      // For parent users, fetch matched surrogate's reports
+      const targetUserId = isParentRole && matchedSurrogateId ? matchedSurrogateId : user.id;
+      
+      const { data, error } = await supabase
+        .from('medical_reports')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .order('visit_date', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching medical reports:', error);
+        return;
+      }
+      
+      setMedicalReports(data || []);
+      console.log('✅ Fetched medical reports:', data?.length || 0);
+    } catch (error) {
+      console.error('Error in fetchMedicalReports:', error);
+    } finally {
+      setLoadingReports(false);
+    }
+  }, [user?.id, isParentRole, matchedSurrogateId]);
+
+  // Fetch medical reports on mount and when user/match changes
+  useEffect(() => {
+    if (user?.id) {
+      fetchMedicalReports();
+    }
+  }, [user?.id, matchedSurrogateId, fetchMedicalReports]);
+
+  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([
         refreshData(),
         refreshStageData(),
+        fetchMedicalReports(),
       ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, refreshStageData]);
+  }, [refreshData, refreshStageData, fetchMedicalReports]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -1039,6 +1530,88 @@ export default function HomeScreen() {
     return renderPost(item);
   }, [likedPosts, user, getComments]);
 
+  // Map stage to medical report stage
+  const getMedicalReportStage = useCallback((currentStage) => {
+    const stageMap = {
+      'pre': 'Pre-Transfer',
+      'pregnancy': 'Post-Transfer',
+      'ob_visit': 'OBGYN',
+      'delivery': 'OBGYN',
+    };
+    return stageMap[currentStage] || 'Pre-Transfer';
+  }, []);
+
+  // Render medical report card
+  const renderMedicalReport = useCallback((report) => {
+    const reportData = report.report_data || {};
+    const visitDate = report.visit_date ? new Date(report.visit_date) : null;
+    const formattedDate = visitDate 
+      ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}/${String(visitDate.getDate()).padStart(2, '0')}/${String(visitDate.getFullYear()).slice(-2)}`
+      : 'N/A';
+
+    // Extract key metrics based on stage
+    let keyMetrics = [];
+    if (report.stage === 'Pre-Transfer') {
+      if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness} mm`);
+      if (reportData.follicle_1_mm) keyMetrics.push(`Follicle 1: ${reportData.follicle_1_mm}mm`);
+      if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
+        keyMetrics.push(`Labs: ${reportData.labs.join(', ')}`);
+      }
+    } else if (report.stage === 'Post-Transfer') {
+      if (reportData.beta_hcg || (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.includes('beta_hgc'))) {
+        keyMetrics.push(`Beta HCG: ${reportData.beta_hcg || 'Tested'}`);
+      }
+      if (reportData.fetal_heart_rate) keyMetrics.push(`Heart Rate: ${reportData.fetal_heart_rate} bpm`);
+      if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter} mm`);
+      if (reportData.gestational_age) keyMetrics.push(`GA: ${reportData.gestational_age}`);
+    } else if (report.stage === 'OBGYN') {
+      if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight} lbs`);
+      if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
+      if (reportData.stomach_measurement) keyMetrics.push(`Stomach: ${reportData.stomach_measurement} cm`);
+      if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats} bpm`);
+      if (reportData.gestational_age) keyMetrics.push(`GA: ${reportData.gestational_age}`);
+    }
+
+    return (
+      <View key={report.id} style={styles.medicalReportCard}>
+        <View style={styles.medicalReportHeader}>
+          <View style={styles.medicalReportIconContainer}>
+            <Icon name="file-text" size={20} color="#1F6FE0" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.medicalReportTitle}>Medical Check-in</Text>
+            <Text style={styles.medicalReportDate}>{formattedDate}</Text>
+          </View>
+          {report.provider_name && (
+            <Text style={styles.medicalReportProvider}>{report.provider_name}</Text>
+          )}
+        </View>
+        {keyMetrics.length > 0 && (
+          <View style={styles.medicalReportMetrics}>
+            {keyMetrics.map((metric, idx) => (
+              <Text key={idx} style={styles.medicalReportMetric}>{metric}</Text>
+            ))}
+          </View>
+        )}
+        {report.proof_image_url && (
+          <TouchableOpacity
+            style={styles.medicalReportImageContainer}
+            onPress={() => {
+              // Could open image in full screen
+              Alert.alert('Proof Image', 'Image available');
+            }}
+          >
+            <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportImage} />
+            <View style={styles.medicalReportImageOverlay}>
+              <Icon name="eye" size={16} color="#fff" />
+              <Text style={styles.medicalReportImageText}>View Proof</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }, []);
+
   const renderTimelineView = () => {
     return (
       <ScrollView
@@ -1053,6 +1626,46 @@ export default function HomeScreen() {
           />
         }
       >
+        {renderPregnancyDashboard()}
+        {isSurrogateRole && (
+          <View style={styles.stageUpdateCard}>
+            <Text style={styles.stageUpdateLabel}>Update your stage</Text>
+            <View style={styles.stageChipRow}>
+              {STAGE_OPTIONS.map((option) => {
+                const isActive = normalizeStage(serverStage) === option.key;
+                return (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.stageChip,
+                      isActive && styles.stageChipActive,
+                      stageUpdateLoading && styles.stageChipDisabled,
+                    ]}
+                    onPress={() => updateSurrogateStage(option.key)}
+                    disabled={stageUpdateLoading || isActive}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.stageChipLabel, isActive && styles.stageChipLabelActive]}>
+                      {option.label}
+                    </Text>
+                    <Text style={[styles.stageChipSubtitle, isActive && styles.stageChipSubtitleActive]}>
+                      {option.description}
+                    </Text>
+                    {isActive && <Text style={styles.stageChipBadge}>Current</Text>}
+                    {stageUpdateLoading && isActive && (
+                      <View style={styles.stageChipSpinner}>
+                        <ActivityIndicator size="small" color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.stageUpdateHint}>
+              Changes are saved to your profile and visible to matched parents.
+            </Text>
+          </View>
+        )}
         {/* Match Status Hero Card */}
         {isParentRole && (
           <View style={[styles.heroCard, !matchedSurrogateId && styles.heroCardUnmatched]}>
@@ -1084,6 +1697,33 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
+        )}
+
+        {/* Medical Reports Section */}
+        {medicalReports.length > 0 && (
+          <View style={styles.medicalReportsSection}>
+            <Text style={styles.medicalReportsSectionTitle}>Medical Check-ins</Text>
+            {medicalReports.map((report) => renderMedicalReport(report))}
+          </View>
+        )}
+
+        {/* Add Medical Check-in Button (for surrogates in all stages) */}
+        {isSurrogateRole && (
+          <TouchableOpacity
+            style={styles.addMedicalReportButton}
+            onPress={() => {
+              const currentStage = getCurrentStageKey();
+              const medicalStage = getMedicalReportStage(currentStage);
+              navigation.navigate('MedicalReportForm', { 
+                stage: medicalStage,
+                onSubmit: fetchMedicalReports,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus-circle" size={20} color="#1F6FE0" />
+            <Text style={styles.addMedicalReportButtonText}>Add Medical Check-in</Text>
+          </TouchableOpacity>
         )}
 
         {STAGE_OPTIONS.map((stage, index) => {
@@ -1195,45 +1835,6 @@ export default function HomeScreen() {
             <Text style={styles.title}>My Journey</Text>
             <Text style={styles.subtitle}>Track your surrogacy progress</Text>
           </View>
-          {isSurrogateRole && (
-            <View style={styles.stageUpdateCard}>
-              <Text style={styles.stageUpdateLabel}>Update your stage</Text>
-              <View style={styles.stageChipRow}>
-                {STAGE_OPTIONS.map((option) => {
-                  const isActive = normalizeStage(serverStage) === option.key;
-                  return (
-                    <TouchableOpacity
-                      key={option.key}
-                      style={[
-                        styles.stageChip,
-                        isActive && styles.stageChipActive,
-                        stageUpdateLoading && styles.stageChipDisabled,
-                      ]}
-                      onPress={() => updateSurrogateStage(option.key)}
-                      disabled={stageUpdateLoading || isActive}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.stageChipLabel, isActive && styles.stageChipLabelActive]}>
-                        {option.label}
-                      </Text>
-                      <Text style={[styles.stageChipSubtitle, isActive && styles.stageChipSubtitleActive]}>
-                        {option.description}
-                      </Text>
-                      {isActive && <Text style={styles.stageChipBadge}>Current</Text>}
-                      {stageUpdateLoading && isActive && (
-                        <View style={styles.stageChipSpinner}>
-                          <ActivityIndicator size="small" color="#fff" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={styles.stageUpdateHint}>
-                Changes are saved to your profile and visible to matched parents.
-              </Text>
-            </View>
-          )}
           {renderTimelineView()}
           {isSurrogateRole && (
             <TouchableOpacity 
@@ -1525,6 +2126,224 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginBottom: 16,
   },
+  pregDashboardCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#1A1D1E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F0F3F9',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0F7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1D1E',
+    letterSpacing: -0.3,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#6E7191',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 10,
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    padding: 4,
+    borderRadius: 14,
+    marginBottom: 24,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  segmentActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#1F6FE0',
+    fontWeight: '700',
+  },
+  segmentDisabled: {
+    opacity: 0.6,
+  },
+  segmentTextDisabled: {
+    color: '#94A3B8',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 52,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  fancyInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1D1E',
+  },
+  fullWidthButton: {
+    backgroundColor: '#1F6FE0',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    shadowColor: '#1F6FE0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  fullWidthButtonDisabled: {
+    backgroundColor: '#94A3B8',
+    shadowOpacity: 0,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'flex-start',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1E40AF',
+    marginLeft: 8,
+    lineHeight: 18,
+  },
+  pregDashboardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  pregDashboardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A1D1E',
+    marginBottom: 4,
+  },
+  pregDashboardSub: {
+    fontSize: 13,
+    color: '#6E7191',
+    fontWeight: '600',
+  },
+  pregDashboardBadge: {
+    backgroundColor: '#F0F6FF',
+    borderWidth: 1,
+    borderColor: '#D6E6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  pregDashboardBadgeText: {
+    color: '#1F6FE0',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  pregProgressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#EEF2F7',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  pregProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#1F6FE0',
+  },
+  pregGraduationBanner: {
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#FFE4B3',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  pregGraduationText: {
+    color: '#8A5A00',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  uploadReportBtn: {
+    backgroundColor: '#1F6FE0',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  uploadReportBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
   title: { 
     fontSize: 28, 
     fontWeight: '800',
@@ -1620,16 +2439,17 @@ const styles = StyleSheet.create({
   },
   timelineContainer: {
     flex: 1,
-    padding: 20,
   },
   timelineItem: {
     flexDirection: 'row',
     marginBottom: 30,
+    paddingHorizontal: 16,
   },
   timelineLeftCol: {
     alignItems: 'center',
-    marginRight: 20,
+    marginRight: 16,
     width: 40,
+    marginLeft: 4,
   },
   timelineIconContainer: {
     width: 40,
@@ -1654,10 +2474,12 @@ const styles = StyleSheet.create({
   timelineContent: {
     flex: 1,
     justifyContent: 'center',
+    marginRight: 16,
   },
   timelineCard: {
     flex: 1,
     justifyContent: 'center',
+    minWidth: 0,
   },
   timelineStepText: {
     fontSize: 18,
@@ -2153,6 +2975,120 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F7FA',
   },
+  medicalReportsSection: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  medicalReportsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1D1E',
+    marginBottom: 16,
+  },
+  medicalReportCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  medicalReportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  medicalReportIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  medicalReportTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 2,
+  },
+  medicalReportDate: {
+    fontSize: 13,
+    color: '#6E7191',
+    fontWeight: '500',
+  },
+  medicalReportProvider: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  medicalReportMetrics: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  medicalReportMetric: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F6FE0',
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  medicalReportImageContainer: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  medicalReportImage: {
+    width: '100%',
+    height: 150,
+    resizeMode: 'cover',
+  },
+  medicalReportImageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 6,
+  },
+  medicalReportImageText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  addMedicalReportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F7FF',
+    borderWidth: 1,
+    borderColor: '#D6E6FF',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    gap: 8,
+  },
+  addMedicalReportButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F6FE0',
+  },
   commentScrollView: {
     flex: 1,
   },
@@ -2447,6 +3383,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: 'transparent',
+    maxWidth: '100%',
   },
   cardCurrent: {
     borderColor: '#2A7BF6',

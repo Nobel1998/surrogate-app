@@ -113,3 +113,5 @@ supabase.auth.getSession().then(console.log);
 2. 实现离线模式支持
 3. 添加更详细的用户反馈
 4. 考虑添加手动刷新按钮
+
+

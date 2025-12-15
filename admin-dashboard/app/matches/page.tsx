@@ -9,6 +9,8 @@ type Profile = {
   email?: string;
   phone?: string;
   role?: string;
+  progress_stage?: string | null;
+  stage_updated_by?: string | null;
 };
 
 type Match = {
@@ -24,35 +26,38 @@ type Match = {
 type Post = {
   id: string;
   user_id: string;
-  user_name?: string | null;
   content?: string | null;
-  media_uri?: string | null;
-  media_type?: string | null;
-  likes?: number | null;
-  comments_count?: number | null;
-  created_at?: string | null;
-  updated_at?: string | null;
+  text?: string | null;
+  media_url?: string | null;
   stage?: string | null;
+  created_at?: string | null;
 };
-
-type LikeRow = { id: string; post_id: string; user_id: string };
 type CommentRow = { id: string; post_id: string };
+type LikeRow = { id: string; post_id: string };
 
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
+const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
+const STAGE_LABELS: Record<string, string> = {
+  'pre': 'Pre-Transfer',
+  'pregnancy': 'Post-Transfer',
+  'ob_visit': 'OB Office Visit',
+  'delivery': 'Delivery',
+};
 
 export default function MatchesPage() {
   const [surrogates, setSurrogates] = useState<Profile[]>([]);
   const [parents, setParents] = useState<Profile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [comments, setComments] = useState<CommentRow[]>([]);
+  const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedSurrogate, setSelectedSurrogate] = useState<string>('');
   const [selectedParent, setSelectedParent] = useState<string>('');
   const [status, setStatus] = useState<string>('active');
+  const [stage, setStage] = useState<string>('pre');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,8 +78,13 @@ export default function MatchesPage() {
         const errText = await res.text();
         throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
       }
-      const { profiles = [], matches: matchData = [], posts: postsData = [], postLikes: likesData = [], comments: commentsData = [] } =
-        await res.json();
+      const {
+        profiles = [],
+        matches: matchData = [],
+        posts: postsData = [],
+        comments: commentsData = [],
+        postLikes: likesData = [],
+      } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
       const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
@@ -92,8 +102,13 @@ export default function MatchesPage() {
       setParents(parList);
       setMatches(matchData || []);
       setPosts(postsData || []);
-      setPostLikes(likesData || []);
       setComments(commentsData || []);
+      setPostLikes(likesData || []);
+      // default stage selection for form: if surrogate chosen, pick its stage
+      if (selectedSurrogate) {
+        const found = surList.find((s: Profile) => s.id === selectedSurrogate);
+        if (found?.progress_stage) setStage(found.progress_stage);
+      }
     } catch (err: any) {
       console.error('Error loading matches data:', err);
       setError(err.message || 'Failed to load data');
@@ -135,6 +150,24 @@ export default function MatchesPage() {
       alert(err.message || 'Failed to create match');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const updateStage = async (surrogateId: string, newStage: string) => {
+    try {
+      const res = await fetch('/api/matches/options', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surrogate_id: surrogateId, progress_stage: newStage, stage_updated_by: 'admin' }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Update stage failed: ${res.status} ${errText}`);
+      }
+      await loadData();
+    } catch (err: any) {
+      console.error('Error updating stage:', err);
+      alert(err.message || 'Failed to update stage');
     }
   };
 
@@ -187,11 +220,16 @@ export default function MatchesPage() {
               <label className="text-sm font-medium text-gray-700">Surrogate</label>
               <select
                 value={selectedSurrogate}
-                onChange={(e) => setSelectedSurrogate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedSurrogate(val);
+                  const found = surrogates.find((s) => s.id === val);
+                  setStage(found?.progress_stage || 'pre');
+                }}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a surrogate</option>
-                {surrogates.map((s) => (
+                {surrogates.map((s: Profile) => (
                   <option key={s.id} value={s.id}>
                     {s.name || s.id} {s.phone ? `• ${s.phone}` : ''}
                   </option>
@@ -224,7 +262,21 @@ export default function MatchesPage() {
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {STATUS_OPTIONS.map((s) => (
+                {STATUS_OPTIONS.map((s: string) => (
+                  <option key={s} value={s}>
+                    {s.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Surrogate Stage</label>
+              <select
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {STAGE_OPTIONS.map((s: string) => (
                   <option key={s} value={s}>
                     {s.toUpperCase()}
                   </option>
@@ -250,6 +302,19 @@ export default function MatchesPage() {
               className={`px-4 py-2 rounded-md text-white font-medium ${submitting ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} transition-colors`}
             >
               {submitting ? 'Saving...' : 'Save Match'}
+            </button>
+            <button
+              onClick={() => {
+                if (!selectedSurrogate) {
+                  alert('Please select a surrogate to update stage.');
+                  return;
+                }
+                updateStage(selectedSurrogate, stage);
+              }}
+              disabled={submitting || !selectedSurrogate}
+              className={`ml-3 px-4 py-2 rounded-md text-blue-700 font-medium border ${submitting || !selectedSurrogate ? 'border-gray-300 text-gray-400' : 'border-blue-300 hover:border-blue-500'}`}
+            >
+              Update Stage
             </button>
           </div>
         </div>
@@ -281,11 +346,13 @@ export default function MatchesPage() {
                 {matches.map((m) => {
                   const surrogate = profileLookup[m.surrogate_id];
                   const parent = profileLookup[m.parent_id];
+                  const surrogateStageKey = surrogate?.progress_stage || 'pre';
+                  const surrogateStage = STAGE_LABELS[surrogateStageKey] || surrogateStageKey.toUpperCase();
+                  const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
                   const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
                   const latestPosts = surrogatePosts.slice(0, 3);
-                  const postIds = surrogatePosts.map((p) => p.id);
-                  const likeCount = postLikes.filter((l) => postIds.includes(l.post_id)).length;
-                  const commentCount = comments.filter((c) => postIds.includes(c.post_id)).length;
+                  const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
+                  const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -297,22 +364,32 @@ export default function MatchesPage() {
                         <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            m.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : m.status === 'completed'
-                                ? 'bg-blue-100 text-blue-800'
-                                : m.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {m.status?.toUpperCase() || 'UNKNOWN'}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              m.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : m.status === 'completed'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : m.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {m.status?.toUpperCase() || 'UNKNOWN'}
+                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                              STAGE: {surrogateStage}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                              BY: {stageUpdater}
+                            </span>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
-                        <div className="flex flex-col gap-2 min-w-[260px]">
+                        <div className="flex flex-col gap-1">
                           <div className="font-semibold text-sm">
                             Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
                           </div>
@@ -326,11 +403,11 @@ export default function MatchesPage() {
                                   {p.stage ? ` · ${p.stage}` : ''}
                                 </div>
                                 <div className="text-sm text-gray-900 line-clamp-2">
-                                  {p.content || '(no text)'}
+                                  {p.content || p.text || '(no text)'}
                                 </div>
-                                {p.media_uri && (
+                                {p.media_url && (
                                   <a
-                                    href={p.media_uri}
+                                    href={p.media_url}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-xs text-blue-600 hover:text-blue-800"
@@ -347,7 +424,7 @@ export default function MatchesPage() {
                         {m.updated_at ? new Date(m.updated_at).toLocaleString() : m.created_at ? new Date(m.created_at).toLocaleString() : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm space-x-2">
-                        {STATUS_OPTIONS.map((s) => (
+                        {STATUS_OPTIONS.map((s: string) => (
                           <button
                             key={s}
                             onClick={() => updateMatchStatus(m.id, s)}
@@ -360,6 +437,17 @@ export default function MatchesPage() {
                             {s}
                           </button>
                         ))}
+                        <select
+                          className="mt-2 border border-gray-300 rounded px-2 py-1 text-xs"
+                          value={surrogate?.progress_stage || 'pre'}
+                          onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                        >
+                          {STAGE_OPTIONS.map((st: string) => (
+                            <option key={st} value={st}>
+                              {STAGE_LABELS[st] || st.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                     </tr>
                   );
