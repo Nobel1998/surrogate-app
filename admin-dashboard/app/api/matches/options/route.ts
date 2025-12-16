@@ -117,13 +117,13 @@ export async function GET() {
       }
     }
 
-    // Fetch all contracts and documents (parent_contract, surrogate_contract, legal_contract, insurance_policy, health_insurance_bill)
+    // Fetch all contracts and documents (parent_contract, surrogate_contract, legal_contract, insurance_policy, health_insurance_bill, parental_rights)
     console.log('[matches/options] fetching contracts and documents...');
     let contractsData: any[] = [];
     const { data: contractsDataResult, error: contractsError } = await supabase
       .from('documents')
       .select('id, user_id, document_type, file_url, file_name, created_at')
-      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill'])
+      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights'])
       .order('created_at', { ascending: false })
       .limit(1000);
     if (contractsError) {

@@ -1,0 +1,76 @@
+SURROGATE HEALTH INSURANCE BILL
+
+Bill Information:
+----------------
+Account Number: ACC-2025-567890
+Patient Name: [Surrogate Name]
+Date of Service: [Date]
+Bill Date: [Date]
+Due Date: [Date]
+Insurance Provider: [Insurance Company Name]
+Policy Number: POL-2025-001234
+Group Number: GRP-12345
+
+Service Details:
+---------------
+Service Date: [Date]
+Provider: [Medical Provider Name]
+Service Type: Health Insurance Premium
+Coverage Period: [Start Date] to [End Date]
+
+Billing Summary:
+----------------
+Monthly Premium: $[Amount]
+Coverage Type: Health Insurance
+Plan Type: [Plan Name]
+Deductible: $[Amount]
+Out-of-Pocket Maximum: $[Amount]
+
+Coverage Benefits:
+------------------
+- Preventive Care: Covered 100%
+- Emergency Services: Covered after deductible
+- Prescription Drugs: Covered with copay
+- Maternity Care: Covered
+- Mental Health Services: Covered
+- Specialist Visits: Covered with referral
+
+Payment Information:
+--------------------
+Total Amount Due: $[Amount]
+Payment Method: [Payment Method]
+Payment Status: [Status]
+Last Payment Date: [Date]
+Next Payment Due: [Date]
+
+Claims History:
+---------------
+- [Date]: Office Visit - $[Amount] - Status: Paid
+- [Date]: Lab Work - $[Amount] - Status: Paid
+- [Date]: Prescription - $[Amount] - Status: Pending
+
+Important Notes:
+----------------
+- This bill covers health insurance premiums for the surrogacy period
+- Payments must be made by the due date to maintain coverage
+- Contact insurance provider for any questions about coverage
+- Keep this document for your records
+
+Contact Information:
+--------------------
+Insurance Company: [Company Name]
+Phone: [Phone Number]
+Email: [Email Address]
+Address: [Address]
+Customer Service Hours: [Hours]
+
+Payment Instructions:
+---------------------
+1. Log in to your insurance portal
+2. Navigate to billing section
+3. Select payment method
+4. Enter payment amount
+5. Confirm payment
+
+---
+This is a test document for Surrogate Health Insurance Bill upload functionality.

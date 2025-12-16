@@ -115,6 +115,14 @@ export default function MatchesPage() {
   const [healthInsuranceParentId, setHealthInsuranceParentId] = useState<string>('');
   const [healthInsuranceFile, setHealthInsuranceFile] = useState<File | null>(null);
   const [uploadingHealthInsurance, setUploadingHealthInsurance] = useState(false);
+  
+  // PBO upload state
+  const [showPBOModal, setShowPBOModal] = useState(false);
+  const [pboMatchId, setPBOMatchId] = useState<string | null>(null);
+  const [pboSurrogateId, setPBOSurrogateId] = useState<string>('');
+  const [pboParentId, setPBOParentId] = useState<string>('');
+  const [pboFile, setPBOFile] = useState<File | null>(null);
+  const [uploadingPBO, setUploadingPBO] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -464,6 +472,54 @@ export default function MatchesPage() {
     }
   };
 
+  const openPBOModal = (match: Match) => {
+    setPBOMatchId(match.id);
+    setPBOSurrogateId(match.surrogate_id);
+    setPBOParentId(match.parent_id);
+    setPBOFile(null);
+    setShowPBOModal(true);
+  };
+
+  const uploadPBO = async () => {
+    if (!pboFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!pboSurrogateId || !pboParentId) {
+      alert('Surrogate and Parent IDs are required');
+      return;
+    }
+
+    setUploadingPBO(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', pboFile);
+      formData.append('surrogate_id', pboSurrogateId);
+      formData.append('parent_id', pboParentId);
+
+      const res = await fetch('/api/matches/pbo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('PBO document uploaded successfully! Both users can now see it in their My Match section.');
+      setShowPBOModal(false);
+      setPBOFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading PBO:', err);
+      alert(err.message || 'Failed to upload PBO document');
+    } finally {
+      setUploadingPBO(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -634,6 +690,8 @@ export default function MatchesPage() {
                       contractTypeLabel = 'Life Insurance Policy';
                     } else if (contract.document_type === 'health_insurance_bill') {
                       contractTypeLabel = 'Health Insurance Bill';
+                    } else if (contract.document_type === 'parental_rights') {
+                      contractTypeLabel = 'PBO';
                     } else {
                       contractTypeLabel = contract.document_type;
                     }
@@ -887,6 +945,12 @@ export default function MatchesPage() {
                           className="mt-2 w-full px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           ❤️ Upload Health Insurance Bill
+                        </button>
+                        <button
+                          onClick={() => openPBOModal(m)}
+                          className="mt-2 w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          📋 Upload PBO
                         </button>
                       </td>
                     </tr>
@@ -1207,6 +1271,83 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingHealthInsurance ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PBO Upload Modal */}
+      {showPBOModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload PBO Document</h3>
+              <button
+                onClick={() => setShowPBOModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[pboSurrogateId]?.name || pboSurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[pboParentId]?.name || pboParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  PBO Document File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setPBOFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                {pboFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {pboFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The PBO document will be visible to both parties in their My Match section.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowPBOModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadPBO}
+                  disabled={uploadingPBO || !pboFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingPBO || !pboFile
+                      ? 'bg-gray-400'
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  } transition-colors`}
+                >
+                  {uploadingPBO ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>
