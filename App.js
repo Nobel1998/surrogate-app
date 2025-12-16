@@ -23,6 +23,7 @@ import MyMatchScreen from './src/screens/MyMatchScreen';
 import MedicalReportFormScreen from './src/screens/MedicalReportFormScreen';
 import IntendedParentsProfileScreen from './src/screens/IntendedParentsProfileScreen';
 import CustomerServiceScreen from './src/screens/CustomerServiceScreen';
+import FAQScreen from './src/screens/FAQScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -201,6 +202,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="Protection" component={ProtectionScreen} />
       <Stack.Screen name="Company" component={CompanyScreen} />
       <Stack.Screen name="CustomerService" component={CustomerServiceScreen} />
+      <Stack.Screen name="FAQ" component={FAQScreen} />
     </Stack.Navigator>
   );
 }
