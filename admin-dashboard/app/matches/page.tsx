@@ -79,7 +79,6 @@ export default function MatchesPage() {
   const [contractMatchId, setContractMatchId] = useState<string | null>(null);
   const [contractSurrogateId, setContractSurrogateId] = useState<string>('');
   const [contractParentId, setContractParentId] = useState<string>('');
-  const [contractType, setContractType] = useState<string>('both');
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadingContract, setUploadingContract] = useState(false);
 
@@ -218,7 +217,6 @@ export default function MatchesPage() {
     setContractSurrogateId(match.surrogate_id);
     setContractParentId(match.parent_id);
     setContractFile(null);
-    setContractType('both');
     setShowContractModal(true);
   };
 
@@ -238,7 +236,7 @@ export default function MatchesPage() {
       formData.append('file', contractFile);
       formData.append('surrogate_id', contractSurrogateId);
       formData.append('parent_id', contractParentId);
-      formData.append('contract_type', contractType);
+      formData.append('contract_type', 'both');
 
       const res = await fetch('/api/matches/contracts', {
         method: 'POST',
@@ -638,26 +636,11 @@ export default function MatchesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contract Type
-                </label>
-                <select
-                  value={contractType}
-                  onChange={(e) => setContractType(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="both">Both (Parent & Surrogate)</option>
-                  <option value="parent">Parent Only</option>
-                  <option value="surrogate">Surrogate Only</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contract File
                 </label>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf,.doc,.docx,.txt"
                   onChange={(e) => setContractFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
@@ -666,6 +649,9 @@ export default function MatchesPage() {
                     Selected: {contractFile.name}
                   </div>
                 )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The same contract will be published for both parties. Each party will sign their own copy.
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">

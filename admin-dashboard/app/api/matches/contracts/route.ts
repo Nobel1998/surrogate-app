@@ -33,11 +33,16 @@ export async function POST(req: Request) {
     if (!surrogateId || !parentId) {
       return NextResponse.json({ error: 'surrogate_id and parent_id are required' }, { status: 400 });
     }
-    if (!contractType || !['parent', 'surrogate', 'both'].includes(contractType)) {
-      return NextResponse.json({ error: 'contract_type must be parent, surrogate, or both' }, { status: 400 });
+    if (!contractType || contractType !== 'both') {
+      return NextResponse.json({ error: 'contract_type must be both' }, { status: 400 });
     }
 
+    // Validate file extension
     const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+    if (ext && !allowedExtensions.includes(ext.toLowerCase())) {
+      return NextResponse.json({ error: `File format not supported. Allowed formats: ${allowedExtensions.join(', ')}` }, { status: 400 });
+    }
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).slice(2);
     
@@ -56,32 +61,28 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Insert documents for the specified users
-    if (contractType === 'parent' || contractType === 'both') {
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          document_type: 'parent_contract',
-          file_url: publicUrl,
-          file_name: file.name,
-          user_id: parentId,
-        });
-      if (insertError) throw insertError;
-      results.push({ user_id: parentId, document_type: 'parent_contract' });
-    }
+    // Insert documents for both parties (same contract, each signs their own copy)
+    const { error: insertParentError } = await supabase
+      .from('documents')
+      .insert({
+        document_type: 'parent_contract',
+        file_url: publicUrl,
+        file_name: file.name,
+        user_id: parentId,
+      });
+    if (insertParentError) throw insertParentError;
+    results.push({ user_id: parentId, document_type: 'parent_contract' });
 
-    if (contractType === 'surrogate' || contractType === 'both') {
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          document_type: 'surrogate_contract',
-          file_url: publicUrl,
-          file_name: file.name,
-          user_id: surrogateId,
-        });
-      if (insertError) throw insertError;
-      results.push({ user_id: surrogateId, document_type: 'surrogate_contract' });
-    }
+    const { error: insertSurrogateError } = await supabase
+      .from('documents')
+      .insert({
+        document_type: 'surrogate_contract',
+        file_url: publicUrl,
+        file_name: file.name,
+        user_id: surrogateId,
+      });
+    if (insertSurrogateError) throw insertSurrogateError;
+    results.push({ user_id: surrogateId, document_type: 'surrogate_contract' });
 
     return NextResponse.json({ success: true, url: publicUrl, path, results });
   } catch (err: any) {
