@@ -7,11 +7,14 @@ import { Feather as Icon } from '@expo/vector-icons';
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
+  const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
+  const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAgencyRetainerDoc();
+    loadHipaaReleaseDoc();
   }, [user]);
 
   const loadAgencyRetainerDoc = async () => {
@@ -40,11 +43,62 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const loadHipaaReleaseDoc = async () => {
+    if (!user?.id) return;
+    
+    setLoadingHipaaDoc(true);
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('document_type', 'hipaa_release')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading HIPAA release doc:', error);
+      } else {
+        setHipaaReleaseDoc(data);
+      }
+    } catch (error) {
+      console.error('Failed to load HIPAA release doc:', error);
+    } finally {
+      setLoadingHipaaDoc(false);
+    }
+  };
+
+  const handleHipaaReleasePress = async () => {
+    if (loadingHipaaDoc) return;
+    
+    if (!hipaaReleaseDoc || !hipaaReleaseDoc.file_url) {
+      Alert.alert('No Document Available', 'HIPAA Release has not been uploaded yet.');
+      return;
+    }
+
+    try {
+      const url = hipaaReleaseDoc.file_url;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open this document');
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert('Error', 'Failed to open document');
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       // Refresh all data that might have changed
-      await loadAgencyRetainerDoc();
+      await Promise.all([
+        loadAgencyRetainerDoc(),
+        loadHipaaReleaseDoc(),
+      ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -179,7 +233,14 @@ export default function ProfileScreen({ navigation }) {
             agencyRetainerDoc ? 'Available' : 'Not Available',
             loadingDoc
           )}
-          {renderMenuItem('HIPPA Release', 'info', () => Alert.alert('HIPPA', 'Coming Soon'), '#333')}
+          {renderMenuItem(
+            'HIPAA Release',
+            'shield',
+            handleHipaaReleasePress,
+            '#333',
+            hipaaReleaseDoc ? 'Available' : 'Not Available',
+            loadingHipaaDoc
+          )}
           {renderMenuItem('Photo Release', 'camera', () => Alert.alert('Photo Release', 'Coming Soon'), '#333')}
           {renderMenuItem('Benefit Package', 'gift', () => navigation.navigate('Benefits'), '#333')}
           {renderMenuItem('Injection Tutorial Videos', 'play-circle', () => Alert.alert('Videos', 'Coming Soon'), '#FFC107')}

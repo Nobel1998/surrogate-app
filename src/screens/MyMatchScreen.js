@@ -148,6 +148,7 @@ export default function MyMatchScreen({ navigation }) {
             'surrogate_contract',
             'online_claims',
             'agency_retainer',
+            'hipaa_release',
           ])
           .or(userIdOrClause)
           .order('created_at', { ascending: false });

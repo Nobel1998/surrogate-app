@@ -139,6 +139,14 @@ export default function MatchesPage() {
   const [agencyRetainerParentId, setAgencyRetainerParentId] = useState<string>('');
   const [agencyRetainerFile, setAgencyRetainerFile] = useState<File | null>(null);
   const [uploadingAgencyRetainer, setUploadingAgencyRetainer] = useState(false);
+  
+  // HIPAA Release upload state
+  const [showHipaaReleaseModal, setShowHipaaReleaseModal] = useState(false);
+  const [hipaaReleaseMatchId, setHipaaReleaseMatchId] = useState<string | null>(null);
+  const [hipaaReleaseSurrogateId, setHipaaReleaseSurrogateId] = useState<string>('');
+  const [hipaaReleaseParentId, setHipaaReleaseParentId] = useState<string>('');
+  const [hipaaReleaseFile, setHipaaReleaseFile] = useState<File | null>(null);
+  const [uploadingHipaaRelease, setUploadingHipaaRelease] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -632,6 +640,54 @@ export default function MatchesPage() {
     }
   };
 
+  const openHipaaReleaseModal = (match: Match) => {
+    setHipaaReleaseMatchId(match.id);
+    setHipaaReleaseSurrogateId(match.surrogate_id);
+    setHipaaReleaseParentId(match.parent_id);
+    setHipaaReleaseFile(null);
+    setShowHipaaReleaseModal(true);
+  };
+
+  const uploadHipaaRelease = async () => {
+    if (!hipaaReleaseFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!hipaaReleaseSurrogateId || !hipaaReleaseParentId) {
+      alert('Surrogate and Parent IDs are required');
+      return;
+    }
+
+    setUploadingHipaaRelease(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', hipaaReleaseFile);
+      formData.append('surrogate_id', hipaaReleaseSurrogateId);
+      formData.append('parent_id', hipaaReleaseParentId);
+
+      const res = await fetch('/api/matches/hipaa-release', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('HIPAA Release uploaded successfully! Both users can now see it in their User Center.');
+      setShowHipaaReleaseModal(false);
+      setHipaaReleaseFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading HIPAA release:', err);
+      alert(err.message || 'Failed to upload HIPAA release');
+    } finally {
+      setUploadingHipaaRelease(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -808,6 +864,8 @@ export default function MatchesPage() {
                       contractTypeLabel = 'Online Claims';
                     } else if (contract.document_type === 'agency_retainer') {
                       contractTypeLabel = 'Agency Retainer Agreement';
+                    } else if (contract.document_type === 'hipaa_release') {
+                      contractTypeLabel = 'HIPAA Release';
                     } else {
                       contractTypeLabel = contract.document_type;
                     }
@@ -1079,6 +1137,12 @@ export default function MatchesPage() {
                           className="mt-2 w-full px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           📄 Upload Agency Retainer
+                        </button>
+                        <button
+                          onClick={() => openHipaaReleaseModal(m)}
+                          className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          🔒 Upload HIPAA Release
                         </button>
                       </td>
                     </tr>
@@ -1630,6 +1694,83 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingAgencyRetainer ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HIPAA Release Upload Modal */}
+      {showHipaaReleaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload HIPAA Release</h3>
+              <button
+                onClick={() => setShowHipaaReleaseModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[hipaaReleaseSurrogateId]?.name || hipaaReleaseSurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[hipaaReleaseParentId]?.name || hipaaReleaseParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  HIPAA Release File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setHipaaReleaseFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {hipaaReleaseFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {hipaaReleaseFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The HIPAA release will be visible to both parties in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowHipaaReleaseModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadHipaaRelease}
+                  disabled={uploadingHipaaRelease || !hipaaReleaseFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingHipaaRelease || !hipaaReleaseFile
+                      ? 'bg-gray-400'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  } transition-colors`}
+                >
+                  {uploadingHipaaRelease ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>
