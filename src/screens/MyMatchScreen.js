@@ -371,12 +371,8 @@ export default function MyMatchScreen({ navigation }) {
               let docData = null;
               if (doc.documentType) {
                 if (doc.documentType === 'legal_contract') {
-                  const primaryType = isSurrogate ? 'surrogate_contract' : 'parent_contract';
-                  const secondaryType = isSurrogate ? 'parent_contract' : 'surrogate_contract';
-                  docData =
-                    documents.find(d => d.document_type === primaryType) ||
-                    documents.find(d => d.document_type === secondaryType) ||
-                    documents.find(d => d.document_type === 'legal_contract');
+                  // For Attorney Retainer Agreement, only look for legal_contract type
+                  docData = documents.find(d => d.document_type === 'legal_contract');
                 } else {
                   docData = documents.find(d => d.document_type === doc.documentType);
                 }

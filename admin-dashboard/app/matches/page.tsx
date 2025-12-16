@@ -482,10 +482,10 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* Uploaded Contracts Section */}
+        {/* Uploaded Files Section */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Uploaded Contracts</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Uploaded Files</h2>
             <button
               onClick={loadData}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium"
