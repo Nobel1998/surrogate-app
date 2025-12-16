@@ -47,6 +47,15 @@ type MedicalReport = {
   created_at: string;
 };
 
+type Contract = {
+  id: string;
+  user_id: string;
+  document_type: string;
+  file_url: string;
+  file_name?: string | null;
+  created_at?: string | null;
+};
+
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
@@ -64,6 +73,7 @@ export default function MatchesPage() {
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +116,7 @@ export default function MatchesPage() {
         comments: commentsData = [],
         postLikes: likesData = [],
         medicalReports: reportsData = [],
+        contracts: contractsData = [],
       } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
@@ -127,6 +138,7 @@ export default function MatchesPage() {
       setComments(commentsData || []);
       setPostLikes(likesData || []);
       setMedicalReports(reportsData || []);
+      setContracts(contractsData || []);
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -389,6 +401,69 @@ export default function MatchesPage() {
               Update Stage
             </button>
           </div>
+        </div>
+
+        {/* Uploaded Contracts Section */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Uploaded Contracts</h2>
+            <button
+              onClick={loadData}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              🔄 Refresh
+            </button>
+          </div>
+
+          {contracts.length === 0 ? (
+            <div className="text-sm text-gray-500">No contracts uploaded yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {contracts.map((contract) => {
+                    const user = profileLookup[contract.user_id];
+                    const contractTypeLabel = contract.document_type === 'parent_contract' ? 'Parent Contract' : 'Surrogate Contract';
+                    return (
+                      <tr key={contract.id}>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {contract.file_name || 'Unnamed file'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {contractTypeLabel}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {user?.name || user?.phone || contract.user_id.substring(0, 8)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {contract.created_at ? new Date(contract.created_at).toLocaleString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <a
+                            href={contract.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Download
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">

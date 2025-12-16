@@ -117,6 +117,22 @@ export async function GET() {
       }
     }
 
+    // Fetch all contracts (parent_contract and surrogate_contract)
+    console.log('[matches/options] fetching contracts...');
+    let contractsData: any[] = [];
+    const { data: contractsDataResult, error: contractsError } = await supabase
+      .from('documents')
+      .select('id, user_id, document_type, file_url, file_name, created_at')
+      .in('document_type', ['parent_contract', 'surrogate_contract'])
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if (contractsError) {
+      console.error('[matches/options] load contracts error', contractsError);
+    } else {
+      contractsData = contractsDataResult || [];
+      console.log('[matches/options] loaded contracts', contractsData.length);
+    }
+
     console.log('[matches/options] returning payload', {
       profiles: profiles?.length || 0,
       matches: matches?.length || 0,
@@ -124,9 +140,10 @@ export async function GET() {
       comments: comments.length,
       postLikes: postLikes.length,
       medicalReports: medicalReports.length,
+      contracts: contractsData?.length || 0,
     });
 
-    return NextResponse.json({ profiles, matches, posts, comments, postLikes, medicalReports });
+    return NextResponse.json({ profiles, matches, posts, comments, postLikes, medicalReports, contracts: contractsData || [] });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(
