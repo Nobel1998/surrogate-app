@@ -146,6 +146,7 @@ export default function MyMatchScreen({ navigation }) {
             'medical_records',
             'parent_contract',
             'surrogate_contract',
+            'online_claims',
           ])
           .or(userIdOrClause)
           .order('created_at', { ascending: false });
@@ -304,8 +305,7 @@ export default function MyMatchScreen({ navigation }) {
         label: 'Online Claims',
         icon: 'check-circle',
         iconColor: '#6C5CE7',
-        documentType: null,
-        alwaysAvailable: true,
+        documentType: 'online_claims',
       },
       {
         key: 'payment_record',

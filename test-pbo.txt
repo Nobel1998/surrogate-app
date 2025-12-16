@@ -1,0 +1,84 @@
+PBO (PRE-BIRTH ORDER) DOCUMENT
+
+Court Information:
+------------------
+Case Number: CASE-2025-001234
+Court Name: [Court Name]
+County: [County Name]
+State: [State Name]
+Judge: [Judge Name]
+Filing Date: [Date]
+Hearing Date: [Date]
+
+Parties Involved:
+----------------
+Intended Parents:
+- Name: [Parent 1 Name]
+- Address: [Address]
+- Phone: [Phone Number]
+- Email: [Email Address]
+
+- Name: [Parent 2 Name]
+- Address: [Address]
+- Phone: [Phone Number]
+- Email: [Email Address]
+
+Surrogate:
+- Name: [Surrogate Name]
+- Address: [Address]
+- Phone: [Phone Number]
+- Email: [Email Address]
+
+Order Details:
+--------------
+This Pre-Birth Order establishes the legal parentage of the child(ren) to be born through surrogacy.
+
+Key Provisions:
+1. The Intended Parents are declared the legal parents of the child(ren) born through this surrogacy arrangement
+2. The Surrogate agrees to relinquish all parental rights and responsibilities
+3. The child(ren) shall be placed in the custody of the Intended Parents immediately upon birth
+4. The birth certificate shall reflect the Intended Parents as the legal parents
+5. The Surrogate waives any right to custody, visitation, or support obligations
+
+Legal Requirements:
+-------------------
+- All parties have entered into a valid surrogacy agreement
+- Medical procedures have been performed in accordance with state law
+- All parties have received independent legal counsel
+- Psychological evaluations have been completed
+- Background checks have been conducted
+
+Court Findings:
+--------------
+The Court finds that:
+1. The surrogacy arrangement is in the best interests of the child(ren)
+2. All parties have voluntarily and knowingly entered into this arrangement
+3. The Intended Parents are fit and capable of providing for the child(ren)
+4. The Surrogate has been fully informed of her rights and responsibilities
+5. All legal requirements have been met
+
+Order:
+------
+IT IS HEREBY ORDERED that:
+1. The Intended Parents are declared the legal parents of the child(ren)
+2. The Surrogate's parental rights are terminated
+3. The hospital shall list the Intended Parents on the birth certificate
+4. The child(ren) shall be placed in the custody of the Intended Parents upon birth
+5. This Order is effective immediately and shall remain in full force and effect
+
+Signatures:
+-----------
+Intended Parent 1: _________________  Date: ___________
+
+Intended Parent 2: _________________  Date: ___________
+
+Surrogate: _________________  Date: ___________
+
+Judge: _________________  Date: ___________
+
+Court Seal:
+-----------
+[Court Seal]
+
+---
+This is a test document for PBO (Pre-Birth Order) upload functionality.
