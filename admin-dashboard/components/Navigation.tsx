@@ -10,7 +10,6 @@ export default function Navigation() {
     { href: '/', label: 'Applications', icon: '📋' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
-    { href: '/contracts', label: 'Contracts', icon: '📄' },
   ];
 
   return (
