@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorageLib from '../utils/Storage';
+import { translate } from '../i18n/translations';
 
 const LanguageContext = createContext();
 
@@ -53,10 +54,16 @@ export const LanguageProvider = ({ children }) => {
     return labels[lang] || lang;
   };
 
+  // Translation function
+  const t = (key, variables = {}) => {
+    return translate(key, language, variables);
+  };
+
   const value = {
     language,
     changeLanguage,
     getLanguageLabel,
+    t, // Translation function
     loading,
   };
 

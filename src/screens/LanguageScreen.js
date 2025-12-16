@@ -18,7 +18,7 @@ const languages = [
 ];
 
 export default function LanguageScreen({ navigation }) {
-  const { language, changeLanguage, getLanguageLabel } = useLanguage();
+  const { language, changeLanguage, getLanguageLabel, t } = useLanguage();
   const [saving, setSaving] = useState(false);
 
   const handleLanguageSelect = async (langCode) => {
@@ -30,18 +30,18 @@ export default function LanguageScreen({ navigation }) {
     try {
       await changeLanguage(langCode);
       Alert.alert(
-        'Language Changed',
-        `Language has been changed to ${getLanguageLabel(langCode)}. The app will use this language for future sessions.`,
+        t('language.saved'),
+        t('language.savedMessage', { language: getLanguageLabel(langCode) }),
         [
           {
-            text: 'OK',
+            text: t('common.close'),
             onPress: () => navigation.goBack(),
           },
         ]
       );
     } catch (error) {
       console.error('Error changing language:', error);
-      Alert.alert('Error', 'Failed to change language. Please try again.');
+      Alert.alert(t('common.error'), t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -99,7 +99,7 @@ export default function LanguageScreen({ navigation }) {
           <View style={styles.infoRow}>
             <Icon name="info" size={16} color="#666" />
             <Text style={styles.infoText}>
-              Language preference will be saved and applied to future app sessions.
+              {t('language.info')}
             </Text>
           </View>
         </View>

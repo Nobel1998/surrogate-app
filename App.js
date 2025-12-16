@@ -207,6 +207,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="CustomerService" component={CustomerServiceScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="MyInfo" component={MyInfoScreen} />
+      <Stack.Screen name="Language" component={LanguageScreen} />
     </Stack.Navigator>
   );
 }

@@ -7,7 +7,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
-  const { language, getLanguageLabel } = useLanguage();
+  const { language, getLanguageLabel, t } = useLanguage();
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
@@ -75,7 +75,10 @@ export default function ProfileScreen({ navigation }) {
     if (loadingHipaaDoc) return;
     
     if (!hipaaReleaseDoc || !hipaaReleaseDoc.file_url) {
-      Alert.alert('No Document Available', 'HIPAA Release has not been uploaded yet.');
+      Alert.alert(
+        t('documents.noDocument'),
+        t('documents.notUploaded', { document: t('profile.hipaaRelease') })
+      );
       return;
     }
 
@@ -85,11 +88,11 @@ export default function ProfileScreen({ navigation }) {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Error', 'Cannot open this document');
+        Alert.alert(t('common.error'), t('documents.cannotOpen'));
       }
     } catch (error) {
       console.error('Error opening document:', error);
-      Alert.alert('Error', 'Failed to open document');
+      Alert.alert(t('common.error'), t('documents.openError'));
     }
   };
 
@@ -112,7 +115,10 @@ export default function ProfileScreen({ navigation }) {
     if (loadingDoc) return;
     
     if (!agencyRetainerDoc || !agencyRetainerDoc.file_url) {
-      Alert.alert('No Document Available', 'Agency Retainer Agreement has not been uploaded yet.');
+      Alert.alert(
+        t('documents.noDocument'),
+        t('documents.notUploaded', { document: t('profile.agencyRetainer') })
+      );
       return;
     }
 
@@ -122,11 +128,11 @@ export default function ProfileScreen({ navigation }) {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Error', 'Cannot open this document');
+        Alert.alert(t('common.error'), t('documents.cannotOpen'));
       }
     } catch (error) {
       console.error('Error opening document:', error);
-      Alert.alert('Error', 'Failed to open document');
+      Alert.alert(t('common.error'), t('documents.openError'));
     }
   };
 
@@ -207,9 +213,9 @@ export default function ProfileScreen({ navigation }) {
 
       {/* Top Action Bar (FAQ, Customer Service, About Us) */}
       <View style={styles.topActionBar}>
-        {renderHeaderButton('help-circle', 'FAQ', () => navigation.navigate('FAQ'), '#9C27B0')}
-        {renderHeaderButton('message-circle', 'Customer Service', () => navigation.navigate('CustomerService'), '#9C27B0')}
-        {renderHeaderButton('info', 'About Us', () => navigation.navigate('Company'), '#9C27B0')}
+        {renderHeaderButton('help-circle', t('profile.faq'), () => navigation.navigate('FAQ'), '#9C27B0')}
+        {renderHeaderButton('message-circle', t('profile.customerService'), () => navigation.navigate('CustomerService'), '#9C27B0')}
+        {renderHeaderButton('info', t('profile.aboutUs'), () => navigation.navigate('Company'), '#9C27B0')}
       </View>
 
       <ScrollView 
@@ -226,46 +232,46 @@ export default function ProfileScreen({ navigation }) {
       >
         {/* Section 1 */}
         <View style={styles.section}>
-          {renderMenuItem('My Info', 'tag', () => navigation.navigate('MyInfo'), '#FF9800')}
+          {renderMenuItem(t('profile.myInfo'), 'tag', () => navigation.navigate('MyInfo'), '#FF9800')}
           {renderMenuItem(
-            'Agency Retainer Agreement',
+            t('profile.agencyRetainer'),
             'file-text',
             handleAgencyRetainerPress,
             '#666',
-            agencyRetainerDoc ? 'Available' : 'Not Available',
+            agencyRetainerDoc ? t('profile.available') : t('profile.notAvailable'),
             loadingDoc
           )}
           {renderMenuItem(
-            'HIPAA Release',
+            t('profile.hipaaRelease'),
             'shield',
             handleHipaaReleasePress,
             '#333',
-            hipaaReleaseDoc ? 'Available' : 'Not Available',
+            hipaaReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
             loadingHipaaDoc
           )}
-          {renderMenuItem('Photo Release', 'camera', () => Alert.alert('Photo Release', 'Coming Soon'), '#333')}
-          {renderMenuItem('Benefit Package', 'gift', () => navigation.navigate('Benefits'), '#333')}
-          {renderMenuItem('Injection Tutorial Videos', 'play-circle', () => Alert.alert('Videos', 'Coming Soon'), '#FFC107')}
+          {renderMenuItem(t('profile.photoRelease'), 'camera', () => Alert.alert(t('profile.photoRelease'), 'Coming Soon'), '#333')}
+          {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
+          {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
         </View>
 
         {/* Section 2 */}
         <View style={styles.section}>
           {renderMenuItem(
-            'Language',
+            t('profile.language'),
             'globe',
             () => navigation.navigate('Language'),
             '#FF9800',
             getLanguageLabel(language)
           )}
-          {renderMenuItem('Refer', 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
-          {renderMenuItem('Rate The App', 'star', () => Alert.alert('Rate', 'Coming Soon'), '#4CAF50')}
-          {renderMenuItem('Rate Us', 'thumbs-up', () => Alert.alert('Rate Us', 'Coming Soon'), '#FF9800')}
-          {renderMenuItem('Contact Us', 'phone', () => navigation.navigate('Company'), '#4CAF50')}
-          {renderMenuItem('About App', 'info', () => Alert.alert('About', 'Version 1.0.0'), '#2196F3')}
+          {renderMenuItem(t('profile.refer'), 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
+          {renderMenuItem(t('profile.rateApp'), 'star', () => Alert.alert(t('profile.rateApp'), 'Coming Soon'), '#4CAF50')}
+          {renderMenuItem(t('profile.rateUs'), 'thumbs-up', () => Alert.alert(t('profile.rateUs'), 'Coming Soon'), '#FF9800')}
+          {renderMenuItem(t('profile.contactUs'), 'phone', () => navigation.navigate('Company'), '#4CAF50')}
+          {renderMenuItem(t('profile.aboutApp'), 'info', () => Alert.alert(t('profile.aboutApp'), 'Version 1.0.0'), '#2196F3')}
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Sign Out</Text>
+          <Text style={styles.logoutButtonText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
