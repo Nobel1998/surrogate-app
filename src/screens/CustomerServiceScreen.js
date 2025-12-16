@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 export default function CustomerServiceScreen({ navigation }) {
   const { user } = useAuth();
@@ -31,18 +32,43 @@ export default function CustomerServiceScreen({ navigation }) {
     });
   };
 
+  const handleAddress = () => {
+    Linking.openURL('https://maps.google.com/?q=961+W+Holt+Blvd,+Ontario,+CA+91762').catch(() => {
+      Alert.alert('Error', 'Unable to open maps');
+    });
+  };
+
   const handleSubmit = async () => {
     if (!subject.trim() || !message.trim()) {
       Alert.alert('Error', 'Please fill in both subject and message');
       return;
     }
 
+    if (!user || !user.id) {
+      Alert.alert('Error', 'You must be logged in to submit a support ticket');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // TODO: Implement actual API call to submit support ticket
-      // For now, we'll simulate a submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .insert([
+          {
+            user_id: user.id,
+            subject: subject.trim(),
+            message: message.trim(),
+            status: 'open',
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error submitting support ticket:', error);
+        throw error;
+      }
+
       Alert.alert(
         'Success',
         'Your message has been submitted. Our team will get back to you within 24 hours.',
@@ -58,7 +84,8 @@ export default function CustomerServiceScreen({ navigation }) {
         ]
       );
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit your message. Please try again.');
+      console.error('Failed to submit support ticket:', error);
+      Alert.alert('Error', error.message || 'Failed to submit your message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,28 +131,42 @@ export default function CustomerServiceScreen({ navigation }) {
           
           <TouchableOpacity
             style={styles.contactItem}
-            onPress={() => handleCall('1-800-123-4567')}
+            onPress={() => handleCall('+1-888-245-1866')}
           >
             <View style={styles.contactIconContainer}>
               <Icon name="phone" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
               <Text style={styles.contactLabel}>Phone</Text>
-              <Text style={styles.contactValue}>1-800-123-4567</Text>
+              <Text style={styles.contactValue}>+1-888-245-1866</Text>
             </View>
             <Icon name="chevron-right" size={20} color="#CCC" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.contactItem}
-            onPress={() => handleEmail('support@surrogateagency.com')}
+            onPress={() => handleEmail('info@usababytree.com')}
           >
             <View style={styles.contactIconContainer}>
               <Icon name="mail" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
               <Text style={styles.contactLabel}>Email</Text>
-              <Text style={styles.contactValue}>support@surrogateagency.com</Text>
+              <Text style={styles.contactValue}>info@usababytree.com</Text>
+            </View>
+            <Icon name="chevron-right" size={20} color="#CCC" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.contactItem}
+            onPress={handleAddress}
+          >
+            <View style={styles.contactIconContainer}>
+              <Icon name="map-pin" size={24} color="#2A7BF6" />
+            </View>
+            <View style={styles.contactInfo}>
+              <Text style={styles.contactLabel}>Address</Text>
+              <Text style={styles.contactValue}>961 W Holt Blvd, Ontario, CA 91762</Text>
             </View>
             <Icon name="chevron-right" size={20} color="#CCC" />
           </TouchableOpacity>

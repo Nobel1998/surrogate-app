@@ -87,3 +87,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message || 'Failed to upload life insurance policy' }, { status: 500 });
   }
 }
+

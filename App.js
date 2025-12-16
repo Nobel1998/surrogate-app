@@ -194,13 +194,13 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="MedicalReportForm" component={MedicalReportFormScreen} />
       <Stack.Screen name="IntendedParentsProfile" component={IntendedParentsProfileScreen} />
-      <Stack.Screen name="CustomerService" component={CustomerServiceScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="Benefits" component={BenefitsScreen} />
       <Stack.Screen name="Ambassador" component={AmbassadorScreen} />
       <Stack.Screen name="Protection" component={ProtectionScreen} />
       <Stack.Screen name="Company" component={CompanyScreen} />
+      <Stack.Screen name="CustomerService" component={CustomerServiceScreen} />
     </Stack.Navigator>
   );
 }
