@@ -78,7 +78,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Top Action Bar (FAQ, Customer Service, About Us) */}
       <View style={styles.topActionBar}>
         {renderHeaderButton('help-circle', 'FAQ', () => Alert.alert('FAQ', 'Coming Soon'), '#9C27B0')}
-        {renderHeaderButton('message-circle', 'Customer Service', () => Alert.alert('Service', 'Coming Soon'), '#9C27B0')}
+        {renderHeaderButton('message-circle', 'Customer Service', () => navigation.navigate('CustomerService'), '#9C27B0')}
         {renderHeaderButton('info', 'About Us', () => navigation.navigate('Company'), '#9C27B0')}
       </View>
 
