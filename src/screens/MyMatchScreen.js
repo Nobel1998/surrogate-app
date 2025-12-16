@@ -11,10 +11,14 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
+import Avatar from '../components/Avatar';
+
+const { width } = Dimensions.get('window');
 
 export default function MyMatchScreen({ navigation }) {
   const { user } = useAuth();
@@ -119,10 +123,8 @@ export default function MyMatchScreen({ navigation }) {
         setMatchData(match);
 
         // 4) 文档
-        // 4) 文档
         const targetUserId = isSurrogate ? user.id : match.surrogate_id;
         const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000';
-        // 拉取匹配用户文档 + 全局模板文档（占位 UUID），并兼容旧数据 user_id 为 null 的情况
         const userIdOrClause = [
           targetUserId ? `user_id.eq.${targetUserId}` : null,
           `user_id.eq.${GLOBAL_CONTRACT_USER_ID}`,
@@ -192,6 +194,15 @@ export default function MyMatchScreen({ navigation }) {
     }
   };
 
+  const formatMatchDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}-${day}-${year}`;
+  };
+
   // Render Unmatched State
   const renderUnmatchedState = () => (
     <ScrollView 
@@ -200,7 +211,7 @@ export default function MyMatchScreen({ navigation }) {
     >
       <View style={styles.unmatchedContent}>
         <View style={styles.unmatchedIconContainer}>
-          <Icon name="search" size={48} color="#2A7BF6" />
+          <Icon name="search" size={64} color="#FF8EA4" />
         </View>
         <Text style={styles.unmatchedTitle}>Matching in Progress</Text>
         <Text style={styles.unmatchedDescription}>
@@ -235,113 +246,240 @@ export default function MyMatchScreen({ navigation }) {
     </ScrollView>
   );
 
-  // Render Matched State
+  // Render Matched State with Premium Design
   const renderMatchedState = () => {
     const isSurrogate = userRole === 'surrogate';
     const partnerName = partnerProfile?.name || 'Partner';
-    const partnerRole = isSurrogate ? 'Intended Parent' : 'Surrogate';
+    const userName = user?.name || 'You';
+    const matchDate = formatMatchDate(matchData?.created_at);
     
+    // Document configuration based on role
+    const documentConfig = [
+      {
+        key: 'intended_parents_profile',
+        label: 'Intended Parents Profile',
+        icon: 'user',
+        iconColor: '#FF8EA4',
+        documentType: isSurrogate ? 'parent_contract' : null,
+        alwaysAvailable: !!partnerProfile, // Available if we have partner profile
+      },
+      {
+        key: 'attorney_retainer',
+        label: 'Attorney Retainer Agreement',
+        icon: 'briefcase',
+        iconColor: '#6C5CE7',
+        documentType: 'legal_contract',
+      },
+      {
+        key: 'surrogacy_contract',
+        label: 'Surrogacy Contract',
+        icon: 'file-text',
+        iconColor: '#00B894',
+        documentType: isSurrogate ? 'surrogate_contract' : 'parent_contract',
+      },
+      {
+        key: 'life_insurance',
+        label: 'Surrogate Life Insurance Policy',
+        icon: 'shield',
+        iconColor: '#FDCB6E',
+        documentType: 'insurance_policy',
+      },
+      {
+        key: 'health_insurance',
+        label: 'Surrogate Health Insurance Bill',
+        icon: 'heart',
+        iconColor: '#E17055',
+        documentType: 'insurance_policy',
+      },
+      {
+        key: 'pbo',
+        label: 'PBO',
+        icon: 'file',
+        iconColor: '#A29BFE',
+        documentType: 'parental_rights',
+      },
+      {
+        key: 'online_claims',
+        label: 'Online Claims',
+        icon: 'check-circle',
+        iconColor: '#6C5CE7',
+        documentType: null,
+        alwaysAvailable: true,
+      },
+      {
+        key: 'payment_record',
+        label: 'Payment Record',
+        icon: 'dollar-sign',
+        iconColor: '#00B894',
+        documentType: null,
+        alwaysAvailable: true,
+      },
+    ];
+
     return (
       <ScrollView 
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Premium Header Card */}
-        <View style={styles.profileHeader}>
-          <View style={styles.profileCard}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitials}>{partnerName.charAt(0)}</Text>
-              </View>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Active Match</Text>
-              </View>
-            </View>
-            
-            <Text style={styles.partnerName}>{partnerName}</Text>
-            <Text style={styles.partnerRole}>{partnerRole}</Text>
-            
-            <View style={styles.infoGrid}>
-              <View style={styles.infoItem}>
-                <Icon name="map-pin" size={16} color="#6E7191" />
-                <Text style={styles.infoText}>{partnerProfile?.location || 'Location N/A'}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Icon name="phone" size={16} color="#6E7191" />
-                <Text style={styles.infoText}>{partnerProfile?.phone || 'Phone N/A'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => partnerProfile?.phone && Linking.openURL(`tel:${partnerProfile.phone}`)}
-              >
-                <View style={styles.actionIconCircle}>
-                  <Icon name="phone" size={20} color="#fff" />
+        {/* Premium Header with Gradient Effect */}
+        <View style={styles.gradientHeader}>
+          <View style={styles.headerDecoration1} />
+          <View style={styles.headerDecoration2} />
+          <SafeAreaView edges={['top']}>
+            <View style={styles.headerContent}>
+              {/* Match Avatars */}
+              <View style={styles.matchAvatarsContainer}>
+                <View style={styles.avatarWrapper}>
+                  <View style={styles.avatarShadow}>
+                    <Avatar name={userName} size={80} />
+                  </View>
+                  <Text style={styles.avatarLabel}>{userName}</Text>
                 </View>
-                <Text style={styles.actionLabel}>Call</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => partnerProfile?.email && Linking.openURL(`mailto:${partnerProfile.email}`)}
-              >
-                <View style={[styles.actionIconCircle, { backgroundColor: '#FF8EA4' }]}>
-                  <Icon name="mail" size={20} color="#fff" />
+                
+                <View style={styles.matchIconContainer}>
+                  <View style={styles.matchIconCircle}>
+                    <Icon name="check" size={32} color="#fff" />
+                  </View>
+                  {matchDate && (
+                    <Text style={styles.matchDate}>{matchDate}</Text>
+                  )}
                 </View>
-                <Text style={styles.actionLabel}>Email</Text>
-              </TouchableOpacity>
+                
+                <View style={styles.avatarWrapper}>
+                  <View style={styles.avatarShadow}>
+                    <Avatar name={partnerName} size={80} />
+                  </View>
+                  <Text style={styles.avatarLabel}>{partnerName}</Text>
+                </View>
+              </View>
             </View>
-          </View>
+          </SafeAreaView>
         </View>
 
         {/* Documents Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Important Documents</Text>
+        <View style={styles.documentsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Documents & Records</Text>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>{documents.length} Available</Text>
+            </View>
+          </View>
+
           <View style={styles.documentsList}>
-            {/* Document items rendering */}
-            {[
-              { key: 'legal_contract', label: 'Legal Contract', icon: 'file-text' },
-              { key: 'medical_records', label: 'Medical Records', icon: 'activity' },
-              { key: 'insurance_policy', label: 'Insurance Policy', icon: 'shield' },
-            ].map((doc) => {
-              // 对 Legal Contract 做角色优先匹配：
-              //  - 代母优先 surrogate_contract，其次 parent_contract，其次 legal_contract
-              //  - 父母优先 parent_contract，其次 surrogate_contract，其次 legal_contract
-              let docData;
-              if (doc.key === 'legal_contract') {
-                const primaryType = isSurrogate ? 'surrogate_contract' : 'parent_contract';
-                const secondaryType = isSurrogate ? 'parent_contract' : 'surrogate_contract';
-                docData =
-                  documents.find(d => d.document_type === primaryType) ||
-                  documents.find(d => d.document_type === secondaryType) ||
-                  documents.find(d => d.document_type === 'legal_contract');
-              } else {
-                docData = documents.find(d => d.document_type === doc.key);
+            {documentConfig.map((doc) => {
+              let docData = null;
+              if (doc.documentType) {
+                if (doc.documentType === 'legal_contract') {
+                  const primaryType = isSurrogate ? 'surrogate_contract' : 'parent_contract';
+                  const secondaryType = isSurrogate ? 'parent_contract' : 'surrogate_contract';
+                  docData =
+                    documents.find(d => d.document_type === primaryType) ||
+                    documents.find(d => d.document_type === secondaryType) ||
+                    documents.find(d => d.document_type === 'legal_contract');
+                } else {
+                  docData = documents.find(d => d.document_type === doc.documentType);
+                }
               }
-              const isLocked = !docData;
               
+              const isAvailable = doc.alwaysAvailable || !!docData;
+              const isLocked = !isAvailable;
+              
+              // Special handling for Intended Parents Profile
+              const handlePress = () => {
+                if (doc.key === 'intended_parents_profile' && partnerProfile) {
+                  navigation.navigate('IntendedParentsProfile', { profile: partnerProfile });
+                } else if (isAvailable) {
+                  handleDocumentPress(docData || {});
+                }
+              };
+
               return (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={doc.key}
-                  style={styles.documentCard}
-                  onPress={() => handleDocumentPress(docData || {})}
-                  disabled={isLocked}
+                  style={[
+                    styles.documentCard,
+                    isLocked && styles.documentCardLocked,
+                  ]}
+                  onPress={handlePress}
+                  disabled={isLocked && doc.key !== 'intended_parents_profile'}
+                  activeOpacity={isLocked && doc.key !== 'intended_parents_profile' ? 1 : 0.7}
                 >
-                  <View style={[styles.docIconBox, isLocked && styles.docIconLocked]}>
-                    <Icon name={isLocked ? 'lock' : doc.icon} size={24} color={isLocked ? '#A0A3BD' : '#2A7BF6'} />
+                  <View style={[
+                    styles.documentIconContainer,
+                    { backgroundColor: isLocked ? '#F5F7FA' : `${doc.iconColor}15` },
+                  ]}>
+                    <Icon 
+                      name={isLocked ? 'lock' : doc.icon} 
+                      size={24} 
+                      color={isLocked ? '#CBD5E0' : doc.iconColor} 
+                    />
                   </View>
-                  <View style={styles.docInfo}>
-                    <Text style={[styles.docTitle, isLocked && styles.docTextLocked]}>{doc.label}</Text>
-                    <Text style={styles.docStatus}>
-                      {isLocked ? 'Pending Upload' : 'Available for View'}
+                  
+                  <View style={styles.documentContent}>
+                    <View style={styles.documentHeader}>
+                      <Text style={[
+                        styles.documentTitle,
+                        isLocked && styles.documentTitleLocked,
+                      ]}>
+                        {doc.label}
+                      </Text>
+                      {!isLocked && (
+                        <View style={styles.availableBadge}>
+                          <View style={styles.availableDot} />
+                          <Text style={styles.availableText}>Available</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.documentStatus}>
+                      {isLocked ? 'Pending Upload' : 'Tap to view'}
                     </Text>
                   </View>
-                  <Icon name="chevron-right" size={20} color="#E0E7EE" />
+
+                  {!isLocked && (
+                    <View style={styles.documentArrow}>
+                      <Icon name="chevron-right" size={20} color="#CBD5E0" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActionsSection}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => partnerProfile?.phone && Linking.openURL(`tel:${partnerProfile.phone}`)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="phone" size={24} color="#00B894" />
+              </View>
+              <Text style={styles.quickActionLabel}>Call</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => partnerProfile?.email && Linking.openURL(`mailto:${partnerProfile.email}`)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#FFF3E0' }]}>
+                <Icon name="mail" size={24} color="#FF8EA4" />
+              </View>
+              <Text style={styles.quickActionLabel}>Email</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('My Journey')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
+                <Icon name="heart" size={24} color="#2A7BF6" />
+              </View>
+              <Text style={styles.quickActionLabel}>Journey</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -351,15 +489,15 @@ export default function MyMatchScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2A7BF6" />
+        <ActivityIndicator size="large" color="#FF8EA4" />
         <Text style={styles.loadingText}>Loading match info...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.mainContainer}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.mainContainer} edges={['top']}>
+      <StatusBar barStyle="light-content" />
       {matchData ? renderMatchedState() : renderUnmatchedState()}
     </SafeAreaView>
   );
@@ -370,6 +508,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
+  container: {
+    flex: 1,
+  },
   // Unmatched Styles
   unmatchedContainer: {
     flex: 1,
@@ -379,28 +520,28 @@ const styles = StyleSheet.create({
   unmatchedContent: {
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 32,
+    padding: 40,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
   },
   unmatchedIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F0F7FF',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF0F3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   unmatchedTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A1D1E',
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
   },
   unmatchedDescription: {
@@ -408,141 +549,179 @@ const styles = StyleSheet.create({
     color: '#6E7191',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 40,
   },
   contactButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A7BF6',
-  },
-  contactButtonText: {
-    color: '#2A7BF6',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  
-  // Matched Styles
-  profileHeader: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  profileCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  avatarCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#F0F7FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  avatarInitials: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#2A7BF6',
-  },
-  statusBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: -10,
-    backgroundColor: '#00C48C',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  partnerName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1A1D1E',
-    marginBottom: 4,
-  },
-  partnerRole: {
-    fontSize: 14,
-    color: '#A0A3BD',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 20,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 24,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoText: {
-    color: '#4E5D78',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  actionButton: {
-    alignItems: 'center',
-  },
-  actionIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2A7BF6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: '#2A7BF6',
+    backgroundColor: '#FF8EA4',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    shadowColor: '#FF8EA4',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    elevation: 4,
   },
-  actionLabel: {
-    fontSize: 12,
-    color: '#6E7191',
-    fontWeight: '500',
+  contactButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
-  sectionContainer: {
+  timelineSteps: {
+    width: '100%',
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  timelineStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 0,
+  },
+  stepDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  stepActive: {
+    backgroundColor: '#FF8EA4',
+    shadowColor: '#FF8EA4',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+  },
+  stepPending: {
+    backgroundColor: '#E0E7EE',
+  },
+  stepText: {
+    fontSize: 15,
+    color: '#4E5D78',
+    fontWeight: '600',
+  },
+  stepLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#E0E7EE',
+    marginLeft: 7,
+    marginVertical: 6,
+  },
+  // Premium Header with Gradient Effect
+  gradientHeader: {
+    backgroundColor: '#FF8EA4',
+    paddingTop: 20,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#FF8EA4',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerDecoration1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    top: -50,
+    right: -50,
+  },
+  headerDecoration2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: -30,
+    left: -30,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+  },
+  matchAvatarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  avatarWrapper: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  avatarLabel: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  matchIconContainer: {
+    alignItems: 'center',
+    marginHorizontal: 20,
+  },
+  matchIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 4,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  matchDate: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Documents Section
+  documentsSection: {
     padding: 20,
+    paddingTop: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#1A1D1E',
-    marginBottom: 16,
-    marginLeft: 4,
+    letterSpacing: -0.5,
+  },
+  sectionBadge: {
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  sectionBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2A7BF6',
   },
   documentsList: {
     gap: 12,
@@ -551,40 +730,112 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
+    padding: 20,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
   },
-  docIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+  documentCardLocked: {
+    backgroundColor: '#FAFBFC',
+    opacity: 0.8,
+  },
+  documentIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  docIconLocked: {
-    backgroundColor: '#F5F7FA',
-  },
-  docInfo: {
+  documentContent: {
     flex: 1,
   },
-  docTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1D1E',
+  documentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
-  docTextLocked: {
+  documentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    flex: 1,
+  },
+  documentTitleLocked: {
     color: '#A0A3BD',
   },
-  docStatus: {
-    fontSize: 12,
-    color: '#A0A3BD',
+  availableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  availableDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00B894',
+    marginRight: 4,
+  },
+  availableText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00B894',
+  },
+  documentStatus: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  documentArrow: {
+    marginLeft: 8,
+  },
+  // Quick Actions
+  quickActionsSection: {
+    padding: 20,
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  quickActionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1D1E',
   },
   // Loading
   loadingContainer: {
@@ -599,44 +850,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  // Timeline Steps in Unmatched
-  timelineSteps: {
-    width: '100%',
-    marginBottom: 32,
-    paddingHorizontal: 10,
-  },
-  timelineStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
-  },
-  stepActive: {
-    backgroundColor: '#2A7BF6',
-    shadowColor: '#2A7BF6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-  },
-  stepPending: {
-    backgroundColor: '#E0E7EE',
-  },
-  stepText: {
-    fontSize: 14,
-    color: '#4E5D78',
-    fontWeight: '500',
-  },
-  stepLine: {
-    width: 2,
-    height: 20,
-    backgroundColor: '#E0E7EE',
-    marginLeft: 5, // Center with dot
-    marginVertical: 4,
-  }
 });
-

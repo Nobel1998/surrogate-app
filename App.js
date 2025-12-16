@@ -21,6 +21,7 @@ import PostDetailScreen from './src/screens/PostDetailScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import MyMatchScreen from './src/screens/MyMatchScreen';
 import MedicalReportFormScreen from './src/screens/MedicalReportFormScreen';
+import IntendedParentsProfileScreen from './src/screens/IntendedParentsProfileScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -191,6 +192,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
       <Stack.Screen name="MedicalReportForm" component={MedicalReportFormScreen} />
+      <Stack.Screen name="IntendedParentsProfile" component={IntendedParentsProfileScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="Benefits" component={BenefitsScreen} />

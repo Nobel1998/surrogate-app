@@ -1546,7 +1546,7 @@ export default function HomeScreen() {
     const reportData = report.report_data || {};
     const visitDate = report.visit_date ? new Date(report.visit_date) : null;
     const formattedDate = visitDate 
-      ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}/${String(visitDate.getDate()).padStart(2, '0')}/${String(visitDate.getFullYear()).slice(-2)}`
+      ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}-${String(visitDate.getDate()).padStart(2, '0')}-${visitDate.getFullYear()}`
       : 'N/A';
 
     // Extract key metrics based on stage

@@ -73,6 +73,15 @@ export default function MatchesPage() {
   const [stage, setStage] = useState<string>('pre');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Contract upload state
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contractMatchId, setContractMatchId] = useState<string | null>(null);
+  const [contractSurrogateId, setContractSurrogateId] = useState<string>('');
+  const [contractParentId, setContractParentId] = useState<string>('');
+  const [contractType, setContractType] = useState<string>('both');
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [uploadingContract, setUploadingContract] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -201,6 +210,56 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('Error updating status:', err);
       alert(err.message || 'Failed to update status');
+    }
+  };
+
+  const openContractModal = (match: Match) => {
+    setContractMatchId(match.id);
+    setContractSurrogateId(match.surrogate_id);
+    setContractParentId(match.parent_id);
+    setContractFile(null);
+    setContractType('both');
+    setShowContractModal(true);
+  };
+
+  const uploadContract = async () => {
+    if (!contractFile) {
+      alert('Please select a contract file');
+      return;
+    }
+    if (!contractSurrogateId || !contractParentId) {
+      alert('Surrogate and Parent IDs are required');
+      return;
+    }
+
+    setUploadingContract(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', contractFile);
+      formData.append('surrogate_id', contractSurrogateId);
+      formData.append('parent_id', contractParentId);
+      formData.append('contract_type', contractType);
+
+      const res = await fetch('/api/matches/contracts', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Contract uploaded successfully! Both users can now see it in their My Match section.');
+      setShowContractModal(false);
+      setContractFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading contract:', err);
+      alert(err.message || 'Failed to upload contract');
+    } finally {
+      setUploadingContract(false);
     }
   };
 
@@ -520,6 +579,12 @@ export default function MatchesPage() {
                             </option>
                           ))}
                         </select>
+                        <button
+                          onClick={() => openContractModal(m)}
+                          className="mt-2 w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          📄 Publish Contract
+                        </button>
                       </td>
                     </tr>
                   );
@@ -537,6 +602,95 @@ export default function MatchesPage() {
           </div>
         </div>
       </div>
+
+      {/* Contract Upload Modal */}
+      {showContractModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Publish Contract</h3>
+              <button
+                onClick={() => setShowContractModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[contractSurrogateId]?.name || contractSurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[contractParentId]?.name || contractParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contract Type
+                </label>
+                <select
+                  value={contractType}
+                  onChange={(e) => setContractType(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="both">Both (Parent & Surrogate)</option>
+                  <option value="parent">Parent Only</option>
+                  <option value="surrogate">Surrogate Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contract File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setContractFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {contractFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {contractFile.name}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowContractModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadContract}
+                  disabled={uploadingContract || !contractFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingContract || !contractFile
+                      ? 'bg-gray-400'
+                      : 'bg-green-600 hover:bg-green-700'
+                  } transition-colors`}
+                >
+                  {uploadingContract ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

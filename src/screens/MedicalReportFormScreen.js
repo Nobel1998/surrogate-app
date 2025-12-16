@@ -42,8 +42,8 @@ export default function MedicalReportFormScreen({ route }) {
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
-    const year = String(today.getFullYear()).slice(-2);
-    setVisitDate(`${month}/${day}/${year}`);
+    const year = today.getFullYear();
+    setVisitDate(`${month}-${day}-${year}`);
   }, []);
 
   const handleFieldChange = (key, value) => {
@@ -125,18 +125,15 @@ export default function MedicalReportFormScreen({ route }) {
     }
   };
 
-  const parseMMDDYYToISO = (s) => {
+  const parseMMDDYYYYToISO = (s) => {
     if (!s || typeof s !== 'string') return null;
     const trimmed = s.trim();
-    const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    const match = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (!match) return null;
     const month = parseInt(match[1], 10);
     const day = parseInt(match[2], 10);
-    let year = parseInt(match[3], 10);
-    if (year < 100) {
-      year = year < 50 ? 2000 + year : 1900 + year;
-    }
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const year = parseInt(match[3], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900 || year > 2100) return null;
     const d = new Date(year, month - 1, day, 0, 0, 0, 0);
     if (Number.isNaN(d.getTime())) return null;
     if (d.getMonth() !== month - 1 || d.getDate() !== day) return null;
@@ -157,9 +154,9 @@ export default function MedicalReportFormScreen({ route }) {
       return;
     }
 
-    const parsedDate = parseMMDDYYToISO(visitDate);
+    const parsedDate = parseMMDDYYYYToISO(visitDate);
     if (!parsedDate) {
-      Alert.alert('Validation Error', 'Please enter a valid visit date in MM/DD/YY format.');
+      Alert.alert('Validation Error', 'Please enter a valid visit date in MM-DD-YYYY format.');
       return;
     }
 
@@ -209,7 +206,7 @@ export default function MedicalReportFormScreen({ route }) {
 
   const submitReport = async (imageUrl) => {
     try {
-      const visitDateISO = formatDateToISO(parseMMDDYYToISO(visitDate));
+      const visitDateISO = formatDateToISO(parseMMDDYYYYToISO(visitDate));
 
       // Store provider contact in report_data if provided
       const reportDataWithContact = {
@@ -299,12 +296,12 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Lab Test Date (MM/DD/YY)</Text>
+        <Text style={styles.sectionLabel}>Lab Test Date (MM-DD-YYYY)</Text>
         <TextInput
           style={styles.input}
           value={formData.lab_test_date || ''}
           onChangeText={(value) => handleFieldChange('lab_test_date', value)}
-          placeholder="e.g. 12/01/25"
+          placeholder="e.g. 12-01-2025"
           placeholderTextColor="#94A3B8"
         />
       </View>
@@ -364,12 +361,12 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM/DD/YY)</Text>
+          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM-DD-YYYY)</Text>
           <TextInput
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
             onChangeText={(value) => handleFieldChange('ultrasound_test_date', value)}
-            placeholder="e.g. 12/01/25"
+            placeholder="e.g. 12-01-2025"
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -412,12 +409,12 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Lab Test Date (MM/DD/YY)</Text>
+        <Text style={styles.sectionLabel}>Lab Test Date (MM-DD-YYYY)</Text>
         <TextInput
           style={styles.input}
           value={formData.lab_test_date || ''}
           onChangeText={(value) => handleFieldChange('lab_test_date', value)}
-          placeholder="e.g. 12/01/25"
+          placeholder="e.g. 12-01-2025"
           placeholderTextColor="#94A3B8"
         />
       </View>
@@ -485,23 +482,23 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>EDD (Estimated Due Date) (MM/DD/YY)</Text>
+          <Text style={styles.sectionLabel}>EDD (Estimated Due Date) (MM-DD-YYYY)</Text>
           <TextInput
             style={styles.input}
             value={formData.edd || ''}
             onChangeText={(value) => handleFieldChange('edd', value)}
-            placeholder="e.g. 08/15/26"
+            placeholder="e.g. 08-15-2026"
             placeholderTextColor="#94A3B8"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM/DD/YY)</Text>
+          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM-DD-YYYY)</Text>
           <TextInput
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
             onChangeText={(value) => handleFieldChange('ultrasound_test_date', value)}
-            placeholder="e.g. 12/01/25"
+            placeholder="e.g. 12-01-2025"
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -628,7 +625,7 @@ export default function MedicalReportFormScreen({ route }) {
                   style={[styles.input, { flex: 1, marginLeft: 12 }]}
                   value={formData[`${test.key}_test_date`] || ''}
                   onChangeText={(value) => handleFieldChange(`${test.key}_test_date`, value)}
-                  placeholder="Test date (MM/DD/YY)"
+                  placeholder="Test date (MM-DD-YYYY)"
                   placeholderTextColor="#94A3B8"
                 />
               </View>
@@ -648,12 +645,12 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Next Appointment Date (MM/DD/YY)</Text>
+          <Text style={styles.sectionLabel}>Next Appointment Date (MM-DD-YYYY)</Text>
           <TextInput
             style={styles.input}
             value={formData.next_appointment_date || ''}
             onChangeText={(value) => handleFieldChange('next_appointment_date', value)}
-            placeholder="e.g. 01/15/26"
+            placeholder="e.g. 01-15-2026"
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -699,12 +696,12 @@ export default function MedicalReportFormScreen({ route }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Visit Date (MM/DD/YY) *</Text>
+            <Text style={styles.sectionLabel}>Visit Date (MM-DD-YYYY) *</Text>
             <TextInput
               style={styles.input}
               value={visitDate}
               onChangeText={setVisitDate}
-              placeholder="e.g. 12/01/25"
+              placeholder="e.g. 12-01-2025"
               placeholderTextColor="#94A3B8"
             />
           </View>
