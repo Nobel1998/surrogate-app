@@ -354,7 +354,9 @@ export default function MyInfoScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Account Information</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>User ID</Text>
-            <Text style={styles.infoValue}>{user?.id?.substring(0, 8)}...</Text>
+            <Text style={styles.infoValue} selectable>
+              {user?.id || 'N/A'}
+            </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Role</Text>
@@ -465,7 +467,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
@@ -473,10 +475,15 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 14,
     color: '#666',
+    flexShrink: 0,
+    marginRight: 12,
+    minWidth: 80,
   },
   infoValue: {
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
   },
 });
