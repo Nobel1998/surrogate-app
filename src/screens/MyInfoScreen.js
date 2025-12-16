@@ -97,6 +97,29 @@ export default function MyInfoScreen({ navigation }) {
       // Parse date of birth from display format to ISO format
       const dateOfBirthISO = parseDateFromInput(dateOfBirthDisplay);
       
+      // First, get existing invite_code to preserve it (required field)
+      let existingInviteCode = null;
+      try {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('invite_code')
+          .eq('id', user.id)
+          .maybeSingle();
+        existingInviteCode = existingProfile?.invite_code || null;
+      } catch (err) {
+        console.error('Error fetching existing invite_code:', err);
+      }
+
+      // Generate invite_code if it doesn't exist (shouldn't happen, but safety check)
+      if (!existingInviteCode) {
+        const chars = 'ABCDEFGHJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        existingInviteCode = code;
+      }
+      
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -107,6 +130,7 @@ export default function MyInfoScreen({ navigation }) {
           date_of_birth: dateOfBirthISO || null,
           race: profileData.race.trim() || null,
           location: profileData.location.trim() || null,
+          invite_code: existingInviteCode, // Preserve existing invite_code
         }, { onConflict: 'id' });
 
       if (error) {
