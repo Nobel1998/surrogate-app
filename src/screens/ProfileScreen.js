@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const { language, getLanguageLabel } = useLanguage();
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
@@ -248,7 +250,13 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Section 2 */}
         <View style={styles.section}>
-          {renderMenuItem('En/中文/Spanish', 'globe', () => Alert.alert('Language', 'Coming Soon'), '#FF9800')}
+          {renderMenuItem(
+            'Language',
+            'globe',
+            () => navigation.navigate('Language'),
+            '#FF9800',
+            getLanguageLabel(language)
+          )}
           {renderMenuItem('Refer', 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
           {renderMenuItem('Rate The App', 'star', () => Alert.alert('Rate', 'Coming Soon'), '#4CAF50')}
           {renderMenuItem('Rate Us', 'thumbs-up', () => Alert.alert('Rate Us', 'Coming Soon'), '#FF9800')}
