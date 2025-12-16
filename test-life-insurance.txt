@@ -1,0 +1,63 @@
+SURROGATE LIFE INSURANCE POLICY
+
+Policy Information:
+-------------------
+Policy Number: POL-2025-001234
+Policyholder: [Surrogate Name]
+Beneficiary: [Beneficiary Name]
+Insurance Company: [Insurance Company Name]
+Policy Type: Term Life Insurance
+Coverage Amount: $500,000
+Premium: $[Amount] per month
+Effective Date: [Date]
+Expiration Date: [Date]
+
+Coverage Details:
+-----------------
+- Death Benefit: $500,000
+- Coverage Period: 12 months
+- Premium Payment: Monthly
+- Grace Period: 30 days
+- Policy Term: Renewable annually
+
+Coverage Conditions:
+--------------------
+1. This policy provides coverage during the surrogacy period
+2. Coverage includes pregnancy-related complications
+3. Policy remains active throughout the surrogacy journey
+4. Premium payments must be maintained to keep coverage active
+5. Claims must be filed within 90 days of the incident
+
+Exclusions:
+-----------
+- Pre-existing conditions not disclosed at application
+- Self-inflicted injuries
+- War or acts of terrorism
+- Participation in illegal activities
+
+Contact Information:
+--------------------
+Insurance Agent: [Agent Name]
+Phone: [Phone Number]
+Email: [Email Address]
+Address: [Address]
+
+Claims Process:
+---------------
+1. Notify insurance company within 30 days of incident
+2. Submit required documentation
+3. Claims will be processed within 30-60 business days
+4. Payment will be made to designated beneficiary
+
+Important Notes:
+----------------
+- Keep this policy document in a safe place
+- Review policy terms and conditions regularly
+- Contact insurance company for any questions
+- Update beneficiary information as needed
+
+Policy Status: Active
+Last Updated: [Date]
+
+---
+This is a test document for Surrogate Life Insurance Policy upload functionality.

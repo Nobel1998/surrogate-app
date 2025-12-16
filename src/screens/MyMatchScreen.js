@@ -141,6 +141,7 @@ export default function MyMatchScreen({ navigation }) {
             'legal_contract',
             'agency_contract',
             'insurance_policy',
+            'health_insurance_bill',
             'parental_rights',
             'medical_records',
             'parent_contract',
@@ -289,7 +290,7 @@ export default function MyMatchScreen({ navigation }) {
         label: 'Surrogate Health Insurance Bill',
         icon: 'heart',
         iconColor: '#E17055',
-        documentType: 'insurance_policy',
+        documentType: 'health_insurance_bill',
       },
       {
         key: 'pbo',
