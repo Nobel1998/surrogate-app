@@ -273,6 +273,29 @@ export default function MatchesPage() {
     }
   };
 
+  const deleteContract = async (contractId: string) => {
+    if (!confirm('Are you sure you want to delete this contract? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/matches/contracts?id=${contractId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Delete failed: ${res.status} ${errText}`);
+      }
+
+      alert('Contract deleted successfully!');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error deleting contract:', err);
+      alert(err.message || 'Failed to delete contract');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -448,14 +471,22 @@ export default function MatchesPage() {
                           {contract.created_at ? new Date(contract.created_at).toLocaleString() : '—'}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          <a
-                            href={contract.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Download
-                          </a>
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={contract.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Download
+                            </a>
+                            <button
+                              onClick={() => deleteContract(contract.id)}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

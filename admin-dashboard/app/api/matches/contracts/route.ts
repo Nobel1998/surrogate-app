@@ -90,3 +90,82 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message || 'Failed to upload contract' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const contractId = searchParams.get('id');
+
+    if (!contractId) {
+      return NextResponse.json({ error: 'Contract ID is required' }, { status: 400 });
+    }
+
+    // First, get the contract to find the file URL
+    const { data: contract, error: fetchError } = await supabase
+      .from('documents')
+      .select('id, file_url')
+      .eq('id', contractId)
+      .single();
+
+    if (fetchError || !contract) {
+      return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+    }
+
+    // Extract file path from public URL
+    // URL format: https://xxx.supabase.co/storage/v1/object/public/documents/match-contracts/xxx.txt
+    const fileUrl = contract.file_url;
+    let filePath: string | null = null;
+    
+    if (fileUrl) {
+      // Try to extract path from URL
+      const urlMatch = fileUrl.match(/\/storage\/v1\/object\/public\/documents\/(.+)$/);
+      if (urlMatch && urlMatch[1]) {
+        filePath = urlMatch[1];
+      }
+    }
+
+    // Delete from documents table
+    const { error: deleteError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', contractId);
+
+    if (deleteError) throw deleteError;
+
+    // Delete file from storage if path is available
+    // Note: We only delete the file if this is the last document using it
+    // Check if other documents use the same file_url
+    if (filePath) {
+      const { data: otherDocs, error: checkError } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('file_url', fileUrl)
+        .limit(1);
+
+      // If no other documents use this file, delete it from storage
+      if (!checkError && (!otherDocs || otherDocs.length === 0)) {
+        const { error: storageError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([filePath]);
+
+        if (storageError) {
+          console.error('[matches/contracts] Failed to delete file from storage:', storageError);
+          // Don't fail the request if storage deletion fails
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('[matches/contracts] DELETE error', err);
+    return NextResponse.json({ error: err.message || 'Failed to delete contract' }, { status: 500 });
+  }
+}
