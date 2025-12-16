@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAgencyRetainerDoc();
@@ -36,6 +37,18 @@ export default function ProfileScreen({ navigation }) {
       console.error('Failed to load agency retainer doc:', error);
     } finally {
       setLoadingDoc(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Refresh all data that might have changed
+      await loadAgencyRetainerDoc();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -143,7 +156,18 @@ export default function ProfileScreen({ navigation }) {
         {renderHeaderButton('info', 'About Us', () => navigation.navigate('Company'), '#9C27B0')}
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2A7BF6"
+            colors={['#2A7BF6']}
+          />
+        }
+      >
         {/* Section 1 */}
         <View style={styles.section}>
           {renderMenuItem('My Info', 'tag', () => navigation.navigate('MyInfo'), '#FF9800')}
