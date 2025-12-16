@@ -226,27 +226,33 @@ export default function CustomerServiceScreen({ navigation }) {
                 style={styles.ticketItem}
                 onPress={() => handleViewTicket(ticket)}
               >
-                <View style={styles.ticketHeader}>
-                  <Text style={styles.ticketSubject} numberOfLines={1}>
-                    {ticket.subject}
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(ticket.status) },
-                    ]}
-                  >
-                    <Text style={styles.statusText}>{getStatusLabel(ticket.status)}</Text>
+                <View style={styles.ticketContent}>
+                  <View style={styles.ticketHeader}>
+                    <Text style={styles.ticketSubject} numberOfLines={1}>
+                      {ticket.subject}
+                    </Text>
+                  </View>
+                  <Text style={styles.ticketDate}>{formatDate(ticket.created_at)}</Text>
+                  {ticket.admin_response && (
+                    <View style={styles.hasResponseBadge}>
+                      <Icon name="check-circle" size={14} color="#4CAF50" />
+                      <Text style={styles.hasResponseText}>Admin responded</Text>
+                    </View>
+                  )}
+                  <View style={styles.ticketFooter}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(ticket.status) },
+                      ]}
+                    >
+                      <Text style={styles.statusText}>{getStatusLabel(ticket.status)}</Text>
+                    </View>
                   </View>
                 </View>
-                <Text style={styles.ticketDate}>{formatDate(ticket.created_at)}</Text>
-                {ticket.admin_response && (
-                  <View style={styles.hasResponseBadge}>
-                    <Icon name="check-circle" size={14} color="#4CAF50" />
-                    <Text style={styles.hasResponseText}>Admin responded</Text>
-                  </View>
-                )}
-                <Icon name="chevron-right" size={20} color="#CCC" style={styles.ticketChevron} />
+                <View style={styles.ticketArrowContainer}>
+                  <Icon name="chevron-right" size={20} color="#CCC" />
+                </View>
               </TouchableOpacity>
             ))
           )}
@@ -576,34 +582,24 @@ const styles = StyleSheet.create({
   ticketItem: {
     backgroundColor: '#F8F9FB',
     borderRadius: 8,
-    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  ticketContent: {
+    flex: 1,
+    padding: 16,
   },
   ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
     marginBottom: 8,
   },
   ticketSubject: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    flex: 1,
-    marginRight: 12,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   ticketDate: {
     fontSize: 12,
@@ -614,6 +610,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+    marginBottom: 8,
   },
   hasResponseText: {
     fontSize: 12,
@@ -621,11 +618,27 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '500',
   },
-  ticketChevron: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -10,
+  ticketFooter: {
+    marginTop: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  ticketArrowContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#E0E0E0',
   },
   modalOverlay: {
     position: 'absolute',
