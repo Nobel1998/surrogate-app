@@ -1,10 +1,65 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+
+  useEffect(() => {
+    loadAgencyRetainerDoc();
+  }, [user]);
+
+  const loadAgencyRetainerDoc = async () => {
+    if (!user?.id) return;
+    
+    setLoadingDoc(true);
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('document_type', 'agency_retainer')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading agency retainer doc:', error);
+      } else {
+        setAgencyRetainerDoc(data);
+      }
+    } catch (error) {
+      console.error('Failed to load agency retainer doc:', error);
+    } finally {
+      setLoadingDoc(false);
+    }
+  };
+
+  const handleAgencyRetainerPress = async () => {
+    if (loadingDoc) return;
+    
+    if (!agencyRetainerDoc || !agencyRetainerDoc.file_url) {
+      Alert.alert('No Document Available', 'Agency Retainer Agreement has not been uploaded yet.');
+      return;
+    }
+
+    try {
+      const url = agencyRetainerDoc.file_url;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open this document');
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert('Error', 'Failed to open document');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -39,15 +94,21 @@ export default function ProfileScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const renderMenuItem = (label, icon, onPress, iconColor = '#333', value = null) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+  const renderMenuItem = (label, icon, onPress, iconColor = '#333', value = null, showLoading = false) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} disabled={showLoading}>
       <View style={styles.menuItemLeft}>
         <Icon name={icon} size={20} color={iconColor} style={styles.menuIcon} />
         <Text style={styles.menuItemText}>{label}</Text>
       </View>
       <View style={styles.menuItemRight}>
-        {value && <Text style={styles.menuItemValue}>{value}</Text>}
-        <Icon name="chevron-right" size={20} color="#CCC" />
+        {showLoading ? (
+          <ActivityIndicator size="small" color="#999" />
+        ) : (
+          <>
+            {value && <Text style={styles.menuItemValue}>{value}</Text>}
+            <Icon name="chevron-right" size={20} color="#CCC" />
+          </>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -86,7 +147,14 @@ export default function ProfileScreen({ navigation }) {
         {/* Section 1 */}
         <View style={styles.section}>
           {renderMenuItem('My Info', 'tag', () => navigation.navigate('MyInfo'), '#FF9800')}
-          {renderMenuItem('Agency Retainer Agreement', 'eye-off', () => Alert.alert('Agreement', 'Coming Soon'), '#666')}
+          {renderMenuItem(
+            'Agency Retainer Agreement',
+            'file-text',
+            handleAgencyRetainerPress,
+            '#666',
+            agencyRetainerDoc ? 'Available' : 'Not Available',
+            loadingDoc
+          )}
           {renderMenuItem('HIPPA Release', 'info', () => Alert.alert('HIPPA', 'Coming Soon'), '#333')}
           {renderMenuItem('Photo Release', 'camera', () => Alert.alert('Photo Release', 'Coming Soon'), '#333')}
           {renderMenuItem('Benefit Package', 'gift', () => navigation.navigate('Benefits'), '#333')}

@@ -131,6 +131,14 @@ export default function MatchesPage() {
   const [claimsParentId, setClaimsParentId] = useState<string>('');
   const [claimsFile, setClaimsFile] = useState<File | null>(null);
   const [uploadingClaims, setUploadingClaims] = useState(false);
+  
+  // Agency Retainer Agreement upload state
+  const [showAgencyRetainerModal, setShowAgencyRetainerModal] = useState(false);
+  const [agencyRetainerMatchId, setAgencyRetainerMatchId] = useState<string | null>(null);
+  const [agencyRetainerSurrogateId, setAgencyRetainerSurrogateId] = useState<string>('');
+  const [agencyRetainerParentId, setAgencyRetainerParentId] = useState<string>('');
+  const [agencyRetainerFile, setAgencyRetainerFile] = useState<File | null>(null);
+  const [uploadingAgencyRetainer, setUploadingAgencyRetainer] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -576,6 +584,54 @@ export default function MatchesPage() {
     }
   };
 
+  const openAgencyRetainerModal = (match: Match) => {
+    setAgencyRetainerMatchId(match.id);
+    setAgencyRetainerSurrogateId(match.surrogate_id);
+    setAgencyRetainerParentId(match.parent_id);
+    setAgencyRetainerFile(null);
+    setShowAgencyRetainerModal(true);
+  };
+
+  const uploadAgencyRetainer = async () => {
+    if (!agencyRetainerFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!agencyRetainerSurrogateId || !agencyRetainerParentId) {
+      alert('Surrogate and Parent IDs are required');
+      return;
+    }
+
+    setUploadingAgencyRetainer(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', agencyRetainerFile);
+      formData.append('surrogate_id', agencyRetainerSurrogateId);
+      formData.append('parent_id', agencyRetainerParentId);
+
+      const res = await fetch('/api/matches/agency-retainer', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Agency Retainer Agreement uploaded successfully! Both users can now see it in their User Center.');
+      setShowAgencyRetainerModal(false);
+      setAgencyRetainerFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading agency retainer:', err);
+      alert(err.message || 'Failed to upload agency retainer agreement');
+    } finally {
+      setUploadingAgencyRetainer(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -750,6 +806,8 @@ export default function MatchesPage() {
                       contractTypeLabel = 'PBO';
                     } else if (contract.document_type === 'online_claims') {
                       contractTypeLabel = 'Online Claims';
+                    } else if (contract.document_type === 'agency_retainer') {
+                      contractTypeLabel = 'Agency Retainer Agreement';
                     } else {
                       contractTypeLabel = contract.document_type;
                     }
@@ -1015,6 +1073,12 @@ export default function MatchesPage() {
                           className="mt-2 w-full px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           ✅ Upload Online Claims
+                        </button>
+                        <button
+                          onClick={() => openAgencyRetainerModal(m)}
+                          className="mt-2 w-full px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          📄 Upload Agency Retainer
                         </button>
                       </td>
                     </tr>
@@ -1489,6 +1553,83 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingClaims ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Agency Retainer Agreement Upload Modal */}
+      {showAgencyRetainerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Agency Retainer Agreement</h3>
+              <button
+                onClick={() => setShowAgencyRetainerModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[agencyRetainerSurrogateId]?.name || agencyRetainerSurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[agencyRetainerParentId]?.name || agencyRetainerParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Agency Retainer Agreement File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setAgencyRetainerFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+                />
+                {agencyRetainerFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {agencyRetainerFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The agency retainer agreement will be visible to both parties in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAgencyRetainerModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadAgencyRetainer}
+                  disabled={uploadingAgencyRetainer || !agencyRetainerFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingAgencyRetainer || !agencyRetainerFile
+                      ? 'bg-gray-400'
+                      : 'bg-pink-600 hover:bg-pink-700'
+                  } transition-colors`}
+                >
+                  {uploadingAgencyRetainer ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>

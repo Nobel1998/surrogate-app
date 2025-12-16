@@ -147,6 +147,7 @@ export default function MyMatchScreen({ navigation }) {
             'parent_contract',
             'surrogate_contract',
             'online_claims',
+            'agency_retainer',
           ])
           .or(userIdOrClause)
           .order('created_at', { ascending: false });
