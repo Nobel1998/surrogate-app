@@ -85,7 +85,7 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Section 1 */}
         <View style={styles.section}>
-          {renderMenuItem('My Info', 'tag', () => Alert.alert('My Info', 'Edit Profile Coming Soon'), '#FF9800')}
+          {renderMenuItem('My Info', 'tag', () => navigation.navigate('MyInfo'), '#FF9800')}
           {renderMenuItem('Agency Retainer Agreement', 'eye-off', () => Alert.alert('Agreement', 'Coming Soon'), '#666')}
           {renderMenuItem('HIPPA Release', 'info', () => Alert.alert('HIPPA', 'Coming Soon'), '#333')}
           {renderMenuItem('Photo Release', 'camera', () => Alert.alert('Photo Release', 'Coming Soon'), '#333')}
