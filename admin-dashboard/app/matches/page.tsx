@@ -91,6 +91,14 @@ export default function MatchesPage() {
   const [contractParentId, setContractParentId] = useState<string>('');
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadingContract, setUploadingContract] = useState(false);
+  
+  // Attorney Retainer Agreement upload state
+  const [showAttorneyModal, setShowAttorneyModal] = useState(false);
+  const [attorneyMatchId, setAttorneyMatchId] = useState<string | null>(null);
+  const [attorneySurrogateId, setAttorneySurrogateId] = useState<string>('');
+  const [attorneyParentId, setAttorneyParentId] = useState<string>('');
+  const [attorneyFile, setAttorneyFile] = useState<File | null>(null);
+  const [uploadingAttorney, setUploadingAttorney] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -296,6 +304,54 @@ export default function MatchesPage() {
     }
   };
 
+  const openAttorneyModal = (match: Match) => {
+    setAttorneyMatchId(match.id);
+    setAttorneySurrogateId(match.surrogate_id);
+    setAttorneyParentId(match.parent_id);
+    setAttorneyFile(null);
+    setShowAttorneyModal(true);
+  };
+
+  const uploadAttorneyRetainer = async () => {
+    if (!attorneyFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!attorneySurrogateId || !attorneyParentId) {
+      alert('Surrogate and Parent IDs are required');
+      return;
+    }
+
+    setUploadingAttorney(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', attorneyFile);
+      formData.append('surrogate_id', attorneySurrogateId);
+      formData.append('parent_id', attorneyParentId);
+
+      const res = await fetch('/api/matches/attorney-retainer', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Attorney Retainer Agreement uploaded successfully! Both users can now see it in their My Match section.');
+      setShowAttorneyModal(false);
+      setAttorneyFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading attorney retainer:', err);
+      alert(err.message || 'Failed to upload attorney retainer agreement');
+    } finally {
+      setUploadingAttorney(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -455,7 +511,16 @@ export default function MatchesPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {contracts.map((contract) => {
                     const user = profileLookup[contract.user_id];
-                    const contractTypeLabel = contract.document_type === 'parent_contract' ? 'Parent Contract' : 'Surrogate Contract';
+                    let contractTypeLabel = '';
+                    if (contract.document_type === 'parent_contract') {
+                      contractTypeLabel = 'Parent Contract';
+                    } else if (contract.document_type === 'surrogate_contract') {
+                      contractTypeLabel = 'Surrogate Contract';
+                    } else if (contract.document_type === 'legal_contract') {
+                      contractTypeLabel = 'Attorney Retainer Agreement';
+                    } else {
+                      contractTypeLabel = contract.document_type;
+                    }
                     return (
                       <tr key={contract.id}>
                         <td className="px-4 py-3 text-sm text-gray-900">
@@ -689,6 +754,12 @@ export default function MatchesPage() {
                         >
                           📄 Publish Contract
                         </button>
+                        <button
+                          onClick={() => openAttorneyModal(m)}
+                          className="mt-2 w-full px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          ⚖️ Upload Attorney Retainer
+                        </button>
                       </td>
                     </tr>
                   );
@@ -777,6 +848,83 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingContract ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attorney Retainer Agreement Upload Modal */}
+      {showAttorneyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Attorney Retainer Agreement</h3>
+              <button
+                onClick={() => setShowAttorneyModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[attorneySurrogateId]?.name || attorneySurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[attorneyParentId]?.name || attorneyParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Attorney Retainer Agreement File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setAttorneyFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                />
+                {attorneyFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {attorneyFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The agreement will be visible to both parties in their My Match section.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAttorneyModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadAttorneyRetainer}
+                  disabled={uploadingAttorney || !attorneyFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingAttorney || !attorneyFile
+                      ? 'bg-gray-400'
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  } transition-colors`}
+                >
+                  {uploadingAttorney ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>
