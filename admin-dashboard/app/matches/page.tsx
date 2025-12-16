@@ -1012,7 +1012,7 @@ export default function MatchesPage() {
                         </button>
                         <button
                           onClick={() => openClaimsModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                          className="mt-2 w-full px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           ✅ Upload Online Claims
                         </button>
@@ -1460,7 +1460,7 @@ export default function MatchesPage() {
                   type="file"
                   accept=".pdf,.doc,.docx,.txt"
                   onChange={(e) => setClaimsFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                 />
                 {claimsFile && (
                   <div className="mt-2 text-xs text-gray-500">
@@ -1485,7 +1485,7 @@ export default function MatchesPage() {
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
                     uploadingClaims || !claimsFile
                       ? 'bg-gray-400'
-                      : 'bg-purple-600 hover:bg-purple-700'
+                      : 'bg-teal-600 hover:bg-teal-700'
                   } transition-colors`}
                 >
                   {uploadingClaims ? 'Uploading...' : 'Upload & Publish'}

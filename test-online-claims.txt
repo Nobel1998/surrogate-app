@@ -1,0 +1,109 @@
+ONLINE CLAIMS DOCUMENT
+
+Claim Information:
+------------------
+Claim Number: CLM-2025-001234
+Claim Type: Surrogacy Related Expenses
+Date Filed: [Date]
+Status: Pending/Approved/Denied
+Claimant: [Name]
+Policy Number: POL-2025-001234
+
+Expense Details:
+----------------
+Total Claim Amount: $[Amount]
+Date Range: [Start Date] to [End Date]
+
+Itemized Expenses:
+------------------
+1. Medical Expenses:
+   - Date: [Date]
+   - Provider: [Provider Name]
+   - Service: [Service Description]
+   - Amount: $[Amount]
+   - Receipt: [Receipt Number]
+
+2. Travel Expenses:
+   - Date: [Date]
+   - Destination: [Location]
+   - Purpose: Medical Appointment
+   - Amount: $[Amount]
+   - Receipt: [Receipt Number]
+
+3. Accommodation:
+   - Date: [Date]
+   - Location: [Location]
+   - Purpose: Medical Treatment
+   - Amount: $[Amount]
+   - Receipt: [Receipt Number]
+
+4. Medication:
+   - Date: [Date]
+   - Medication: [Medication Name]
+   - Prescription: [Prescription Number]
+   - Amount: $[Amount]
+   - Receipt: [Receipt Number]
+
+5. Other Expenses:
+   - Date: [Date]
+   - Description: [Description]
+   - Amount: $[Amount]
+   - Receipt: [Receipt Number]
+
+Supporting Documents:
+---------------------
+- Medical receipts
+- Travel receipts
+- Prescription receipts
+- Insurance statements
+- Other relevant documentation
+
+Claim Summary:
+--------------
+Total Expenses: $[Amount]
+Reimbursement Requested: $[Amount]
+Deductible Applied: $[Amount]
+Co-pay Amount: $[Amount]
+Insurance Coverage: $[Amount]
+Out-of-Pocket: $[Amount]
+
+Processing Information:
+-----------------------
+Submitted By: [Name]
+Submission Date: [Date]
+Processing Status: [Status]
+Review Date: [Date]
+Approval Date: [Date]
+Payment Date: [Date]
+
+Notes:
+------
+[Additional notes or comments about the claim]
+
+Contact Information:
+--------------------
+Insurance Company: [Company Name]
+Claims Department: [Department]
+Phone: [Phone Number]
+Email: [Email Address]
+Fax: [Fax Number]
+Address: [Address]
+
+Claim Status Updates:
+---------------------
+- [Date]: Claim submitted
+- [Date]: Under review
+- [Date]: Additional documentation requested
+- [Date]: Approved/Denied
+- [Date]: Payment processed
+
+Important Information:
+----------------------
+- Keep all original receipts for your records
+- Claims must be submitted within 90 days of service
+- Processing time: 30-60 business days
+- Contact claims department for status updates
+- Appeals process available if claim is denied
+
+---
+This is a test document for Online Claims upload functionality.
