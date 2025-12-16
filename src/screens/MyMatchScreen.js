@@ -307,14 +307,6 @@ export default function MyMatchScreen({ navigation }) {
         iconColor: '#6C5CE7',
         documentType: 'online_claims',
       },
-      {
-        key: 'payment_record',
-        label: 'Payment Record',
-        icon: 'dollar-sign',
-        iconColor: '#00B894',
-        documentType: null,
-        alwaysAvailable: true,
-      },
     ];
 
     return (
