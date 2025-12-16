@@ -1,0 +1,63 @@
+HIPAA AUTHORIZATION AND RELEASE FORM
+
+This HIPAA Authorization and Release Form ("Authorization") is executed on this date.
+
+PATIENT INFORMATION:
+- Patient Name: [Patient Name]
+- Date of Birth: [Date of Birth]
+- Medical Record Number: [MRN]
+
+AUTHORIZATION TO DISCLOSE HEALTH INFORMATION
+
+I hereby authorize the following healthcare providers and facilities to disclose my protected health information (PHI) as described below:
+
+Healthcare Provider/Facility: [Provider Name]
+Address: [Provider Address]
+Phone: [Provider Phone]
+
+INFORMATION TO BE DISCLOSED:
+The following types of health information may be disclosed:
+1. Medical records and treatment history
+2. Laboratory test results
+3. Diagnostic imaging reports
+4. Prescription and medication records
+5. Treatment plans and progress notes
+6. Billing and insurance information
+
+PURPOSE OF DISCLOSURE:
+This information is being disclosed for the following purpose(s):
+- Surrogacy medical coordination
+- Insurance verification and claims processing
+- Medical care coordination between providers
+- Legal documentation requirements
+
+RECIPIENTS OF INFORMATION:
+The following individuals/organizations are authorized to receive this information:
+- Surrogacy Agency: [Agency Name]
+- Intended Parents: [Parent Names]
+- Medical Coordinators: [Coordinator Names]
+- Insurance Providers: [Insurance Company Names]
+
+AUTHORIZATION PERIOD:
+This authorization is valid from [Start Date] until [End Date] or until revoked in writing, whichever comes first.
+
+REVOCATION RIGHTS:
+I understand that I have the right to revoke this authorization at any time by submitting a written revocation to the healthcare provider. However, any disclosure made prior to revocation cannot be undone.
+
+CONFIDENTIALITY:
+I understand that the information disclosed may be subject to re-disclosure by the recipient and may no longer be protected by HIPAA privacy rules.
+
+SIGNATURE:
+
+Patient/Authorized Representative:
+_________________________
+Name: [Patient Name]
+Date: _______________
+Relationship (if signing for patient): _______________
+
+Witness:
+_________________________
+Name: [Witness Name]
+Date: _______________
+
+This is a test document for HIPAA Release upload functionality.
