@@ -26,6 +26,7 @@ export default function MyInfoScreen({ navigation }) {
     race: '',
     location: '',
   });
+  const [dateOfBirthDisplay, setDateOfBirthDisplay] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -51,6 +52,7 @@ export default function MyInfoScreen({ navigation }) {
       }
 
       if (data) {
+        const dobDisplay = formatDateForInput(data.date_of_birth || '');
         setProfileData({
           name: data.name || user.name || '',
           email: data.email || user.email || '',
@@ -59,6 +61,7 @@ export default function MyInfoScreen({ navigation }) {
           race: data.race || '',
           location: data.location || '',
         });
+        setDateOfBirthDisplay(dobDisplay);
       } else {
         // Fallback to user data from auth
         setProfileData({
@@ -69,6 +72,7 @@ export default function MyInfoScreen({ navigation }) {
           race: '',
           location: '',
         });
+        setDateOfBirthDisplay('');
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -90,6 +94,9 @@ export default function MyInfoScreen({ navigation }) {
 
     setSaving(true);
     try {
+      // Parse date of birth from display format to ISO format
+      const dateOfBirthISO = parseDateFromInput(dateOfBirthDisplay);
+      
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -97,7 +104,7 @@ export default function MyInfoScreen({ navigation }) {
           name: profileData.name.trim(),
           email: profileData.email.trim() || user.email,
           phone: profileData.phone.trim() || null,
-          date_of_birth: profileData.date_of_birth.trim() || null,
+          date_of_birth: dateOfBirthISO || null,
           race: profileData.race.trim() || null,
           location: profileData.location.trim() || null,
         }, { onConflict: 'id' });
@@ -135,27 +142,74 @@ export default function MyInfoScreen({ navigation }) {
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
     try {
+      // Handle ISO format (YYYY-MM-DD)
+      if (dateString.includes('-') && dateString.length >= 10) {
+        const parts = dateString.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+          // ISO format: YYYY-MM-DD
+          const year = parts[0];
+          const month = parts[1];
+          const day = parts[2];
+          return `${month}-${day}-${year}`;
+        }
+      }
+      
+      // Try parsing as Date object
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${month}-${day}-${year}`;
     } catch (e) {
-      return dateString;
+      return '';
     }
   };
 
   const parseDateFromInput = (dateString) => {
-    if (!dateString) return null;
+    if (!dateString || !dateString.trim()) return null;
+    
+    // Remove any non-digit and non-dash characters
+    const cleaned = dateString.replace(/[^\d-]/g, '');
+    
     // Format: MM-DD-YYYY
-    const parts = dateString.split('-');
+    const parts = cleaned.split('-').filter(p => p.length > 0);
+    
     if (parts.length === 3) {
-      const month = parts[0];
-      const day = parts[1];
+      const month = parts[0].padStart(2, '0');
+      const day = parts[1].padStart(2, '0');
       const year = parts[2];
+      
+      // Validate the date parts
+      const monthNum = parseInt(month, 10);
+      const dayNum = parseInt(day, 10);
+      const yearNum = parseInt(year, 10);
+      
+      if (isNaN(monthNum) || isNaN(dayNum) || isNaN(yearNum)) {
+        return null;
+      }
+      
+      // Basic validation
+      if (monthNum < 1 || monthNum > 12) return null;
+      if (dayNum < 1 || dayNum > 31) return null;
+      if (yearNum < 1900 || yearNum > 2100) return null;
+      
+      // Validate the actual date
+      const date = new Date(yearNum, monthNum - 1, dayNum);
+      if (isNaN(date.getTime())) return null;
+      
+      // Check if the date is valid (e.g., not Feb 30)
+      if (date.getMonth() !== monthNum - 1 || date.getDate() !== dayNum) {
+        return null;
+      }
+      
       return `${year}-${month}-${day}`;
     }
-    return dateString;
+    
+    return null;
   };
 
   if (loading) {
@@ -235,10 +289,10 @@ export default function MyInfoScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="MM-DD-YYYY"
-              value={formatDateForInput(profileData.date_of_birth)}
+              value={dateOfBirthDisplay}
               onChangeText={(text) => {
-                const parsed = parseDateFromInput(text);
-                setProfileData({ ...profileData, date_of_birth: parsed || text });
+                // Allow user to type freely, just update display value
+                setDateOfBirthDisplay(text);
               }}
               placeholderTextColor="#999"
             />
