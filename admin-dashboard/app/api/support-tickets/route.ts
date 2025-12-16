@@ -36,7 +36,7 @@ export async function GET() {
 
     // Fetch user profiles for tickets
     const userIds = [...new Set(tickets?.map(t => t.user_id) || [])];
-    let profiles = {};
+    const profiles: Record<string, any> = {};
     
     if (userIds.length > 0) {
       const { data: profilesData, error: profilesError } = await supabase
