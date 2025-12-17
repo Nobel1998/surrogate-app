@@ -193,9 +193,17 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleRateApp = async () => {
+    console.log('⭐ [Rate App] handleRateApp called');
+    
     try {
+      console.log('⭐ [Rate App] Checking StoreReview availability...');
+      console.log('⭐ [Rate App] StoreReview object:', StoreReview ? 'exists' : 'null/undefined');
+      console.log('⭐ [Rate App] StoreReview.hasAction type:', typeof StoreReview?.hasAction);
+      
       // Check if StoreReview is available (may not be available if app is not published)
       if (!StoreReview || typeof StoreReview.hasAction !== 'function') {
+        console.log('⚠️ [Rate App] StoreReview not available or hasAction is not a function');
+        console.log('⚠️ [Rate App] Showing unpublished app message');
         // App is not published yet, show friendly message
         Alert.alert(
           t('profile.rateApp'),
@@ -204,90 +212,146 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
 
+      console.log('✅ [Rate App] StoreReview is available');
+      
       // Check if the device supports in-app review
+      console.log('⭐ [Rate App] Checking hasAction()...');
       const isAvailable = await StoreReview.hasAction();
+      console.log('⭐ [Rate App] hasAction() result:', isAvailable);
       
       if (isAvailable) {
+        console.log('✅ [Rate App] In-app review is available, requesting review...');
         // Try to request in-app review (iOS/Android native prompt)
         // Note: Platform may not show the prompt if it was recently shown
-        await StoreReview.requestReview();
+        try {
+          await StoreReview.requestReview();
+          console.log('✅ [Rate App] requestReview() called successfully');
+        } catch (reviewError) {
+          console.error('❌ [Rate App] Error calling requestReview():', reviewError);
+        }
         
         // After attempting to show the review prompt, always offer to open store page
         // This handles the case where the prompt doesn't appear (due to platform limits)
+        console.log('⭐ [Rate App] Setting timeout to show store option...');
         setTimeout(() => {
-          const storeUrl = StoreReview.storeUrl();
-          if (storeUrl) {
-            Alert.alert(
-              t('profile.rateApp'),
-              t('profile.rateAppOpenStore') || 'Would you like to open the App Store to rate our app?',
-              [
-                {
-                  text: t('common.cancel') || 'Cancel',
-                  style: 'cancel',
-                },
-                {
-                  text: t('profile.openStore') || 'Open Store',
-                  onPress: async () => {
-                    try {
-                      const supported = await Linking.canOpenURL(storeUrl);
-                      if (supported) {
-                        await Linking.openURL(storeUrl);
-                      } else {
+          console.log('⭐ [Rate App] Timeout fired, getting store URL...');
+          try {
+            const storeUrl = StoreReview.storeUrl();
+            console.log('⭐ [Rate App] Store URL:', storeUrl);
+            
+            if (storeUrl) {
+              console.log('✅ [Rate App] Store URL exists, showing alert to open store');
+              Alert.alert(
+                t('profile.rateApp'),
+                t('profile.rateAppOpenStore') || 'Would you like to open the App Store to rate our app?',
+                [
+                  {
+                    text: t('common.cancel') || 'Cancel',
+                    style: 'cancel',
+                    onPress: () => console.log('⭐ [Rate App] User cancelled opening store'),
+                  },
+                  {
+                    text: t('profile.openStore') || 'Open Store',
+                    onPress: async () => {
+                      console.log('⭐ [Rate App] User chose to open store');
+                      try {
+                        console.log('⭐ [Rate App] Checking if URL can be opened:', storeUrl);
+                        const supported = await Linking.canOpenURL(storeUrl);
+                        console.log('⭐ [Rate App] URL can be opened:', supported);
+                        
+                        if (supported) {
+                          console.log('✅ [Rate App] Opening store URL...');
+                          await Linking.openURL(storeUrl);
+                          console.log('✅ [Rate App] Store URL opened successfully');
+                        } else {
+                          console.log('❌ [Rate App] URL cannot be opened');
+                          Alert.alert(
+                            t('common.error'),
+                            t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+                          );
+                        }
+                      } catch (linkError) {
+                        console.error('❌ [Rate App] Error opening store URL:', linkError);
                         Alert.alert(
                           t('common.error'),
                           t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
                         );
                       }
-                    } catch (linkError) {
-                      console.error('Error opening store URL:', linkError);
-                      Alert.alert(
-                        t('common.error'),
-                        t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
-                      );
-                    }
+                    },
                   },
-                },
-              ]
-            );
+                ]
+              );
+            } else {
+              console.log('⚠️ [Rate App] Store URL is null/undefined');
+            }
+          } catch (urlError) {
+            console.error('❌ [Rate App] Error getting store URL:', urlError);
           }
         }, 500); // Small delay to let the review prompt appear first if it will
       } else {
+        console.log('⚠️ [Rate App] In-app review is not available, trying to open store directly...');
         // Fallback: Open the app store page directly
-        const storeUrl = StoreReview.storeUrl();
-        if (storeUrl) {
-          const supported = await Linking.canOpenURL(storeUrl);
-          if (supported) {
-            await Linking.openURL(storeUrl);
+        try {
+          const storeUrl = StoreReview.storeUrl();
+          console.log('⭐ [Rate App] Store URL (fallback):', storeUrl);
+          
+          if (storeUrl) {
+            const supported = await Linking.canOpenURL(storeUrl);
+            console.log('⭐ [Rate App] URL can be opened (fallback):', supported);
+            
+            if (supported) {
+              console.log('✅ [Rate App] Opening store URL directly...');
+              await Linking.openURL(storeUrl);
+              console.log('✅ [Rate App] Store URL opened successfully (fallback)');
+            } else {
+              console.log('❌ [Rate App] URL cannot be opened (fallback)');
+              Alert.alert(
+                t('common.error'),
+                t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+              );
+            }
           } else {
+            console.log('⚠️ [Rate App] Store URL is null/undefined (fallback)');
+            // App not published, show friendly message
             Alert.alert(
-              t('common.error'),
-              t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+              t('profile.rateApp'),
+              t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
             );
           }
-        } else {
-          // App not published, show friendly message
-          Alert.alert(
-            t('profile.rateApp'),
-            t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-          );
+        } catch (fallbackError) {
+          console.error('❌ [Rate App] Error in fallback logic:', fallbackError);
         }
       }
     } catch (error) {
-      console.error('Error requesting app review:', error);
+      console.error('❌ [Rate App] Error in handleRateApp:', error);
+      console.error('❌ [Rate App] Error stack:', error.stack);
+      console.error('❌ [Rate App] Error message:', error.message);
+      
       // Fallback: Try to open store URL directly
+      console.log('⭐ [Rate App] Trying fallback: open store URL directly');
       try {
         const storeUrl = StoreReview?.storeUrl();
+        console.log('⭐ [Rate App] Store URL (error fallback):', storeUrl);
+        
         if (storeUrl) {
           const supported = await Linking.canOpenURL(storeUrl);
+          console.log('⭐ [Rate App] URL can be opened (error fallback):', supported);
+          
           if (supported) {
+            console.log('✅ [Rate App] Opening store URL (error fallback)...');
             await Linking.openURL(storeUrl);
+            console.log('✅ [Rate App] Store URL opened successfully (error fallback)');
             return;
           }
+        } else {
+          console.log('⚠️ [Rate App] Store URL is null/undefined (error fallback)');
         }
       } catch (fallbackError) {
-        console.error('Error opening store URL:', fallbackError);
+        console.error('❌ [Rate App] Error in error fallback:', fallbackError);
       }
+      
       // Final fallback: Show friendly message
+      console.log('⚠️ [Rate App] Showing final fallback message');
       Alert.alert(
         t('profile.rateApp'),
         t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
