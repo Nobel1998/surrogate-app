@@ -143,6 +143,12 @@ export default function MatchesPage() {
   const [hipaaReleaseUserId, setHipaaReleaseUserId] = useState<string>('');
   const [hipaaReleaseFile, setHipaaReleaseFile] = useState<File | null>(null);
   const [uploadingHipaaRelease, setUploadingHipaaRelease] = useState(false);
+  
+  // Photo Release upload state
+  const [showPhotoReleaseModal, setShowPhotoReleaseModal] = useState(false);
+  const [photoReleaseUserId, setPhotoReleaseUserId] = useState<string>('');
+  const [photoReleaseFile, setPhotoReleaseFile] = useState<File | null>(null);
+  const [uploadingPhotoRelease, setUploadingPhotoRelease] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -680,6 +686,52 @@ export default function MatchesPage() {
     }
   };
 
+  const openPhotoReleaseModal = () => {
+    setPhotoReleaseUserId('');
+    setPhotoReleaseFile(null);
+    setShowPhotoReleaseModal(true);
+  };
+
+  const uploadPhotoRelease = async () => {
+    if (!photoReleaseFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!photoReleaseUserId) {
+      alert('Please select a user');
+      return;
+    }
+
+    setUploadingPhotoRelease(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', photoReleaseFile);
+      formData.append('user_id', photoReleaseUserId);
+
+      const res = await fetch('/api/matches/photo-release', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Photo Release uploaded successfully! The user can now see it in their User Center.');
+      setShowPhotoReleaseModal(false);
+      setPhotoReleaseFile(null);
+      setPhotoReleaseUserId('');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading photo release:', err);
+      alert(err.message || 'Failed to upload photo release');
+    } finally {
+      setUploadingPhotoRelease(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -707,7 +759,7 @@ export default function MatchesPage() {
         {/* Document Upload Section */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Document Upload</h2>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={() => openAgencyRetainerModal()}
               className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-sm font-medium rounded transition-colors"
@@ -719,6 +771,12 @@ export default function MatchesPage() {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
             >
               🔒 Upload HIPAA Release
+            </button>
+            <button
+              onClick={() => openPhotoReleaseModal()}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded transition-colors"
+            >
+              📷 Upload Photo Release
             </button>
           </div>
           <p className="mt-3 text-sm text-gray-500">
@@ -1773,6 +1831,83 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingHipaaRelease ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Release Upload Modal */}
+      {showPhotoReleaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Photo Release</h3>
+              <button
+                onClick={() => setShowPhotoReleaseModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select User *
+                </label>
+                <select
+                  value={photoReleaseUserId}
+                  onChange={(e) => setPhotoReleaseUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Select a user --</option>
+                  {[...surrogates, ...parents].map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Photo Release File *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setPhotoReleaseFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                />
+                {photoReleaseFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {photoReleaseFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The photo release will be visible to the selected user in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowPhotoReleaseModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadPhotoRelease}
+                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId
+                      ? 'bg-gray-400'
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  } transition-colors`}
+                >
+                  {uploadingPhotoRelease ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>

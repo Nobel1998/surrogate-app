@@ -123,7 +123,7 @@ export async function GET() {
     const { data: contractsDataResult, error: contractsError } = await supabase
       .from('documents')
       .select('id, user_id, document_type, file_url, file_name, created_at')
-      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims', 'agency_retainer', 'hipaa_release'])
+      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims', 'agency_retainer', 'hipaa_release', 'photo_release'])
       .order('created_at', { ascending: false })
       .limit(1000);
     if (contractsError) {

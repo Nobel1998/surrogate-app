@@ -10,13 +10,16 @@ export default function ProfileScreen({ navigation }) {
   const { language, getLanguageLabel, t } = useLanguage();
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
+  const [photoReleaseDoc, setPhotoReleaseDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
+  const [loadingPhotoDoc, setLoadingPhotoDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAgencyRetainerDoc();
     loadHipaaReleaseDoc();
+    loadPhotoReleaseDoc();
   }, [user]);
 
   const loadAgencyRetainerDoc = async () => {
@@ -71,6 +74,32 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const loadPhotoReleaseDoc = async () => {
+    if (!user?.id) return;
+    
+    setLoadingPhotoDoc(true);
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('document_type', 'photo_release')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading photo release doc:', error);
+      } else {
+        setPhotoReleaseDoc(data);
+      }
+    } catch (error) {
+      console.error('Failed to load photo release doc:', error);
+    } finally {
+      setLoadingPhotoDoc(false);
+    }
+  };
+
   const handleHipaaReleasePress = async () => {
     if (loadingHipaaDoc) return;
     
@@ -103,6 +132,7 @@ export default function ProfileScreen({ navigation }) {
       await Promise.all([
         loadAgencyRetainerDoc(),
         loadHipaaReleaseDoc(),
+        loadPhotoReleaseDoc(),
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -124,6 +154,31 @@ export default function ProfileScreen({ navigation }) {
 
     try {
       const url = agencyRetainerDoc.file_url;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(t('common.error'), t('documents.cannotOpen'));
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert(t('common.error'), t('documents.openError'));
+    }
+  };
+
+  const handlePhotoReleasePress = async () => {
+    if (loadingPhotoDoc) return;
+    
+    if (!photoReleaseDoc || !photoReleaseDoc.file_url) {
+      Alert.alert(
+        t('documents.noDocument'),
+        t('documents.notUploaded', { document: t('profile.photoRelease') })
+      );
+      return;
+    }
+
+    try {
+      const url = photoReleaseDoc.file_url;
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);
@@ -249,7 +304,14 @@ export default function ProfileScreen({ navigation }) {
             hipaaReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
             loadingHipaaDoc
           )}
-          {renderMenuItem(t('profile.photoRelease'), 'camera', () => Alert.alert(t('profile.photoRelease'), 'Coming Soon'), '#333')}
+          {renderMenuItem(
+            t('profile.photoRelease'),
+            'camera',
+            handlePhotoReleasePress,
+            '#333',
+            photoReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
+            loadingPhotoDoc
+          )}
           {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
           {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
         </View>
