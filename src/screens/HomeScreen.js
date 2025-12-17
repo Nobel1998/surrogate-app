@@ -110,6 +110,7 @@ export default function HomeScreen() {
   const [transferDateDraft, setTransferDateDraft] = useState('');
   const [savingTransferDate, setSavingTransferDate] = useState(false);
   const [transferEmbryoDayDraft, setTransferEmbryoDayDraft] = useState('day5'); // 'day3' | 'day5'
+  const [isEditingTransferDate, setIsEditingTransferDate] = useState(false);
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
     const normalized = normalizeStage(serverStage || 'pre');
@@ -303,30 +304,35 @@ export default function HomeScreen() {
     });
     
     // Update date draft when transferDateStr changes (e.g., after save or on load)
-    if (transferDateStr) {
-      const formatted = formatISOToMMDDYY(transferDateStr);
-      console.log('📅 Formatting date:', { transferDateStr, formatted });
-      // Always update if the formatted value is different from current draft
-      if (transferDateDraft !== formatted) {
-        console.log('✅ Updating transferDateDraft to:', formatted);
-        setTransferDateDraft(formatted);
-      }
-    } else {
-      // If no transfer date, clear the draft
-      if (transferDateDraft) {
-        console.log('🧹 Clearing transferDateDraft');
-        setTransferDateDraft('');
+    // Only update if not in edit mode to avoid overwriting user input
+    if (!isEditingTransferDate) {
+      if (transferDateStr) {
+        const formatted = formatISOToMMDDYY(transferDateStr);
+        console.log('📅 Formatting date:', { transferDateStr, formatted });
+        // Always update if the formatted value is different from current draft
+        if (transferDateDraft !== formatted) {
+          console.log('✅ Updating transferDateDraft to:', formatted);
+          setTransferDateDraft(formatted);
+        }
+      } else {
+        // If no transfer date, clear the draft
+        if (transferDateDraft) {
+          console.log('🧹 Clearing transferDateDraft');
+          setTransferDateDraft('');
+        }
       }
     }
     
-    // Update embryo day draft
-    const newEmbryoDay = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
-    if (transferEmbryoDayDraft !== newEmbryoDay) {
-      console.log('✅ Updating transferEmbryoDayDraft to:', newEmbryoDay);
-      setTransferEmbryoDayDraft(newEmbryoDay);
+    // Update embryo day draft (only if not in edit mode)
+    if (!isEditingTransferDate) {
+      const newEmbryoDay = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
+      if (transferEmbryoDayDraft !== newEmbryoDay) {
+        console.log('✅ Updating transferEmbryoDayDraft to:', newEmbryoDay);
+        setTransferEmbryoDayDraft(newEmbryoDay);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, transferDateStr, transferEmbryoDayStr, matchedProfile?.transfer_date, matchedProfile?.transfer_embryo_day]);
+  }, [user?.id, transferDateStr, transferEmbryoDayStr, matchedProfile?.transfer_date, matchedProfile?.transfer_embryo_day, isEditingTransferDate]);
 
   // Trigger: when Current_Weeks >= 10 → popup (only once)
   useEffect(() => {
@@ -369,7 +375,7 @@ export default function HomeScreen() {
         transfer_date: res?.user?.transfer_date,
         transfer_embryo_day: res?.user?.transfer_embryo_day,
       });
-      Alert.alert('Saved', 'Transfer date saved.');
+      Alert.alert(t('common.success') || 'Saved', t('home.transferDateSaved') || 'Transfer date saved.');
     } catch (e) {
       console.error('❌ Save transfer_date error:', e);
       Alert.alert('Save Failed', 'Failed to save transfer date. Please try again.');
@@ -517,7 +523,120 @@ export default function HomeScreen() {
           <View style={styles.pregDashboardBadge}>
             <Text style={styles.pregDashboardBadgeText}>{progressPct}</Text>
           </View>
+          {isSurrogateRole && !isEditingTransferDate && (
+            <TouchableOpacity
+              onPress={() => {
+                setIsEditingTransferDate(true);
+                // Initialize draft with current values when entering edit mode
+                if (transferDateStr) {
+                  const formatted = formatISOToMMDDYY(transferDateStr);
+                  setTransferDateDraft(formatted);
+                }
+                if (transferEmbryoDayStr) {
+                  setTransferEmbryoDayDraft(normalizeEmbryoDayKey(transferEmbryoDayStr));
+                }
+              }}
+              style={styles.editButton}
+            >
+              <Icon name="edit-2" size={18} color="#1F6FE0" />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Edit Transfer Date Section - Only for surrogates */}
+        {isSurrogateRole && isEditingTransferDate && (
+          <View style={styles.editTransferDateSection}>
+            <View style={styles.editSectionHeader}>
+              <Text style={styles.editSectionTitle}>{t('home.editTransferDate')}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsEditingTransferDate(false);
+                  // Reset draft to current value
+                  if (transferDateStr) {
+                    const formatted = formatISOToMMDDYY(transferDateStr);
+                    setTransferDateDraft(formatted);
+                  }
+                }}
+                style={styles.cancelEditButton}
+              >
+                <Icon name="x" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionLabel}>{t('home.embryoType')}</Text>
+            <View style={styles.segmentedControl}>
+              {EMBRYO_DAY_OPTIONS.map((opt) => {
+                const active = normalizeEmbryoDayKey(transferEmbryoDayDraft || embryoKey) === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.segment, active && styles.segmentActive]}
+                    onPress={() => setTransferEmbryoDayDraft(opt.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.sectionLabel}>{t('home.transferDate')} (MM/DD/YY)</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                value={transferDateDraft}
+                onChangeText={setTransferDateDraft}
+                placeholder="e.g. 12/01/25"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                style={styles.fancyInput}
+              />
+            </View>
+
+            <View style={styles.editButtonRow}>
+              <TouchableOpacity
+                style={[styles.editCancelButton, { marginRight: 8 }]}
+                onPress={() => {
+                  setIsEditingTransferDate(false);
+                  // Reset draft to current value
+                  if (transferDateStr) {
+                    const formatted = formatISOToMMDDYY(transferDateStr);
+                    setTransferDateDraft(formatted);
+                  }
+                }}
+              >
+                <Text style={styles.editCancelButtonText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editSaveButton, savingTransferDate && styles.fullWidthButtonDisabled]}
+                onPress={async () => {
+                  await saveTransferDate();
+                  setIsEditingTransferDate(false);
+                }}
+                disabled={savingTransferDate}
+                activeOpacity={0.8}
+              >
+                {savingTransferDate ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>{t('common.save')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Display Transfer Date - When not editing */}
+        {(!isSurrogateRole || !isEditingTransferDate) && transferDateStr && (
+          <View style={styles.transferDateDisplay}>
+            <Text style={styles.sectionLabel}>{t('home.transferDate')}</Text>
+            <Text style={styles.transferDateValue}>
+              {formatISOToMMDDYY(transferDateStr)}
+            </Text>
+          </View>
+        )}
 
         <View style={{ marginBottom: 24 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -2303,6 +2422,70 @@ const styles = StyleSheet.create({
   fullWidthButtonDisabled: {
     backgroundColor: '#94A3B8',
     shadowOpacity: 0,
+  },
+  editButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  editTransferDateSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F3F9',
+  },
+  editSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  editSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1D1E',
+  },
+  cancelEditButton: {
+    padding: 4,
+  },
+  editButtonRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 8,
+  },
+  editCancelButton: {
+    flex: 1,
+    backgroundColor: '#F0F3F9',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editCancelButtonText: {
+    color: '#666',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  editSaveButton: {
+    flex: 1,
+    backgroundColor: '#1F6FE0',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  transferDateDisplay: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F3F9',
+  },
+  transferDateValue: {
+    fontSize: 15,
+    color: '#1A1D1E',
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 4,
   },
   buttonText: {
     fontSize: 16,

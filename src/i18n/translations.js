@@ -126,6 +126,9 @@ export const translations = {
       viewUpdates: 'View Updates',
       day5Embryo: 'Day 5 Embryo',
       day3Embryo: 'Day 3 Embryo',
+      transferDate: 'Transfer Date',
+      editTransferDate: 'Edit Transfer Date',
+      transferDateSaved: 'Transfer date saved successfully.',
     },
     // Medical Report Form Screen
     medicalReport: {
@@ -760,6 +763,9 @@ export const translations = {
       viewUpdates: '查看更新',
       day5Embryo: '第5天胚胎',
       day3Embryo: '第3天胚胎',
+      transferDate: '移植日期',
+      editTransferDate: '编辑移植日期',
+      transferDateSaved: '移植日期已成功保存。',
     },
     // Medical Report Form Screen
     medicalReport: {
@@ -1500,6 +1506,9 @@ export const translations = {
       viewUpdates: 'Ver Actualizaciones',
       day5Embryo: 'Embrión Día 5',
       day3Embryo: 'Embrión Día 3',
+      transferDate: 'Fecha de Transferencia',
+      editTransferDate: 'Editar Fecha de Transferencia',
+      transferDateSaved: 'Fecha de transferencia guardada exitosamente.',
     },
     // Medical Report Form Screen
     medicalReport: {
