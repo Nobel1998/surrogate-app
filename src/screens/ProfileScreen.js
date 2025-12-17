@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Linking, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
+import * as StoreReview from 'expo-store-review';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
@@ -193,6 +194,16 @@ export default function ProfileScreen({ navigation }) {
 
   const handleRateApp = async () => {
     try {
+      // Check if StoreReview is available (may not be available if app is not published)
+      if (!StoreReview || typeof StoreReview.hasAction !== 'function') {
+        // App is not published yet, show friendly message
+        Alert.alert(
+          t('profile.rateApp'),
+          t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
+        );
+        return;
+      }
+
       // Check if the device supports in-app review
       const isAvailable = await StoreReview.hasAction();
       
@@ -213,27 +224,20 @@ export default function ProfileScreen({ navigation }) {
             );
           }
         } else {
+          // App not published, show friendly message
           Alert.alert(
-            t('common.error'),
-            t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+            t('profile.rateApp'),
+            t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
           );
         }
       }
     } catch (error) {
       console.error('Error requesting app review:', error);
-      // Fallback to opening store URL
-      try {
-        const storeUrl = StoreReview.storeUrl();
-        if (storeUrl) {
-          await Linking.openURL(storeUrl);
-        }
-      } catch (fallbackError) {
-        console.error('Error opening store URL:', fallbackError);
-        Alert.alert(
-          t('common.error'),
-          t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
-        );
-      }
+      // Fallback: Show friendly message for unpublished app
+      Alert.alert(
+        t('profile.rateApp'),
+        t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
+      );
     }
   };
 
