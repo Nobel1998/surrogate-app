@@ -106,34 +106,34 @@ export default function AmbassadorScreen() {
     switch (step) {
       case 1:
         if (!ambassadorData.fullName || !ambassadorData.fullName.trim()) {
-          Alert.alert(t('common.error'), t('ambassador.errorEnterFullName'));
+          Alert.alert('Error', 'Please enter your full name.');
           return false;
         }
         if (!ambassadorData.email || !ambassadorData.email.trim()) {
-          Alert.alert(t('common.error'), t('ambassador.errorEnterEmail'));
+          Alert.alert('Error', 'Please enter your email address.');
           return false;
         }
         if (!validateEmail(ambassadorData.email.trim())) {
-          Alert.alert(t('common.error'), t('ambassador.errorValidEmail'));
+          Alert.alert('Error', 'Please enter a valid email address');
           return false;
         }
         if (!ambassadorData.phone || !ambassadorData.phone.trim()) {
-          Alert.alert(t('common.error'), t('ambassador.errorEnterPhone'));
+          Alert.alert('Error', 'Please enter your phone number.');
           return false;
         }
         if (!validatePhone(ambassadorData.phone.trim())) {
-          Alert.alert(t('common.error'), t('ambassador.errorValidPhone'));
+          Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
           return false;
         }
         return true;
       
       case 2:
         if (!ambassadorData.experience || !ambassadorData.experience.trim()) {
-          Alert.alert(t('common.error'), t('ambassador.errorEnterExperience'));
+          Alert.alert('Error', 'Please describe your relevant experience.');
           return false;
         }
         if (!ambassadorData.motivation || !ambassadorData.motivation.trim()) {
-          Alert.alert(t('common.error'), t('ambassador.errorEnterMotivation'));
+          Alert.alert('Error', 'Please explain your motivation for becoming a surrogate ambassador.');
           return false;
         }
         return true;

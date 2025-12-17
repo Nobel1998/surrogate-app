@@ -124,11 +124,13 @@ export default function MyMatchScreen({ navigation }) {
 
         setMatchData(match);
 
-        // 4) 文档
-        const targetUserId = isSurrogate ? user.id : match.surrogate_id;
+        // 4) 文档 - 查询当前用户自己的文档
+        // 管理员上传合同时，会为 parent 插入 parent_contract，为 surrogate 插入 surrogate_contract
+        // 所以我们需要查询当前用户自己的文档
+        const currentUserId = user.id;
         const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000';
         const userIdOrClause = [
-          targetUserId ? `user_id.eq.${targetUserId}` : null,
+          currentUserId ? `user_id.eq.${currentUserId}` : null,
           `user_id.eq.${GLOBAL_CONTRACT_USER_ID}`,
           'user_id.is.null',
         ]
