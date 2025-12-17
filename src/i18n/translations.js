@@ -1371,6 +1371,7 @@ export const translations = {
       language: 'Idioma',
       refer: 'Referir',
       rateApp: 'Calificar la App',
+      rateAppError: 'No se puede abrir la tienda de aplicaciones. Por favor, busque nuestra aplicación en App Store o Google Play Store.',
       rateUs: 'Calificarnos',
       contactUs: 'Contáctanos',
       aboutApp: 'Acerca de la App',
