@@ -917,65 +917,200 @@ export default function MatchesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {contracts.map((contract) => {
-                    const user = profileLookup[contract.user_id];
-                    let contractTypeLabel = '';
-                    if (contract.document_type === 'parent_contract') {
-                      contractTypeLabel = 'Parent Contract';
-                    } else if (contract.document_type === 'surrogate_contract') {
-                      contractTypeLabel = 'Surrogate Contract';
-                    } else if (contract.document_type === 'legal_contract') {
-                      contractTypeLabel = 'Attorney Retainer Agreement';
-                    } else if (contract.document_type === 'insurance_policy') {
-                      contractTypeLabel = 'Life Insurance Policy';
-                    } else if (contract.document_type === 'health_insurance_bill') {
-                      contractTypeLabel = 'Health Insurance Bill';
-                    } else if (contract.document_type === 'parental_rights') {
-                      contractTypeLabel = 'PBO';
-                    } else if (contract.document_type === 'online_claims') {
-                      contractTypeLabel = 'Online Claims';
-                    } else if (contract.document_type === 'agency_retainer') {
-                      contractTypeLabel = 'Agency Retainer Agreement';
-                    } else if (contract.document_type === 'hipaa_release') {
-                      contractTypeLabel = 'HIPAA Release';
-                    } else {
-                      contractTypeLabel = contract.document_type;
-                    }
-                    return (
-                      <tr key={contract.id}>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {contract.file_name || 'Unnamed file'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {contractTypeLabel}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {user?.name || user?.phone || contract.user_id.substring(0, 8)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
-                          {contract.created_at ? new Date(contract.created_at).toLocaleString() : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-3">
-                            <a
-                              href={contract.file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              Download
-                            </a>
-                            <button
-                              onClick={() => deleteContract(contract.id)}
-                              className="text-red-600 hover:text-red-800 font-medium"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {(() => {
+                    // Group contracts by file_url and document_type to identify match-uploaded files
+                    const contractGroups = new Map<string, Contract[]>();
+                    const processedIds = new Set<string>();
+                    
+                    contracts.forEach((contract) => {
+                      if (processedIds.has(contract.id)) return;
+                      
+                      // Check if this is a match-uploaded file (same file_url, same document_type, different user_id)
+                      const matchTypes = ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims'];
+                      const isMatchType = matchTypes.includes(contract.document_type);
+                      
+                      if (isMatchType) {
+                        // Find all contracts with same file_url and document_type
+                        const relatedContracts = contracts.filter(
+                          (c) => c.file_url === contract.file_url && 
+                                 c.document_type === contract.document_type &&
+                                 c.id !== contract.id
+                        );
+                        
+                        if (relatedContracts.length > 0) {
+                          // This is a match-uploaded file
+                          const groupKey = `${contract.file_url}-${contract.document_type}`;
+                          if (!contractGroups.has(groupKey)) {
+                            contractGroups.set(groupKey, [contract, ...relatedContracts]);
+                            processedIds.add(contract.id);
+                            relatedContracts.forEach(c => processedIds.add(c.id));
+                          }
+                        } else {
+                          // Single user file, but might be part of a match pair
+                          // Check if there's a corresponding contract (e.g., parent_contract <-> surrogate_contract)
+                          let correspondingType = '';
+                          if (contract.document_type === 'parent_contract') {
+                            correspondingType = 'surrogate_contract';
+                          } else if (contract.document_type === 'surrogate_contract') {
+                            correspondingType = 'parent_contract';
+                          }
+                          
+                          if (correspondingType) {
+                            const correspondingContract = contracts.find(
+                              (c) => c.file_url === contract.file_url && 
+                                     c.document_type === correspondingType
+                            );
+                            
+                            if (correspondingContract) {
+                              const groupKey = `${contract.file_url}-contract-pair`;
+                              if (!contractGroups.has(groupKey)) {
+                                contractGroups.set(groupKey, [contract, correspondingContract]);
+                                processedIds.add(contract.id);
+                                processedIds.add(correspondingContract.id);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    });
+                    
+                    // Render grouped contracts (match-uploaded)
+                    const renderedGroups: JSX.Element[] = [];
+                    contractGroups.forEach((groupContracts, groupKey) => {
+                      const firstContract = groupContracts[0];
+                      const user1 = profileLookup[firstContract.user_id];
+                      const user2 = groupContracts.length > 1 ? profileLookup[groupContracts[1].user_id] : null;
+                      
+                      let contractTypeLabel = '';
+                      if (firstContract.document_type === 'parent_contract' || firstContract.document_type === 'surrogate_contract') {
+                        contractTypeLabel = 'Contract';
+                      } else if (firstContract.document_type === 'legal_contract') {
+                        contractTypeLabel = 'Attorney Retainer Agreement';
+                      } else if (firstContract.document_type === 'insurance_policy') {
+                        contractTypeLabel = 'Life Insurance Policy';
+                      } else if (firstContract.document_type === 'health_insurance_bill') {
+                        contractTypeLabel = 'Health Insurance Bill';
+                      } else if (firstContract.document_type === 'parental_rights') {
+                        contractTypeLabel = 'PBO';
+                      } else if (firstContract.document_type === 'online_claims') {
+                        contractTypeLabel = 'Online Claims';
+                      } else {
+                        contractTypeLabel = firstContract.document_type;
+                      }
+                      
+                      renderedGroups.push(
+                        <tr key={groupKey}>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {firstContract.file_name || 'Unnamed file'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {contractTypeLabel}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            <div className="space-y-1">
+                              <div>{user1?.name || user1?.phone || firstContract.user_id.substring(0, 8)}</div>
+                              {user2 && (
+                                <div className="text-xs text-gray-500">
+                                  & {user2?.name || user2?.phone || groupContracts[1].user_id.substring(0, 8)}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500">
+                            {firstContract.created_at ? new Date(firstContract.created_at).toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-3">
+                              <a
+                                href={firstContract.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Download
+                              </a>
+                              <button
+                                onClick={() => {
+                                  // Delete all related contracts
+                                  groupContracts.forEach(c => deleteContract(c.id));
+                                }}
+                                className="text-red-600 hover:text-red-800 font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                    
+                    // Render single-user contracts (not match-uploaded)
+                    const singleContracts = contracts.filter(c => !processedIds.has(c.id));
+                    singleContracts.forEach((contract) => {
+                      const user = profileLookup[contract.user_id];
+                      let contractTypeLabel = '';
+                      if (contract.document_type === 'parent_contract') {
+                        contractTypeLabel = 'Parent Contract';
+                      } else if (contract.document_type === 'surrogate_contract') {
+                        contractTypeLabel = 'Surrogate Contract';
+                      } else if (contract.document_type === 'legal_contract') {
+                        contractTypeLabel = 'Attorney Retainer Agreement';
+                      } else if (contract.document_type === 'insurance_policy') {
+                        contractTypeLabel = 'Life Insurance Policy';
+                      } else if (contract.document_type === 'health_insurance_bill') {
+                        contractTypeLabel = 'Health Insurance Bill';
+                      } else if (contract.document_type === 'parental_rights') {
+                        contractTypeLabel = 'PBO';
+                      } else if (contract.document_type === 'online_claims') {
+                        contractTypeLabel = 'Online Claims';
+                      } else if (contract.document_type === 'agency_retainer') {
+                        contractTypeLabel = 'Agency Retainer Agreement';
+                      } else if (contract.document_type === 'hipaa_release') {
+                        contractTypeLabel = 'HIPAA Release';
+                      } else if (contract.document_type === 'photo_release') {
+                        contractTypeLabel = 'Photo Release';
+                      } else {
+                        contractTypeLabel = contract.document_type;
+                      }
+                      
+                      renderedGroups.push(
+                        <tr key={contract.id}>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {contract.file_name || 'Unnamed file'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {contractTypeLabel}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {user?.name || user?.phone || contract.user_id.substring(0, 8)}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500">
+                            {contract.created_at ? new Date(contract.created_at).toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-3">
+                              <a
+                                href={contract.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Download
+                              </a>
+                              <button
+                                onClick={() => deleteContract(contract.id)}
+                                className="text-red-600 hover:text-red-800 font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                    
+                    return renderedGroups;
+                  })()}
                 </tbody>
               </table>
             </div>
