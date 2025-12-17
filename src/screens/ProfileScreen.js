@@ -208,10 +208,51 @@ export default function ProfileScreen({ navigation }) {
       const isAvailable = await StoreReview.hasAction();
       
       if (isAvailable) {
-        // Request in-app review (iOS/Android native prompt)
+        // Try to request in-app review (iOS/Android native prompt)
+        // Note: Platform may not show the prompt if it was recently shown
         await StoreReview.requestReview();
+        
+        // After attempting to show the review prompt, always offer to open store page
+        // This handles the case where the prompt doesn't appear (due to platform limits)
+        setTimeout(() => {
+          const storeUrl = StoreReview.storeUrl();
+          if (storeUrl) {
+            Alert.alert(
+              t('profile.rateApp'),
+              t('profile.rateAppOpenStore') || 'Would you like to open the App Store to rate our app?',
+              [
+                {
+                  text: t('common.cancel') || 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: t('profile.openStore') || 'Open Store',
+                  onPress: async () => {
+                    try {
+                      const supported = await Linking.canOpenURL(storeUrl);
+                      if (supported) {
+                        await Linking.openURL(storeUrl);
+                      } else {
+                        Alert.alert(
+                          t('common.error'),
+                          t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+                        );
+                      }
+                    } catch (linkError) {
+                      console.error('Error opening store URL:', linkError);
+                      Alert.alert(
+                        t('common.error'),
+                        t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+                      );
+                    }
+                  },
+                },
+              ]
+            );
+          }
+        }, 500); // Small delay to let the review prompt appear first if it will
       } else {
-        // Fallback: Open the app store page
+        // Fallback: Open the app store page directly
         const storeUrl = StoreReview.storeUrl();
         if (storeUrl) {
           const supported = await Linking.canOpenURL(storeUrl);
@@ -233,7 +274,20 @@ export default function ProfileScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error requesting app review:', error);
-      // Fallback: Show friendly message for unpublished app
+      // Fallback: Try to open store URL directly
+      try {
+        const storeUrl = StoreReview?.storeUrl();
+        if (storeUrl) {
+          const supported = await Linking.canOpenURL(storeUrl);
+          if (supported) {
+            await Linking.openURL(storeUrl);
+            return;
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Error opening store URL:', fallbackError);
+      }
+      // Final fallback: Show friendly message
       Alert.alert(
         t('profile.rateApp'),
         t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
