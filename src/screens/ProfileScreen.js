@@ -191,6 +191,52 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleRateApp = async () => {
+    try {
+      // Check if the device supports in-app review
+      const isAvailable = await StoreReview.hasAction();
+      
+      if (isAvailable) {
+        // Request in-app review (iOS/Android native prompt)
+        await StoreReview.requestReview();
+      } else {
+        // Fallback: Open the app store page
+        const storeUrl = StoreReview.storeUrl();
+        if (storeUrl) {
+          const supported = await Linking.canOpenURL(storeUrl);
+          if (supported) {
+            await Linking.openURL(storeUrl);
+          } else {
+            Alert.alert(
+              t('common.error'),
+              t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+            );
+          }
+        } else {
+          Alert.alert(
+            t('common.error'),
+            t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error requesting app review:', error);
+      // Fallback to opening store URL
+      try {
+        const storeUrl = StoreReview.storeUrl();
+        if (storeUrl) {
+          await Linking.openURL(storeUrl);
+        }
+      } catch (fallbackError) {
+        console.error('Error opening store URL:', fallbackError);
+        Alert.alert(
+          t('common.error'),
+          t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
+        );
+      }
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Confirm Sign Out',
@@ -326,7 +372,7 @@ export default function ProfileScreen({ navigation }) {
             getLanguageLabel(language)
           )}
           {renderMenuItem(t('profile.refer'), 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
-          {renderMenuItem(t('profile.rateApp'), 'star', () => Alert.alert(t('profile.rateApp'), 'Coming Soon'), '#4CAF50')}
+          {renderMenuItem(t('profile.rateApp'), 'star', handleRateApp, '#4CAF50')}
           {renderMenuItem(t('profile.rateUs'), 'thumbs-up', () => Alert.alert(t('profile.rateUs'), 'Coming Soon'), '#FF9800')}
           {renderMenuItem(t('profile.contactUs'), 'phone', () => navigation.navigate('Company'), '#4CAF50')}
           {renderMenuItem(t('profile.aboutApp'), 'info', () => Alert.alert(t('profile.aboutApp'), 'Version 1.0.0'), '#2196F3')}
