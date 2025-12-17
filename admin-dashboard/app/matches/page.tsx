@@ -1877,7 +1877,7 @@ export default function MatchesPage() {
                 </label>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx,.txt"
+                  accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
                   onChange={(e) => setPhotoReleaseFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                 />
@@ -1887,7 +1887,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The photo release will be visible to the selected user in their User Center.
+                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to the selected user in their User Center.
                 </p>
               </div>
 

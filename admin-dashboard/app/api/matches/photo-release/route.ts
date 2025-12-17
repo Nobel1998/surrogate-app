@@ -32,11 +32,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
     }
 
-    // Validate file extension
+    // Validate file extension - only image formats allowed
     const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
-    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
     if (ext && !allowedExtensions.includes(ext.toLowerCase())) {
-      return NextResponse.json({ error: `File format not supported. Allowed formats: ${allowedExtensions.join(', ')}` }, { status: 400 });
+      return NextResponse.json({ error: `File format not supported. Only image formats are allowed: ${allowedExtensions.join(', ')}` }, { status: 400 });
     }
 
     const timestamp = Date.now();
