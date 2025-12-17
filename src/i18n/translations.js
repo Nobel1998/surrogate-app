@@ -2045,6 +2045,29 @@ export const translations = {
       subjectRequired: 'El asunto es requerido',
       messageRequired: 'El mensaje es requerido',
     },
+    // Contact Us Screen - Spanish
+    contactUs: {
+      title: 'Contáctanos',
+      introTitle: 'Póngase en Contacto',
+      introText: 'Nuestros administradores de casos están aquí para ayudarle durante todo su viaje de gestación subrogada. No dude en contactar a cualquiera de nuestros miembros del equipo.',
+      ourManagers: 'Nuestros Administradores de Casos',
+      generalContact: 'Información de Contacto General',
+      phone: 'Teléfono',
+      email: 'Correo Electrónico',
+      address: 'Dirección',
+      manager1: {
+        name: 'Sarah Johnson',
+        title: 'Administradora de Casos Senior',
+      },
+      manager2: {
+        name: 'Michael Chen',
+        title: 'Administrador de Casos',
+      },
+      manager3: {
+        name: 'Emily Rodriguez',
+        title: 'Administradora de Casos',
+      },
+    },
     // Company Screen (About Us)
     company: {
       title: 'Babytree Surrogacy',
