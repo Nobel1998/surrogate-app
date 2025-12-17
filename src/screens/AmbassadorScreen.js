@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function AmbassadorScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -104,34 +106,34 @@ export default function AmbassadorScreen() {
     switch (step) {
       case 1:
         if (!ambassadorData.fullName || !ambassadorData.fullName.trim()) {
-          Alert.alert('Error', 'Please enter your full name.');
+          Alert.alert(t('common.error'), t('ambassador.errorEnterFullName'));
           return false;
         }
         if (!ambassadorData.email || !ambassadorData.email.trim()) {
-          Alert.alert('Error', 'Please enter your email address.');
+          Alert.alert(t('common.error'), t('ambassador.errorEnterEmail'));
           return false;
         }
         if (!validateEmail(ambassadorData.email.trim())) {
-          Alert.alert('Error', 'Please enter a valid email address');
+          Alert.alert(t('common.error'), t('ambassador.errorValidEmail'));
           return false;
         }
         if (!ambassadorData.phone || !ambassadorData.phone.trim()) {
-          Alert.alert('Error', 'Please enter your phone number.');
+          Alert.alert(t('common.error'), t('ambassador.errorEnterPhone'));
           return false;
         }
         if (!validatePhone(ambassadorData.phone.trim())) {
-          Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
+          Alert.alert(t('common.error'), t('ambassador.errorValidPhone'));
           return false;
         }
         return true;
       
       case 2:
         if (!ambassadorData.experience || !ambassadorData.experience.trim()) {
-          Alert.alert('Error', 'Please describe your relevant experience.');
+          Alert.alert(t('common.error'), t('ambassador.errorEnterExperience'));
           return false;
         }
         if (!ambassadorData.motivation || !ambassadorData.motivation.trim()) {
-          Alert.alert('Error', 'Please explain your motivation for becoming a surrogate ambassador.');
+          Alert.alert(t('common.error'), t('ambassador.errorEnterMotivation'));
           return false;
         }
         return true;
@@ -181,12 +183,12 @@ export default function AmbassadorScreen() {
       await AsyncStorage.setItem('ambassador_history', JSON.stringify(updatedHistory));
 
       Alert.alert(
-        'Application Submitted Successfully! 🎉',
-        `Thank you for your interest in becoming a surrogate ambassador! We will review your application and contact you within 24-48 hours.\n\nYour referral code: ${application.referralCode}`,
-        [{ text: 'OK', onPress: () => {} }]
+        t('ambassador.applicationSubmitted'),
+        t('ambassador.applicationSubmittedMessage', { code: application.referralCode }),
+        [{ text: t('common.close'), onPress: () => {} }]
       );
     } catch (error) {
-      Alert.alert('Submission Error', 'There was an error submitting your application. Please try again.');
+      Alert.alert(t('ambassador.submissionError'), t('ambassador.submissionErrorMessage'));
       console.error('Submission error:', error);
     } finally {
       setIsLoading(false);
@@ -195,33 +197,33 @@ export default function AmbassadorScreen() {
 
   const renderStep1 = () => (
     <View style={styles.formStep}>
-      <Text style={styles.stepTitle}>Personal Information</Text>
+      <Text style={styles.stepTitle}>{t('ambassador.stepPersonalInfo')}</Text>
       
-      <Text style={styles.label}>Full Name *</Text>
+      <Text style={styles.label}>{t('ambassador.fullName')}</Text>
       <TextInput
         style={styles.input}
         value={ambassadorData.fullName}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, fullName: text }))}
-        placeholder="Enter your full name"
+        placeholder={t('ambassador.enterFullName')}
         blurOnSubmit={true}
       />
       
-      <Text style={styles.label}>Email Address *</Text>
+      <Text style={styles.label}>{t('ambassador.emailAddress')}</Text>
       <TextInput
         style={styles.input}
         value={ambassadorData.email}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, email: text }))}
-        placeholder="Enter your email"
+        placeholder={t('ambassador.enterEmail')}
         keyboardType="email-address"
         blurOnSubmit={true}
       />
       
-      <Text style={styles.label}>Phone Number *</Text>
+      <Text style={styles.label}>{t('ambassador.phoneNumber')}</Text>
       <TextInput
         style={styles.input}
         value={ambassadorData.phone}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, phone: text }))}
-        placeholder="Enter your phone number"
+        placeholder={t('ambassador.enterPhone')}
         keyboardType="phone-pad"
         blurOnSubmit={true}
       />
@@ -230,36 +232,36 @@ export default function AmbassadorScreen() {
 
   const renderStep2 = () => (
     <View style={styles.formStep}>
-      <Text style={styles.stepTitle}>Experience & Motivation</Text>
+      <Text style={styles.stepTitle}>{t('ambassador.stepExperience')}</Text>
       
-      <Text style={styles.label}>Relevant Experience *</Text>
+      <Text style={styles.label}>{t('ambassador.relevantExperience')}</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
         value={ambassadorData.experience}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, experience: text }))}
-        placeholder="Describe your experience with surrogacy, healthcare, or community outreach..."
+        placeholder={t('ambassador.enterExperience')}
         multiline
         numberOfLines={4}
         blurOnSubmit={true}
       />
       
-      <Text style={styles.label}>Motivation *</Text>
+      <Text style={styles.label}>{t('ambassador.motivation')}</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
         value={ambassadorData.motivation}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, motivation: text }))}
-        placeholder="Why do you want to become a surrogate ambassador?"
+        placeholder={t('ambassador.enterMotivation')}
         multiline
         numberOfLines={4}
         blurOnSubmit={true}
       />
       
-      <Text style={styles.label}>Social Media Presence</Text>
+      <Text style={styles.label}>{t('ambassador.socialMedia')}</Text>
       <TextInput
         style={styles.input}
         value={ambassadorData.socialMedia}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, socialMedia: text }))}
-        placeholder="Instagram, Facebook, LinkedIn handles (optional)"
+        placeholder={t('ambassador.enterSocialMedia')}
         blurOnSubmit={true}
       />
     </View>
@@ -267,32 +269,32 @@ export default function AmbassadorScreen() {
 
   const renderStep3 = () => (
     <View style={styles.formStep}>
-      <Text style={styles.stepTitle}>Referral Information</Text>
+      <Text style={styles.stepTitle}>{t('ambassador.stepReferralInfo')}</Text>
       
-      <Text style={styles.label}>Expected Monthly Referrals</Text>
+      <Text style={styles.label}>{t('ambassador.expectedReferrals')}</Text>
       <TextInput
         style={styles.input}
         value={ambassadorData.expectedReferrals}
         onChangeText={(text) => setAmbassadorData(prev => ({ ...prev, expectedReferrals: text }))}
-        placeholder="How many referrals do you expect per month?"
+        placeholder={t('ambassador.enterExpectedReferrals')}
         keyboardType="numeric"
         blurOnSubmit={true}
       />
       
       <View style={styles.referralCodeSection}>
-        <Text style={styles.label}>Your Referral Code</Text>
+        <Text style={styles.label}>{t('ambassador.yourReferralCode')}</Text>
         <View style={styles.referralCodeContainer}>
           <Text style={styles.referralCodeText}>
-            {referralCode || 'Code generated upon registration'}
+            {referralCode || t('ambassador.codeGenerated')}
           </Text>
         </View>
         <Text style={styles.referralCodeNote}>
-          Share this code with potential surrogates. You'll earn $500 for each successful match!
+          {t('ambassador.referralCodeNote')}
         </Text>
       </View>
       
       <TouchableOpacity style={styles.calculatorButton} onPress={() => setShowCalculator(true)}>
-        <Text style={styles.calculatorButtonText}>💰 Calculate Potential Earnings</Text>
+        <Text style={styles.calculatorButtonText}>{t('ambassador.calculateEarnings')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -337,13 +339,13 @@ export default function AmbassadorScreen() {
       return (
         <View style={styles.historySection}>
           <View style={styles.historyHeaderContainer}>
-            <Text style={styles.historyTitle}>📋 Application History</Text>
+            <Text style={styles.historyTitle}>{t('ambassador.applicationHistory')}</Text>
           </View>
           <View style={styles.emptyStateContainer}>
             <Text style={styles.emptyStateIcon}>📝</Text>
-            <Text style={styles.noHistoryText}>No application records yet</Text>
+            <Text style={styles.noHistoryText}>{t('ambassador.noRecords')}</Text>
             <Text style={styles.emptyStateSubtext}>
-              Join our ambassador program and earn rewards for every successful referral!
+              {t('ambassador.joinProgram')}
             </Text>
             <TouchableOpacity 
               style={styles.startApplicationButton}
@@ -352,7 +354,7 @@ export default function AmbassadorScreen() {
                 scrollToTop();
               }}
             >
-              <Text style={styles.startApplicationButtonText}>Start Application</Text>
+              <Text style={styles.startApplicationButtonText}>{t('ambassador.startApplication')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -394,47 +396,47 @@ export default function AmbassadorScreen() {
 
   const renderStep4 = () => (
     <View style={styles.statusContainer}>
-      <Text style={styles.stepTitle}>Application Status</Text>
+      <Text style={styles.stepTitle}>{t('ambassador.applicationStatus')}</Text>
       
       {ambassadorStatus ? (
         <View style={styles.statusCard}>
-          <Text style={styles.statusTitle}>Your Latest Ambassador Application</Text>
+          <Text style={styles.statusTitle}>{t('ambassador.latestApplication')}</Text>
           <Text style={styles.statusSubtitle}>ID: {ambassadorStatus.id}</Text>
-          <Text style={styles.statusSubtitle}>Submitted: {new Date(ambassadorStatus.submittedAt).toLocaleDateString()}</Text>
+          <Text style={styles.statusSubtitle}>{t('ambassador.submitted')}: {new Date(ambassadorStatus.submittedAt).toLocaleDateString()}</Text>
           
           <View style={styles.statusBadge}>
             <Text style={styles.statusText}>
-              {ambassadorStatus.status === 'pending' ? '📋 Under Review' : 
-               ambassadorStatus.status === 'approved' ? '✅ Approved' :
-               ambassadorStatus.status === 'rejected' ? '❌ Not Selected' :
-               '⏳ Pending'}
+              {ambassadorStatus.status === 'pending' ? t('ambassador.underReview') : 
+               ambassadorStatus.status === 'approved' ? t('ambassador.approved') :
+               ambassadorStatus.status === 'rejected' ? t('ambassador.notSelected') :
+               t('ambassador.pending')}
             </Text>
           </View>
           
           {ambassadorStatus.status === 'approved' && (
             <View style={styles.ambassadorDashboard}>
-              <Text style={styles.dashboardTitle}>🎉 Welcome to the Ambassador Program!</Text>
-              <Text style={styles.dashboardSubtitle}>You're now an official surrogate ambassador</Text>
+              <Text style={styles.dashboardTitle}>{t('ambassador.welcomeAmbassador')}</Text>
+              <Text style={styles.dashboardSubtitle}>{t('ambassador.officialAmbassador')}</Text>
               
               <View style={styles.dashboardStats}>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>0</Text>
-                  <Text style={styles.statLabel}>Referrals Made</Text>
+                  <Text style={styles.statLabel}>{t('ambassador.referralsMade')}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>0</Text>
-                  <Text style={styles.statLabel}>Successful Matches</Text>
+                  <Text style={styles.statLabel}>{t('ambassador.successfulMatches')}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>$0</Text>
-                  <Text style={styles.statLabel}>Total Earnings</Text>
+                  <Text style={styles.statLabel}>{t('ambassador.totalEarnings')}</Text>
                 </View>
               </View>
             </View>
           )}
           
           <View style={styles.referralInfo}>
-            <Text style={styles.referralInfoTitle}>Your Referral Code</Text>
+            <Text style={styles.referralInfoTitle}>{t('ambassador.yourReferralCode')}</Text>
             <Text style={styles.referralCodeDisplay}>{ambassadorStatus.referralCode}</Text>
             <TouchableOpacity 
               style={styles.shareButton}
@@ -442,7 +444,7 @@ export default function AmbassadorScreen() {
               activeOpacity={0.7}
               delayPressIn={0}
             >
-              <Text style={styles.shareButtonText}>📤 Share Referral Code</Text>
+              <Text style={styles.shareButtonText}>{t('ambassador.shareReferralCode')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -466,15 +468,15 @@ export default function AmbassadorScreen() {
             delayPressIn={0}
           >
             <Text style={styles.reapplyButtonText}>
-              {ambassadorStatus.status === 'rejected' ? '🔄 Reapply for Ambassador Program' : 
-               ambassadorStatus.status === 'pending' ? '📝 Submit New Application' :
-               ambassadorStatus.status === 'approved' ? '📝 Submit Another Application' :
-               '📝 Submit New Application'}
+              {ambassadorStatus.status === 'rejected' ? t('ambassador.reapply') : 
+               ambassadorStatus.status === 'pending' ? t('ambassador.submitNew') :
+               ambassadorStatus.status === 'approved' ? t('ambassador.submitAnother') :
+               t('ambassador.submitNew')}
             </Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <Text style={styles.noApplicationText}>No application found.</Text>
+        <Text style={styles.noApplicationText}>{t('ambassador.noApplication')}</Text>
       )}
     </View>
   );
@@ -484,58 +486,58 @@ export default function AmbassadorScreen() {
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={() => setShowCalculator(false)}>
-            <Text style={styles.cancelButton}>Close</Text>
+            <Text style={styles.cancelButton}>{t('ambassador.close')}</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Earnings Calculator</Text>
+          <Text style={styles.modalTitle}>{t('ambassador.earningsCalculator')}</Text>
           <View style={{ width: 50 }} />
         </View>
         
         <ScrollView style={styles.modalContent}>
-          <Text style={styles.calculatorTitle}>Calculate Your Potential Earnings</Text>
+          <Text style={styles.calculatorTitle}>{t('ambassador.calculatePotentialEarnings')}</Text>
           
-          <Text style={styles.label}>Number of Referrals</Text>
+          <Text style={styles.label}>{t('ambassador.numberOfReferrals')}</Text>
           <TextInput
             style={styles.input}
             value={calculatorData.referrals}
             onChangeText={(text) => setCalculatorData(prev => ({ ...prev, referrals: text }))}
-            placeholder="Enter number of referrals"
+            placeholder={t('ambassador.enterNumberOfReferrals')}
             keyboardType="numeric"
             blurOnSubmit={true}
           />
           
-          <Text style={styles.label}>Successful Matches</Text>
+          <Text style={styles.label}>{t('ambassador.successfulMatches')}</Text>
           <TextInput
             style={styles.input}
             value={calculatorData.successfulMatches}
             onChangeText={(text) => setCalculatorData(prev => ({ ...prev, successfulMatches: text }))}
-            placeholder="Enter successful matches"
+            placeholder={t('ambassador.enterSuccessfulMatches')}
             keyboardType="numeric"
             blurOnSubmit={true}
           />
           
           {calculatorData.referrals && calculatorData.successfulMatches && (
             <View style={styles.calculationResults}>
-              <Text style={styles.calculationTitle}>Your Potential Earnings</Text>
+              <Text style={styles.calculationTitle}>{t('ambassador.potentialEarnings')}</Text>
               {(() => {
                 const earnings = calculateEarnings();
                 return (
                   <>
                     <View style={styles.earningsRow}>
-                      <Text style={styles.earningsLabel}>Base Earnings:</Text>
+                      <Text style={styles.earningsLabel}>{t('ambassador.baseEarnings')}</Text>
                       <Text style={styles.earningsValue}>${earnings.baseEarnings.toLocaleString()}</Text>
                     </View>
                     {earnings.bonus > 0 && (
                       <View style={styles.earningsRow}>
-                        <Text style={styles.earningsLabel}>Bonus (10%):</Text>
+                        <Text style={styles.earningsLabel}>{t('ambassador.bonus10')}</Text>
                         <Text style={styles.earningsValue}>+${earnings.bonus.toLocaleString()}</Text>
                       </View>
                     )}
                     <View style={[styles.earningsRow, styles.totalEarnings]}>
-                      <Text style={styles.totalLabel}>Total Earnings:</Text>
+                      <Text style={styles.totalLabel}>{t('ambassador.totalEarningsLabel')}</Text>
                       <Text style={styles.totalValue}>${earnings.totalEarnings.toLocaleString()}</Text>
                     </View>
                     <Text style={styles.earningsNote}>
-                      * $500 per successful match + 10% bonus after 5 matches
+                      {t('ambassador.earningsNote')}
                     </Text>
                   </>
                 );
@@ -552,27 +554,27 @@ export default function AmbassadorScreen() {
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={() => setShowReferralModal(false)}>
-            <Text style={styles.cancelButton}>Close</Text>
+            <Text style={styles.cancelButton}>{t('ambassador.close')}</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Share Referral Code</Text>
+          <Text style={styles.modalTitle}>{t('ambassador.shareReferralCodeTitle')}</Text>
           <View style={{ width: 50 }} />
         </View>
         
         <View style={styles.modalContent}>
-          <Text style={styles.shareTitle}>Share Your Referral Code</Text>
+          <Text style={styles.shareTitle}>{t('ambassador.shareYourCode')}</Text>
           <Text style={styles.shareDescription}>
-            Share this code with potential surrogates. When they use your code during registration, you'll earn $500 for each successful match!
+            {t('ambassador.shareDescription')}
           </Text>
           
           <View style={styles.referralCodeShare}>
             <Text style={styles.referralCodeShareText}>{ambassadorStatus?.referralCode}</Text>
             <TouchableOpacity style={styles.copyButton}>
-              <Text style={styles.copyButtonText}>📋 Copy</Text>
+              <Text style={styles.copyButtonText}>{t('ambassador.copy')}</Text>
             </TouchableOpacity>
           </View>
           
           <Text style={styles.shareInstructions}>
-            Share via:
+            {t('ambassador.shareVia')}
           </Text>
           
           <View style={styles.shareButtons}>
@@ -633,20 +635,20 @@ export default function AmbassadorScreen() {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={() => Keyboard.dismiss()}
       >
-      <Text style={styles.title}>Surrogate Ambassador Program</Text>
+      <Text style={styles.title}>{t('ambassador.title')}</Text>
       
       <View style={styles.programInfo}>
-        <Text style={styles.programTitle}>🌟 Become a Surrogate Ambassador</Text>
+        <Text style={styles.programTitle}>{t('ambassador.becomeAmbassador')}</Text>
         <Text style={styles.programDescription}>
-          Join our ambassador program and earn $500 for each successful surrogate match you refer!
+          {t('ambassador.programDescription')}
         </Text>
         
         <View style={styles.benefitsList}>
-          <Text style={styles.benefitItem}>💰 $500 per successful match</Text>
-          <Text style={styles.benefitItem}>🎁 10% bonus after 5 matches</Text>
-          <Text style={styles.benefitItem}>📱 Your own referral code</Text>
-          <Text style={styles.benefitItem}>🤝 Support from our team</Text>
-          <Text style={styles.benefitItem}>📈 Track your earnings</Text>
+          <Text style={styles.benefitItem}>{t('ambassador.benefit500')}</Text>
+          <Text style={styles.benefitItem}>{t('ambassador.benefitBonus')}</Text>
+          <Text style={styles.benefitItem}>{t('ambassador.benefitCode')}</Text>
+          <Text style={styles.benefitItem}>{t('ambassador.benefitSupport')}</Text>
+          <Text style={styles.benefitItem}>{t('ambassador.benefitTrack')}</Text>
         </View>
       </View>
       
@@ -655,9 +657,9 @@ export default function AmbassadorScreen() {
           
           {ambassadorStatus?.status === 'rejected' && (
             <View style={styles.reapplyCard}>
-              <Text style={styles.reapplyTitle}>🔄 Reapply for Ambassador Program</Text>
+              <Text style={styles.reapplyTitle}>{t('ambassador.reapplyTitle')}</Text>
               <Text style={styles.reapplyText}>
-                Your previous application was not selected. You can reapply with updated information.
+                {t('ambassador.reapplyText')}
               </Text>
               <TouchableOpacity 
                 style={styles.reapplyButton}
@@ -676,7 +678,7 @@ export default function AmbassadorScreen() {
                   });
                 }}
               >
-                <Text style={styles.reapplyButtonText}>Start New Application</Text>
+                <Text style={styles.reapplyButtonText}>{t('ambassador.startNewApplication')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -684,7 +686,7 @@ export default function AmbassadorScreen() {
           <View style={styles.progressBar}>
             <View style={[styles.progress, { width: `${(currentStep / 3) * 100}%` }]} />
           </View>
-          <Text style={styles.stepIndicator}>Step {currentStep} of 3</Text>
+          <Text style={styles.stepIndicator}>{t('ambassador.stepOf', { current: currentStep, total: 3 })}</Text>
         </>
       )}
       
@@ -694,7 +696,7 @@ export default function AmbassadorScreen() {
         <View style={styles.buttonContainer}>
           {currentStep > 1 && (
             <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={prevStep}>
-              <Text style={styles.secondaryButtonText}>Previous</Text>
+              <Text style={styles.secondaryButtonText}>{t('ambassador.previous')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity 
@@ -706,7 +708,7 @@ export default function AmbassadorScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>
-                {currentStep === 3 ? 'Submit Application' : 'Next Step'}
+                {currentStep === 3 ? t('ambassador.submitApplication') : t('ambassador.nextStep')}
               </Text>
             )}
           </TouchableOpacity>

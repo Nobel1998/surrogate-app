@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, SafeAreaView, StatusBar } from 'react-native';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function BenefitsScreen({ navigation }) {
+  const { t } = useLanguage();
   const [calculatorVisible, setCalculatorVisible] = useState(false);
   const [baseCompensation, setBaseCompensation] = useState('60000');
   const [additionalPayments, setAdditionalPayments] = useState('0');
@@ -27,8 +29,8 @@ export default function BenefitsScreen({ navigation }) {
       <StatusBar barStyle="dark-content" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
-          <Text style={styles.title}>💎 Best Benefit Package</Text>
-          <Text style={styles.subtitle}>One of the highest compensation and benefits in the market</Text>
+          <Text style={styles.title}>{t('benefits.title')}</Text>
+          <Text style={styles.subtitle}>{t('benefits.subtitle')}</Text>
         </View>
       
       {/* Apply Now Button */}
@@ -38,38 +40,38 @@ export default function BenefitsScreen({ navigation }) {
             style={styles.applyButton}
             onPress={() => navigation.navigate('SurrogateApplication')}
           >
-            <Text style={styles.applyButtonText}>📝 Apply Now - Start Your Surrogacy Journey</Text>
+            <Text style={styles.applyButtonText}>{t('benefits.applyNow')}</Text>
           </TouchableOpacity>
         </View>
       )}
       
       {/* Best Benefit Highlights */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🌟 What Makes Our Package the Best</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.whatMakesBest')}</Text>
         <View style={styles.highlightItem}>
           <Text style={styles.highlightIcon}>💰</Text>
           <View style={styles.highlightContent}>
-            <Text style={styles.highlightTitle}>Highest Compensation</Text>
+            <Text style={styles.highlightTitle}>{t('benefits.highestCompensation')}</Text>
             <Text style={styles.highlightDescription}>
-              One of the most competitive base compensations in the market
+              {t('benefits.highestCompensationDesc')}
             </Text>
           </View>
         </View>
         <View style={styles.highlightItem}>
           <Text style={styles.highlightIcon}>🎯</Text>
           <View style={styles.highlightContent}>
-            <Text style={styles.highlightTitle}>Customizable Packages</Text>
+            <Text style={styles.highlightTitle}>{t('benefits.customizablePackages')}</Text>
             <Text style={styles.highlightDescription}>
-              Tailored to your unique circumstances. We'll match benefits from other agencies
+              {t('benefits.customizablePackagesDesc')}
             </Text>
           </View>
         </View>
         <View style={styles.highlightItem}>
           <Text style={styles.highlightIcon}>🛡️</Text>
           <View style={styles.highlightContent}>
-            <Text style={styles.highlightTitle}>Comprehensive Coverage</Text>
+            <Text style={styles.highlightTitle}>{t('benefits.comprehensiveCoverage')}</Text>
             <Text style={styles.highlightDescription}>
-              All-encompassing benefits providing security and peace of mind
+              {t('benefits.comprehensiveCoverageDesc')}
             </Text>
           </View>
         </View>
@@ -77,84 +79,84 @@ export default function BenefitsScreen({ navigation }) {
 
       {/* Base Compensation Details */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>💰 Compensation Structure</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.compensationStructure')}</Text>
         <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>Base Surrogacy Fee</Text>
+          <Text style={styles.compensationLabel}>{t('benefits.baseSurrogacyFee')}</Text>
           <Text style={styles.compensationAmount}>$60,000</Text>
         </View>
         <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>Successful Transfer Bonus</Text>
+          <Text style={styles.compensationLabel}>{t('benefits.successfulTransferBonus')}</Text>
           <Text style={styles.compensationAmount}>$5,000</Text>
         </View>
         <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>Pregnancy Confirmation Bonus</Text>
+          <Text style={styles.compensationLabel}>{t('benefits.pregnancyConfirmationBonus')}</Text>
           <Text style={styles.compensationAmount}>$2,000</Text>
         </View>
         <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>Monthly Allowance (9 months)</Text>
+          <Text style={styles.compensationLabel}>{t('benefits.monthlyAllowance')}</Text>
           <Text style={styles.compensationAmount}>$200/month</Text>
         </View>
         <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>Delivery Bonus</Text>
+          <Text style={styles.compensationLabel}>{t('benefits.deliveryBonus')}</Text>
           <Text style={styles.compensationAmount}>$3,000</Text>
         </View>
         <View style={styles.totalCompensation}>
-          <Text style={styles.totalLabel}>Total Estimated Income</Text>
+          <Text style={styles.totalLabel}>{t('benefits.totalEstimatedIncome')}</Text>
           <Text style={styles.totalAmount}>$70,800</Text>
         </View>
       </View>
 
       {/* Additional Benefits Policy */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🎁 Comprehensive Benefits Coverage</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.comprehensiveBenefits')}</Text>
         
         <View style={styles.benefitCategory}>
-          <Text style={styles.benefitCategoryTitle}>Healthcare</Text>
-          <Text style={styles.benefitItem}>• Full medical insurance coverage</Text>
-          <Text style={styles.benefitItem}>• Complete prenatal care expenses</Text>
-          <Text style={styles.benefitItem}>• Delivery medical costs covered</Text>
-          <Text style={styles.benefitItem}>• Postpartum recovery care</Text>
+          <Text style={styles.benefitCategoryTitle}>{t('benefits.healthcare')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.fullMedicalInsurance')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.completePrenatalCare')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.deliveryMedicalCosts')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.postpartumRecovery')}</Text>
         </View>
 
         <View style={styles.benefitCategory}>
-          <Text style={styles.benefitCategoryTitle}>Life Support</Text>
-          <Text style={styles.benefitItem}>• Nutritional supplement allowance</Text>
-          <Text style={styles.benefitItem}>• Transportation expense reimbursement</Text>
-          <Text style={styles.benefitItem}>• Psychological counseling services</Text>
-          <Text style={styles.benefitItem}>• Legal consultation support</Text>
+          <Text style={styles.benefitCategoryTitle}>{t('benefits.lifeSupport')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.nutritionalSupplement')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.transportationReimbursement')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.psychologicalCounseling')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.legalConsultation')}</Text>
         </View>
 
         <View style={styles.benefitCategory}>
-          <Text style={styles.benefitCategoryTitle}>Special Protection</Text>
-          <Text style={styles.benefitItem}>• Accident insurance coverage</Text>
-          <Text style={styles.benefitItem}>• Income loss compensation</Text>
-          <Text style={styles.benefitItem}>• Family support services</Text>
-          <Text style={styles.benefitItem}>• 24/7 emergency contact</Text>
+          <Text style={styles.benefitCategoryTitle}>{t('benefits.specialProtection')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.accidentInsurance')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.incomeLossCompensation')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.familySupport')}</Text>
+          <Text style={styles.benefitItem}>{t('benefits.emergencyContact')}</Text>
         </View>
       </View>
 
       {/* Income Calculator */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🧮 Income Calculator</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.incomeCalculator')}</Text>
         <Text style={styles.calculatorDescription}>
-          Use our calculator to estimate your surrogacy income
+          {t('benefits.calculatorDescription')}
         </Text>
         
         <TouchableOpacity style={styles.calculatorButton} onPress={showCalculator}>
-          <Text style={styles.calculatorButtonText}>Open Income Calculator</Text>
+          <Text style={styles.calculatorButtonText}>{t('benefits.openCalculator')}</Text>
         </TouchableOpacity>
 
         {calculatorVisible && (
           <View style={styles.calculatorContainer}>
             <View style={styles.calculatorHeader}>
-              <Text style={styles.calculatorTitle}>Income Estimation Calculator</Text>
+              <Text style={styles.calculatorTitle}>{t('benefits.calculatorTitle')}</Text>
               <TouchableOpacity onPress={hideCalculator}>
                 <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Base Surrogacy Fee ($)</Text>
+              <Text style={styles.inputLabel}>{t('benefits.baseSurrogacyFeeLabel')}</Text>
               <TextInput
                 style={styles.input}
                 value={baseCompensation}
@@ -165,7 +167,7 @@ export default function BenefitsScreen({ navigation }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Additional Bonuses ($)</Text>
+              <Text style={styles.inputLabel}>{t('benefits.additionalBonuses')}</Text>
               <TextInput
                 style={styles.input}
                 value={additionalPayments}
@@ -176,20 +178,20 @@ export default function BenefitsScreen({ navigation }) {
             </View>
 
             <TouchableOpacity style={styles.calculateButton} onPress={calculateTotal}>
-              <Text style={styles.calculateButtonText}>Calculate Total Income</Text>
+              <Text style={styles.calculateButtonText}>{t('benefits.calculateTotal')}</Text>
             </TouchableOpacity>
 
             <View style={styles.resultContainer}>
-              <Text style={styles.resultLabel}>Estimated Total Income</Text>
+              <Text style={styles.resultLabel}>{t('benefits.estimatedTotalIncome')}</Text>
               <Text style={styles.resultAmount}>${estimatedTotal.toLocaleString()}</Text>
             </View>
 
             <View style={styles.breakdownContainer}>
-              <Text style={styles.breakdownTitle}>Income Breakdown</Text>
-              <Text style={styles.breakdownItem}>Base Fee: ${baseCompensation}</Text>
-              <Text style={styles.breakdownItem}>Additional Bonuses: ${additionalPayments}</Text>
-              <Text style={styles.breakdownItem}>Monthly Allowance: $1,800 (9 months)</Text>
-              <Text style={styles.breakdownItem}>Medical Benefits: Fully Covered</Text>
+              <Text style={styles.breakdownTitle}>{t('benefits.incomeBreakdown')}</Text>
+              <Text style={styles.breakdownItem}>{t('benefits.baseFee')}: ${baseCompensation}</Text>
+              <Text style={styles.breakdownItem}>{t('benefits.additionalBonusesLabel')}: ${additionalPayments}</Text>
+              <Text style={styles.breakdownItem}>{t('benefits.monthlyAllowanceBreakdown')}: $1,800 (9 months)</Text>
+              <Text style={styles.breakdownItem}>{t('benefits.medicalBenefitsCovered')}</Text>
             </View>
           </View>
         )}
@@ -197,49 +199,49 @@ export default function BenefitsScreen({ navigation }) {
 
       {/* Payment Schedule */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📅 Payment Schedule</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.paymentSchedule')}</Text>
         <View style={styles.paymentSchedule}>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>Contract Signing</Text>
+            <Text style={styles.paymentPhase}>{t('benefits.contractSigning')}</Text>
             <Text style={styles.paymentAmount}>$5,000</Text>
-            <Text style={styles.paymentDescription}>Paid immediately after signing</Text>
+            <Text style={styles.paymentDescription}>{t('benefits.paidAfterSigning')}</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>Successful Transfer</Text>
+            <Text style={styles.paymentPhase}>{t('benefits.successfulTransfer')}</Text>
             <Text style={styles.paymentAmount}>$5,000</Text>
-            <Text style={styles.paymentDescription}>Paid after transfer confirmation</Text>
+            <Text style={styles.paymentDescription}>{t('benefits.paidAfterTransfer')}</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>Pregnancy Confirmation</Text>
+            <Text style={styles.paymentPhase}>{t('benefits.pregnancyConfirmation')}</Text>
             <Text style={styles.paymentAmount}>$2,000</Text>
-            <Text style={styles.paymentDescription}>Paid 6 weeks after pregnancy</Text>
+            <Text style={styles.paymentDescription}>{t('benefits.paidAfterPregnancy')}</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>Monthly Allowance</Text>
+            <Text style={styles.paymentPhase}>{t('benefits.monthlyAllowancePayment')}</Text>
             <Text style={styles.paymentAmount}>$200</Text>
-            <Text style={styles.paymentDescription}>Paid on the 1st of each month</Text>
+            <Text style={styles.paymentDescription}>{t('benefits.paidMonthly')}</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>Delivery Completion</Text>
+            <Text style={styles.paymentPhase}>{t('benefits.deliveryCompletion')}</Text>
             <Text style={styles.paymentAmount}>$58,800</Text>
-            <Text style={styles.paymentDescription}>Paid within 30 days after delivery</Text>
+            <Text style={styles.paymentDescription}>{t('benefits.paidAfterDelivery')}</Text>
           </View>
         </View>
       </View>
 
       {/* Best Support System */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🤝 Best Support System</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.bestSupportSystem')}</Text>
         <Text style={styles.supportDescription}>
-          Multi-faceted support providing guidance and care at every stage
+          {t('benefits.supportDescription')}
         </Text>
         
         <View style={styles.supportItem}>
           <Text style={styles.supportIcon}>👩‍💼</Text>
           <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>Experienced Case Coordinators</Text>
+            <Text style={styles.supportTitle}>{t('benefits.experiencedCoordinators')}</Text>
             <Text style={styles.supportDescription}>
-              Your coordinator is an experienced surrogate herself, offering deep personal understanding of your journey
+              {t('benefits.experiencedCoordinatorsDesc')}
             </Text>
           </View>
         </View>
@@ -247,9 +249,9 @@ export default function BenefitsScreen({ navigation }) {
         <View style={styles.supportItem}>
           <Text style={styles.supportIcon}>⏰</Text>
           <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>24/7 One-on-One Support</Text>
+            <Text style={styles.supportTitle}>{t('benefits.oneOnOneSupport')}</Text>
             <Text style={styles.supportDescription}>
-              Dedicated case coordinator from screening through delivery and beyond. Immediate availability for emergencies
+              {t('benefits.oneOnOneSupportDesc')}
             </Text>
           </View>
         </View>
@@ -257,9 +259,9 @@ export default function BenefitsScreen({ navigation }) {
         <View style={styles.supportItem}>
           <Text style={styles.supportIcon}>🧠</Text>
           <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>Professional Psychological Support</Text>
+            <Text style={styles.supportTitle}>{t('benefits.psychologicalSupport')}</Text>
             <Text style={styles.supportDescription}>
-              Continuous one-on-one psychological support from legal clearance until 2-6 months after birth
+              {t('benefits.psychologicalSupportDesc')}
             </Text>
           </View>
         </View>
@@ -267,9 +269,9 @@ export default function BenefitsScreen({ navigation }) {
         <View style={styles.supportItem}>
           <Text style={styles.supportIcon}>👥</Text>
           <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>Community & Pampering</Text>
+            <Text style={styles.supportTitle}>{t('benefits.communityPampering')}</Text>
             <Text style={styles.supportDescription}>
-              Monthly group meetings and sponsored relaxation events for surrogates upon legal clearance
+              {t('benefits.communityPamperingDesc')}
             </Text>
           </View>
         </View>
@@ -277,9 +279,9 @@ export default function BenefitsScreen({ navigation }) {
         <View style={styles.supportItem}>
           <Text style={styles.supportIcon}>🔄</Text>
           <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>Flexibility & Assurance</Text>
+            <Text style={styles.supportTitle}>{t('benefits.flexibilityAssurance')}</Text>
             <Text style={styles.supportDescription}>
-              Not satisfied with your coordinator? We'll provide a replacement. Don't qualify yet? We'll work with you to meet requirements
+              {t('benefits.flexibilityAssuranceDesc')}
             </Text>
           </View>
         </View>
@@ -287,22 +289,22 @@ export default function BenefitsScreen({ navigation }) {
 
       {/* Frequently Asked Questions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>❓ Frequently Asked Questions</Text>
+        <Text style={styles.sectionTitle}>{t('benefits.faq')}</Text>
         <View style={styles.faqItem}>
-          <Text style={styles.faqQuestion}>Q: Are taxes included in the compensation?</Text>
-          <Text style={styles.faqAnswer}>A: Base compensation includes all taxes, no additional tax payment required.</Text>
+          <Text style={styles.faqQuestion}>{t('benefits.faqTaxes')}</Text>
+          <Text style={styles.faqAnswer}>{t('benefits.faqTaxesAnswer')}</Text>
         </View>
         <View style={styles.faqItem}>
-          <Text style={styles.faqQuestion}>Q: What happens if the pregnancy fails?</Text>
-          <Text style={styles.faqAnswer}>A: We provide psychological support and additional compensation based on the situation.</Text>
+          <Text style={styles.faqQuestion}>{t('benefits.faqPregnancyFails')}</Text>
+          <Text style={styles.faqAnswer}>{t('benefits.faqPregnancyFailsAnswer')}</Text>
         </View>
         <View style={styles.faqItem}>
-          <Text style={styles.faqQuestion}>Q: How are medical expenses reimbursed?</Text>
-          <Text style={styles.faqAnswer}>A: All related medical expenses are paid directly by us, no upfront payment required.</Text>
+          <Text style={styles.faqQuestion}>{t('benefits.faqMedicalExpenses')}</Text>
+          <Text style={styles.faqAnswer}>{t('benefits.faqMedicalExpensesAnswer')}</Text>
         </View>
         <View style={styles.faqItem}>
-          <Text style={styles.faqQuestion}>Q: Can the contract be terminated early?</Text>
-          <Text style={styles.faqAnswer}>A: Yes, we will pay compensation proportionally based on completed stages.</Text>
+          <Text style={styles.faqQuestion}>{t('benefits.faqContractTermination')}</Text>
+          <Text style={styles.faqAnswer}>{t('benefits.faqContractTerminationAnswer')}</Text>
         </View>
       </View>
       </ScrollView>

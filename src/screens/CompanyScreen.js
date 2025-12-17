@@ -1,7 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView, Image, Dimensions } from 'react-native';
+import { useLanguage } from '../context/LanguageContext';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CompanyScreen() {
+  const { t } = useLanguage();
   const openWebsite = () => {
     Linking.openURL('https://babytreesurrogacy.com/');
   };
@@ -19,7 +23,11 @@ export default function CompanyScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+    >
       {/* Company Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
@@ -27,46 +35,41 @@ export default function CompanyScreen() {
             <Text style={styles.logoText}>SA</Text>
           </View>
         </View>
-        <Text style={styles.title}>Babytree Surrogacy</Text>
-        <Text style={styles.subtitle}>#1 California Surrogacy Agency</Text>
+        <Text style={styles.title}>{t('company.title')}</Text>
+        <Text style={styles.subtitle}>{t('company.subtitle')}</Text>
       </View>
 
       {/* Company Introduction */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🏢 About Our Company</Text>
+        <Text style={styles.sectionTitle}>{t('company.aboutOurCompany')}</Text>
         <Text style={styles.introText}>
-          Babytree Surrogacy is a top-rated surrogacy agency in California, offering full-service 
-          egg donor and surrogacy programs. We have extensive experience working with both domestic 
-          and international clients from diverse backgrounds.
+          {t('company.introText1')}
         </Text>
         <Text style={styles.introText}>
-          As a professional and trusted mid-sized surrogacy agency, we have experience in working 
-          with people from all different nationalities and backgrounds, providing comprehensive 
-          support throughout the entire surrogacy journey.
+          {t('company.introText2')}
         </Text>
       </View>
 
       {/* Company Website */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🌐 Company Website</Text>
+        <Text style={styles.sectionTitle}>{t('company.companyWebsite')}</Text>
         <Text style={styles.websiteDescription}>
-          Visit our official website for detailed information about our services, success stories, 
-          and comprehensive resources.
+          {t('company.websiteDescription')}
         </Text>
         <TouchableOpacity style={styles.websiteButton} onPress={openWebsite}>
-          <Text style={styles.websiteButtonText}>Visit Official Website</Text>
+          <Text style={styles.websiteButtonText}>{t('company.visitOfficialWebsite')}</Text>
         </TouchableOpacity>
         <Text style={styles.websiteUrl}>babytreesurrogacy.com</Text>
       </View>
 
       {/* Contact Information */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📞 Contact Information</Text>
+        <Text style={styles.sectionTitle}>{t('company.contactInformation')}</Text>
         
         <View style={styles.contactItem}>
           <Text style={styles.contactIcon}>📞</Text>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Phone</Text>
+            <Text style={styles.contactLabel}>{t('company.phone')}</Text>
             <TouchableOpacity onPress={openPhone}>
               <Text style={styles.contactValue}>(888) 245-1866</Text>
             </TouchableOpacity>
@@ -76,7 +79,7 @@ export default function CompanyScreen() {
         <View style={styles.contactItem}>
           <Text style={styles.contactIcon}>📧</Text>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Email</Text>
+            <Text style={styles.contactLabel}>{t('company.email')}</Text>
             <TouchableOpacity onPress={openEmail}>
               <Text style={styles.contactValue}>info@usababytree.com</Text>
             </TouchableOpacity>
@@ -86,7 +89,7 @@ export default function CompanyScreen() {
         <View style={styles.contactItem}>
           <Text style={styles.contactIcon}>📍</Text>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Address</Text>
+            <Text style={styles.contactLabel}>{t('company.address')}</Text>
             <TouchableOpacity onPress={openAddress}>
               <Text style={styles.contactValue}>961 W Holt Blvd{'\n'}Ontario, CA 91762</Text>
             </TouchableOpacity>
@@ -96,46 +99,46 @@ export default function CompanyScreen() {
         <View style={styles.contactItem}>
           <Text style={styles.contactIcon}>🕒</Text>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Business Hours</Text>
-            <Text style={styles.contactValue}>Monday - Friday: 9:00 AM - 6:00 PM{'\n'}Saturday: 10:00 AM - 4:00 PM</Text>
+            <Text style={styles.contactLabel}>{t('company.businessHours')}</Text>
+            <Text style={styles.contactValue}>{t('company.businessHoursWeekday')}{'\n'}{t('company.businessHoursSaturday')}</Text>
           </View>
         </View>
       </View>
 
       {/* Certifications & Credentials */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🏆 Certifications & Credentials</Text>
+        <Text style={styles.sectionTitle}>{t('company.certifications')}</Text>
         
         <View style={styles.certificationItem}>
           <Text style={styles.certificationIcon}>✅</Text>
           <View style={styles.certificationContent}>
-            <Text style={styles.certificationTitle}>Licensed Surrogacy Agency</Text>
+            <Text style={styles.certificationTitle}>{t('company.licensedSurrogacyAgency')}</Text>
             <Text style={styles.certificationDescription}>
-              Licensed by the State of California and NY
+              {t('company.licensedBy')}
             </Text>
-            <Text style={styles.certificationDate}>License #: SA-2024-001</Text>
+            <Text style={styles.certificationDate}>{t('company.licenseNumber')}</Text>
           </View>
         </View>
 
         <View style={styles.certificationItem}>
           <Text style={styles.certificationIcon}>✅</Text>
           <View style={styles.certificationContent}>
-            <Text style={styles.certificationTitle}>ASRM Member</Text>
+            <Text style={styles.certificationTitle}>{t('company.asrmMember')}</Text>
             <Text style={styles.certificationDescription}>
-              Active member of the American Society for Reproductive Medicine
+              {t('company.asrmDescription')}
             </Text>
-            <Text style={styles.certificationDate}>Member Since: 2010</Text>
+            <Text style={styles.certificationDate}>{t('company.memberSince')}</Text>
           </View>
         </View>
 
         <View style={styles.certificationItem}>
           <Text style={styles.certificationIcon}>✅</Text>
           <View style={styles.certificationContent}>
-            <Text style={styles.certificationTitle}>HIPAA Compliant</Text>
+            <Text style={styles.certificationTitle}>{t('company.hipaaCompliant')}</Text>
             <Text style={styles.certificationDescription}>
-              Fully compliant with Health Insurance Portability and Accountability Act
+              {t('company.hipaaDescription')}
             </Text>
-            <Text style={styles.certificationDate}>Certified: 2024</Text>
+            <Text style={styles.certificationDate}>{t('company.certified')}</Text>
           </View>
         </View>
 
@@ -143,52 +146,52 @@ export default function CompanyScreen() {
         <View style={styles.certificationItem}>
           <Text style={styles.certificationIcon}>✅</Text>
           <View style={styles.certificationContent}>
-            <Text style={styles.certificationTitle}>International Surrogacy Network</Text>
+            <Text style={styles.certificationTitle}>{t('company.internationalSurrogacyNetwork')}</Text>
             <Text style={styles.certificationDescription}>
-              Member of the International Surrogacy Network for global coordination
+              {t('company.isnDescription')}
             </Text>
-            <Text style={styles.certificationDate}>Member Since: 2015</Text>
+            <Text style={styles.certificationDate}>{t('company.isnMemberSince')}</Text>
           </View>
         </View>
       </View>
 
       {/* Company Statistics */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📊 Company Statistics</Text>
+        <Text style={styles.sectionTitle}>{t('company.companyStatistics')}</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>1,000+</Text>
-            <Text style={styles.statLabel}>Successful Journeys</Text>
+            <Text style={styles.statLabel}>{t('company.successfulJourneys')}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>14+</Text>
-            <Text style={styles.statLabel}>Years Experience</Text>
+            <Text style={styles.statLabel}>{t('company.yearsExperience')}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>98%</Text>
-            <Text style={styles.statLabel}>Success Rate</Text>
+            <Text style={styles.statLabel}>{t('company.successRate')}</Text>
           </View>
         </View>
       </View>
 
       {/* Mission Statement */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🎯 Our Mission</Text>
-        <Text style={styles.missionText}>
-          "To provide compassionate, professional, and comprehensive surrogacy services that 
-          help intended parents and surrogates create beautiful families while maintaining 
-          the highest standards of care, ethics, and support throughout the journey."
-        </Text>
+        <Text style={styles.sectionTitle}>{t('company.ourMission')}</Text>
+        <View style={styles.missionContainer}>
+          <Text style={styles.missionText}>
+            {t('company.missionText')}
+          </Text>
+        </View>
       </View>
 
       {/* Emergency Contact */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🚨 Emergency Contact</Text>
+        <Text style={styles.sectionTitle}>{t('company.emergencyContact')}</Text>
         <Text style={styles.emergencyDescription}>
-          For urgent matters outside business hours, our emergency hotline is available 24/7.
+          {t('company.emergencyDescription')}
         </Text>
         <TouchableOpacity style={styles.emergencyButton} onPress={() => Linking.openURL('tel:+1-888-245-1866')}>
-          <Text style={styles.emergencyButtonText}>Emergency Hotline: (888) 245-1866</Text>
+          <Text style={styles.emergencyButtonText}>{t('company.emergencyHotline')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -246,13 +249,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginVertical: 8,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    overflow: 'visible',
+    alignSelf: 'stretch',
   },
   sectionTitle: {
     fontSize: 20,
@@ -371,12 +377,15 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
+  missionContainer: {
+    width: '100%',
+    flexShrink: 1,
+  },
   missionText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
-    lineHeight: 24,
+    lineHeight: 20,
     fontStyle: 'italic',
-    textAlign: 'center',
   },
   emergencyDescription: {
     fontSize: 16,

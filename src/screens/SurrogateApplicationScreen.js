@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function SurrogateApplicationScreen({ navigation, route }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const [isLoading, setIsLoading] = useState(false);
@@ -232,74 +234,74 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     switch (step) {
       case 1:
         if (!applicationData.fullName.trim()) {
-          Alert.alert('Error', 'Please enter your full name');
+          Alert.alert(t('common.error'), t('application.errorEnterFullName'));
           return false;
         }
         if (!applicationData.age || parseInt(applicationData.age) < 21 || parseInt(applicationData.age) > 40) {
-          Alert.alert('Error', 'Age must be between 21 and 40');
+          Alert.alert(t('common.error'), t('application.errorAgeRange'));
           return false;
         }
         if (!applicationData.dateOfBirth.trim()) {
-          Alert.alert('Error', 'Please enter your date of birth');
+          Alert.alert(t('common.error'), t('application.errorEnterDateOfBirth'));
           return false;
         }
         
         // Validate date of birth format and calculate age from it
         const calculatedAge = calculateAgeFromDateOfBirth(applicationData.dateOfBirth);
         if (calculatedAge === null) {
-          Alert.alert('Error', 'Please enter a valid date of birth in MM/DD/YYYY format');
+          Alert.alert(t('common.error'), t('application.errorInvalidDateOfBirth'));
           return false;
         }
         
         // Check if calculated age matches entered age (allow 1 year difference for rounding)
         const enteredAge = parseInt(applicationData.age);
         if (Math.abs(calculatedAge - enteredAge) > 1) {
-          Alert.alert('Error', `The date of birth you entered indicates you are ${calculatedAge} years old, but you entered ${enteredAge} years old. Please check your date of birth and age.`);
+          Alert.alert(t('common.error'), t('application.errorAgeMismatch', { calculatedAge, enteredAge }));
           return false;
         }
         
         // Verify calculated age is within valid range
         if (calculatedAge < 21 || calculatedAge > 40) {
-          Alert.alert('Error', `Based on your date of birth, you are ${calculatedAge} years old. Age must be between 21 and 40.`);
+          Alert.alert(t('common.error'), t('application.errorAgeOutOfRange', { age: calculatedAge }));
           return false;
         }
         
         if (!applicationData.phoneNumber.trim()) {
-          Alert.alert('Error', 'Please enter your phone number');
+          Alert.alert(t('common.error'), t('application.errorEnterPhoneNumber'));
           return false;
         }
         if (!validatePhone(applicationData.phoneNumber.trim())) {
-          Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
+          Alert.alert(t('common.error'), t('application.errorInvalidPhoneNumber'));
           return false;
         }
         if (!applicationData.email.trim()) {
-          Alert.alert('Error', 'Please enter your email address');
+          Alert.alert(t('common.error'), t('application.errorEnterEmail'));
           return false;
         }
         if (!validateEmail(applicationData.email.trim())) {
-          Alert.alert('Error', 'Please enter a valid email address');
+          Alert.alert(t('common.error'), t('application.errorInvalidEmail'));
           return false;
         }
         if (!applicationData.hearAboutUs.trim()) {
-          Alert.alert('Error', 'Please indicate how you heard about us');
+          Alert.alert(t('common.error'), t('application.errorHearAboutUs'));
           return false;
         }
         return true;
       
       case 2:
         if (!applicationData.previousPregnancies.trim()) {
-          Alert.alert('Error', 'Please indicate if you have had previous pregnancies');
+          Alert.alert(t('common.error'), t('application.errorPreviousPregnancies'));
           return false;
         }
         return true;
       
       case 3:
         if (!applicationData.smokingStatus) {
-          Alert.alert('Error', 'Please indicate your smoking status');
+          Alert.alert(t('common.error'), t('application.errorSmokingStatus'));
           return false;
         }
         if (!applicationData.employmentStatus) {
-          Alert.alert('Error', 'Please indicate your employment status');
+          Alert.alert(t('common.error'), t('application.errorEmploymentStatus'));
           return false;
         }
         return true;
@@ -345,19 +347,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   // Lazy sign-up for surrogates to save progress after step 1
   const handleLazySignup = async () => {
     if (!authEmail.trim() || !authPassword.trim()) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert(t('common.error'), t('application.errorEnterEmailPassword'));
       return;
     }
     if (!authPasswordConfirm.trim()) {
-      Alert.alert('Error', 'Please confirm your password');
+      Alert.alert(t('common.error'), t('application.errorEnterConfirmPassword'));
       return;
     }
     if (authPassword !== authPasswordConfirm) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('application.errorPasswordsDoNotMatch'));
       return;
     }
     if (!validateEmail(authEmail.trim())) {
-      Alert.alert('Error', 'Please enter a valid email');
+      Alert.alert(t('common.error'), t('application.errorInvalidEmailFormat'));
       return;
     }
     // Mark intent to resume application flow before auth state changes
@@ -440,10 +442,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       // pass draft via route params to survive navigator remounts
       navigation.setParams({ draft: applicationData, draftVersion: Date.now() });
       setCurrentStep(1);
-      Alert.alert('Progress Saved', 'Account created and progress saved. Please continue.');
+      Alert.alert(t('application.progressSaved'), t('application.accountCreatedProgressSaved'));
     } catch (error) {
       console.error('Lazy signup error:', error);
-      Alert.alert('Error', error.message || 'Failed to save progress');
+      Alert.alert(t('application.errorSavingProgress'), error.message || t('application.errorSavingProgressMessage'));
       await AsyncStorageLib.removeItem('resume_application_flow');
     } finally {
       setAuthLoading(false);
@@ -552,11 +554,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       }
 
       Alert.alert(
-        'Application Submitted Successfully! 🎉',
-        'Thank you for submitting your surrogacy application. Our team will review your application and contact you within 5-7 business days.',
+        t('application.submissionSuccess'),
+        t('application.submissionSuccessMessage'),
         [
           {
-            text: 'OK',
+            text: t('common.confirm'),
             onPress: () => {
               if (navigation.canGoBack()) {
                 navigation.goBack();
@@ -572,7 +574,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         ]
       );
     } catch (error) {
-      Alert.alert('Submission Error', error.message || 'There was an error submitting your application. Please try again.');
+      Alert.alert(t('application.submissionError'), error.message || t('application.submissionErrorMessage'));
       console.error('Submission error:', error);
     } finally {
       setIsLoading(false);
@@ -581,98 +583,98 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep1 = () => (
     <View>
-      <Text style={styles.stepTitle}>Personal Information</Text>
-      <Text style={styles.stepDescription}>Please provide your basic personal information</Text>
+      <Text style={styles.stepTitle}>{t('application.step1Title')}</Text>
+      <Text style={styles.stepDescription}>{t('application.step1Description')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Legal Name *</Text>
-        <Text style={styles.subLabel}>Please list in first, middle, last format</Text>
+        <Text style={styles.label}>{t('application.fullLegalName')}</Text>
+        <Text style={styles.subLabel}>{t('application.fullLegalNameSubLabel')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.fullName}
           onChangeText={(value) => updateField('fullName', value)}
-          placeholder="First Middle Last"
+          placeholder={t('application.fullLegalNamePlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Age *</Text>
+        <Text style={styles.label}>{t('application.age')}</Text>
         <TextInput
           key={`age-${formVersion}`}
           style={styles.input}
           value={applicationData.age || ''}
           onChangeText={(value) => updateField('age', value)}
-          placeholder="Enter your age (21-40)"
+          placeholder={t('application.agePlaceholder')}
           keyboardType="numeric"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Date of Birth *</Text>
-        <Text style={styles.subLabel}>Please list in month, day, year format</Text>
+        <Text style={styles.label}>{t('application.dateOfBirth')}</Text>
+        <Text style={styles.subLabel}>{t('application.dateOfBirthSubLabel')}</Text>
         <TextInput
           key={`dob-${formVersion}`}
           style={styles.input}
           value={applicationData.dateOfBirth || ''}
           onChangeText={(value) => updateField('dateOfBirth', value)}
-          placeholder="MM/DD/YYYY"
+          placeholder={t('application.dateOfBirthPlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number *</Text>
+        <Text style={styles.label}>{t('application.phoneNumber')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.phoneNumber}
           onChangeText={(value) => updateField('phoneNumber', value)}
-          placeholder="Enter your phone number"
+          placeholder={t('application.phoneNumberPlaceholder')}
           keyboardType="phone-pad"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email Address *</Text>
+        <Text style={styles.label}>{t('application.emailAddress')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.email}
           onChangeText={(value) => updateField('email', value)}
-          placeholder="Enter your email address"
+          placeholder={t('application.emailAddressPlaceholder')}
           keyboardType="email-address"
           autoCapitalize="none"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Race</Text>
+        <Text style={styles.label}>{t('application.race')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.race}
           onChangeText={(value) => updateField('race', value)}
-          placeholder="Enter your race (optional)"
+          placeholder={t('application.racePlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Location</Text>
+        <Text style={styles.label}>{t('application.location')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.location}
           onChangeText={(value) => updateField('location', value)}
-          placeholder="Enter your location"
+          placeholder={t('application.locationPlaceholder')}
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>How did you hear about us? *</Text>
-        <Text style={styles.subLabel}>Please be specific (e.g., Google, Facebook, friend referral)</Text>
+        <Text style={styles.label}>{t('application.hearAboutUs')}</Text>
+        <Text style={styles.subLabel}>{t('application.hearAboutUsSubLabel')}</Text>
         <TextInput
           key={`hear-${formVersion}`}
           style={styles.input}
           value={applicationData.hearAboutUs || ''}
           onChangeText={(value) => updateField('hearAboutUs', value)}
-          placeholder="e.g., Google search, Facebook ad, friend referral"
+          placeholder={t('application.hearAboutUsPlaceholder')}
         />
       </View>
     </View>
@@ -680,82 +682,82 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep2 = () => (
     <View>
-      <Text style={styles.stepTitle}>Medical Information</Text>
-      <Text style={styles.stepDescription}>Please provide your medical history and pregnancy experience</Text>
+      <Text style={styles.stepTitle}>{t('application.step2Title')}</Text>
+      <Text style={styles.stepDescription}>{t('application.step2Description')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Previous Pregnancies *</Text>
-        <Text style={styles.subLabel}>How many pregnancies have you had? (Include live births and miscarriages)</Text>
+        <Text style={styles.label}>{t('application.previousPregnancies')}</Text>
+        <Text style={styles.subLabel}>{t('application.previousPregnanciesSubLabel')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.previousPregnancies}
           onChangeText={(value) => updateField('previousPregnancies', value)}
-          placeholder="Enter number (e.g., 2)"
+          placeholder={t('application.previousPregnanciesPlaceholder')}
           keyboardType="numeric"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Previous Surrogacy Experience</Text>
+        <Text style={styles.label}>{t('application.previousSurrogacyExperience')}</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.previousSurrogacy === true && styles.radioButtonSelected]}
             onPress={() => updateField('previousSurrogacy', true)}
           >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>Yes</Text>
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>{t('application.yes')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.previousSurrogacy === false && styles.radioButtonSelected]}
             onPress={() => updateField('previousSurrogacy', false)}
           >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>No</Text>
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>{t('application.no')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Pregnancy Complications</Text>
+        <Text style={styles.label}>{t('application.pregnancyComplications')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.pregnancyComplications}
           onChangeText={(value) => updateField('pregnancyComplications', value)}
-          placeholder="Describe any pregnancy complications (if any, type 'None' if none)"
+          placeholder={t('application.pregnancyComplicationsPlaceholder')}
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Current Medications</Text>
+        <Text style={styles.label}>{t('application.currentMedications')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.currentMedications}
           onChangeText={(value) => updateField('currentMedications', value)}
-          placeholder="List any current medications (type 'None' if none)"
+          placeholder={t('application.currentMedicationsPlaceholder')}
           multiline
           numberOfLines={2}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Health Conditions</Text>
+        <Text style={styles.label}>{t('application.healthConditions')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.healthConditions}
           onChangeText={(value) => updateField('healthConditions', value)}
-          placeholder="List any health conditions (type 'None' if none)"
+          placeholder={t('application.healthConditionsPlaceholder')}
           multiline
           numberOfLines={2}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>BMI (Body Mass Index)</Text>
+        <Text style={styles.label}>{t('application.bmi')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.bmi}
           onChangeText={(value) => updateField('bmi', value)}
-          placeholder="Enter your BMI"
+          placeholder={t('application.bmiPlaceholder')}
           keyboardType="decimal-pad"
         />
       </View>
@@ -764,11 +766,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep3 = () => (
     <View>
-      <Text style={styles.stepTitle}>Lifestyle Information</Text>
-      <Text style={styles.stepDescription}>Please provide information about your lifestyle and support system</Text>
+      <Text style={styles.stepTitle}>{t('application.step3Title')}</Text>
+      <Text style={styles.stepDescription}>{t('application.step3Description')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Smoking Status *</Text>
+        <Text style={styles.label}>{t('application.smokingStatus')}</Text>
         <View style={styles.radioContainer}>
           {['Non-smoker', 'Former smoker', 'Current smoker'].map((option) => (
             <TouchableOpacity
@@ -776,36 +778,38 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
               style={[styles.radioButton, applicationData.smokingStatus === option && styles.radioButtonSelected]}
               onPress={() => updateField('smokingStatus', option)}
             >
-              <Text style={[styles.radioText, applicationData.smokingStatus === option && styles.radioTextSelected]}>{option}</Text>
+              <Text style={[styles.radioText, applicationData.smokingStatus === option && styles.radioTextSelected]}>
+                {option === 'Non-smoker' ? t('application.nonSmoker') : option === 'Former smoker' ? t('application.formerSmoker') : t('application.currentSmoker')}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Alcohol Usage</Text>
+        <Text style={styles.label}>{t('application.alcoholUsage')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.alcoholUsage}
           onChangeText={(value) => updateField('alcoholUsage', value)}
-          placeholder="Describe your alcohol usage"
+          placeholder={t('application.alcoholUsagePlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Exercise Routine</Text>
+        <Text style={styles.label}>{t('application.exerciseRoutine')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.exerciseRoutine}
           onChangeText={(value) => updateField('exerciseRoutine', value)}
-          placeholder="Describe your exercise routine"
+          placeholder={t('application.exerciseRoutinePlaceholder')}
           multiline
           numberOfLines={2}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Employment Status *</Text>
+        <Text style={styles.label}>{t('application.employmentStatus')}</Text>
         <View style={styles.radioContainer}>
           {['Employed Full-time', 'Employed Part-time', 'Self-employed', 'Unemployed', 'Student'].map((option) => (
             <TouchableOpacity
@@ -813,19 +817,24 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
               style={[styles.radioButton, applicationData.employmentStatus === option && styles.radioButtonSelected]}
               onPress={() => updateField('employmentStatus', option)}
             >
-              <Text style={[styles.radioText, applicationData.employmentStatus === option && styles.radioTextSelected]}>{option}</Text>
+              <Text style={[styles.radioText, applicationData.employmentStatus === option && styles.radioTextSelected]}>
+                {option === 'Employed Full-time' ? t('application.employedFullTime') : 
+                 option === 'Employed Part-time' ? t('application.employedPartTime') :
+                 option === 'Self-employed' ? t('application.selfEmployed') :
+                 option === 'Unemployed' ? t('application.unemployed') : t('application.student')}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Support System</Text>
+        <Text style={styles.label}>{t('application.supportSystem')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.supportSystem}
           onChangeText={(value) => updateField('supportSystem', value)}
-          placeholder="Describe your support system (family, friends, etc.)"
+          placeholder={t('application.supportSystemPlaceholder')}
           multiline
           numberOfLines={3}
         />
@@ -835,35 +844,35 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep4 = () => (
     <View>
-      <Text style={styles.stepTitle}>Legal & Background Information</Text>
-      <Text style={styles.stepDescription}>Please provide legal and background information</Text>
+      <Text style={styles.stepTitle}>{t('application.step4Title')}</Text>
+      <Text style={styles.stepDescription}>{t('application.step4Description')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Criminal Background</Text>
+        <Text style={styles.label}>{t('application.criminalBackground')}</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.criminalBackground === false && styles.radioButtonSelected]}
             onPress={() => updateField('criminalBackground', false)}
           >
-            <Text style={[styles.radioText, applicationData.criminalBackground === false && styles.radioTextSelected]}>No criminal record</Text>
+            <Text style={[styles.radioText, applicationData.criminalBackground === false && styles.radioTextSelected]}>{t('application.noCriminalRecord')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.criminalBackground === true && styles.radioButtonSelected]}
             onPress={() => updateField('criminalBackground', true)}
           >
-            <Text style={[styles.radioText, applicationData.criminalBackground === true && styles.radioTextSelected]}>Has criminal record</Text>
+            <Text style={[styles.radioText, applicationData.criminalBackground === true && styles.radioTextSelected]}>{t('application.hasCriminalRecord')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {applicationData.criminalBackground && (
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Please Explain</Text>
+          <Text style={styles.label}>{t('application.pleaseExplain')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={applicationData.legalIssues}
             onChangeText={(value) => updateField('legalIssues', value)}
-            placeholder="Please provide details"
+            placeholder={t('application.pleaseExplainPlaceholder')}
             multiline
             numberOfLines={3}
           />
@@ -871,22 +880,22 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       )}
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Insurance Coverage</Text>
+        <Text style={styles.label}>{t('application.insuranceCoverage')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.insuranceCoverage}
           onChangeText={(value) => updateField('insuranceCoverage', value)}
-          placeholder="Describe your health insurance coverage"
+          placeholder={t('application.insuranceCoveragePlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Financial Stability</Text>
+        <Text style={styles.label}>{t('application.financialStability')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.financialStability}
           onChangeText={(value) => updateField('financialStability', value)}
-          placeholder="Briefly describe your financial situation"
+          placeholder={t('application.financialStabilityPlaceholder')}
           multiline
           numberOfLines={2}
         />
@@ -896,79 +905,79 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep5 = () => (
     <View>
-      <Text style={styles.stepTitle}>Preferences & Additional Information</Text>
-      <Text style={styles.stepDescription}>Please provide your preferences and any additional comments</Text>
+      <Text style={styles.stepTitle}>{t('application.step5Title')}</Text>
+      <Text style={styles.stepDescription}>{t('application.step5Description')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Compensation Expectations</Text>
+        <Text style={styles.label}>{t('application.compensationExpectations')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.compensationExpectations}
           onChangeText={(value) => updateField('compensationExpectations', value)}
-          placeholder="Your compensation expectations (optional)"
+          placeholder={t('application.compensationExpectationsPlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Timeline Availability</Text>
+        <Text style={styles.label}>{t('application.timelineAvailability')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.timelineAvailability}
           onChangeText={(value) => updateField('timelineAvailability', value)}
-          placeholder="When are you available to start? (optional)"
+          placeholder={t('application.timelineAvailabilityPlaceholder')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Willingness to Travel</Text>
+        <Text style={styles.label}>{t('application.willingnessToTravel')}</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.travelWillingness === true && styles.radioButtonSelected]}
             onPress={() => updateField('travelWillingness', true)}
           >
-            <Text style={[styles.radioText, applicationData.travelWillingness === true && styles.radioTextSelected]}>Yes</Text>
+            <Text style={[styles.radioText, applicationData.travelWillingness === true && styles.radioTextSelected]}>{t('application.yes')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.travelWillingness === false && styles.radioButtonSelected]}
             onPress={() => updateField('travelWillingness', false)}
           >
-            <Text style={[styles.radioText, applicationData.travelWillingness === false && styles.radioTextSelected]}>No</Text>
+            <Text style={[styles.radioText, applicationData.travelWillingness === false && styles.radioTextSelected]}>{t('application.no')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Special Preferences</Text>
+        <Text style={styles.label}>{t('application.specialPreferences')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.specialPreferences}
           onChangeText={(value) => updateField('specialPreferences', value)}
-          placeholder="Any special preferences or requirements (optional)"
+          placeholder={t('application.specialPreferencesPlaceholder')}
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Additional Comments</Text>
+        <Text style={styles.label}>{t('application.additionalComments')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.additionalComments}
           onChangeText={(value) => updateField('additionalComments', value)}
-          placeholder="Any additional comments or information you'd like to share (optional)"
+          placeholder={t('application.additionalCommentsPlaceholder')}
           multiline
           numberOfLines={4}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Invite Code</Text>
-        <Text style={styles.subLabel}>If someone invited you, enter their code (optional)</Text>
+        <Text style={styles.label}>{t('application.inviteCode')}</Text>
+        <Text style={styles.subLabel}>{t('application.inviteCodeSubLabel')}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.referralCode}
           onChangeText={(value) => updateField('referralCode', value)}
-          placeholder="Enter invite code (optional)"
+          placeholder={t('application.inviteCodePlaceholder')}
           autoCapitalize="none"
         />
       </View>
@@ -994,16 +1003,16 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 }
               }}
             >
-              <Text style={styles.backHomeText}>← Back to Home</Text>
+              <Text style={styles.backHomeText}>{t('application.backToHome')}</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>Surrogacy Application</Text>
-            <Text style={styles.subtitle}>Complete your application to become a surrogate</Text>
+            <Text style={styles.title}>{t('application.title')}</Text>
+            <Text style={styles.subtitle}>{t('application.subtitle')}</Text>
           
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${(currentStep / totalSteps) * 100}%` }]} />
             </View>
-            <Text style={styles.progressText}>Step {currentStep} / {totalSteps}</Text>
+            <Text style={styles.progressText}>{t('application.step')} {currentStep} / {totalSteps}</Text>
           </View>
         </View>
 
@@ -1017,13 +1026,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           <View style={styles.buttonContainer}>
             {currentStep > 1 && (
               <TouchableOpacity style={styles.previousButton} onPress={handlePrevious}>
-                <Text style={styles.previousButtonText}>Previous</Text>
+                <Text style={styles.previousButtonText}>{t('application.previous')}</Text>
               </TouchableOpacity>
             )}
             
             {currentStep < totalSteps ? (
               <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={styles.nextButtonText}>{t('application.next')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -1032,7 +1041,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 disabled={isLoading}
               >
                 <Text style={styles.submitButtonText}>
-                  {isLoading ? 'Submitting...' : 'Submit Application'}
+                  {isLoading ? t('common.loading') : t('application.submit')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1046,13 +1055,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.authModalOverlay}>
             <View style={styles.authModal}>
-              <Text style={styles.authTitle}>Save Progress</Text>
+              <Text style={styles.authTitle}>{t('application.createAccount')}</Text>
               <Text style={styles.authSubtitle}>
-                Create an account to save your application progress.
+                {t('application.createAccountDescription')}
               </Text>
               <TextInput
                 style={styles.authInput}
-                placeholder="Email"
+                placeholder={t('application.enterEmail')}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={authEmail}
@@ -1078,14 +1087,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   onPress={() => setShowAuthPrompt(false)}
                   disabled={authLoading}
                 >
-                  <Text style={styles.authCancelText}>Cancel</Text>
+                  <Text style={styles.authCancelText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.authButton, styles.authSave]}
                   onPress={handleLazySignup}
                   disabled={authLoading}
                 >
-                  <Text style={styles.authSaveText}>{authLoading ? 'Saving...' : 'Save & Continue'}</Text>
+                  <Text style={styles.authSaveText}>{authLoading ? t('common.loading') : t('application.createAccount')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

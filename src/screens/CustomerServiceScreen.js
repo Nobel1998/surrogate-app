@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
 export default function CustomerServiceScreen({ navigation }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,19 +29,20 @@ export default function CustomerServiceScreen({ navigation }) {
 
   const handleCall = (phoneNumber) => {
     Linking.openURL(`tel:${phoneNumber}`).catch(() => {
-      Alert.alert('Error', 'Unable to make phone call');
+      Alert.alert(t('common.error'), t('customerService.unableToCall'));
     });
   };
 
   const handleEmail = (email) => {
-    Linking.openURL(`mailto:${email}?subject=Customer Service Inquiry`).catch(() => {
-      Alert.alert('Error', 'Unable to open email client');
+    const subject = encodeURIComponent(t('customerService.title'));
+    Linking.openURL(`mailto:${email}?subject=${subject}`).catch(() => {
+      Alert.alert(t('common.error'), t('customerService.unableToEmail'));
     });
   };
 
   const handleAddress = () => {
     Linking.openURL('https://maps.google.com/?q=961+W+Holt+Blvd,+Ontario,+CA+91762').catch(() => {
-      Alert.alert('Error', 'Unable to open maps');
+      Alert.alert(t('common.error'), t('customerService.unableToMaps'));
     });
   };
 
@@ -94,13 +97,13 @@ export default function CustomerServiceScreen({ navigation }) {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'open':
-        return 'Open';
+        return t('customerService.status.open');
       case 'in_progress':
-        return 'In Progress';
+        return t('customerService.status.inProgress');
       case 'resolved':
-        return 'Resolved';
+        return t('customerService.status.resolved');
       case 'closed':
-        return 'Closed';
+        return t('customerService.status.closed');
       default:
         return status;
     }
@@ -119,12 +122,12 @@ export default function CustomerServiceScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (!subject.trim() || !message.trim()) {
-      Alert.alert('Error', 'Please fill in both subject and message');
+      Alert.alert(t('common.error'), t('customerService.fillBothFields'));
       return;
     }
 
     if (!user || !user.id) {
-      Alert.alert('Error', 'You must be logged in to submit a support ticket');
+      Alert.alert(t('common.error'), t('customerService.mustBeLoggedIn'));
       return;
     }
 
@@ -149,11 +152,11 @@ export default function CustomerServiceScreen({ navigation }) {
       }
 
       Alert.alert(
-        'Success',
-        'Your message has been submitted. Our team will get back to you within 24 hours.',
+        t('common.success'),
+        t('customerService.ticketSubmittedMessage'),
         [
           {
-            text: 'OK',
+            text: t('common.close'),
             onPress: () => {
               setSubject('');
               setMessage('');
@@ -166,7 +169,7 @@ export default function CustomerServiceScreen({ navigation }) {
       await loadTickets();
     } catch (error) {
       console.error('Failed to submit support ticket:', error);
-      Alert.alert('Error', error.message || 'Failed to submit your message. Please try again.');
+      Alert.alert(t('common.error'), error.message || t('customerService.submitFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -174,24 +177,24 @@ export default function CustomerServiceScreen({ navigation }) {
 
   const faqItems = [
     {
-      question: 'How do I update my profile information?',
-      answer: 'You can update your profile information in the User Center under "My Info".',
+      question: t('faq.questions.general.updateProfile.question'),
+      answer: t('faq.questions.general.updateProfile.answer'),
     },
     {
-      question: 'How do I view my matched surrogate/parent?',
-      answer: 'Go to "My Match" tab to view your matched partner and related documents.',
+      question: t('faq.questions.general.viewMatch.question'),
+      answer: t('faq.questions.general.viewMatch.answer'),
     },
     {
-      question: 'How do I submit medical check-in reports?',
-      answer: 'In "My Journey" tab, click "Add Medical Check-in" button to submit your reports.',
+      question: t('faq.questions.medical.submitCheckin.question'),
+      answer: t('faq.questions.medical.submitCheckin.answer'),
     },
     {
-      question: 'What documents do I need to upload?',
-      answer: 'Required documents include contracts, insurance policies, and medical records. Check "My Match" for details.',
+      question: t('faq.questions.documents.uploadDocuments.question'),
+      answer: t('faq.questions.documents.uploadDocuments.answer'),
     },
     {
-      question: 'How do I contact my matched partner?',
-      answer: 'You can view your partner\'s contact information in "My Match" tab under "Intended Parents Profile".',
+      question: t('faq.questions.matching.contactPartner.question'),
+      answer: t('faq.questions.matching.contactPartner.answer'),
     },
   ];
 
@@ -201,7 +204,7 @@ export default function CustomerServiceScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Customer Service</Text>
+        <Text style={styles.headerTitle}>{t('customerService.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -214,11 +217,11 @@ export default function CustomerServiceScreen({ navigation }) {
       >
         {/* My Tickets Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Support Tickets</Text>
+          <Text style={styles.sectionTitle}>{t('customerService.myTickets')}</Text>
           {loadingTickets && tickets.length === 0 ? (
-            <Text style={styles.emptyText}>Loading tickets...</Text>
+            <Text style={styles.emptyText}>{t('customerService.loadingTickets')}</Text>
           ) : tickets.length === 0 ? (
-            <Text style={styles.emptyText}>No support tickets yet. Submit a ticket below.</Text>
+            <Text style={styles.emptyText}>{t('customerService.noTickets')}</Text>
           ) : (
             tickets.map((ticket) => (
               <TouchableOpacity
@@ -236,7 +239,7 @@ export default function CustomerServiceScreen({ navigation }) {
                   {ticket.admin_response && (
                     <View style={styles.hasResponseBadge}>
                       <Icon name="check-circle" size={14} color="#4CAF50" />
-                      <Text style={styles.hasResponseText}>Admin responded</Text>
+                      <Text style={styles.hasResponseText}>{t('customerService.adminResponse')}</Text>
                     </View>
                   )}
                   <View style={styles.ticketFooter}>
@@ -260,7 +263,7 @@ export default function CustomerServiceScreen({ navigation }) {
 
         {/* Contact Information Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <Text style={styles.sectionTitle}>{t('customerService.contactUs')}</Text>
           
           <TouchableOpacity
             style={styles.contactItem}
@@ -270,7 +273,7 @@ export default function CustomerServiceScreen({ navigation }) {
               <Icon name="phone" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Phone</Text>
+              <Text style={styles.contactLabel}>{t('customerService.phone')}</Text>
               <Text style={styles.contactValue}>+1-888-245-1866</Text>
             </View>
             <Icon name="chevron-right" size={20} color="#CCC" />
@@ -284,7 +287,7 @@ export default function CustomerServiceScreen({ navigation }) {
               <Icon name="mail" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Email</Text>
+              <Text style={styles.contactLabel}>{t('customerService.email')}</Text>
               <Text style={styles.contactValue}>info@usababytree.com</Text>
             </View>
             <Icon name="chevron-right" size={20} color="#CCC" />
@@ -298,7 +301,7 @@ export default function CustomerServiceScreen({ navigation }) {
               <Icon name="map-pin" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Address</Text>
+              <Text style={styles.contactLabel}>{t('customerService.address')}</Text>
               <Text style={styles.contactValue}>961 W Holt Blvd, Ontario, CA 91762</Text>
             </View>
             <Icon name="chevron-right" size={20} color="#CCC" />
@@ -309,26 +312,26 @@ export default function CustomerServiceScreen({ navigation }) {
               <Icon name="clock" size={24} color="#2A7BF6" />
             </View>
             <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Business Hours</Text>
-              <Text style={styles.contactValue}>Monday - Friday: 9:00 AM - 6:00 PM EST</Text>
-              <Text style={styles.contactValue}>Saturday: 10:00 AM - 4:00 PM EST</Text>
-              <Text style={styles.contactValue}>Sunday: Closed</Text>
+              <Text style={styles.contactLabel}>{t('customerService.businessHours')}</Text>
+              <Text style={styles.contactValue}>{t('customerService.businessHoursWeekday')}</Text>
+              <Text style={styles.contactValue}>{t('customerService.businessHoursSaturday')}</Text>
+              <Text style={styles.contactValue}>{t('customerService.businessHoursSunday')}</Text>
             </View>
           </View>
         </View>
 
         {/* Submit Ticket Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Submit a Support Ticket</Text>
+          <Text style={styles.sectionTitle}>{t('customerService.submitTicket')}</Text>
           <Text style={styles.sectionDescription}>
-            Fill out the form below and our team will respond within 24 hours.
+            {t('customerService.formDescription')}
           </Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Subject</Text>
+            <Text style={styles.inputLabel}>{t('customerService.subject')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter subject"
+              placeholder={t('customerService.enterSubject')}
               value={subject}
               onChangeText={setSubject}
               placeholderTextColor="#999"
@@ -336,10 +339,10 @@ export default function CustomerServiceScreen({ navigation }) {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Message</Text>
+            <Text style={styles.inputLabel}>{t('customerService.message')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Describe your issue or question"
+              placeholder={t('customerService.enterMessage')}
               value={message}
               onChangeText={setMessage}
               multiline
@@ -355,14 +358,14 @@ export default function CustomerServiceScreen({ navigation }) {
             disabled={isSubmitting}
           >
             <Text style={styles.submitButtonText}>
-              {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+              {isSubmitting ? t('customerService.submitting') : t('customerService.submit')}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* FAQ Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+          <Text style={styles.sectionTitle}>{t('faq.title')}</Text>
           
           {faqItems.map((item, index) => (
             <View key={index} style={styles.faqItem}>
@@ -378,7 +381,7 @@ export default function CustomerServiceScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ticket Details</Text>
+              <Text style={styles.modalTitle}>{t('customerService.ticketDetails')}</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowTicketDetail(false);
@@ -392,12 +395,12 @@ export default function CustomerServiceScreen({ navigation }) {
 
             <ScrollView style={styles.modalScrollView}>
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Subject</Text>
+                <Text style={styles.detailLabel}>{t('customerService.subject')}</Text>
                 <Text style={styles.detailValue}>{selectedTicket.subject}</Text>
               </View>
 
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Status</Text>
+                <Text style={styles.detailLabel}>{t('customerService.status.label')}</Text>
                 <View
                   style={[
                     styles.statusBadge,
@@ -409,19 +412,19 @@ export default function CustomerServiceScreen({ navigation }) {
               </View>
 
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Submitted</Text>
+                <Text style={styles.detailLabel}>{t('customerService.submitted')}</Text>
                 <Text style={styles.detailValue}>{formatDate(selectedTicket.created_at)}</Text>
               </View>
 
               {selectedTicket.updated_at !== selectedTicket.created_at && (
                 <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Last Updated</Text>
+                  <Text style={styles.detailLabel}>{t('customerService.lastUpdated')}</Text>
                   <Text style={styles.detailValue}>{formatDate(selectedTicket.updated_at)}</Text>
                 </View>
               )}
 
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Your Message</Text>
+                <Text style={styles.detailLabel}>{t('customerService.yourMessage')}</Text>
                 <Text style={styles.detailMessage}>{selectedTicket.message}</Text>
               </View>
 
@@ -429,7 +432,7 @@ export default function CustomerServiceScreen({ navigation }) {
                 <View style={[styles.detailSection, styles.adminResponseSection]}>
                   <View style={styles.adminResponseHeader}>
                     <Icon name="message-circle" size={20} color="#4CAF50" />
-                    <Text style={styles.adminResponseLabel}>Admin Response</Text>
+                    <Text style={styles.adminResponseLabel}>{t('customerService.adminResponse')}</Text>
                   </View>
                   <Text style={styles.adminResponseText}>{selectedTicket.admin_response}</Text>
                 </View>

@@ -14,6 +14,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
@@ -22,6 +23,7 @@ const { width } = Dimensions.get('window');
 
 export default function MyMatchScreen({ navigation }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [matchData, setMatchData] = useState(null);
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -187,14 +189,14 @@ export default function MyMatchScreen({ navigation }) {
         if (supported) {
           await Linking.openURL(url);
         } else {
-          Alert.alert('Error', 'Cannot open this document');
+          Alert.alert(t('common.error'), t('myMatch.cannotOpenDocument'));
         }
       } catch (error) {
         console.error('Error opening document:', error);
-        Alert.alert('Error', 'Failed to open document');
+        Alert.alert(t('common.error'), t('myMatch.failedToOpen'));
       }
     } else {
-      Alert.alert('Info', 'Document file is not available yet');
+      Alert.alert(t('common.error'), t('myMatch.documentNotAvailable'));
     }
   };
 
@@ -217,26 +219,25 @@ export default function MyMatchScreen({ navigation }) {
         <View style={styles.unmatchedIconContainer}>
           <Icon name="search" size={64} color="#FF8EA4" />
         </View>
-        <Text style={styles.unmatchedTitle}>Matching in Progress</Text>
+        <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
         <Text style={styles.unmatchedDescription}>
-          Our team is carefully reviewing profiles to find your perfect match. 
-          You will be notified once a connection is made.
+          {t('myMatch.matchingDescription')}
         </Text>
         
         <View style={styles.timelineSteps}>
           <View style={styles.timelineStep}>
             <View style={[styles.stepDot, styles.stepActive]} />
-            <Text style={styles.stepText}>Profile Review</Text>
+            <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
           </View>
           <View style={styles.stepLine} />
           <View style={styles.timelineStep}>
             <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>Matching</Text>
+            <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
           </View>
           <View style={styles.stepLine} />
           <View style={styles.timelineStep}>
             <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>Confirmation</Text>
+            <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
           </View>
         </View>
 
@@ -244,7 +245,7 @@ export default function MyMatchScreen({ navigation }) {
           style={styles.contactButton}
           onPress={() => Linking.openURL('mailto:support@agency.com')}
         >
-          <Text style={styles.contactButtonText}>Contact Agency</Text>
+          <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -261,7 +262,7 @@ export default function MyMatchScreen({ navigation }) {
     const documentConfig = [
       {
         key: 'intended_parents_profile',
-        label: 'Intended Parents Profile',
+        label: t('myMatch.intendedParentsProfile'),
         icon: 'user',
         iconColor: '#FF8EA4',
         documentType: isSurrogate ? 'parent_contract' : null,
@@ -269,42 +270,42 @@ export default function MyMatchScreen({ navigation }) {
       },
       {
         key: 'attorney_retainer',
-        label: 'Attorney Retainer Agreement',
+        label: t('myMatch.attorneyRetainer'),
         icon: 'briefcase',
         iconColor: '#6C5CE7',
         documentType: 'legal_contract',
       },
       {
         key: 'surrogacy_contract',
-        label: 'Surrogacy Contract',
+        label: t('myMatch.surrogacyContract'),
         icon: 'file-text',
         iconColor: '#00B894',
         documentType: isSurrogate ? 'surrogate_contract' : 'parent_contract',
       },
       {
         key: 'life_insurance',
-        label: 'Surrogate Life Insurance Policy',
+        label: t('myMatch.lifeInsurance'),
         icon: 'shield',
         iconColor: '#FDCB6E',
         documentType: 'insurance_policy',
       },
       {
         key: 'health_insurance',
-        label: 'Surrogate Health Insurance Bill',
+        label: t('myMatch.healthInsurance'),
         icon: 'heart',
         iconColor: '#E17055',
         documentType: 'health_insurance_bill',
       },
       {
         key: 'pbo',
-        label: 'PBO',
+        label: t('myMatch.pbo'),
         icon: 'file',
         iconColor: '#A29BFE',
         documentType: 'parental_rights',
       },
       {
         key: 'online_claims',
-        label: 'Online Claims',
+        label: t('myMatch.onlineClaims'),
         icon: 'check-circle',
         iconColor: '#6C5CE7',
         documentType: 'online_claims',
@@ -355,9 +356,9 @@ export default function MyMatchScreen({ navigation }) {
         {/* Documents Section */}
         <View style={styles.documentsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Documents & Records</Text>
+            <Text style={styles.sectionTitle}>{t('myMatch.documentsRecords')}</Text>
             <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>{documents.length} Available</Text>
+              <Text style={styles.sectionBadgeText}>{documents.length} {t('myMatch.available')}</Text>
             </View>
           </View>
 
@@ -418,12 +419,12 @@ export default function MyMatchScreen({ navigation }) {
                       {!isLocked && (
                         <View style={styles.availableBadge}>
                           <View style={styles.availableDot} />
-                          <Text style={styles.availableText}>Available</Text>
+                          <Text style={styles.availableText}>{t('myMatch.available')}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={styles.documentStatus}>
-                      {isLocked ? 'Pending Upload' : 'Tap to view'}
+                      {isLocked ? t('myMatch.pendingUpload') : t('myMatch.tapToView')}
                     </Text>
                   </View>
 
@@ -440,7 +441,7 @@ export default function MyMatchScreen({ navigation }) {
 
         {/* Quick Actions */}
         <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>{t('myMatch.quickActions')}</Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}
@@ -449,7 +450,7 @@ export default function MyMatchScreen({ navigation }) {
               <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
                 <Icon name="phone" size={24} color="#00B894" />
               </View>
-              <Text style={styles.quickActionLabel}>Call</Text>
+              <Text style={styles.quickActionLabel}>{t('myMatch.call')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -459,7 +460,7 @@ export default function MyMatchScreen({ navigation }) {
               <View style={[styles.quickActionIcon, { backgroundColor: '#FFF3E0' }]}>
                 <Icon name="mail" size={24} color="#FF8EA4" />
               </View>
-              <Text style={styles.quickActionLabel}>Email</Text>
+              <Text style={styles.quickActionLabel}>{t('myMatch.email')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -469,7 +470,7 @@ export default function MyMatchScreen({ navigation }) {
               <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
                 <Icon name="heart" size={24} color="#2A7BF6" />
               </View>
-              <Text style={styles.quickActionLabel}>Journey</Text>
+              <Text style={styles.quickActionLabel}>{t('myMatch.journey')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -481,7 +482,7 @@ export default function MyMatchScreen({ navigation }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF8EA4" />
-        <Text style={styles.loadingText}>Loading match info...</Text>
+        <Text style={styles.loadingText}>{t('myMatch.loadingMatchInfo')}</Text>
       </View>
     );
   }

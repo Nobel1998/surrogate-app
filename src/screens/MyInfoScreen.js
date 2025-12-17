@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
 export default function MyInfoScreen({ navigation }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -149,15 +151,15 @@ export default function MyInfoScreen({ navigation }) {
         console.error('Error updating auth user:', authError);
       }
 
-      Alert.alert('Success', 'Your profile has been updated successfully!', [
+      Alert.alert(t('common.success'), t('myInfo.saveSuccess'), [
         {
-          text: 'OK',
+          text: t('common.close'),
           onPress: () => navigation.goBack(),
         },
       ]);
     } catch (error) {
       console.error('Failed to save profile:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile. Please try again.');
+      Alert.alert(t('common.error'), error.message || t('myInfo.saveError'));
     } finally {
       setSaving(false);
     }
@@ -260,10 +262,10 @@ export default function MyInfoScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Info</Text>
+        <Text style={styles.headerTitle}>{t('myInfo.title')}</Text>
         <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={saving}>
           <Text style={[styles.saveButtonText, saving && styles.saveButtonTextDisabled]}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? t('myInfoAdditional.saving') : t('common.save')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -271,13 +273,13 @@ export default function MyInfoScreen({ navigation }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Personal Information Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>{t('myInfo.personalInfo')}</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Full Name *</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.fullName')} *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your full name"
+              placeholder={t('myInfoAdditional.enterFullName')}
               value={profileData.name}
               onChangeText={(text) => setProfileData({ ...profileData, name: text })}
               placeholderTextColor="#999"
@@ -285,22 +287,22 @@ export default function MyInfoScreen({ navigation }) {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.email')}</Text>
             <TextInput
               style={[styles.input, styles.inputDisabled]}
-              placeholder="Email address"
+              placeholder={t('myInfoAdditional.emailAddress')}
               value={profileData.email}
               editable={false}
               placeholderTextColor="#999"
             />
-            <Text style={styles.inputHint}>Email cannot be changed</Text>
+            <Text style={styles.inputHint}>{t('myInfo.emailCannotChange')}</Text>
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Phone</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.phone')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your phone number"
+              placeholder={t('myInfoAdditional.enterPhone')}
               value={profileData.phone}
               onChangeText={(text) => setProfileData({ ...profileData, phone: text })}
               keyboardType="phone-pad"
@@ -309,10 +311,10 @@ export default function MyInfoScreen({ navigation }) {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Date of Birth</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.dateOfBirth')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="MM-DD-YYYY"
+              placeholder={t('myInfoAdditional.enterDateOfBirth')}
               value={dateOfBirthDisplay}
               onChangeText={(text) => {
                 // Allow user to type freely, just update display value
@@ -320,14 +322,14 @@ export default function MyInfoScreen({ navigation }) {
               }}
               placeholderTextColor="#999"
             />
-            <Text style={styles.inputHint}>Format: MM-DD-YYYY</Text>
+            <Text style={styles.inputHint}>{t('myInfo.dateFormat')}</Text>
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Race/Ethnicity</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.race')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your race or ethnicity"
+              placeholder={t('myInfoAdditional.enterRace')}
               value={profileData.race}
               onChangeText={(text) => setProfileData({ ...profileData, race: text })}
               placeholderTextColor="#999"
@@ -335,10 +337,10 @@ export default function MyInfoScreen({ navigation }) {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Location/Address</Text>
+            <Text style={styles.inputLabel}>{t('myInfo.location')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Enter your address"
+              placeholder={t('myInfoAdditional.enterAddress')}
               value={profileData.location}
               onChangeText={(text) => setProfileData({ ...profileData, location: text })}
               multiline
@@ -351,16 +353,23 @@ export default function MyInfoScreen({ navigation }) {
 
         {/* Account Information Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
+          <Text style={styles.sectionTitle}>{t('myInfo.accountInfo')}</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>User ID</Text>
+            <Text style={styles.infoLabel}>{t('myInfo.userId')}</Text>
             <Text style={styles.infoValue} selectable>
               {user?.id || 'N/A'}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Role</Text>
-            <Text style={styles.infoValue}>{user?.role || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>{t('myInfo.role')}</Text>
+            <Text style={styles.infoValue}>
+              {(() => {
+                const role = (user?.role || '').toLowerCase();
+                if (role === 'surrogate') return t('myInfo.roleSurrogate');
+                if (role === 'parent') return t('myInfo.roleParent');
+                return user?.role || 'N/A';
+              })()}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -487,3 +496,4 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
+

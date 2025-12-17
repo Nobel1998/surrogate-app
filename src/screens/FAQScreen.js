@@ -8,8 +8,10 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function FAQScreen({ navigation }) {
+  const { t } = useLanguage();
   const [expandedIndex, setExpandedIndex] = useState(null);
 
   const toggleFAQ = (index) => {
@@ -18,87 +20,87 @@ export default function FAQScreen({ navigation }) {
 
   const faqItems = [
     {
-      category: 'General',
+      category: t('faq.categories.general'),
       questions: [
         {
-          question: 'How do I update my profile information?',
-          answer: 'You can update your profile information in the User Center under "My Info". Simply tap on any field you want to edit, make your changes, and tap "Save" to update your information.',
+          question: t('faq.questions.general.updateProfile.question'),
+          answer: t('faq.questions.general.updateProfile.answer'),
         },
         {
-          question: 'How do I view my matched surrogate/parent?',
-          answer: 'Go to the "My Match" tab in the bottom navigation to view your matched partner and all related documents. You can see their profile, contact information, and shared documents.',
+          question: t('faq.questions.general.viewMatch.question'),
+          answer: t('faq.questions.general.viewMatch.answer'),
         },
         {
-          question: 'What should I do if I forget my password?',
-          answer: 'On the login screen, tap "Forgot Password?" and enter your email address. You will receive an email with instructions to reset your password.',
+          question: t('faq.questions.general.forgotPassword.question'),
+          answer: t('faq.questions.general.forgotPassword.answer'),
         },
       ],
     },
     {
-      category: 'Medical Check-ins',
+      category: t('faq.categories.medical'),
       questions: [
         {
-          question: 'How do I submit medical check-in reports?',
-          answer: 'In the "My Journey" tab, click the "Add Medical Check-in" button. Select your current stage (Pre-Transfer, Post-Transfer, or OB Office Visit), fill in the required information, upload any proof documents, and submit.',
+          question: t('faq.questions.medical.submitCheckin.question'),
+          answer: t('faq.questions.medical.submitCheckin.answer'),
         },
         {
-          question: 'What information do I need for medical check-ins?',
-          answer: 'The required information varies by stage. Pre-Transfer requires lab results and ultrasound data. Post-Transfer requires Beta HCG, fetal heart rate, and gestational sac measurements. OB Office Visit requires weight, blood pressure, and other routine check-up data.',
+          question: t('faq.questions.medical.checkinInfo.question'),
+          answer: t('faq.questions.medical.checkinInfo.answer'),
         },
         {
-          question: 'Can I view my previous medical check-ins?',
-          answer: 'Yes, all your medical check-ins are displayed in the "My Journey" timeline. You can scroll through your history and view details of each check-in.',
+          question: t('faq.questions.medical.viewCheckins.question'),
+          answer: t('faq.questions.medical.viewCheckins.answer'),
         },
       ],
     },
     {
-      category: 'Documents',
+      category: t('faq.categories.documents'),
       questions: [
         {
-          question: 'What documents do I need to upload?',
-          answer: 'Required documents include contracts (Surrogacy Contract, Attorney Retainer Agreement), insurance policies (Life Insurance, Health Insurance), and legal documents (PBO). Check "My Match" for a complete list of required documents.',
+          question: t('faq.questions.documents.uploadDocuments.question'),
+          answer: t('faq.questions.documents.uploadDocuments.answer'),
         },
         {
-          question: 'How do I access my documents?',
-          answer: 'All documents are available in the "My Match" tab under "Documents & Records". Tap on any document to view or download it.',
+          question: t('faq.questions.documents.accessDocuments.question'),
+          answer: t('faq.questions.documents.accessDocuments.answer'),
         },
         {
-          question: 'What file formats are supported for document uploads?',
-          answer: 'Supported formats include PDF, DOC, DOCX, and TXT files. Make sure your files are clear and readable before uploading.',
+          question: t('faq.questions.documents.fileFormats.question'),
+          answer: t('faq.questions.documents.fileFormats.answer'),
         },
       ],
     },
     {
-      category: 'Matching Process',
+      category: t('faq.categories.matching'),
       questions: [
         {
-          question: 'How do I contact my matched partner?',
-          answer: 'You can view your partner\'s contact information in the "My Match" tab under "Intended Parents Profile" (for surrogates) or by viewing the matched surrogate\'s profile. You can call or email them directly from the app.',
+          question: t('faq.questions.matching.contactPartner.question'),
+          answer: t('faq.questions.matching.contactPartner.answer'),
         },
         {
-          question: 'How long does the matching process take?',
-          answer: 'The matching process typically takes 2-4 weeks after your profile is approved. Our team carefully reviews profiles to ensure the best possible match for both parties.',
+          question: t('faq.questions.matching.matchingTime.question'),
+          answer: t('faq.questions.matching.matchingTime.answer'),
         },
         {
-          question: 'Can I see my match status?',
-          answer: 'Yes, your match status is displayed in the "My Match" tab. If you are matched, you will see your partner\'s information and shared documents. If not matched yet, you will see a "Matching in Progress" message.',
+          question: t('faq.questions.matching.matchStatus.question'),
+          answer: t('faq.questions.matching.matchStatus.answer'),
         },
       ],
     },
     {
-      category: 'Account & Settings',
+      category: t('faq.categories.account'),
       questions: [
         {
-          question: 'How do I change my notification preferences?',
-          answer: 'Go to User Center > Notification Preferences. You can toggle push notifications, email notifications, and SMS notifications on or off.',
+          question: t('faq.questions.account.notificationPreferences.question'),
+          answer: t('faq.questions.account.notificationPreferences.answer'),
         },
         {
-          question: 'How do I view my application history?',
-          answer: 'In the User Center, tap on "Application History" to view all your submitted applications, their status, and details.',
+          question: t('faq.questions.account.applicationHistory.question'),
+          answer: t('faq.questions.account.applicationHistory.answer'),
         },
         {
-          question: 'How do I sign out?',
-          answer: 'Go to User Center and scroll to the bottom. Tap "Sign Out" to log out of your account.',
+          question: t('faq.questions.account.signOut.question'),
+          answer: t('faq.questions.account.signOut.answer'),
         },
       ],
     },
@@ -110,7 +112,7 @@ export default function FAQScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Frequently Asked Questions</Text>
+        <Text style={styles.headerTitle}>{t('faq.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -152,16 +154,16 @@ export default function FAQScreen({ navigation }) {
 
         {/* Contact Support Section */}
         <View style={styles.contactSection}>
-          <Text style={styles.contactTitle}>Still have questions?</Text>
+          <Text style={styles.contactTitle}>{t('faq.contactSupport')}</Text>
           <Text style={styles.contactDescription}>
-            If you can't find the answer you're looking for, our support team is here to help.
+            {t('faq.ifYouHaveQuestions')}
           </Text>
           <TouchableOpacity
             style={styles.contactButton}
             onPress={() => navigation.navigate('CustomerService')}
           >
             <Icon name="message-circle" size={20} color="#fff" />
-            <Text style={styles.contactButtonText}>Contact Customer Service</Text>
+            <Text style={styles.contactButtonText}>{t('profile.customerService')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -281,3 +283,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

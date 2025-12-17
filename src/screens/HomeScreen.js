@@ -14,13 +14,21 @@ const normalizeStage = (value = 'pregnancy') => {
   return String(value).toLowerCase();
 };
 
-const STAGE_OPTIONS = [
-  { key: 'pre', label: 'Pre-Transfer', icon: 'heart', description: 'Preparation & Matching' },
-  { key: 'pregnancy', label: 'Post-Transfer', icon: 'heart', description: 'Updates & Checkups' },
-  { key: 'ob_visit', label: 'OB Office Visit', icon: 'user', description: 'OB/GYN Care' },
-  { key: 'delivery', label: 'Delivery', icon: 'gift', description: 'Birth & Post-birth' },
-];
 const STAGE_ORDER = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
+
+// Function to get stage options with translations
+const getStageOptions = (t) => [
+  { key: 'pre', label: t('home.stagePre'), icon: 'heart', description: 'Preparation & Matching' },
+  { key: 'pregnancy', label: t('home.stagePost'), icon: 'heart', description: 'Updates & Checkups' },
+  { key: 'ob_visit', label: t('home.stageOB'), icon: 'user', description: 'OB/GYN Care' },
+  { key: 'delivery', label: t('home.stageDelivery'), icon: 'gift', description: 'Birth & Post-birth' },
+];
+
+// Function to get embryo day options with translations
+const getEmbryoDayOptions = (t) => [
+  { key: 'day5', label: t('home.day5Embryo'), transferGestationalDays: 14 }, // spec: 2w+0d
+  { key: 'day3', label: t('home.day3Embryo'), transferGestationalDays: 19 }, // spec: 2w+5d
+];
 
 // 视频播放器组件
 const VideoPlayer = ({ source, style }) => {
@@ -59,12 +67,16 @@ const VideoPlayer = ({ source, style }) => {
 };
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import Avatar from '../components/Avatar';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
   const { user, isLoading: authLoading, updateProfile } = useAuth();
+  const { t } = useLanguage();
+  const STAGE_OPTIONS = getStageOptions(t);
+  const EMBRYO_DAY_OPTIONS = getEmbryoDayOptions(t);
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [postText, setPostText] = useState('');
@@ -155,11 +167,6 @@ export default function HomeScreen() {
     if (s === 'day5' || s === 'd5' || s === '5' || s === '5day') return 'day5';
     return 'day5';
   };
-
-  const EMBRYO_DAY_OPTIONS = [
-    { key: 'day5', label: 'Day 5 Embryo', transferGestationalDays: 14 }, // spec: 2w+0d
-    { key: 'day3', label: 'Day 3 Embryo', transferGestationalDays: 19 }, // spec: 2w+5d
-  ];
 
   const transferEmbryoDayStr = useMemo(() => {
     // For parent users, get transfer_embryo_day from matched surrogate's profile
@@ -483,7 +490,7 @@ export default function HomeScreen() {
             {savingTransferDate ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Save & Start Tracking</Text>
+              <Text style={styles.buttonText}>{t('home.saveAndStartTracking')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -501,9 +508,9 @@ export default function HomeScreen() {
             <Icon name="heart" size={24} color="#10B981" />
           </View>
           <View>
-            <Text style={styles.cardTitle}>Current Progress</Text>
+            <Text style={styles.cardTitle}>{t('home.currentProgress')}</Text>
             <Text style={styles.cardSubtitle}>
-              {weeks} weeks {days} days
+              {weeks} {t('home.weeks')} {days} {t('home.days')}
             </Text>
           </View>
           <View style={{ flex: 1 }} />
@@ -514,7 +521,7 @@ export default function HomeScreen() {
 
         <View style={{ marginBottom: 24 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={styles.sectionLabel}>Due Date Countdown</Text>
+            <Text style={styles.sectionLabel}>{t('home.dueDateCountdown')}</Text>
             <Text style={[styles.sectionLabel, { color: '#1F6FE0' }]}>{daysLeftText}</Text>
           </View>
           <View style={styles.pregProgressTrack}>
@@ -524,12 +531,12 @@ export default function HomeScreen() {
 
         {isGraduated && (
           <View style={styles.pregGraduationBanner}>
-            <Text style={styles.pregGraduationText}>🎉 Congratulations! Transfer to OB/GYN recommended</Text>
+            <Text style={styles.pregGraduationText}>{t('home.congratulationsGraduation')}</Text>
           </View>
         )}
 
         <Text style={styles.sectionLabel}>
-          Embryo Type {isParentRole ? '(Set by Surrogate)' : '(Tap to change)'}
+          {t('home.embryoType')} {isParentRole ? t('home.setBySurrogate') : t('home.tapToChange')}
         </Text>
         <View style={styles.segmentedControl}>
           {EMBRYO_DAY_OPTIONS.map((opt) => {
@@ -563,7 +570,7 @@ export default function HomeScreen() {
         </View>
         {isParentRole && (
           <Text style={[styles.helperText, { marginTop: 8, marginLeft: 4 }]}>
-            This information is set by your matched surrogate and cannot be changed.
+            {t('home.cannotChangeEmbryo')}
           </Text>
         )}
 
@@ -571,7 +578,7 @@ export default function HomeScreen() {
           style={styles.fullWidthButton}
           onPress={() => {
             if (isParentRole) {
-              Alert.alert('Restricted', 'Only surrogates can create posts.');
+              Alert.alert(t('home.restricted'), t('home.onlySurrogatesCanPost'));
               return;
             }
             showImagePicker();
@@ -579,7 +586,7 @@ export default function HomeScreen() {
           activeOpacity={0.85}
         >
           <Icon name="upload" size={20} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.buttonText}>Upload Weekly Report</Text>
+          <Text style={styles.buttonText}>{t('home.uploadWeeklyReport')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -1552,24 +1559,24 @@ export default function HomeScreen() {
     // Extract key metrics based on stage
     let keyMetrics = [];
     if (report.stage === 'Pre-Transfer') {
-      if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness} mm`);
-      if (reportData.follicle_1_mm) keyMetrics.push(`Follicle 1: ${reportData.follicle_1_mm}mm`);
+      if (reportData.endometrial_thickness) keyMetrics.push(`${t('medicalReport.endometrial')}: ${reportData.endometrial_thickness} mm`);
+      if (reportData.follicle_1_mm) keyMetrics.push(`${t('medicalReport.follicle')} 1: ${reportData.follicle_1_mm}mm`);
       if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
-        keyMetrics.push(`Labs: ${reportData.labs.join(', ')}`);
+        keyMetrics.push(`${t('medicalReport.labs')}: ${reportData.labs.join(', ')}`);
       }
     } else if (report.stage === 'Post-Transfer') {
       if (reportData.beta_hcg || (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.includes('beta_hgc'))) {
-        keyMetrics.push(`Beta HCG: ${reportData.beta_hcg || 'Tested'}`);
+        keyMetrics.push(`${t('medicalReport.betaHcg')}: ${reportData.beta_hcg || t('medicalReport.tested')}`);
       }
-      if (reportData.fetal_heart_rate) keyMetrics.push(`Heart Rate: ${reportData.fetal_heart_rate} bpm`);
-      if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter} mm`);
-      if (reportData.gestational_age) keyMetrics.push(`GA: ${reportData.gestational_age}`);
+      if (reportData.fetal_heart_rate) keyMetrics.push(`${t('medicalReport.heartRate')}: ${reportData.fetal_heart_rate} bpm`);
+      if (reportData.gestational_sac_diameter) keyMetrics.push(`${t('medicalReport.sac')}: ${reportData.gestational_sac_diameter} mm`);
+      if (reportData.gestational_age) keyMetrics.push(`${t('medicalReport.ga')}: ${reportData.gestational_age}`);
     } else if (report.stage === 'OBGYN') {
-      if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight} lbs`);
-      if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
-      if (reportData.stomach_measurement) keyMetrics.push(`Stomach: ${reportData.stomach_measurement} cm`);
-      if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats} bpm`);
-      if (reportData.gestational_age) keyMetrics.push(`GA: ${reportData.gestational_age}`);
+      if (reportData.weight) keyMetrics.push(`${t('medicalReport.weight')}: ${reportData.weight} lbs`);
+      if (reportData.blood_pressure) keyMetrics.push(`${t('medicalReport.bp')}: ${reportData.blood_pressure}`);
+      if (reportData.stomach_measurement) keyMetrics.push(`${t('medicalReport.stomach')}: ${reportData.stomach_measurement} cm`);
+      if (reportData.fetal_heartbeats) keyMetrics.push(`${t('medicalReport.fhr')}: ${reportData.fetal_heartbeats} bpm`);
+      if (reportData.gestational_age) keyMetrics.push(`${t('medicalReport.ga')}: ${reportData.gestational_age}`);
     }
 
     return (
@@ -1579,7 +1586,7 @@ export default function HomeScreen() {
             <Icon name="file-text" size={20} color="#1F6FE0" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.medicalReportTitle}>Medical Check-in</Text>
+            <Text style={styles.medicalReportTitle}>{t('medicalReport.title')}</Text>
             <Text style={styles.medicalReportDate}>{formattedDate}</Text>
           </View>
           {report.provider_name && (
@@ -1629,7 +1636,7 @@ export default function HomeScreen() {
         {renderPregnancyDashboard()}
         {isSurrogateRole && (
           <View style={styles.stageUpdateCard}>
-            <Text style={styles.stageUpdateLabel}>Update your stage</Text>
+            <Text style={styles.stageUpdateLabel}>{t('home.updateYourStage')}</Text>
             <View style={styles.stageChipRow}>
               {STAGE_OPTIONS.map((option) => {
                 const isActive = normalizeStage(serverStage) === option.key;
@@ -1651,7 +1658,7 @@ export default function HomeScreen() {
                     <Text style={[styles.stageChipSubtitle, isActive && styles.stageChipSubtitleActive]}>
                       {option.description}
                     </Text>
-                    {isActive && <Text style={styles.stageChipBadge}>Current</Text>}
+                    {isActive && <Text style={styles.stageChipBadge}>{t('home.current')}</Text>}
                     {stageUpdateLoading && isActive && (
                       <View style={styles.stageChipSpinner}>
                         <ActivityIndicator size="small" color="#fff" />
@@ -1662,7 +1669,7 @@ export default function HomeScreen() {
               })}
             </View>
             <Text style={styles.stageUpdateHint}>
-              Changes are saved to your profile and visible to matched parents.
+              {t('home.changesSaved')}
             </Text>
           </View>
         )}
@@ -1693,22 +1700,31 @@ export default function HomeScreen() {
                 <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { width: '20%' }]} />
                 </View>
-                <Text style={styles.progressText}>In Progress</Text>
+                <Text style={styles.progressText}>{t('home.inProgress')}</Text>
               </View>
             )}
           </View>
         )}
 
-        {/* Medical Reports Section */}
-        {medicalReports.length > 0 && (
+        {/* Medical Reports Section - Hide in delivery stage */}
+        {medicalReports.length > 0 && getCurrentStageKey() !== 'delivery' && (
           <View style={styles.medicalReportsSection}>
-            <Text style={styles.medicalReportsSectionTitle}>Medical Check-ins</Text>
-            {medicalReports.map((report) => renderMedicalReport(report))}
+            <Text style={styles.medicalReportsSectionTitle}>{t('home.medicalCheckins')}</Text>
+            {medicalReports
+              .filter((report) => {
+                // Filter out OBGYN reports when in delivery stage
+                const currentStage = getCurrentStageKey();
+                if (currentStage === 'delivery' && report.stage === 'OBGYN') {
+                  return false;
+                }
+                return true;
+              })
+              .map((report) => renderMedicalReport(report))}
           </View>
         )}
 
-        {/* Add Medical Check-in Button (for surrogates in all stages) */}
-        {isSurrogateRole && (
+        {/* Add Medical Check-in Button - Hide in delivery stage */}
+        {isSurrogateRole && getCurrentStageKey() !== 'delivery' && (
           <TouchableOpacity
             style={styles.addMedicalReportButton}
             onPress={() => {
@@ -1722,7 +1738,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Icon name="plus-circle" size={20} color="#1F6FE0" />
-            <Text style={styles.addMedicalReportButtonText}>Add Medical Check-in</Text>
+            <Text style={styles.addMedicalReportButtonText}>{t('home.addMedicalCheckin')}</Text>
           </TouchableOpacity>
         )}
 
@@ -1778,8 +1794,8 @@ export default function HomeScreen() {
                   <Text style={[styles.timelineStepText, isCurrent && styles.textCurrent]}>
                     {stage.label}
                   </Text>
-                  {isCurrent && <View style={styles.statusBadge}><Text style={styles.statusText}>In Progress</Text></View>}
-                  {isCompleted && <View style={styles.statusBadgeCompleted}><Text style={styles.statusTextCompleted}>Completed</Text></View>}
+                  {isCurrent && <View style={styles.statusBadge}><Text style={styles.statusText}>{t('home.inProgress')}</Text></View>}
+                  {isCompleted && <View style={styles.statusBadgeCompleted}><Text style={styles.statusTextCompleted}>{t('home.completed')}</Text></View>}
                 </View>
                 <Text style={[styles.timelineDescText, isCurrent && styles.textCurrentSub]}>
                   {stage.description}
@@ -1788,7 +1804,7 @@ export default function HomeScreen() {
                 {!isLocked && (
                   <View style={styles.cardFooter}>
                     <Text style={[styles.viewDetailsText, isCurrent && styles.textCurrentLink]}>
-                      View Updates &rarr;
+                      {t('home.viewUpdates')} &rarr;
                     </Text>
                   </View>
                 )}
@@ -1832,8 +1848,8 @@ export default function HomeScreen() {
       {viewMode === 'timeline' ? (
         <>
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>My Journey</Text>
-            <Text style={styles.subtitle}>Track your surrogacy progress</Text>
+            <Text style={styles.title}>{t('home.title')}</Text>
+            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           {renderTimelineView()}
           {isSurrogateRole && (
@@ -1855,7 +1871,7 @@ export default function HomeScreen() {
               <Icon name="chevron-left" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.feedTitle}>
-              {STAGE_OPTIONS.find(s => s.key === stageFilter)?.label || 'All Updates'}
+              {STAGE_OPTIONS.find(s => s.key === stageFilter)?.label || t('home.allStages')}
             </Text>
             <View style={{ width: 24 }} />
           </View>

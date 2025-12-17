@@ -18,12 +18,14 @@ import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import { uploadMedia } from '../utils/mediaUpload';
 
 export default function MedicalReportFormScreen({ route }) {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { stage, onSubmit } = route?.params || {};
 
   const [formData, setFormData] = useState({});
@@ -70,7 +72,7 @@ export default function MedicalReportFormScreen({ route }) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions to upload images.');
+        Alert.alert(t('medicalReport.permissionRequired'), t('medicalReport.grantCameraPermission'));
         return;
       }
 
@@ -86,7 +88,7 @@ export default function MedicalReportFormScreen({ route }) {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      Alert.alert(t('medicalReport.error'), t('medicalReport.failedToPickImage'));
     }
   };
 
@@ -236,9 +238,9 @@ export default function MedicalReportFormScreen({ route }) {
 
       console.log('Report submitted successfully:', data);
 
-      Alert.alert('Success', 'Medical report submitted successfully!', [
+      Alert.alert(t('medicalReport.success'), t('medicalReport.successMessage'), [
         { 
-          text: 'OK', 
+          text: t('common.close'), 
           onPress: () => {
             if (onSubmit) {
               onSubmit();
@@ -276,27 +278,27 @@ export default function MedicalReportFormScreen({ route }) {
   const renderPreTransferForm = () => (
     <>
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Labs</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.labs')}</Text>
         <View style={styles.checkboxGroup}>
-          {renderCheckbox('Estradiol', 'labs', 'estradiol')}
-          {renderCheckbox('Progesterone', 'labs', 'progesterone')}
-          {renderCheckbox('FSH', 'labs', 'fsh')}
-          {renderCheckbox('LH', 'labs', 'lh')}
-          {renderCheckbox('Beta hGC', 'labs', 'beta_hgc')}
+          {renderCheckbox(t('medicalReport.estradiol'), 'labs', 'estradiol')}
+          {renderCheckbox(t('medicalReport.progesterone'), 'labs', 'progesterone')}
+          {renderCheckbox(t('medicalReport.fsh'), 'labs', 'fsh')}
+          {renderCheckbox(t('medicalReport.lh'), 'labs', 'lh')}
+          {renderCheckbox(t('medicalReport.betaHcg'), 'labs', 'beta_hgc')}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Test Site</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.testSite')}</Text>
         <View style={styles.checkboxGroup}>
-          {renderCheckbox('Labcorp', 'test_site', 'labcorp')}
-          {renderCheckbox('IVF clinic', 'test_site', 'ivf_clinic')}
-          {renderCheckbox('Others', 'test_site', 'others')}
+          {renderCheckbox(t('medicalReport.labcorp'), 'test_site', 'labcorp')}
+          {renderCheckbox(t('medicalReport.ivfClinic'), 'test_site', 'ivf_clinic')}
+          {renderCheckbox(t('medicalReport.others'), 'test_site', 'others')}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Lab Test Date (MM-DD-YYYY)</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.labTestDate')}</Text>
         <TextInput
           style={styles.input}
           value={formData.lab_test_date || ''}
@@ -307,9 +309,9 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Follicle Ultrasound</Text>
+        <Text style={styles.sectionTitle}>{t('medicalReport.follicleUltrasound')}</Text>
         
-        <Text style={styles.sectionLabel}>Top 4 Follicles Measurement</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.top4Follicles')}</Text>
         {[1, 2, 3, 4].map((num) => (
           <View key={num} style={styles.follicleRow}>
             <TextInput
@@ -338,7 +340,7 @@ export default function MedicalReportFormScreen({ route }) {
         ))}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Endometrial Thickness (mm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.endometrialThickness')}</Text>
           <TextInput
             style={styles.input}
             value={formData.endometrial_thickness || ''}
@@ -350,7 +352,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Endometrial Type</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.endometrialType')}</Text>
           <TextInput
             style={styles.input}
             value={formData.endometrial_type || ''}
@@ -361,7 +363,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM-DD-YYYY)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.ultrasoundTestDate')}</Text>
           <TextInput
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
@@ -390,26 +392,26 @@ export default function MedicalReportFormScreen({ route }) {
   const renderPostTransferForm = () => (
     <>
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Labs</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.labs')}</Text>
         <View style={styles.checkboxGroup}>
-          {renderCheckbox('Beta hGC', 'labs', 'beta_hgc')}
-          {renderCheckbox('Progesterone', 'labs', 'progesterone')}
-          {renderCheckbox('Estradiol', 'labs', 'estradiol')}
-          {renderCheckbox('TSH', 'labs', 'tsh')}
+          {renderCheckbox(t('medicalReport.betaHcg'), 'labs', 'beta_hgc')}
+          {renderCheckbox(t('medicalReport.progesterone'), 'labs', 'progesterone')}
+          {renderCheckbox(t('medicalReport.estradiol'), 'labs', 'estradiol')}
+          {renderCheckbox(t('medicalReport.tsh'), 'labs', 'tsh')}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Test Site</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.testSite')}</Text>
         <View style={styles.checkboxGroup}>
-          {renderCheckbox('Labcorp', 'test_site', 'labcorp')}
-          {renderCheckbox('IVF clinic', 'test_site', 'ivf_clinic')}
-          {renderCheckbox('Others', 'test_site', 'others')}
+          {renderCheckbox(t('medicalReport.labcorp'), 'test_site', 'labcorp')}
+          {renderCheckbox(t('medicalReport.ivfClinic'), 'test_site', 'ivf_clinic')}
+          {renderCheckbox(t('medicalReport.others'), 'test_site', 'others')}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Lab Test Date (MM-DD-YYYY)</Text>
+        <Text style={styles.sectionLabel}>{t('medicalReport.labTestDate')}</Text>
         <TextInput
           style={styles.input}
           value={formData.lab_test_date || ''}
@@ -420,10 +422,10 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Transvaginal Ultrasound</Text>
+        <Text style={styles.sectionTitle}>{t('medicalReport.transvaginalUltrasound')}</Text>
         
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Gestational Sac Diameter (mm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.gestationalSacDiameter')}</Text>
           <TextInput
             style={styles.input}
             value={formData.gestational_sac_diameter || ''}
@@ -435,7 +437,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Yolk Sac Diameter (mm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.yolkSacDiameter')}</Text>
           <TextInput
             style={styles.input}
             value={formData.yolk_sac_diameter || ''}
@@ -447,7 +449,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Crown Rump Length (mm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.crownRumpLength')}</Text>
           <TextInput
             style={styles.input}
             value={formData.crown_rump_length || ''}
@@ -459,7 +461,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Fetal Heart Rate (bpm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.fetalHeartRate')}</Text>
           <TextInput
             style={styles.input}
             value={formData.fetal_heart_rate || ''}
@@ -471,7 +473,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Gestational Age</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.gestationalAge')}</Text>
           <TextInput
             style={styles.input}
             value={formData.gestational_age || ''}
@@ -482,7 +484,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>EDD (Estimated Due Date) (MM-DD-YYYY)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.edd')}</Text>
           <TextInput
             style={styles.input}
             value={formData.edd || ''}
@@ -493,7 +495,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ultrasound Test Date (MM-DD-YYYY)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.ultrasoundTestDate')}</Text>
           <TextInput
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
@@ -504,12 +506,12 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Notes</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.notes')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.notes || ''}
             onChangeText={(value) => handleFieldChange('notes', value)}
-            placeholder="Additional notes..."
+            placeholder={t('medicalReport.additionalNotes')}
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={4}
@@ -521,18 +523,18 @@ export default function MedicalReportFormScreen({ route }) {
 
   const renderOBGYNForm = () => {
     const screeningTests = [
-      { key: 'nt_screen', label: 'NT Screen Normal' },
-      { key: 'quad_screen', label: 'Quad Screen Normal' },
-      { key: 'anatomy_scan', label: 'Anatomy Scan Normal' },
-      { key: 'glucose_screening', label: 'Glucose Screening Normal' },
-      { key: 'gbs_testing', label: 'GBS Testing Normal' },
-      { key: 'nipt_cvs_amniocentesis', label: 'NIPT/CVS/Amniocentesis Normal (not required)' },
+      { key: 'nt_screen', label: t('medicalReport.ntScreen') },
+      { key: 'quad_screen', label: t('medicalReport.quadScreen') },
+      { key: 'anatomy_scan', label: t('medicalReport.anatomyScan') },
+      { key: 'glucose_screening', label: t('medicalReport.glucoseScreening') },
+      { key: 'gbs_testing', label: t('medicalReport.gbsTesting') },
+      { key: 'nipt_cvs_amniocentesis', label: t('medicalReport.niptCvsAmniocentesis') },
     ];
 
     return (
       <>
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Surrogate's Weight (lbs)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.surrogateWeight')}</Text>
           <TextInput
             style={styles.input}
             value={formData.weight || ''}
@@ -544,7 +546,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Blood Pressure</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.bloodPressure')}</Text>
           <TextInput
             style={styles.input}
             value={formData.blood_pressure || ''}
@@ -555,7 +557,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Stomach Measurement (cm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.stomachMeasurement')}</Text>
           <TextInput
             style={styles.input}
             value={formData.stomach_measurement || ''}
@@ -602,7 +604,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Screening Tests</Text>
+          <Text style={styles.sectionTitle}>{t('medicalReport.screeningTests')}</Text>
           {screeningTests.map((test) => (
             <View key={test.key} style={styles.screeningTestRow}>
               <Text style={styles.sectionLabel}>{test.label}</Text>
@@ -612,20 +614,20 @@ export default function MedicalReportFormScreen({ route }) {
                     style={[styles.radioButton, formData[`${test.key}_normal`] === 'yes' && styles.radioButtonSelected]}
                     onPress={() => handleFieldChange(`${test.key}_normal`, 'yes')}
                   >
-                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'yes' && styles.radioTextSelected]}>Yes</Text>
+                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'yes' && styles.radioTextSelected]}>{t('medicalReport.yes')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.radioButton, formData[`${test.key}_normal`] === 'no' && styles.radioButtonSelected]}
                     onPress={() => handleFieldChange(`${test.key}_normal`, 'no')}
                   >
-                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'no' && styles.radioTextSelected]}>No</Text>
+                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'no' && styles.radioTextSelected]}>{t('medicalReport.no')}</Text>
                   </TouchableOpacity>
                 </View>
                 <TextInput
                   style={[styles.input, { flex: 1, marginLeft: 12 }]}
                   value={formData[`${test.key}_test_date`] || ''}
                   onChangeText={(value) => handleFieldChange(`${test.key}_test_date`, value)}
-                  placeholder="Test date (MM-DD-YYYY)"
+                  placeholder={t('medicalReport.testDate')}
                   placeholderTextColor="#94A3B8"
                 />
               </View>
@@ -634,7 +636,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Gestational Age</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.gestationalAge')}</Text>
           <TextInput
             style={styles.input}
             value={formData.gestational_age || ''}
@@ -645,7 +647,7 @@ export default function MedicalReportFormScreen({ route }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Next Appointment Date (MM-DD-YYYY)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.nextAppointmentDate')}</Text>
           <TextInput
             style={styles.input}
             value={formData.next_appointment_date || ''}
@@ -682,7 +684,7 @@ export default function MedicalReportFormScreen({ route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevron-left" size={24} color="#1A1D1E" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Medical Check-in</Text>
+          <Text style={styles.headerTitle}>{t('medicalReport.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -692,11 +694,16 @@ export default function MedicalReportFormScreen({ route }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.stageBadge}>
-            <Text style={styles.stageBadgeText}>{currentStage}</Text>
+            <Text style={styles.stageBadgeText}>
+              {currentStage === 'Pre-Transfer' ? t('medicalReport.stagePreTransfer') :
+               currentStage === 'Post-Transfer' ? t('medicalReport.stagePostTransfer') :
+               currentStage === 'OBGYN' ? t('medicalReport.stageOBGYN') :
+               currentStage}
+            </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Visit Date (MM-DD-YYYY) *</Text>
+            <Text style={styles.sectionLabel}>{t('medicalReport.visitDate')} (MM-DD-YYYY) *</Text>
             <TextInput
               style={styles.input}
               value={visitDate}
@@ -713,7 +720,7 @@ export default function MedicalReportFormScreen({ route }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Medical Provider Information</Text>
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Name of Medical Provider</Text>
+              <Text style={styles.sectionLabel}>{t('medicalReport.providerName')}</Text>
               <TextInput
                 style={styles.input}
                 value={providerName}
@@ -723,7 +730,7 @@ export default function MedicalReportFormScreen({ route }) {
               />
             </View>
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Contact Information</Text>
+              <Text style={styles.sectionLabel}>{t('medicalReport.providerContact')}</Text>
               <TextInput
                 style={styles.input}
                 value={providerContact}
@@ -735,11 +742,11 @@ export default function MedicalReportFormScreen({ route }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Upload Clinic Note/Ultrasound (Proof)</Text>
+            <Text style={styles.sectionLabel}>{t('medicalReport.uploadProof')}</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={pickImage} activeOpacity={0.8}>
               <Icon name="upload" size={20} color="#1F6FE0" />
               <Text style={styles.uploadButtonText}>
-                {proofImage ? 'Change Image' : 'Select Image'}
+                {proofImage ? t('medicalReport.changeImage') : t('medicalReport.selectImage')}
               </Text>
             </TouchableOpacity>
             {proofImage && (
@@ -762,9 +769,12 @@ export default function MedicalReportFormScreen({ route }) {
             activeOpacity={0.8}
           >
             {saving || uploading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.submitButtonText}> {t('medicalReport.submitting')}</Text>
+              </>
             ) : (
-              <Text style={styles.submitButtonText}>Submit Report</Text>
+              <Text style={styles.submitButtonText}>{t('medicalReport.submit')}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

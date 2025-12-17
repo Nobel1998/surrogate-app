@@ -134,17 +134,13 @@ export default function MatchesPage() {
   
   // Agency Retainer Agreement upload state
   const [showAgencyRetainerModal, setShowAgencyRetainerModal] = useState(false);
-  const [agencyRetainerMatchId, setAgencyRetainerMatchId] = useState<string | null>(null);
-  const [agencyRetainerSurrogateId, setAgencyRetainerSurrogateId] = useState<string>('');
-  const [agencyRetainerParentId, setAgencyRetainerParentId] = useState<string>('');
+  const [agencyRetainerUserId, setAgencyRetainerUserId] = useState<string>('');
   const [agencyRetainerFile, setAgencyRetainerFile] = useState<File | null>(null);
   const [uploadingAgencyRetainer, setUploadingAgencyRetainer] = useState(false);
   
   // HIPAA Release upload state
   const [showHipaaReleaseModal, setShowHipaaReleaseModal] = useState(false);
-  const [hipaaReleaseMatchId, setHipaaReleaseMatchId] = useState<string | null>(null);
-  const [hipaaReleaseSurrogateId, setHipaaReleaseSurrogateId] = useState<string>('');
-  const [hipaaReleaseParentId, setHipaaReleaseParentId] = useState<string>('');
+  const [hipaaReleaseUserId, setHipaaReleaseUserId] = useState<string>('');
   const [hipaaReleaseFile, setHipaaReleaseFile] = useState<File | null>(null);
   const [uploadingHipaaRelease, setUploadingHipaaRelease] = useState(false);
 
@@ -592,10 +588,8 @@ export default function MatchesPage() {
     }
   };
 
-  const openAgencyRetainerModal = (match: Match) => {
-    setAgencyRetainerMatchId(match.id);
-    setAgencyRetainerSurrogateId(match.surrogate_id);
-    setAgencyRetainerParentId(match.parent_id);
+  const openAgencyRetainerModal = () => {
+    setAgencyRetainerUserId('');
     setAgencyRetainerFile(null);
     setShowAgencyRetainerModal(true);
   };
@@ -605,8 +599,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!agencyRetainerSurrogateId || !agencyRetainerParentId) {
-      alert('Surrogate and Parent IDs are required');
+    if (!agencyRetainerUserId) {
+      alert('Please select a user');
       return;
     }
 
@@ -614,8 +608,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', agencyRetainerFile);
-      formData.append('surrogate_id', agencyRetainerSurrogateId);
-      formData.append('parent_id', agencyRetainerParentId);
+      formData.append('user_id', agencyRetainerUserId);
 
       const res = await fetch('/api/matches/agency-retainer', {
         method: 'POST',
@@ -628,9 +621,10 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Agency Retainer Agreement uploaded successfully! Both users can now see it in their User Center.');
+      alert('Agency Retainer Agreement uploaded successfully! The user can now see it in their User Center.');
       setShowAgencyRetainerModal(false);
       setAgencyRetainerFile(null);
+      setAgencyRetainerUserId('');
       await loadData();
     } catch (err: any) {
       console.error('Error uploading agency retainer:', err);
@@ -640,10 +634,8 @@ export default function MatchesPage() {
     }
   };
 
-  const openHipaaReleaseModal = (match: Match) => {
-    setHipaaReleaseMatchId(match.id);
-    setHipaaReleaseSurrogateId(match.surrogate_id);
-    setHipaaReleaseParentId(match.parent_id);
+  const openHipaaReleaseModal = () => {
+    setHipaaReleaseUserId('');
     setHipaaReleaseFile(null);
     setShowHipaaReleaseModal(true);
   };
@@ -653,8 +645,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!hipaaReleaseSurrogateId || !hipaaReleaseParentId) {
-      alert('Surrogate and Parent IDs are required');
+    if (!hipaaReleaseUserId) {
+      alert('Please select a user');
       return;
     }
 
@@ -662,8 +654,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', hipaaReleaseFile);
-      formData.append('surrogate_id', hipaaReleaseSurrogateId);
-      formData.append('parent_id', hipaaReleaseParentId);
+      formData.append('user_id', hipaaReleaseUserId);
 
       const res = await fetch('/api/matches/hipaa-release', {
         method: 'POST',
@@ -676,9 +667,10 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('HIPAA Release uploaded successfully! Both users can now see it in their User Center.');
+      alert('HIPAA Release uploaded successfully! The user can now see it in their User Center.');
       setShowHipaaReleaseModal(false);
       setHipaaReleaseFile(null);
+      setHipaaReleaseUserId('');
       await loadData();
     } catch (err: any) {
       console.error('Error uploading HIPAA release:', err);
@@ -710,6 +702,28 @@ export default function MatchesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
           <p className="text-gray-600">Pair parents with surrogates and manage their match status.</p>
+        </div>
+
+        {/* Document Upload Section */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Document Upload</h2>
+          <div className="flex gap-3">
+            <button
+              onClick={() => openAgencyRetainerModal()}
+              className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-sm font-medium rounded transition-colors"
+            >
+              📄 Upload Agency Retainer Agreement
+            </button>
+            <button
+              onClick={() => openHipaaReleaseModal()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
+            >
+              🔒 Upload HIPAA Release
+            </button>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">
+            Upload documents for individual users. Each user will see their own document in User Center.
+          </p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
@@ -1131,18 +1145,6 @@ export default function MatchesPage() {
                           className="mt-2 w-full px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           ✅ Upload Online Claims
-                        </button>
-                        <button
-                          onClick={() => openAgencyRetainerModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          📄 Upload Agency Retainer
-                        </button>
-                        <button
-                          onClick={() => openHipaaReleaseModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          🔒 Upload HIPAA Release
                         </button>
                       </td>
                     </tr>
@@ -1641,25 +1643,25 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Surrogate
+                  Select User *
                 </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[agencyRetainerSurrogateId]?.name || agencyRetainerSurrogateId}
-                </div>
+                <select
+                  value={agencyRetainerUserId}
+                  onChange={(e) => setAgencyRetainerUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value="">-- Select a user --</option>
+                  {[...surrogates, ...parents].map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[agencyRetainerParentId]?.name || agencyRetainerParentId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Agency Retainer Agreement File
+                  Agency Retainer Agreement File *
                 </label>
                 <input
                   type="file"
@@ -1673,7 +1675,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The agency retainer agreement will be visible to both parties in their User Center.
+                  Supported formats: PDF, DOC, DOCX, TXT. The agency retainer agreement will be visible to the selected user in their User Center.
                 </p>
               </div>
 
@@ -1686,9 +1688,9 @@ export default function MatchesPage() {
                 </button>
                 <button
                   onClick={uploadAgencyRetainer}
-                  disabled={uploadingAgencyRetainer || !agencyRetainerFile}
+                  disabled={uploadingAgencyRetainer || !agencyRetainerFile || !agencyRetainerUserId}
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingAgencyRetainer || !agencyRetainerFile
+                    uploadingAgencyRetainer || !agencyRetainerFile || !agencyRetainerUserId
                       ? 'bg-gray-400'
                       : 'bg-pink-600 hover:bg-pink-700'
                   } transition-colors`}
@@ -1718,25 +1720,25 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Surrogate
+                  Select User *
                 </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[hipaaReleaseSurrogateId]?.name || hipaaReleaseSurrogateId}
-                </div>
+                <select
+                  value={hipaaReleaseUserId}
+                  onChange={(e) => setHipaaReleaseUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select a user --</option>
+                  {[...surrogates, ...parents].map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[hipaaReleaseParentId]?.name || hipaaReleaseParentId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  HIPAA Release File
+                  HIPAA Release File *
                 </label>
                 <input
                   type="file"
@@ -1750,7 +1752,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The HIPAA release will be visible to both parties in their User Center.
+                  Supported formats: PDF, DOC, DOCX, TXT. The HIPAA release will be visible to the selected user in their User Center.
                 </p>
               </div>
 
@@ -1763,9 +1765,9 @@ export default function MatchesPage() {
                 </button>
                 <button
                   onClick={uploadHipaaRelease}
-                  disabled={uploadingHipaaRelease || !hipaaReleaseFile}
+                  disabled={uploadingHipaaRelease || !hipaaReleaseFile || !hipaaReleaseUserId}
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingHipaaRelease || !hipaaReleaseFile
+                    uploadingHipaaRelease || !hipaaReleaseFile || !hipaaReleaseUserId
                       ? 'bg-gray-400'
                       : 'bg-blue-600 hover:bg-blue-700'
                   } transition-colors`}
