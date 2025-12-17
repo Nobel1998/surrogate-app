@@ -975,7 +975,7 @@ export default function MatchesPage() {
                     });
                     
                     // Render grouped contracts (match-uploaded)
-                    const renderedGroups: JSX.Element[] = [];
+                    const renderedGroups: React.ReactElement[] = [];
                     contractGroups.forEach((groupContracts, groupKey) => {
                       const firstContract = groupContracts[0];
                       const user1 = profileLookup[firstContract.user_id];
