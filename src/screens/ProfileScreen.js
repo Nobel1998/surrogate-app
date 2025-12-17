@@ -506,7 +506,7 @@ export default function ProfileScreen({ navigation }) {
           {renderMenuItem(t('profile.refer'), 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
           {renderMenuItem(t('profile.rateApp'), 'star', handleRateApp, '#4CAF50')}
           {renderMenuItem(t('profile.rateUs'), 'thumbs-up', () => Alert.alert(t('profile.rateUs'), 'Coming Soon'), '#FF9800')}
-          {renderMenuItem(t('profile.contactUs'), 'phone', () => navigation.navigate('Company'), '#4CAF50')}
+          {renderMenuItem(t('profile.contactUs'), 'phone', () => navigation.navigate('ContactUs'), '#4CAF50')}
           {renderMenuItem(t('profile.aboutApp'), 'info', () => Alert.alert(t('profile.aboutApp'), 'Version 1.0.0'), '#2196F3')}
         </View>
 

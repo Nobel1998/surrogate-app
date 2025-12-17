@@ -11,6 +11,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import AmbassadorScreen from './src/screens/AmbassadorScreen';
 import ProtectionScreen from './src/screens/ProtectionScreen';
 import CompanyScreen from './src/screens/CompanyScreen';
+import ContactUsScreen from './src/screens/ContactUsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
@@ -204,6 +205,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="Ambassador" component={AmbassadorScreen} />
       <Stack.Screen name="Protection" component={ProtectionScreen} />
       <Stack.Screen name="Company" component={CompanyScreen} />
+      <Stack.Screen name="ContactUs" component={ContactUsScreen} />
       <Stack.Screen name="CustomerService" component={CustomerServiceScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="MyInfo" component={MyInfoScreen} />
