@@ -125,10 +125,18 @@ export default function MyMatchScreen({ navigation }) {
         setMatchData(match);
 
         // 4) 文档
-        const targetUserId = isSurrogate ? user.id : match.surrogate_id;
+        // For match-uploaded documents:
+        // - Surrogate sees documents with user_id = surrogate_id (surrogate_contract, etc.)
+        // - Parent sees documents with user_id = parent_id (parent_contract, etc.)
+        // Also check for documents uploaded to both users (same file_url, different user_id)
+        const currentUserId = user.id;
+        const partnerUserId = isSurrogate ? match.parent_id : match.surrogate_id;
         const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000';
+        
+        // Build query to get documents for current user OR partner user (for match-uploaded files)
         const userIdOrClause = [
-          targetUserId ? `user_id.eq.${targetUserId}` : null,
+          currentUserId ? `user_id.eq.${currentUserId}` : null,
+          partnerUserId ? `user_id.eq.${partnerUserId}` : null,
           `user_id.eq.${GLOBAL_CONTRACT_USER_ID}`,
           'user_id.is.null',
         ]
@@ -368,9 +376,31 @@ export default function MyMatchScreen({ navigation }) {
               if (doc.documentType) {
                 if (doc.documentType === 'legal_contract') {
                   // For Attorney Retainer Agreement, only look for legal_contract type
-                  docData = documents.find(d => d.document_type === 'legal_contract');
+                  // Check both current user and partner user (for match-uploaded files)
+                  docData = documents.find(d => 
+                    d.document_type === 'legal_contract' && 
+                    (d.user_id === user.id || d.user_id === (isSurrogate ? matchData?.parent_id : matchData?.surrogate_id))
+                  );
                 } else {
-                  docData = documents.find(d => d.document_type === doc.documentType);
+                  // For other documents, find by document_type and ensure it's for the current user
+                  // Match-uploaded files: surrogate_contract has user_id = surrogate_id, parent_contract has user_id = parent_id
+                  docData = documents.find(d => {
+                    if (d.document_type !== doc.documentType) return false;
+                    // Check if this document belongs to current user
+                    if (d.user_id === user.id) return true;
+                    // For match-uploaded files, also check if there's a corresponding document with same file_url
+                    // This handles cases where the file was uploaded for the partner but should be visible to both
+                    if (doc.documentType === 'surrogate_contract' || doc.documentType === 'parent_contract') {
+                      // Check if there's a document with same file_url for current user
+                      const correspondingDoc = documents.find(doc => 
+                        doc.file_url === d.file_url && 
+                        doc.user_id === user.id &&
+                        (doc.document_type === 'surrogate_contract' || doc.document_type === 'parent_contract')
+                      );
+                      return !!correspondingDoc;
+                    }
+                    return false;
+                  });
                 }
               }
               
