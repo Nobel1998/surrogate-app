@@ -3079,6 +3079,18 @@ const styles = StyleSheet.create({
     color: '#6E7191',
     fontWeight: '500',
   },
+  pregnancyWeeksBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 2,
+  },
+  pregnancyWeeksText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#00B894',
+  },
   medicalReportProvider: {
     fontSize: 12,
     color: '#94A3B8',
