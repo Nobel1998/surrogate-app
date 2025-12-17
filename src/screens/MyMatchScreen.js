@@ -366,7 +366,42 @@ export default function MyMatchScreen({ navigation }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('myMatch.documentsRecords')}</Text>
             <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>{documents.length} {t('myMatch.available')}</Text>
+              <Text style={styles.sectionBadgeText}>
+                {(() => {
+                  // Count actual available documents (not total document records)
+                  // Match-uploaded files create multiple records, but should count as one document
+                  let availableCount = 0;
+                  documentConfig.forEach((doc) => {
+                    if (doc.alwaysAvailable) {
+                      availableCount++;
+                    } else if (doc.documentType) {
+                      let docData = null;
+                      if (doc.documentType === 'legal_contract') {
+                        docData = documents.find(d => 
+                          d.document_type === 'legal_contract' && 
+                          (d.user_id === user.id || d.user_id === (isSurrogate ? matchData?.parent_id : matchData?.surrogate_id))
+                        );
+                      } else {
+                        docData = documents.find(d => {
+                          if (d.document_type !== doc.documentType) return false;
+                          if (d.user_id === user.id) return true;
+                          if (doc.documentType === 'surrogate_contract' || doc.documentType === 'parent_contract') {
+                            const correspondingDoc = documents.find(doc => 
+                              doc.file_url === d.file_url && 
+                              doc.user_id === user.id &&
+                              (doc.document_type === 'surrogate_contract' || doc.document_type === 'parent_contract')
+                            );
+                            return !!correspondingDoc;
+                          }
+                          return false;
+                        });
+                      }
+                      if (docData) availableCount++;
+                    }
+                  });
+                  return availableCount;
+                })()} {t('myMatch.available')}
+              </Text>
             </View>
           </View>
 
