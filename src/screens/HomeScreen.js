@@ -1549,12 +1549,43 @@ export default function HomeScreen() {
   }, []);
 
   // Render medical report card
+  // Calculate pregnancy weeks at the time of visit
+  const calculatePregnancyWeeksAtVisit = useCallback((visitDateStr, transferDateStr, transferEmbryoDayStr) => {
+    if (!visitDateStr || !transferDateStr) return null;
+    
+    const transfer = parseISODateOnlyToLocalMidnight(transferDateStr);
+    const visit = parseISODateOnlyToLocalMidnight(visitDateStr);
+    
+    if (!transfer || !visit) return null;
+    
+    // Calculate days from transfer to visit
+    const diffDaysRaw = Math.floor((visit.getTime() - transfer.getTime()) / (24 * 60 * 60 * 1000));
+    const diffDays = Math.max(0, diffDaysRaw);
+    
+    // Get embryo day configuration
+    const embryoKey = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
+    const embryoCfg = EMBRYO_DAY_OPTIONS.find((x) => x.key === embryoKey) || EMBRYO_DAY_OPTIONS[0];
+    const transferGestationalDays = embryoCfg.transferGestationalDays;
+    
+    // Calculate gestational days at visit
+    const gestationalDays = diffDays + transferGestationalDays;
+    const weeks = Math.floor(gestationalDays / 7);
+    const days = gestationalDays % 7;
+    
+    return { weeks, days, gestationalDays };
+  }, []);
+
   const renderMedicalReport = useCallback((report) => {
     const reportData = report.report_data || {};
     const visitDate = report.visit_date ? new Date(report.visit_date) : null;
     const formattedDate = visitDate 
       ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}-${String(visitDate.getDate()).padStart(2, '0')}-${visitDate.getFullYear()}`
       : 'N/A';
+
+    // Calculate pregnancy weeks at visit (only for Post-Transfer and OBGYN stages)
+    const pregnancyWeeks = (report.stage === 'Post-Transfer' || report.stage === 'OBGYN') 
+      ? calculatePregnancyWeeksAtVisit(report.visit_date, transferDateStr, transferEmbryoDayStr)
+      : null;
 
     // Extract key metrics based on stage
     let keyMetrics = [];
@@ -1587,7 +1618,16 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.medicalReportTitle}>{t('medicalReport.title')}</Text>
-            <Text style={styles.medicalReportDate}>{formattedDate}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.medicalReportDate}>{formattedDate}</Text>
+              {pregnancyWeeks && (
+                <View style={styles.pregnancyWeeksBadge}>
+                  <Text style={styles.pregnancyWeeksText}>
+                    {pregnancyWeeks.weeks} {t('home.weeks')} {pregnancyWeeks.days} {t('home.days')}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           {report.provider_name && (
             <Text style={styles.medicalReportProvider}>{report.provider_name}</Text>
@@ -1617,7 +1657,7 @@ export default function HomeScreen() {
         )}
       </View>
     );
-  }, []);
+  }, [transferDateStr, transferEmbryoDayStr, calculatePregnancyWeeksAtVisit, t]);
 
   const renderTimelineView = () => {
     return (
