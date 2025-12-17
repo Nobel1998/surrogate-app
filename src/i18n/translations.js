@@ -1216,6 +1216,29 @@ export const translations = {
         label: '状态',
       },
     },
+    // Contact Us Screen - Chinese
+    contactUs: {
+      title: '联系我们',
+      introTitle: '联系我们',
+      introText: '我们的个案经理随时为您提供帮助，陪伴您度过整个代孕之旅。欢迎随时联系我们的团队成员。',
+      ourManagers: '我们的个案经理',
+      generalContact: '一般联系信息',
+      phone: '电话',
+      email: '邮箱',
+      address: '地址',
+      manager1: {
+        name: 'Sarah Johnson',
+        title: '高级个案经理',
+      },
+      manager2: {
+        name: 'Michael Chen',
+        title: '个案经理',
+      },
+      manager3: {
+        name: 'Emily Rodriguez',
+        title: '个案经理',
+      },
+    },
     // Company Screen (About Us)
     company: {
       title: 'Babytree Surrogacy',
