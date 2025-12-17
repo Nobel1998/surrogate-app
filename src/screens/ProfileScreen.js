@@ -282,10 +282,20 @@ export default function ProfileScreen({ navigation }) {
                 ]
               );
             } else {
-              console.log('⚠️ [Rate App] Store URL is null/undefined');
+              console.log('⚠️ [Rate App] Store URL is null/undefined - app may not be published yet');
+              // App is not published yet, show friendly message
+              Alert.alert(
+                t('profile.rateApp'),
+                t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
+              );
             }
           } catch (urlError) {
             console.error('❌ [Rate App] Error getting store URL:', urlError);
+            // Show friendly message on error
+            Alert.alert(
+              t('profile.rateApp'),
+              t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
+            );
           }
         }, 500); // Small delay to let the review prompt appear first if it will
       } else {
