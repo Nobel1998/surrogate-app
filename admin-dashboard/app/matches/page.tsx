@@ -844,9 +844,35 @@ export default function MatchesPage() {
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
-          <p className="text-gray-600">Pair parents with surrogates and manage their match status.</p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
+              <p className="text-gray-600">Pair parents with surrogates and manage their match status.</p>
+            </div>
+            {canViewAllBranches && branches.length > 0 && (
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700">Filter by Branch:</label>
+                <select
+                  value={selectedBranchFilter}
+                  onChange={(e) => handleBranchFilterChange(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Branches</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {!canViewAllBranches && currentBranchFilter && (
+              <div className="text-sm text-gray-600">
+                Viewing: {branches.find(b => b.id === currentBranchFilter)?.name || 'Your Branch'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Document Upload Section */}
