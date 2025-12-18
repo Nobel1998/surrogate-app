@@ -190,16 +190,14 @@ export const translations = {
       endometrial: 'Endometrial',
       follicle: 'Follicle',
       ntScreen: 'NT Screen Normal',
-    },
-    // Points Rewards
-    points: {
-      congratulations: '🎉 Congratulations! You earned points!',
-      baseHitReward: '+{points} points (Base Hit)',
-      speedBonusReward: '+{points} points (Speed Bonus - Same Day Upload!)',
-      baseHitDescription: 'Medical report submission reward',
-      speedBonusDescription: 'Speed bonus for same-day report upload',
-      totalPointsEarned: 'Total: {points} points earned!',
-    },
+      quadScreen: 'Quad Screen Normal',
+      anatomyScan: 'Anatomy Scan Normal',
+      glucoseScreening: 'Glucose Screening Normal',
+      gbsTesting: 'GBS Testing Normal',
+      niptCvsAmniocentesis: 'NIPT/CVS/Amniocentesis Normal (not required)',
+      yes: 'Yes',
+      no: 'No',
+      testDate: 'Test date (MM-DD-YYYY)',
       selectImage: 'Select Image',
       changeImage: 'Change Image',
       heartRate: 'Heart Rate',
@@ -215,6 +213,15 @@ export const translations = {
       stagePreTransfer: 'Pre-Transfer',
       stagePostTransfer: 'Post-Transfer',
       stageOBGYN: 'OBGYN',
+    },
+    // Points Rewards
+    points: {
+      congratulations: '🎉 Congratulations! You earned points!',
+      baseHitReward: '+{points} points (Base Hit)',
+      speedBonusReward: '+{points} points (Speed Bonus - Same Day Upload!)',
+      baseHitDescription: 'Medical report submission reward',
+      speedBonusDescription: 'Speed bonus for same-day report upload',
+      totalPointsEarned: 'Total: {points} points earned!',
     },
     // Surrogate Application Screen
     application: {
