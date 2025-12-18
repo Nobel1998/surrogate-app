@@ -46,7 +46,25 @@ export async function POST(req: NextRequest) {
       errorCode: adminError?.code 
     });
 
-    if (adminError || !adminUser) {
+    if (adminError) {
+      console.error('[auth/login] Database error:', adminError);
+      // Check if it's a "not found" error (PGRST116) or actual database error
+      if (adminError.code === 'PGRST116') {
+        // No user found with this username
+        return NextResponse.json(
+          { error: 'Invalid username or password' },
+          { status: 401 }
+        );
+      }
+      // Other database error
+      return NextResponse.json(
+        { error: `Database error: ${adminError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!adminUser) {
+      console.log('[auth/login] No admin user found for username:', username);
       return NextResponse.json(
         { error: 'Invalid username or password' },
         { status: 401 }

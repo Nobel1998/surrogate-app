@@ -39,13 +39,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('[Login] Attempting login for:', username);
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      console.log('[Login] Response status:', res.status);
+      
+      let data;
+      try {
+        data = await res.json();
+        console.log('[Login] Response data:', data);
+      } catch (parseError) {
+        console.error('[Login] Failed to parse response:', parseError);
+        setError('Invalid response from server');
+        setLoading(false);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error || 'Login failed');
@@ -55,10 +67,11 @@ export default function LoginPage() {
 
       // Login successful, redirect to home
       // Use window.location for a full page reload to ensure cookies are set
+      console.log('[Login] Login successful, redirecting...');
       window.location.href = '/';
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed');
+      console.error('[Login] Login error:', err);
+      setError(err.message || 'Login failed. Please try again.');
       setLoading(false);
     }
   };
