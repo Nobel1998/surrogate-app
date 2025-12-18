@@ -23,6 +23,13 @@ export default function LoginPage() {
       }
     };
     checkAuth();
+
+    // Check for registration success message
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('registered') === 'true') {
+      // Show success message (you can add a toast notification here)
+      console.log('Registration successful! Please login.');
+    }
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,6 +120,15 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
+          </div>
+
+          <div className="text-center">
+            <a
+              href="/register"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Don't have an account? Register
+            </a>
           </div>
         </form>
       </div>
