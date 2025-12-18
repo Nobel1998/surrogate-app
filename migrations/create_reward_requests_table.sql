@@ -1,11 +1,7 @@
 -- Create reward_requests table for tracking reward redemption requests
 -- Run this in Supabase SQL Editor
 
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Users can view their own reward requests" ON reward_requests;
-DROP POLICY IF EXISTS "Users can insert their own reward requests" ON reward_requests;
-DROP POLICY IF EXISTS "Service role can manage reward requests" ON reward_requests;
-
+-- Create table first
 CREATE TABLE IF NOT EXISTS reward_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -28,6 +24,11 @@ CREATE INDEX IF NOT EXISTS idx_reward_requests_created_at ON reward_requests(cre
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE reward_requests ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (after table is created)
+DROP POLICY IF EXISTS "Users can view their own reward requests" ON reward_requests;
+DROP POLICY IF EXISTS "Users can insert their own reward requests" ON reward_requests;
+DROP POLICY IF EXISTS "Service role can manage reward requests" ON reward_requests;
 
 -- Policy: Users can only see their own requests
 CREATE POLICY "Users can view their own reward requests"

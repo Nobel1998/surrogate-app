@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Navigation from '../../components/Navigation';
 
 type RewardRequest = {
   id: string;
@@ -95,7 +94,6 @@ export default function RewardRequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navigation />
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
