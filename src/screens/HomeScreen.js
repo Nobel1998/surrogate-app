@@ -1661,7 +1661,8 @@ export default function HomeScreen() {
 
   const renderMedicalReport = useCallback((report) => {
     const reportData = report.report_data || {};
-    const visitDate = report.visit_date ? new Date(report.visit_date) : null;
+    // Parse ISO date string (YYYY-MM-DD) to local date without timezone conversion
+    const visitDate = report.visit_date ? parseISODateOnlyToLocalMidnight(report.visit_date) : null;
     const formattedDate = visitDate 
       ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}-${String(visitDate.getDate()).padStart(2, '0')}-${visitDate.getFullYear()}`
       : 'N/A';
