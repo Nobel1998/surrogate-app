@@ -325,8 +325,15 @@ export default function MedicalReportFormScreen({ route }) {
       const newTotalPoints = profileData?.total_points || 0;
       const reached5000 = newTotalPoints >= 5000;
       
+      console.log('📊 Points check after award:', {
+        newTotalPoints,
+        reached5000,
+        pointsAwarded: pointsResult.totalPoints,
+      });
+      
       // If user reached 5000 points, create reward request automatically
       if (reached5000) {
+        console.log('🎯 User reached 5000 points! Checking for existing reward request...');
         // Check if there's already a pending or approved full participation reward request
         const { data: existingRequest } = await supabase
           .from('reward_requests')
@@ -351,9 +358,22 @@ export default function MedicalReportFormScreen({ route }) {
             });
           
           if (requestError) {
-            console.error('Error creating reward request:', requestError);
+            console.error('❌ Error creating reward request:', requestError);
+            console.error('Request error details:', {
+              code: requestError.code,
+              message: requestError.message,
+              details: requestError.details,
+              hint: requestError.hint,
+            });
           } else {
             console.log('✅ Full participation reward request created automatically');
+            console.log('Reward request details:', {
+              user_id: user.id,
+              points_used: 5000,
+              reward_amount: rewardAmount,
+              status: 'pending',
+              request_type: 'full_participation',
+            });
           }
         }
       }
