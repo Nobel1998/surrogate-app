@@ -2111,24 +2111,30 @@ export const translations = {
     // Contact Us Screen - Spanish
     contactUs: {
       title: 'Contáctanos',
-      introTitle: 'Póngase en Contacto',
-      introText: 'Nuestros administradores de casos están aquí para ayudarle durante todo su viaje de gestación subrogada. No dude en contactar a cualquiera de nuestros miembros del equipo.',
-      ourManagers: 'Nuestros Administradores de Casos',
+      introTitle: 'Contáctanos',
+      introText: 'Tenemos múltiples ubicaciones de oficinas en California para servirte mejor. No dudes en contactar a cualquiera de nuestras oficinas para obtener asistencia.',
+      ourOffices: 'Nuestras Ubicaciones de Oficinas',
       generalContact: 'Información de Contacto General',
       phone: 'Teléfono',
       email: 'Correo Electrónico',
       address: 'Dirección',
-      manager1: {
-        name: 'Sarah Johnson',
-        title: 'Administradora de Casos Senior',
+      fax: 'Fax',
+      tollFree: 'Línea Gratuita',
+      generalInquiries: 'Consultas Generales',
+      officeMain: {
+        name: 'Oficina Principal (Línea Gratuita)',
       },
-      manager2: {
-        name: 'Michael Chen',
-        title: 'Administrador de Casos',
+      officeHighDesert: {
+        name: 'Oficina de High Desert',
       },
-      manager3: {
-        name: 'Emily Rodriguez',
-        title: 'Administradora de Casos',
+      officeCoachellaValley: {
+        name: 'Oficina de Coachella Valley',
+      },
+      officeAntelopeValley: {
+        name: 'Oficina de Antelope Valley',
+      },
+      officeSanDiego: {
+        name: 'Oficina de San Diego',
       },
     },
     // Company Screen (About Us)
