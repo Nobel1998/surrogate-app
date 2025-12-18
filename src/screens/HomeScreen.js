@@ -612,6 +612,19 @@ export default function HomeScreen() {
               <Text style={styles.pointsValue}>{userPoints.toLocaleString()} {t('home.points')}</Text>
             )}
             <Text style={styles.pointsDescription}>{t('home.pointsDescription')}</Text>
+            <Text style={[styles.pointsDescription, { marginTop: 4, fontWeight: '600' }]}>
+              {t('points.pointsGoal')}
+            </Text>
+            <Text style={[styles.pointsDescription, { marginTop: 2, fontSize: 11 }]}>
+              {t('points.pointsPerCheckin')}
+            </Text>
+            {userPoints >= 5000 && (
+              <View style={styles.achievementBadge}>
+                <Text style={styles.achievementText}>
+                  🎊 {t('points.fullParticipationAchieved').split('!')[0]}!
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -2571,6 +2584,20 @@ const styles = StyleSheet.create({
     color: '#92400E',
     fontWeight: '500',
     lineHeight: 16,
+  },
+  achievementBadge: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  achievementText: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   pregGraduationBanner: {
     backgroundColor: '#FFF7E6',

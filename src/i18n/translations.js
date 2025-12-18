@@ -109,7 +109,7 @@ export const translations = {
       days: 'days',
       myPoints: 'My Points',
       points: 'points',
-      pointsDescription: 'Earn points by submitting medical reports. Get 50 points per submission, plus 20 bonus points for same-day uploads!',
+      pointsDescription: 'Earn points by submitting medical reports. Get 200 points ($20) per submission, plus 50 bonus points ($5) for same-day uploads!',
       uploadWeeklyReport: 'Upload Weekly Report',
       updateYourStage: 'Update your stage',
       changesSaved: 'Changes are saved to your profile and visible to matched parents.',
@@ -220,11 +220,15 @@ export const translations = {
     // Points Rewards
     points: {
       congratulations: '🎉 Congratulations! You earned points!',
-      baseHitReward: '+{points} points (Base Hit)',
-      speedBonusReward: '+{points} points (Speed Bonus - Same Day Upload!)',
+      baseHitReward: '+{points} points ({value}) - Base Hit',
+      speedBonusReward: '+{points} points ({value}) - Speed Bonus (Same Day Upload!)',
       baseHitDescription: 'Medical report submission reward',
       speedBonusDescription: 'Speed bonus for same-day report upload',
       totalPointsEarned: 'Total: {points} points earned!',
+      fullParticipationAchieved: '🎊 Congratulations! You\'ve reached 5,000 points and earned the Full Participation Reward of $500! Your reward request has been submitted and will be processed soon.',
+      fullParticipationRewardNote: 'Automatic reward request for reaching 5,000 points (Full Participation Reward)',
+      pointsGoal: 'Goal: 5,000 points = $500 (10 points = $1)',
+      pointsPerCheckin: '200 points ($20) per check-in + 50 points ($5) speed bonus',
     },
     // Surrogate Application Screen
     application: {
@@ -758,7 +762,7 @@ export const translations = {
       days: '天',
       myPoints: '我的积分',
       points: '积分',
-      pointsDescription: '通过提交医疗报告获得积分奖励。每次提交获得50积分，当天提交额外获得20积分！',
+      pointsDescription: '通过提交医疗报告获得积分奖励。每次提交获得200积分（$20），当天提交额外获得50积分（$5）！',
       uploadWeeklyReport: '上传周报',
       updateYourStage: '更新您的阶段',
       changesSaved: '更改已保存到您的个人资料，匹配的父母可以看到。',
@@ -869,11 +873,15 @@ export const translations = {
     // Points Rewards - Chinese
     points: {
       congratulations: '🎉 恭喜！您获得了积分！',
-      baseHitReward: '+{points} 积分（基础奖励）',
-      speedBonusReward: '+{points} 积分（极速奖 - 当天上传！）',
+      baseHitReward: '+{points} 积分（{value}）- 基础奖励',
+      speedBonusReward: '+{points} 积分（{value}）- 极速奖（当天上传！）',
       baseHitDescription: '医疗报告提交奖励',
       speedBonusDescription: '当天上传报告的极速奖励',
       totalPointsEarned: '总计：获得 {points} 积分！',
+      fullParticipationAchieved: '🎊 恭喜！您已达到5,000积分，获得全程参与奖$500！您的兑换申请已提交，我们将尽快处理。',
+      fullParticipationRewardNote: '达到5,000积分的自动兑换申请（全程参与奖）',
+      pointsGoal: '目标：5,000积分 = $500（10积分 = $1）',
+      pointsPerCheckin: '每次检查200积分（$20）+ 极速奖50积分（$5）',
     },
     // Surrogate Application Screen
     application: {
@@ -1513,7 +1521,7 @@ export const translations = {
       days: 'días',
       myPoints: 'Mis Puntos',
       points: 'puntos',
-      pointsDescription: '¡Gana puntos enviando informes médicos. Obtén 50 puntos por cada envío, más 20 puntos de bonificación por subidas el mismo día!',
+      pointsDescription: '¡Gana puntos enviando informes médicos. Obtén 200 puntos ($20) por cada envío, más 50 puntos de bonificación ($5) por subidas el mismo día!',
       uploadWeeklyReport: 'Subir Informe Semanal',
       updateYourStage: 'Actualizar tu Etapa',
       changesSaved: 'Los cambios se guardan en tu perfil y son visibles para los padres emparejados.',
@@ -1624,11 +1632,15 @@ export const translations = {
     // Points Rewards - Spanish
     points: {
       congratulations: '🎉 ¡Felicidades! ¡Ganaste puntos!',
-      baseHitReward: '+{points} puntos (Golpe Base)',
-      speedBonusReward: '+{points} puntos (Bono de Velocidad - ¡Subida el Mismo Día!)',
+      baseHitReward: '+{points} puntos ({value}) - Golpe Base',
+      speedBonusReward: '+{points} puntos ({value}) - Bono de Velocidad (¡Subida el Mismo Día!)',
       baseHitDescription: 'Recompensa por envío de informe médico',
       speedBonusDescription: 'Bono de velocidad por subir informe el mismo día',
       totalPointsEarned: 'Total: ¡{points} puntos ganados!',
+      fullParticipationAchieved: '🎊 ¡Felicidades! Has alcanzado 5,000 puntos y ganado la Recompensa de Participación Completa de $500! Tu solicitud de recompensa ha sido enviada y será procesada pronto.',
+      fullParticipationRewardNote: 'Solicitud automática de recompensa por alcanzar 5,000 puntos (Recompensa de Participación Completa)',
+      pointsGoal: 'Meta: 5,000 puntos = $500 (10 puntos = $1)',
+      pointsPerCheckin: '200 puntos ($20) por control + 50 puntos ($5) bono de velocidad',
     },
     // Surrogate Application Screen
     application: {

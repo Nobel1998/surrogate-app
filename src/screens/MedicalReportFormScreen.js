@@ -222,14 +222,14 @@ export default function MedicalReportFormScreen({ route }) {
   // Award points for medical report submission
   const awardPoints = async (reportId, visitDateStr) => {
     try {
-      let totalPoints = 50; // Base reward: +50 points
-      let rewardMessages = [t('points.baseHitReward', { points: 50 })];
+      let totalPoints = 200; // Base reward: +200 points ($20)
+      let rewardMessages = [t('points.baseHitReward', { points: 200, value: '$20' })];
       
       // Check for speed bonus (极速奖)
       const isSpeedBonus = isToday(visitDateStr);
       if (isSpeedBonus) {
-        totalPoints += 20; // Speed bonus: +20 points
-        rewardMessages.push(t('points.speedBonusReward', { points: 20 }));
+        totalPoints += 50; // Speed bonus: +50 points ($5)
+        rewardMessages.push(t('points.speedBonusReward', { points: 50, value: '$5' }));
       }
 
       // Insert points rewards
@@ -238,7 +238,7 @@ export default function MedicalReportFormScreen({ route }) {
       // Base hit reward
       pointsRewards.push({
         user_id: user.id,
-        points: 50,
+        points: 200,
         reward_type: 'base_hit',
         source_type: 'medical_report',
         source_id: reportId,
@@ -249,7 +249,7 @@ export default function MedicalReportFormScreen({ route }) {
       if (isSpeedBonus) {
         pointsRewards.push({
           user_id: user.id,
-          points: 20,
+          points: 50,
           reward_type: 'speed_bonus',
           source_type: 'medical_report',
           source_id: reportId,
@@ -266,7 +266,7 @@ export default function MedicalReportFormScreen({ route }) {
         console.error('Error awarding points:', pointsError);
         // Don't throw - points are bonus, report submission should still succeed
       } else {
-        console.log(`✅ Points awarded: ${totalPoints} points (Base: 50${isSpeedBonus ? ', Speed Bonus: 20' : ''})`);
+        console.log(`✅ Points awarded: ${totalPoints} points (Base: 200${isSpeedBonus ? ', Speed Bonus: 50' : ''})`);
         // Note: total_points in profiles is automatically updated by the database trigger
         // (update_total_points_trigger) when points_rewards records are inserted
       }
@@ -275,7 +275,7 @@ export default function MedicalReportFormScreen({ route }) {
     } catch (error) {
       console.error('Error in awardPoints:', error);
       // Return default values if points awarding fails
-      return { totalPoints: 50, rewardMessages: [t('points.baseHitReward', { points: 50 })], isSpeedBonus: false };
+      return { totalPoints: 200, rewardMessages: [t('points.baseHitReward', { points: 200, value: '$20' })], isSpeedBonus: false };
     }
   };
 
@@ -315,31 +315,83 @@ export default function MedicalReportFormScreen({ route }) {
       // Award points for successful submission
       const pointsResult = await awardPoints(reportId, visitDate);
       
+      // Fetch updated total points to check if user reached 5000
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('total_points')
+        .eq('id', user.id)
+        .single();
+      
+      const newTotalPoints = profileData?.total_points || 0;
+      const reached5000 = newTotalPoints >= 5000;
+      
+      // If user reached 5000 points, create reward request automatically
+      if (reached5000) {
+        // Check if there's already a pending or approved full participation reward request
+        const { data: existingRequest } = await supabase
+          .from('reward_requests')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .eq('request_type', 'full_participation')
+          .in('status', ['pending', 'approved', 'paid'])
+          .maybeSingle();
+        
+        if (!existingRequest) {
+          // Create automatic reward request for full participation
+          const rewardAmount = 5000 / 10; // 5000 points = $500
+          const { error: requestError } = await supabase
+            .from('reward_requests')
+            .insert({
+              user_id: user.id,
+              points_used: 5000,
+              reward_amount: rewardAmount,
+              status: 'pending',
+              request_type: 'full_participation',
+              notes: t('points.fullParticipationRewardNote'),
+            });
+          
+          if (requestError) {
+            console.error('Error creating reward request:', requestError);
+          } else {
+            console.log('✅ Full participation reward request created automatically');
+          }
+        }
+      }
+      
       // Show success alert with points information
       // Format reward messages by replacing {points} placeholders
       const formattedRewardMessages = pointsResult.rewardMessages.map(msg => {
         if (msg.includes('Base Hit')) {
-          return msg.replace(/\{points\}/g, '50');
+          return msg.replace(/\{points\}/g, '200').replace(/\{value\}/g, '$20');
         } else if (msg.includes('Speed Bonus')) {
-          return msg.replace(/\{points\}/g, '20');
+          return msg.replace(/\{points\}/g, '50').replace(/\{value\}/g, '$5');
         }
-        return msg.replace(/\{points\}/g, '50');
+        return msg.replace(/\{points\}/g, '200').replace(/\{value\}/g, '$20');
       });
       const pointsMessage = formattedRewardMessages.join('\n');
       const totalMessage = t('points.totalPointsEarned').replace(/\{points\}/g, String(pointsResult.totalPoints));
-      const alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
+      let alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
+      
+      // Add full participation achievement message if reached 5000
+      if (reached5000) {
+        alertMessage += `\n\n${t('points.fullParticipationAchieved')}`;
+      }
 
-      Alert.alert(t('medicalReport.success'), alertMessage, [
-        { 
-          text: t('common.close'), 
-          onPress: () => {
-            if (onSubmit) {
-              onSubmit();
+      Alert.alert(
+        t('medicalReport.success'), 
+        alertMessage, 
+        [
+          { 
+            text: t('common.close'), 
+            onPress: () => {
+              if (onSubmit) {
+                onSubmit();
+              }
+              navigation.goBack();
             }
-            navigation.goBack();
-          }
-        },
-      ]);
+          },
+        ]
+      );
     } catch (error) {
       console.error('Error saving report:', error);
       throw error;
