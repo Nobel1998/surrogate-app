@@ -111,6 +111,8 @@ export default function HomeScreen() {
   const [savingTransferDate, setSavingTransferDate] = useState(false);
   const [transferEmbryoDayDraft, setTransferEmbryoDayDraft] = useState('day5'); // 'day3' | 'day5'
   const [isEditingTransferDate, setIsEditingTransferDate] = useState(false);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [loadingPoints, setLoadingPoints] = useState(false);
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
     const normalized = normalizeStage(serverStage || 'pre');
@@ -595,6 +597,25 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Points Display - Only for surrogates */}
+        {isSurrogateRole && (
+          <View style={styles.pointsCard}>
+            <View style={styles.pointsHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: '#FFF4E6' }]}>
+                <Icon name="star" size={24} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pointsTitle}>{t('home.myPoints')}</Text>
+                {loadingPoints ? (
+                  <ActivityIndicator size="small" color="#F59E0B" style={{ marginTop: 4 }} />
+                ) : (
+                  <Text style={styles.pointsValue}>{totalPoints} {t('home.points')}</Text>
+                )}
+              </View>
+            </View>
+            <Text style={styles.pointsDescription}>{t('home.pointsDescription')}</Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.fullWidthButton}
@@ -984,6 +1005,42 @@ export default function HomeScreen() {
       fetchMedicalReports();
     }
   }, [user?.id, matchedSurrogateId, fetchMedicalReports]);
+
+  // Fetch user points (only for surrogates)
+  const fetchUserPoints = useCallback(async () => {
+    if (!user?.id || !isSurrogateRole) {
+      setTotalPoints(0);
+      return;
+    }
+    
+    setLoadingPoints(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('total_points')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching user points:', error);
+        return;
+      }
+      
+      setTotalPoints(data?.total_points || 0);
+      console.log('✅ Fetched user points:', data?.total_points || 0);
+    } catch (error) {
+      console.error('Error in fetchUserPoints:', error);
+    } finally {
+      setLoadingPoints(false);
+    }
+  }, [user?.id, isSurrogateRole]);
+
+  // Fetch points on mount and when user changes
+  useEffect(() => {
+    if (user?.id && isSurrogateRole) {
+      fetchUserPoints();
+    }
+  }, [user?.id, isSurrogateRole, fetchUserPoints]);
 
   // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告
   const onRefresh = useCallback(async () => {
