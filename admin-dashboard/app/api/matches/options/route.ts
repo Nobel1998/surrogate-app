@@ -7,7 +7,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 // Disable caching to always reflect latest matches/profiles
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
@@ -26,18 +26,63 @@ export async function GET() {
   });
 
   try {
-    console.log('[matches/options] fetching profiles and matches...');
+    // Get admin user info from query params
+    const url = new URL(req.url);
+    const adminUserId = url.searchParams.get('admin_user_id');
+    let branchFilter: string | null = null;
+    let canViewAllBranches = true;
+
+    if (adminUserId) {
+      // Fetch admin user profile to check permissions
+      const { data: adminProfile, error: adminError } = await supabase
+        .from('profiles')
+        .select('id, role, branch_id')
+        .eq('id', adminUserId)
+        .single();
+
+      if (!adminError && adminProfile) {
+        const role = (adminProfile.role || '').toLowerCase();
+        if (role === 'branch_manager') {
+          // Branch manager can only see their branch
+          branchFilter = adminProfile.branch_id;
+          canViewAllBranches = false;
+        } else if (role === 'admin') {
+          // Admin can see all branches
+          canViewAllBranches = true;
+        }
+      }
+    }
+
+    console.log('[matches/options] fetching profiles and matches...', {
+      adminUserId,
+      branchFilter,
+      canViewAllBranches,
+    });
+
+    // Get optional branch filter from query params (for admin filtering)
+    const branchFilterParam = url.searchParams.get('branch_id');
+    const effectiveBranchFilter = branchFilterParam || branchFilter;
+
+    // Build queries with branch filter if needed
+    let profilesQuery = supabase
+      .from('profiles')
+      .select('id, name, phone, role, email, progress_stage, stage_updated_by, branch_id')
+      .in('role', ['surrogate', 'parent']);
+
+    let matchesQuery = supabase
+      .from('surrogate_matches')
+      .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes, branch_id');
+
+    // Apply branch filter if branch manager or admin selected a specific branch
+    if (effectiveBranchFilter && effectiveBranchFilter !== 'all') {
+      profilesQuery = profilesQuery.eq('branch_id', effectiveBranchFilter);
+      matchesQuery = matchesQuery.eq('branch_id', effectiveBranchFilter);
+    }
+
     const [{ data: profiles, error: profilesError }, { data: matches, error: matchesError }] =
       await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, name, phone, role, email, progress_stage, stage_updated_by')
-          .in('role', ['surrogate', 'parent'])
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('surrogate_matches')
-          .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes')
-          .order('created_at', { ascending: false })
+        profilesQuery.order('created_at', { ascending: false }),
+        matchesQuery.order('created_at', { ascending: false })
       ]);
 
     if (profilesError) throw profilesError;
@@ -143,7 +188,28 @@ export async function GET() {
       contracts: contractsData?.length || 0,
     });
 
-    return NextResponse.json({ profiles, matches, posts, comments, postLikes, medicalReports, contracts: contractsData || [] });
+    // Fetch branches for filter dropdown
+    const { data: branches, error: branchesError } = await supabase
+      .from('branches')
+      .select('id, name, code')
+      .order('name', { ascending: true });
+
+    if (branchesError) {
+      console.error('[matches/options] Error fetching branches:', branchesError);
+    }
+
+    return NextResponse.json({
+      profiles,
+      matches,
+      posts,
+      comments,
+      postLikes,
+      medicalReports,
+      contracts: contractsData || [],
+      branches: branches || [],
+      currentBranchFilter: branchFilter,
+      canViewAllBranches,
+    });
   } catch (error: any) {
     console.error('Error loading match options:', error);
     return NextResponse.json(
@@ -190,10 +256,19 @@ export async function POST(req: Request) {
 
     if (findError) throw findError;
 
+    // Get surrogate's branch_id to assign to match
+    const { data: surrogateProfile } = await supabase
+      .from('profiles')
+      .select('branch_id')
+      .eq('id', surrogateId)
+      .single();
+
+    const branchId = surrogateProfile?.branch_id || null;
+
     if (existing?.id) {
       const { error: updateError } = await supabase
         .from('surrogate_matches')
-        .update({ status, notes, updated_at: new Date().toISOString() })
+        .update({ status, notes, updated_at: new Date().toISOString(), branch_id: branchId })
         .eq('id', existing.id);
       if (updateError) throw updateError;
     } else {
@@ -204,6 +279,7 @@ export async function POST(req: Request) {
           parent_id: parentId,
           status,
           notes,
+          branch_id: branchId,
         });
       if (insertError) throw insertError;
     }

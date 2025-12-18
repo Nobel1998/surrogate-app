@@ -11,6 +11,13 @@ type Profile = {
   role?: string;
   progress_stage?: string | null;
   stage_updated_by?: string | null;
+  branch_id?: string | null;
+};
+
+type Branch = {
+  id: string;
+  name: string;
+  code: string;
 };
 
 type Match = {
@@ -83,6 +90,13 @@ export default function MatchesPage() {
   const [stage, setStage] = useState<string>('pre');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Branch management state
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
+  const [adminUserId, setAdminUserId] = useState<string>('');
+  const [canViewAllBranches, setCanViewAllBranches] = useState(true);
+  const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -158,11 +172,51 @@ export default function MatchesPage() {
     return map;
   }, [surrogates, parents]);
 
+  // Load admin user info on mount
+  useEffect(() => {
+    const loadAdminInfo = async () => {
+      // Get admin_user_id from localStorage or URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const userId = urlParams.get('admin_user_id') || localStorage.getItem('admin_user_id') || '';
+      
+      if (userId) {
+        setAdminUserId(userId);
+        try {
+          const res = await fetch(`/api/admin/me?admin_user_id=${userId}`);
+          if (res.ok) {
+            const adminInfo = await res.json();
+            setCanViewAllBranches(adminInfo.canViewAllBranches || false);
+            if (adminInfo.branch_id) {
+              setCurrentBranchFilter(adminInfo.branch_id);
+              setSelectedBranchFilter(adminInfo.branch_id);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading admin info:', err);
+        }
+      }
+    };
+    loadAdminInfo();
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/matches/options');
+      // Build URL with admin_user_id and branch filter if available
+      let url = '/api/matches/options';
+      const params = new URLSearchParams();
+      if (adminUserId) {
+        params.append('admin_user_id', adminUserId);
+      }
+      if (canViewAllBranches && selectedBranchFilter && selectedBranchFilter !== 'all') {
+        params.append('branch_id', selectedBranchFilter);
+      }
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const res = await fetch(url);
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
@@ -175,6 +229,9 @@ export default function MatchesPage() {
         postLikes: likesData = [],
         medicalReports: reportsData = [],
         contracts: contractsData = [],
+        branches: branchesData = [],
+        currentBranchFilter: branchFilter,
+        canViewAllBranches: canViewAll,
       } = await res.json();
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
@@ -197,6 +254,10 @@ export default function MatchesPage() {
       setPostLikes(likesData || []);
       setMedicalReports(reportsData || []);
       setContracts(contractsData || []);
+      setBranches(branchesData || []);
+      setCurrentBranchFilter(branchFilter || null);
+      setCanViewAllBranches(canViewAll !== false);
+      
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -211,8 +272,17 @@ export default function MatchesPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (adminUserId || !adminUserId) { // Load data when adminUserId is set or when component mounts
+      loadData();
+    }
+  }, [adminUserId]);
+
+  // Handle branch filter change (only for admins)
+  const handleBranchFilterChange = async (branchId: string) => {
+    setSelectedBranchFilter(branchId);
+    // Reload data with branch filter
+    await loadData();
+  };
 
   const createMatch = async () => {
     if (!selectedSurrogate || !selectedParent) {
