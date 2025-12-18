@@ -7,20 +7,23 @@ type RewardRequest = {
   id: string;
   user_id: string;
   user_name: string;
-  reward_item: string;
-  points_cost: number;
-  status: 'pending' | 'sent';
+  points_used: number;
+  reward_amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  request_type: 'full_participation' | 'partial' | 'custom';
+  notes?: string | null;
+  admin_notes?: string | null;
+  processed_by?: string | null;
+  processed_at?: string | null;
   created_at: string;
   updated_at: string;
-  sent_at?: string | null;
-  notes?: string | null;
 };
 
 export default function RewardRequestsPage() {
   const [requests, setRequests] = useState<RewardRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'sent'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'paid'>('all');
 
   const loadRequests = async () => {
     setLoading(true);
@@ -45,8 +48,14 @@ export default function RewardRequestsPage() {
     loadRequests();
   }, []);
 
-  const markAsSent = async (requestId: string) => {
-    if (!confirm('Mark this reward request as sent? This will update the status to "Sent".')) {
+  const updateRequestStatus = async (requestId: string, newStatus: 'approved' | 'rejected' | 'paid', adminNotes?: string) => {
+    const statusLabels: Record<string, string> = {
+      approved: 'approve',
+      rejected: 'reject',
+      paid: 'mark as paid',
+    };
+    
+    if (!confirm(`Are you sure you want to ${statusLabels[newStatus]} this reward request?`)) {
       return;
     }
 
@@ -54,7 +63,11 @@ export default function RewardRequestsPage() {
       const res = await fetch('/api/reward-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: requestId, status: 'sent' }),
+        body: JSON.stringify({ 
+          id: requestId, 
+          status: newStatus,
+          admin_notes: adminNotes || undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -62,11 +75,11 @@ export default function RewardRequestsPage() {
         throw new Error(`Failed to update: ${res.status} ${errText}`);
       }
 
-      alert('Reward request marked as sent successfully!');
+      alert(`Reward request ${statusLabels[newStatus]}ed successfully!`);
       await loadRequests();
     } catch (err: any) {
-      console.error('Error marking as sent:', err);
-      alert(err.message || 'Failed to mark as sent');
+      console.error('Error updating request status:', err);
+      alert(err.message || 'Failed to update request status');
     }
   };
 
@@ -76,7 +89,9 @@ export default function RewardRequestsPage() {
   });
 
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
-  const sentCount = requests.filter((r) => r.status === 'sent').length;
+  const approvedCount = requests.filter((r) => r.status === 'approved').length;
+  const rejectedCount = requests.filter((r) => r.status === 'rejected').length;
+  const paidCount = requests.filter((r) => r.status === 'paid').length;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -89,7 +104,7 @@ export default function RewardRequestsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
               <div className="text-sm text-gray-600">Total Requests</div>
               <div className="text-2xl font-bold text-gray-900">{requests.length}</div>
@@ -98,9 +113,17 @@ export default function RewardRequestsPage() {
               <div className="text-sm text-yellow-700">Pending</div>
               <div className="text-2xl font-bold text-yellow-900">{pendingCount}</div>
             </div>
+            <div className="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
+              <div className="text-sm text-blue-700">Approved</div>
+              <div className="text-2xl font-bold text-blue-900">{approvedCount}</div>
+            </div>
+            <div className="bg-red-50 rounded-lg shadow-sm border border-red-200 p-4">
+              <div className="text-sm text-red-700">Rejected</div>
+              <div className="text-2xl font-bold text-red-900">{rejectedCount}</div>
+            </div>
             <div className="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
-              <div className="text-sm text-green-700">Sent</div>
-              <div className="text-2xl font-bold text-green-900">{sentCount}</div>
+              <div className="text-sm text-green-700">Paid</div>
+              <div className="text-2xl font-bold text-green-900">{paidCount}</div>
             </div>
           </div>
 
@@ -110,12 +133,14 @@ export default function RewardRequestsPage() {
               <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as 'all' | 'pending' | 'sent')}
+                onChange={(e) => setFilterStatus(e.target.value as 'all' | 'pending' | 'approved' | 'rejected' | 'paid')}
                 className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
-                <option value="sent">Sent</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="paid">Paid</option>
               </select>
               <button
                 onClick={loadRequests}
@@ -152,10 +177,13 @@ export default function RewardRequestsPage() {
                         Surrogate Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reward Item
+                        Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Points Cost
+                        Points Used
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reward Amount
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -164,7 +192,7 @@ export default function RewardRequestsPage() {
                         Requested At
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Sent At
+                        Processed At
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -179,11 +207,19 @@ export default function RewardRequestsPage() {
                           <div className="text-xs text-gray-500">{req.user_id.substring(0, 8)}...</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{req.reward_item}</div>
+                          <div className="text-sm text-gray-900">
+                            {req.request_type === 'full_participation' ? 'Full Participation ($500)' :
+                             req.request_type === 'partial' ? 'Partial' : 'Custom'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-red-600">
-                            -{req.points_cost} pts
+                            {req.points_used.toLocaleString()} pts
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-green-600">
+                            ${req.reward_amount.toFixed(2)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -191,10 +227,14 @@ export default function RewardRequestsPage() {
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               req.status === 'pending'
                                 ? 'bg-yellow-100 text-yellow-800'
+                                : req.status === 'approved'
+                                ? 'bg-blue-100 text-blue-800'
+                                : req.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
                                 : 'bg-green-100 text-green-800'
                             }`}
                           >
-                            {req.status === 'pending' ? 'Pending' : 'Sent'}
+                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -203,21 +243,39 @@ export default function RewardRequestsPage() {
                             : '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {req.sent_at
-                            ? new Date(req.sent_at).toLocaleString()
+                          {req.processed_at
+                            ? new Date(req.processed_at).toLocaleString()
                             : '—'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           {req.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => updateRequestStatus(req.id, 'approved')}
+                                className="text-blue-600 hover:text-blue-900 font-semibold"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateRequestStatus(req.id, 'rejected')}
+                                className="text-red-600 hover:text-red-900 font-semibold"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {req.status === 'approved' && (
                             <button
-                              onClick={() => markAsSent(req.id)}
-                              className="text-blue-600 hover:text-blue-900 font-semibold"
+                              onClick={() => updateRequestStatus(req.id, 'paid')}
+                              className="text-green-600 hover:text-green-900 font-semibold"
                             >
-                              Mark as Sent
+                              Mark as Paid
                             </button>
                           )}
-                          {req.status === 'sent' && (
-                            <span className="text-gray-400">Completed</span>
+                          {(req.status === 'rejected' || req.status === 'paid') && (
+                            <span className="text-gray-400">
+                              {req.status === 'paid' ? 'Completed' : 'Rejected'}
+                            </span>
                           )}
                         </td>
                       </tr>

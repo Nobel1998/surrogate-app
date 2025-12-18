@@ -65,19 +65,23 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!['pending', 'sent'].includes(status)) {
+    if (!['pending', 'approved', 'rejected', 'paid'].includes(status)) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be "pending" or "sent"' },
+        { error: 'Invalid status. Must be "pending", "approved", "rejected", or "paid"' },
         { status: 400 }
       );
     }
 
-    const updateData: any = { status };
-    if (status === 'sent') {
-      updateData.sent_at = new Date().toISOString();
+    const updateData: any = { 
+      status,
+      processed_at: new Date().toISOString(),
+    };
+    
+    if (body.admin_notes !== undefined) {
+      updateData.admin_notes = body.admin_notes;
     }
-    if (notes !== undefined) {
-      updateData.notes = notes;
+    if (body.notes !== undefined) {
+      updateData.notes = body.notes;
     }
 
     const { error: updateError } = await supabase
