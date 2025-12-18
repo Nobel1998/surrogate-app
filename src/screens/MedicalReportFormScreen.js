@@ -267,29 +267,8 @@ export default function MedicalReportFormScreen({ route }) {
         // Don't throw - points are bonus, report submission should still succeed
       } else {
         console.log(`✅ Points awarded: ${totalPoints} points (Base: 50${isSpeedBonus ? ', Speed Bonus: 20' : ''})`);
-        
-        // Update user's total_points in profiles
-        const { error: updateError } = await supabase.rpc('increment_user_points', {
-          user_id_param: user.id,
-          points_to_add: totalPoints,
-        });
-
-        if (updateError) {
-          console.warn('Error updating total_points (using fallback):', updateError);
-          // Fallback: manually update profiles
-          const { data: currentProfile } = await supabase
-            .from('profiles')
-            .select('total_points')
-            .eq('id', user.id)
-            .single();
-          
-          if (currentProfile) {
-            await supabase
-              .from('profiles')
-              .update({ total_points: (currentProfile.total_points || 0) + totalPoints })
-              .eq('id', user.id);
-          }
-        }
+        // Note: total_points in profiles is automatically updated by the database trigger
+        // (update_total_points_trigger) when points_rewards records are inserted
       }
 
       return { totalPoints, rewardMessages, isSpeedBonus };
