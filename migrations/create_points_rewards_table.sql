@@ -77,3 +77,4 @@ CREATE TRIGGER update_total_points_trigger
   AFTER INSERT ON points_rewards
   FOR EACH ROW
   EXECUTE FUNCTION update_user_total_points();
+

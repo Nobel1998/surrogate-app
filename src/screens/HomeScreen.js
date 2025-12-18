@@ -111,7 +111,7 @@ export default function HomeScreen() {
   const [savingTransferDate, setSavingTransferDate] = useState(false);
   const [transferEmbryoDayDraft, setTransferEmbryoDayDraft] = useState('day5'); // 'day3' | 'day5'
   const [isEditingTransferDate, setIsEditingTransferDate] = useState(false);
-  const [totalPoints, setTotalPoints] = useState(0);
+  const [userPoints, setUserPoints] = useState(0);
   const [loadingPoints, setLoadingPoints] = useState(false);
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
@@ -145,11 +145,11 @@ export default function HomeScreen() {
       v = matchedProfile.transfer_date;
     } else {
       v =
-        user?.transfer_date ||
-        user?.transferDate ||
-        user?.user_metadata?.transfer_date ||
-        user?.user_metadata?.transferDate ||
-        '';
+      user?.transfer_date ||
+      user?.transferDate ||
+      user?.user_metadata?.transfer_date ||
+      user?.user_metadata?.transferDate ||
+      '';
     }
     const result = String(v || '').trim();
     console.log('📊 transferDateStr computed:', { 
@@ -397,8 +397,8 @@ export default function HomeScreen() {
     if (!pregnancyMetrics) {
       // Parent users can see but not edit
       if (isParentRole) {
-        return (
-          <View style={styles.pregDashboardCard}>
+      return (
+        <View style={styles.pregDashboardCard}>
             <View style={styles.cardHeader}>
               <View style={styles.iconContainer}>
                 <Icon name="calendar" size={24} color="#1F6FE0" />
@@ -407,7 +407,7 @@ export default function HomeScreen() {
                 <Text style={styles.cardTitle}>Transfer Date</Text>
                 <Text style={styles.cardSubtitle}>
                   {matchedProfile?.name ? `Waiting for ${matchedProfile.name} to set transfer date` : 'Waiting for surrogate to set transfer date'}
-                </Text>
+          </Text>
               </View>
             </View>
             <View style={styles.infoBox}>
@@ -450,18 +450,18 @@ export default function HomeScreen() {
           </Text>
 
 
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.fullWidthButton, savingTransferDate && styles.fullWidthButtonDisabled]}
-            onPress={saveTransferDate}
-            disabled={savingTransferDate}
-            activeOpacity={0.8}
-          >
-            {savingTransferDate ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
+              onPress={saveTransferDate}
+              disabled={savingTransferDate}
+              activeOpacity={0.8}
+            >
+              {savingTransferDate ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
               <Text style={styles.buttonText}>{t('home.saveAndStartTracking')}</Text>
-            )}
-          </TouchableOpacity>
+              )}
+            </TouchableOpacity>
         </View>
       );
     }
@@ -586,8 +586,8 @@ export default function HomeScreen() {
             <Text style={styles.sectionLabel}>{t('home.dueDateCountdown')}</Text>
             <Text style={[styles.sectionLabel, { color: '#1F6FE0' }]}>{daysLeftText}</Text>
           </View>
-          <View style={styles.pregProgressTrack}>
-            <View style={[styles.pregProgressFill, { width: `${Math.round(progress * 100)}%` }]} />
+        <View style={styles.pregProgressTrack}>
+          <View style={[styles.pregProgressFill, { width: `${Math.round(progress * 100)}%` }]} />
           </View>
         </View>
 
@@ -601,18 +601,16 @@ export default function HomeScreen() {
         {isSurrogateRole && (
           <View style={styles.pointsCard}>
             <View style={styles.pointsHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: '#FFF4E6' }]}>
-                <Icon name="star" size={24} color="#F59E0B" />
+              <View style={styles.pointsIconContainer}>
+                <Icon name="star" size={20} color="#F59E0B" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pointsTitle}>{t('home.myPoints')}</Text>
-                {loadingPoints ? (
-                  <ActivityIndicator size="small" color="#F59E0B" style={{ marginTop: 4 }} />
-                ) : (
-                  <Text style={styles.pointsValue}>{totalPoints} {t('home.points')}</Text>
-                )}
-              </View>
+              <Text style={styles.pointsLabel}>{t('home.myPoints')}</Text>
             </View>
+            {loadingPoints ? (
+              <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 8 }} />
+            ) : (
+              <Text style={styles.pointsValue}>{userPoints.toLocaleString()} {t('home.points')}</Text>
+            )}
             <Text style={styles.pointsDescription}>{t('home.pointsDescription')}</Text>
           </View>
         )}
@@ -999,50 +997,44 @@ export default function HomeScreen() {
     }
   }, [user?.id, isParentRole, matchedSurrogateId]);
 
-  // Fetch medical reports on mount and when user/match changes
-  useEffect(() => {
-    if (user?.id) {
-      fetchMedicalReports();
-    }
-  }, [user?.id, matchedSurrogateId, fetchMedicalReports]);
-
-  // Fetch user points (only for surrogates)
+  // Fetch user points
   const fetchUserPoints = useCallback(async () => {
     if (!user?.id || !isSurrogateRole) {
-      setTotalPoints(0);
+      setUserPoints(0);
       return;
     }
-    
-    setLoadingPoints(true);
+
     try {
+      setLoadingPoints(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('total_points')
         .eq('id', user.id)
         .single();
-      
+
       if (error) {
         console.error('Error fetching user points:', error);
-        return;
+        setUserPoints(0);
+      } else {
+        setUserPoints(data?.total_points || 0);
       }
-      
-      setTotalPoints(data?.total_points || 0);
-      console.log('✅ Fetched user points:', data?.total_points || 0);
     } catch (error) {
       console.error('Error in fetchUserPoints:', error);
+      setUserPoints(0);
     } finally {
       setLoadingPoints(false);
     }
   }, [user?.id, isSurrogateRole]);
 
-  // Fetch points on mount and when user changes
+  // Fetch medical reports on mount and when user/match changes
   useEffect(() => {
-    if (user?.id && isSurrogateRole) {
+    if (user?.id) {
+      fetchMedicalReports();
       fetchUserPoints();
     }
-  }, [user?.id, isSurrogateRole, fetchUserPoints]);
+  }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints]);
 
-  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告
+  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -1050,13 +1042,14 @@ export default function HomeScreen() {
         refreshData(),
         refreshStageData(),
         fetchMedicalReports(),
+        fetchUserPoints(),
       ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, refreshStageData, fetchMedicalReports]);
+  }, [refreshData, refreshStageData, fetchMedicalReports, fetchUserPoints]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -1863,7 +1856,10 @@ export default function HomeScreen() {
               const medicalStage = getMedicalReportStage(currentStage);
               navigation.navigate('MedicalReportForm', { 
                 stage: medicalStage,
-                onSubmit: fetchMedicalReports,
+                onSubmit: () => {
+                  fetchMedicalReports();
+                  fetchUserPoints(); // Refresh points after submitting report
+                },
               });
             }}
             activeOpacity={0.8}
@@ -2525,6 +2521,55 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
     backgroundColor: '#1F6FE0',
+  },
+  pointsCard: {
+    backgroundColor: '#FFFBF0',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pointsIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  pointsLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pointsValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#F59E0B',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  pointsDescription: {
+    fontSize: 12,
+    color: '#92400E',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   pregGraduationBanner: {
     backgroundColor: '#FFF7E6',

@@ -319,7 +319,7 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'online_claims',
       },
     ];
-
+    
     return (
       <ScrollView 
         style={styles.container}
@@ -337,14 +337,14 @@ export default function MyMatchScreen({ navigation }) {
                 <View style={styles.avatarWrapper}>
                   <View style={styles.avatarShadow}>
                     <Avatar name={userName} size={80} />
-                  </View>
+              </View>
                   <Text style={styles.avatarLabel}>{userName}</Text>
-                </View>
-                
+            </View>
+            
                 <View style={styles.matchIconContainer}>
                   <View style={styles.matchIconCircle}>
                     <Icon name="check" size={32} color="#fff" />
-                  </View>
+              </View>
                   {matchDate && (
                     <Text style={styles.matchDate}>{matchDate}</Text>
                   )}
@@ -416,7 +416,7 @@ export default function MyMatchScreen({ navigation }) {
                     d.document_type === 'legal_contract' && 
                     (d.user_id === user.id || d.user_id === (isSurrogate ? matchData?.parent_id : matchData?.surrogate_id))
                   );
-                } else {
+              } else {
                   // For other documents, find by document_type and ensure it's for the current user
                   // Match-uploaded files: surrogate_contract has user_id = surrogate_id, parent_contract has user_id = parent_id
                   docData = documents.find(d => {
@@ -450,9 +450,9 @@ export default function MyMatchScreen({ navigation }) {
                   handleDocumentPress(docData || {});
                 }
               };
-
+              
               return (
-                <TouchableOpacity
+                <TouchableOpacity 
                   key={doc.key}
                   style={[
                     styles.documentCard,
