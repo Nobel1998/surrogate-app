@@ -230,6 +230,35 @@ export const translations = {
       pointsGoal: 'Goal: 5,000 points = $500 (10 points = $1)',
       pointsPerCheckin: '200 points ($20) per check-in + 50 points ($5) speed bonus',
     },
+    // Contact Us Screen
+    contactUs: {
+      title: 'Contact Us',
+      introTitle: 'Contact Us',
+      introText: 'We have multiple office locations throughout California to serve you better. Feel free to reach out to any of our offices for assistance.',
+      ourOffices: 'Our Office Locations',
+      generalContact: 'General Contact Information',
+      phone: 'Phone',
+      email: 'Email',
+      address: 'Address',
+      fax: 'Fax',
+      tollFree: 'Toll-Free',
+      generalInquiries: 'General Inquiries',
+      officeMain: {
+        name: 'Main Office (Toll-Free)',
+      },
+      officeHighDesert: {
+        name: 'High Desert Office',
+      },
+      officeCoachellaValley: {
+        name: 'Coachella Valley Office',
+      },
+      officeAntelopeValley: {
+        name: 'Antelope Valley Office',
+      },
+      officeSanDiego: {
+        name: 'San Diego Office',
+      },
+    },
     // Surrogate Application Screen
     application: {
       backToHome: '← Back to Home',
