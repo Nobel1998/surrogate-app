@@ -26,7 +26,7 @@ const getStageOptions = (t) => [
 
 // Function to get embryo day options with translations
 const getEmbryoDayOptions = (t) => [
-  { key: 'day5', label: t('home.day5Embryo'), transferGestationalDays: 14 }, // spec: 2w+0d
+  { key: 'day5', label: t('home.day5Embryo'), transferGestationalDays: 19 }, // spec: 2w+5d (14+5=19)
   { key: 'day3', label: t('home.day3Embryo'), transferGestationalDays: 19 }, // spec: 2w+5d
 ];
 
