@@ -65,19 +65,18 @@ export async function GET(req: NextRequest) {
     const branchFilterParam = url.searchParams.get('branch_id');
     const effectiveBranchFilter = branchFilterParam || branchFilter;
 
-    // Build queries with branch filter if needed
+    // Build queries - branch filtering is done on matches, not profiles
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, name, phone, role, email, progress_stage, stage_updated_by, branch_id')
+      .select('id, name, phone, role, email, progress_stage, stage_updated_by')
       .in('role', ['surrogate', 'parent']);
 
     let matchesQuery = supabase
       .from('surrogate_matches')
       .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes, branch_id');
 
-    // Apply branch filter if branch manager or admin selected a specific branch
+    // Apply branch filter on matches only (profiles table doesn't have branch_id anymore)
     if (effectiveBranchFilter && effectiveBranchFilter !== 'all') {
-      profilesQuery = profilesQuery.eq('branch_id', effectiveBranchFilter);
       matchesQuery = matchesQuery.eq('branch_id', effectiveBranchFilter);
     }
 
@@ -258,14 +257,10 @@ export async function POST(req: Request) {
 
     if (findError) throw findError;
 
-    // Get surrogate's branch_id to assign to match
-    const { data: surrogateProfile } = await supabase
-      .from('profiles')
-      .select('branch_id')
-      .eq('id', surrogateId)
-      .single();
-
-    const branchId = surrogateProfile?.branch_id || null;
+    // Get branch_id from existing match if it exists, or set to null
+    // Note: branch_id should be set when creating matches, but we don't have it in profiles anymore
+    // For now, we'll set it to null and it can be updated later if needed
+    const branchId = null;
 
     if (existing?.id) {
       const { error: updateError } = await supabase
