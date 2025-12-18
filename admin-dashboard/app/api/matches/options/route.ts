@@ -35,18 +35,18 @@ export async function GET(req: NextRequest) {
     let canViewAllBranches = true;
 
     if (adminUserId) {
-      // Fetch admin user profile to check permissions
-      const { data: adminProfile, error: adminError } = await supabase
-        .from('profiles')
+      // Fetch admin user to check permissions
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
         .select('id, role, branch_id')
         .eq('id', adminUserId)
         .single();
 
-      if (!adminError && adminProfile) {
-        const role = (adminProfile.role || '').toLowerCase();
+      if (!adminError && adminUser) {
+        const role = (adminUser.role || '').toLowerCase();
         if (role === 'branch_manager') {
           // Branch manager can only see their branch
-          branchFilter = adminProfile.branch_id;
+          branchFilter = adminUser.branch_id;
           canViewAllBranches = false;
         } else if (role === 'admin') {
           // Admin can see all branches

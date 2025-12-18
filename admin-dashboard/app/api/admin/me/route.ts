@@ -33,44 +33,37 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch admin user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+    // Fetch admin user
+    const { data: adminUser, error: adminError } = await supabase
+      .from('admin_users')
       .select('id, name, role, branch_id')
       .eq('id', adminUserId)
       .single();
 
-    if (profileError) {
-      console.error('[admin/me] Error fetching profile:', profileError);
+    if (adminError) {
+      console.error('[admin/me] Error fetching admin user:', adminError);
       return NextResponse.json(
-        { error: 'Failed to fetch admin profile' },
+        { error: 'Failed to fetch admin user' },
         { status: 500 }
       );
     }
 
-    if (!profile) {
+    if (!adminUser) {
       return NextResponse.json(
         { error: 'Admin user not found' },
         { status: 404 }
       );
     }
 
-    // Check if user is admin or branch_manager
-    const role = (profile.role || '').toLowerCase();
-    if (role !== 'admin' && role !== 'branch_manager') {
-      return NextResponse.json(
-        { error: 'User is not an admin or branch manager' },
-        { status: 403 }
-      );
-    }
-
+    const role = (adminUser.role || '').toLowerCase();
+    
     // If branch_manager, fetch branch info
     let branch = null;
-    if (role === 'branch_manager' && profile.branch_id) {
+    if (role === 'branch_manager' && adminUser.branch_id) {
       const { data: branchData, error: branchError } = await supabase
         .from('branches')
         .select('id, name, code')
-        .eq('id', profile.branch_id)
+        .eq('id', adminUser.branch_id)
         .single();
 
       if (!branchError && branchData) {
@@ -79,10 +72,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      id: profile.id,
-      name: profile.name,
+      id: adminUser.id,
+      name: adminUser.name,
       role: role,
-      branch_id: profile.branch_id,
+      branch_id: adminUser.branch_id,
       branch: branch,
       canViewAllBranches: role === 'admin',
     });

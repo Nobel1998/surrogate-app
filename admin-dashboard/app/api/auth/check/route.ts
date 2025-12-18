@@ -27,29 +27,29 @@ export async function GET() {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    // Verify user still exists and is admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+    // Verify admin user still exists
+    const { data: adminUser, error: adminError } = await supabase
+      .from('admin_users')
       .select('id, name, role, branch_id')
       .eq('id', adminUserId)
       .single();
 
-    if (profileError || !profile) {
+    if (adminError || !adminUser) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    const role = (profile.role || '').toLowerCase();
+    const role = (adminUser.role || '').toLowerCase();
     if (role !== 'admin' && role !== 'branch_manager') {
       return NextResponse.json({ authenticated: false }, { status: 403 });
     }
 
     // If branch_manager, fetch branch info
     let branch = null;
-    if (role === 'branch_manager' && profile.branch_id) {
+    if (role === 'branch_manager' && adminUser.branch_id) {
       const { data: branchData, error: branchError } = await supabase
         .from('branches')
         .select('id, name, code')
-        .eq('id', profile.branch_id)
+        .eq('id', adminUser.branch_id)
         .single();
 
       if (!branchError && branchData) {
@@ -60,10 +60,10 @@ export async function GET() {
     return NextResponse.json({
       authenticated: true,
       user: {
-        id: profile.id,
-        name: profile.name,
+        id: adminUser.id,
+        name: adminUser.name,
         role: role,
-        branch_id: profile.branch_id,
+        branch_id: adminUser.branch_id,
         branch: branch,
         canViewAllBranches: role === 'admin',
       },

@@ -32,37 +32,28 @@ export async function POST(req: NextRequest) {
     }
 
     // Find admin user by username
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, name, role, branch_id, admin_username, admin_password_hash')
-      .eq('admin_username', username)
+    const { data: adminUser, error: adminError } = await supabase
+      .from('admin_users')
+      .select('id, name, role, branch_id, username, password_hash')
+      .eq('username', username)
       .single();
 
-    if (profileError || !profile) {
+    if (adminError || !adminUser) {
       return NextResponse.json(
         { error: 'Invalid username or password' },
         { status: 401 }
       );
     }
 
-    // Check if user is admin or branch_manager
-    const role = (profile.role || '').toLowerCase();
-    if (role !== 'admin' && role !== 'branch_manager') {
-      return NextResponse.json(
-        { error: 'User is not authorized to access admin dashboard' },
-        { status: 403 }
-      );
-    }
-
     // Verify password
-    if (!profile.admin_password_hash) {
+    if (!adminUser.password_hash) {
       return NextResponse.json(
         { error: 'Password not set for this user. Please contact administrator.' },
         { status: 401 }
       );
     }
 
-    const passwordMatch = await bcrypt.compare(password, profile.admin_password_hash);
+    const passwordMatch = await bcrypt.compare(password, adminUser.password_hash);
     if (!passwordMatch) {
       return NextResponse.json(
         { error: 'Invalid username or password' },
@@ -72,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     // Create session cookie
     const cookieStore = await cookies();
-    cookieStore.set('admin_user_id', profile.id, {
+    cookieStore.set('admin_user_id', adminUser.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -83,10 +74,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: profile.id,
-        name: profile.name,
-        role: role,
-        branch_id: profile.branch_id,
+        id: adminUser.id,
+        name: adminUser.name,
+        role: adminUser.role,
+        branch_id: adminUser.branch_id,
       },
     });
   } catch (error: any) {

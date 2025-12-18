@@ -52,12 +52,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if username already exists
+    // Check if username already exists in admin_users table
     try {
       const { data: existingUser, error: checkError } = await supabase
-        .from('profiles')
+        .from('admin_users')
         .select('id')
-        .eq('admin_username', username)
+        .eq('username', username)
         .maybeSingle();
 
       // maybeSingle() returns null data and no error when no rows found (which is fine)
@@ -104,24 +104,17 @@ export async function POST(req: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Generate a new UUID for the profile
-    // Note: In production, you might want to create a user in auth.users first
-    // For now, we'll use Supabase's gen_random_uuid() function via RPC or generate client-side
-    // Using crypto.randomUUID() which is available in Node.js 14.17.0+
-    const userId = crypto.randomUUID();
-
-    // Insert new profile
-    const { data: newProfile, error: insertError } = await supabase
-      .from('profiles')
+    // Insert new admin user
+    const { data: newAdminUser, error: insertError } = await supabase
+      .from('admin_users')
       .insert({
-        id: userId,
         name: name,
+        username: username,
+        password_hash: passwordHash,
         role: role,
-        admin_username: username,
-        admin_password_hash: passwordHash,
         branch_id: role === 'branch_manager' ? branch_id : null,
       })
-      .select('id, name, role, branch_id, admin_username')
+      .select('id, name, role, branch_id, username')
       .single();
 
     if (insertError) {
@@ -136,10 +129,10 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Account created successfully',
       user: {
-        id: newProfile.id,
-        name: newProfile.name,
-        role: newProfile.role,
-        username: newProfile.admin_username,
+        id: newAdminUser.id,
+        name: newAdminUser.name,
+        role: newAdminUser.role,
+        username: newAdminUser.username,
       },
     });
   } catch (error: any) {
