@@ -1248,7 +1248,7 @@ export default function MatchesPage() {
                                 }
                                 
                                 return (
-                                  <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50 mt-1">
+                                  <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50 mt-1 relative">
                                     <div className="text-[11px] text-gray-600 font-semibold">
                                       {r.stage} · {visitDate}
                                       {r.provider_name && ` · ${r.provider_name}`}
@@ -1258,16 +1258,25 @@ export default function MatchesPage() {
                                         {keyMetrics.join(' · ')}
                                       </div>
                                     )}
-                                    {r.proof_image_url && (
-                                      <a
-                                        href={r.proof_image_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-block"
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {r.proof_image_url && (
+                                        <a
+                                          href={r.proof_image_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs text-blue-600 hover:text-blue-800 inline-block"
+                                        >
+                                          📎 View Proof
+                                        </a>
+                                      )}
+                                      <button
+                                        onClick={() => deleteMedicalReport(r.id)}
+                                        className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                                        title="Delete this medical report"
                                       >
-                                        📎 View Proof
-                                      </a>
-                                    )}
+                                        🗑️ Delete
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })
