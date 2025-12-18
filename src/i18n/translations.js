@@ -1258,23 +1258,29 @@ export const translations = {
     contactUs: {
       title: '联系我们',
       introTitle: '联系我们',
-      introText: '我们的个案经理随时为您提供帮助，陪伴您度过整个代孕之旅。欢迎随时联系我们的团队成员。',
-      ourManagers: '我们的个案经理',
+      introText: '我们在加利福尼亚州设有多个办公室，为您提供更好的服务。欢迎随时联系我们的任何办公室寻求帮助。',
+      ourOffices: '我们的办公室位置',
       generalContact: '一般联系信息',
       phone: '电话',
       email: '邮箱',
       address: '地址',
-      manager1: {
-        name: 'Sarah Johnson',
-        title: '高级个案经理',
+      fax: '传真',
+      tollFree: '免费电话',
+      generalInquiries: '一般咨询',
+      officeMain: {
+        name: '主办公室（免费电话）',
       },
-      manager2: {
-        name: 'Michael Chen',
-        title: '个案经理',
+      officeHighDesert: {
+        name: '高沙漠办公室',
       },
-      manager3: {
-        name: 'Emily Rodriguez',
-        title: '个案经理',
+      officeCoachellaValley: {
+        name: '科切拉谷办公室',
+      },
+      officeAntelopeValley: {
+        name: '羚羊谷办公室',
+      },
+      officeSanDiego: {
+        name: '圣地亚哥办公室',
       },
     },
     // Company Screen (About Us)

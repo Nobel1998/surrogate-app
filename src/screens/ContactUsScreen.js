@@ -6,75 +6,85 @@ import { Feather as Icon } from '@expo/vector-icons';
 export default function ContactUsScreen({ navigation }) {
   const { t } = useLanguage();
 
-  const contactMethods = [
+  const offices = [
     {
-      id: 'manager1',
-      name: t('contactUs.manager1.name'),
-      title: t('contactUs.manager1.title'),
-      phone: '+1-888-245-1866',
-      email: 'info@usababytree.com',
+      id: 'main',
+      name: t('contactUs.officeMain.name'),
+      phone: '(888) 245-1866',
+      email: 'info@babytreesurrogacy.com',
     },
     {
-      id: 'manager2',
-      name: t('contactUs.manager2.name'),
-      title: t('contactUs.manager2.title'),
-      phone: '+1-888-245-1866',
-      email: 'support@usababytree.com',
+      id: 'highDesert',
+      name: t('contactUs.officeHighDesert.name'),
+      phone: '(760) 223-7500',
+      email: 'highdesert@babytreesurrogacy.com',
     },
     {
-      id: 'manager3',
-      name: t('contactUs.manager3.name'),
-      title: t('contactUs.manager3.title'),
-      phone: '+1-888-245-1866',
-      email: 'care@usababytree.com',
+      id: 'coachellaValley',
+      name: t('contactUs.officeCoachellaValley.name'),
+      phone: '(760) 904-2600',
+      email: 'coachellavalley@babytreesurrogacy.com',
+    },
+    {
+      id: 'antelopeValley',
+      name: t('contactUs.officeAntelopeValley.name'),
+      phone: '(661) 471-3100',
+      email: 'antelopevalley@babytreesurrogacy.com',
+    },
+    {
+      id: 'sanDiego',
+      name: t('contactUs.officeSanDiego.name'),
+      phone: '(619) 396-9214',
+      email: 'sandiego@babytreesurrogacy.com',
     },
   ];
 
   const openPhone = (phone) => {
-    Linking.openURL(`tel:${phone}`);
+    // Remove parentheses and spaces for tel: URL
+    const cleanPhone = phone.replace(/[()\s-]/g, '');
+    Linking.openURL(`tel:${cleanPhone}`);
   };
 
   const openEmail = (email) => {
     Linking.openURL(`mailto:${email}`);
   };
 
-  const renderContactCard = (manager) => (
-    <View key={manager.id} style={styles.contactCard}>
+  const renderOfficeCard = (office) => (
+    <View key={office.id} style={styles.contactCard}>
       <View style={styles.contactHeader}>
         <View style={styles.avatarContainer}>
-          <Icon name="user" size={32} color="#2A7BF6" />
+          <Icon name="map-pin" size={32} color="#2A7BF6" />
         </View>
         <View style={styles.contactInfo}>
-          <Text style={styles.managerName}>{manager.name}</Text>
-          <Text style={styles.managerTitle}>{manager.title}</Text>
+          <Text style={styles.managerName}>{office.name}</Text>
         </View>
       </View>
 
       <View style={styles.contactMethods}>
         <TouchableOpacity
           style={styles.contactButton}
-          onPress={() => openPhone(manager.phone)}
+          onPress={() => openPhone(office.phone)}
         >
           <View style={[styles.iconContainer, { backgroundColor: '#4CAF50' }]}>
             <Icon name="phone" size={20} color="#fff" />
           </View>
           <View style={styles.buttonContent}>
             <Text style={styles.buttonLabel}>{t('contactUs.phone')}</Text>
-            <Text style={styles.buttonValue}>{manager.phone}</Text>
+            <Text style={styles.buttonValue}>{office.phone}</Text>
           </View>
           <Icon name="chevron-right" size={20} color="#999" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.contactButton}
-          onPress={() => openEmail(manager.email)}
+          onPress={() => openEmail(office.email)}
         >
           <View style={[styles.iconContainer, { backgroundColor: '#2196F3' }]}>
             <Icon name="mail" size={20} color="#fff" />
           </View>
           <View style={styles.buttonContent}>
             <Text style={styles.buttonLabel}>{t('contactUs.email')}</Text>
-            <Text style={styles.buttonValue}>{manager.email}</Text>
+            <Text style={styles.buttonValue}>{office.email}</Text>
           </View>
           <Icon name="chevron-right" size={20} color="#999" />
         </TouchableOpacity>
@@ -109,10 +119,10 @@ export default function ContactUsScreen({ navigation }) {
           <Text style={styles.introText}>{t('contactUs.introText')}</Text>
         </View>
 
-        {/* Contact Managers */}
+        {/* Office Locations */}
         <View style={styles.managersSection}>
-          <Text style={styles.sectionTitle}>{t('contactUs.ourManagers')}</Text>
-          {contactMethods.map(renderContactCard)}
+          <Text style={styles.sectionTitle}>{t('contactUs.ourOffices')}</Text>
+          {offices.map(renderOfficeCard)}
         </View>
 
         {/* General Contact Info */}
@@ -121,28 +131,30 @@ export default function ContactUsScreen({ navigation }) {
           <View style={styles.generalCard}>
             <TouchableOpacity
               style={styles.contactButton}
-              onPress={() => openPhone('+1-888-245-1866')}
+              onPress={() => openPhone('(888) 245-1866')}
             >
               <View style={[styles.iconContainer, { backgroundColor: '#4CAF50' }]}>
                 <Icon name="phone" size={20} color="#fff" />
               </View>
               <View style={styles.buttonContent}>
                 <Text style={styles.buttonLabel}>{t('contactUs.phone')}</Text>
-                <Text style={styles.buttonValue}>+1-888-245-1866</Text>
+                <Text style={styles.buttonValue}>(888) 245-1866</Text>
+                <Text style={styles.buttonSubtext}>{t('contactUs.tollFree')}</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#999" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.contactButton}
-              onPress={() => openEmail('info@usababytree.com')}
+              onPress={() => openEmail('info@babytreesurrogacy.com')}
             >
               <View style={[styles.iconContainer, { backgroundColor: '#2196F3' }]}>
                 <Icon name="mail" size={20} color="#fff" />
               </View>
               <View style={styles.buttonContent}>
                 <Text style={styles.buttonLabel}>{t('contactUs.email')}</Text>
-                <Text style={styles.buttonValue}>info@usababytree.com</Text>
+                <Text style={styles.buttonValue}>info@babytreesurrogacy.com</Text>
+                <Text style={styles.buttonSubtext}>{t('contactUs.generalInquiries')}</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#999" />
             </TouchableOpacity>
@@ -160,6 +172,16 @@ export default function ContactUsScreen({ navigation }) {
               </View>
               <Icon name="chevron-right" size={20} color="#999" />
             </TouchableOpacity>
+
+            <View style={styles.contactButton}>
+              <View style={[styles.iconContainer, { backgroundColor: '#9E9E9E' }]}>
+                <Icon name="printer" size={20} color="#fff" />
+              </View>
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonLabel}>{t('contactUs.fax')}</Text>
+                <Text style={styles.buttonValue}>(626) 658-8958</Text>
+              </View>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -304,6 +326,11 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  buttonSubtext: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
   generalSection: {
     marginTop: 20,
     paddingHorizontal: 10,
@@ -320,4 +347,5 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 });
+
 

@@ -40,3 +40,4 @@ CREATE POLICY "Users can update their own support tickets"
 
 -- Note: Admin access should be handled through service role key in admin dashboard
 
+

@@ -64,3 +64,4 @@ COMMENT ON COLUMN medical_reports.stage IS 'Stage of the journey: Pre-Transfer, 
 COMMENT ON COLUMN medical_reports.report_data IS 'JSONB field storing stage-specific medical data (estradiol, beta_hcg, weight, etc.)';
 COMMENT ON COLUMN medical_reports.proof_image_url IS 'URL to uploaded clinic note or ultrasound image';
 
+
