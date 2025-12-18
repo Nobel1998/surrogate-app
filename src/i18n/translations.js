@@ -1621,7 +1621,6 @@ export const translations = {
       speedBonusDescription: 'Bono de velocidad por subir informe el mismo día',
       totalPointsEarned: 'Total: ¡{points} puntos ganados!',
     },
-      heartRate: 'Frecuencia Cardíaca',
       sac: 'Saco',
       ga: 'EG',
       weight: 'Peso',
