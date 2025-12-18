@@ -354,6 +354,29 @@ export default function MatchesPage() {
     }
   };
 
+  const deleteMedicalReport = async (reportId: string) => {
+    if (!confirm('Are you sure you want to delete this medical check-in? This action cannot be undone and will also remove associated points rewards.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/matches/medical-reports?id=${reportId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Delete failed: ${res.status} ${errText}`);
+      }
+
+      alert('Medical check-in deleted successfully!');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error deleting medical report:', err);
+      alert(err.message || 'Failed to delete medical check-in');
+    }
+  };
+
   const openAttorneyModal = (match: Match) => {
     setAttorneyMatchId(match.id);
     setAttorneySurrogateId(match.surrogate_id);
