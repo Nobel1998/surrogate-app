@@ -54,9 +54,10 @@ export default function LoginPage() {
       }
 
       // Login successful, redirect to home
-      router.push('/');
-      router.refresh();
+      // Use window.location for a full page reload to ensure cookies are set
+      window.location.href = '/';
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Login failed');
       setLoading(false);
     }

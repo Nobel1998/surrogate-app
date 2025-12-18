@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { username, password } = body;
 
+    console.log('[auth/login] Login attempt for username:', username);
+
     if (!username || !password) {
       return NextResponse.json(
         { error: 'Username and password are required' },
@@ -37,6 +39,12 @@ export async function POST(req: NextRequest) {
       .select('id, name, role, branch_id, username, password_hash')
       .eq('username', username)
       .single();
+
+    console.log('[auth/login] Query result:', { 
+      hasUser: !!adminUser, 
+      error: adminError?.message,
+      errorCode: adminError?.code 
+    });
 
     if (adminError || !adminUser) {
       return NextResponse.json(
@@ -54,6 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordMatch = await bcrypt.compare(password, adminUser.password_hash);
+    console.log('[auth/login] Password match:', passwordMatch);
+    
     if (!passwordMatch) {
       return NextResponse.json(
         { error: 'Invalid username or password' },
@@ -70,6 +80,8 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
+
+    console.log('[auth/login] Login successful, cookie set for user:', adminUser.id);
 
     return NextResponse.json({
       success: true,
