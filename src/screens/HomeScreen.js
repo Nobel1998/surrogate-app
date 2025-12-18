@@ -1691,6 +1691,18 @@ export default function HomeScreen() {
     const weeks = Math.floor(gestationalDays / 7);
     const days = gestationalDays % 7;
     
+    console.log('📊 [calculatePregnancyWeeksAtVisit]', {
+      visitDateStr,
+      transferDateStr,
+      transferEmbryoDayStr,
+      embryoKey,
+      transferGestationalDays,
+      diffDays,
+      gestationalDays,
+      weeks,
+      days,
+    });
+    
     return { weeks, days, gestationalDays };
   }, []);
 
