@@ -206,6 +206,100 @@ export default function MedicalReportFormScreen({ route }) {
     }
   };
 
+  // Helper function to check if a date is today
+  const isToday = (dateStr) => {
+    if (!dateStr) return false;
+    const visitDate = parseMMDDYYYYToISO(dateStr);
+    if (!visitDate) return false;
+    
+    const today = new Date();
+    const todayStr = formatDateToISO(today);
+    const visitDateStr = formatDateToISO(visitDate);
+    
+    return todayStr === visitDateStr;
+  };
+
+  // Award points for medical report submission
+  const awardPoints = async (reportId, visitDateStr) => {
+    try {
+      let totalPoints = 50; // Base reward: +50 points
+      let rewardMessages = [t('points.baseHitReward', { points: 50 })];
+      
+      // Check for speed bonus (极速奖)
+      const isSpeedBonus = isToday(visitDateStr);
+      if (isSpeedBonus) {
+        totalPoints += 20; // Speed bonus: +20 points
+        rewardMessages.push(t('points.speedBonusReward', { points: 20 }));
+      }
+
+      // Insert points rewards
+      const pointsRewards = [];
+      
+      // Base hit reward
+      pointsRewards.push({
+        user_id: user.id,
+        points: 50,
+        reward_type: 'base_hit',
+        source_type: 'medical_report',
+        source_id: reportId,
+        description: t('points.baseHitDescription'),
+      });
+
+      // Speed bonus (if applicable)
+      if (isSpeedBonus) {
+        pointsRewards.push({
+          user_id: user.id,
+          points: 20,
+          reward_type: 'speed_bonus',
+          source_type: 'medical_report',
+          source_id: reportId,
+          description: t('points.speedBonusDescription'),
+        });
+      }
+
+      // Insert all rewards
+      const { error: pointsError } = await supabase
+        .from('points_rewards')
+        .insert(pointsRewards);
+
+      if (pointsError) {
+        console.error('Error awarding points:', pointsError);
+        // Don't throw - points are bonus, report submission should still succeed
+      } else {
+        console.log(`✅ Points awarded: ${totalPoints} points (Base: 50${isSpeedBonus ? ', Speed Bonus: 20' : ''})`);
+        
+        // Update user's total_points in profiles
+        const { error: updateError } = await supabase.rpc('increment_user_points', {
+          user_id_param: user.id,
+          points_to_add: totalPoints,
+        });
+
+        if (updateError) {
+          console.warn('Error updating total_points (using fallback):', updateError);
+          // Fallback: manually update profiles
+          const { data: currentProfile } = await supabase
+            .from('profiles')
+            .select('total_points')
+            .eq('id', user.id)
+            .single();
+          
+          if (currentProfile) {
+            await supabase
+              .from('profiles')
+              .update({ total_points: (currentProfile.total_points || 0) + totalPoints })
+              .eq('id', user.id);
+          }
+        }
+      }
+
+      return { totalPoints, rewardMessages, isSpeedBonus };
+    } catch (error) {
+      console.error('Error in awardPoints:', error);
+      // Return default values if points awarding fails
+      return { totalPoints: 50, rewardMessages: [t('points.baseHitReward', { points: 50 })], isSpeedBonus: false };
+    }
+  };
+
   const submitReport = async (imageUrl) => {
     try {
       const visitDateISO = formatDateToISO(parseMMDDYYYYToISO(visitDate));
@@ -237,8 +331,26 @@ export default function MedicalReportFormScreen({ route }) {
       }
 
       console.log('Report submitted successfully:', data);
+      const reportId = data?.[0]?.id;
 
-      Alert.alert(t('medicalReport.success'), t('medicalReport.successMessage'), [
+      // Award points for successful submission
+      const pointsResult = await awardPoints(reportId, visitDate);
+      
+      // Show success alert with points information
+      // Format reward messages by replacing {points} placeholders
+      const formattedRewardMessages = pointsResult.rewardMessages.map(msg => {
+        if (msg.includes('Base Hit')) {
+          return msg.replace(/\{points\}/g, '50');
+        } else if (msg.includes('Speed Bonus')) {
+          return msg.replace(/\{points\}/g, '20');
+        }
+        return msg.replace(/\{points\}/g, '50');
+      });
+      const pointsMessage = formattedRewardMessages.join('\n');
+      const totalMessage = t('points.totalPointsEarned').replace(/\{points\}/g, String(pointsResult.totalPoints));
+      const alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
+
+      Alert.alert(t('medicalReport.success'), alertMessage, [
         { 
           text: t('common.close'), 
           onPress: () => {
