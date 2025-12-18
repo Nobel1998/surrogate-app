@@ -120,8 +120,12 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 z-10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPassword(!showPassword);
+                }}
               >
                 {showPassword ? (
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
