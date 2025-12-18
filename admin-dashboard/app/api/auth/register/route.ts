@@ -53,24 +53,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if username already exists
-    const { data: existingUser, error: checkError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('admin_username', username)
-      .maybeSingle();
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('admin_username', username)
+        .maybeSingle();
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('[auth/register] Error checking username:', checkError);
+      // maybeSingle() returns null data and no error when no rows found (which is fine)
+      // It only returns an error for actual database errors
+      if (checkError) {
+        console.error('[auth/register] Error checking username:', checkError);
+        return NextResponse.json(
+          { error: `Failed to check username availability: ${checkError.message || 'Database error'}` },
+          { status: 500 }
+        );
+      }
+
+      // If user exists, return error
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username already exists' },
+          { status: 409 }
+        );
+      }
+    } catch (err: any) {
+      console.error('[auth/register] Exception checking username:', err);
       return NextResponse.json(
-        { error: 'Failed to check username availability' },
+        { error: `Failed to check username availability: ${err.message || 'Unknown error'}` },
         { status: 500 }
-      );
-    }
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Username already exists' },
-        { status: 409 }
       );
     }
 
