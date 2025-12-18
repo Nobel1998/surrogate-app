@@ -323,13 +323,9 @@ export default function HomeScreen() {
       }
     }
     
-    // Update embryo day draft (only if not in edit mode)
+    // Always use Day 5 embryo (default), no need to update draft
     if (!isEditingTransferDate) {
-      const newEmbryoDay = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
-      if (transferEmbryoDayDraft !== newEmbryoDay) {
-        console.log('✅ Updating transferEmbryoDayDraft to:', newEmbryoDay);
-        setTransferEmbryoDayDraft(newEmbryoDay);
-      }
+      setTransferEmbryoDayDraft('day5');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, transferDateStr, transferEmbryoDayStr, matchedProfile?.transfer_date, matchedProfile?.transfer_embryo_day, isEditingTransferDate]);
@@ -358,7 +354,8 @@ export default function HomeScreen() {
     }
     // Convert to ISO format (YYYY-MM-DD) for storage
     const isoDate = formatDateToISO(parsed);
-    const embryoKey = normalizeEmbryoDayKey(transferEmbryoDayDraft || 'day5');
+    // Always use Day 5 embryo (default)
+    const embryoKey = 'day5';
     
     console.log('💾 Saving transfer date:', { isoDate, embryoKey });
     
@@ -384,18 +381,7 @@ export default function HomeScreen() {
     }
   }, [transferDateDraft, transferEmbryoDayDraft, updateProfile]);
 
-  const saveEmbryoDay = useCallback(
-    async (nextKey) => {
-      const embryoKey = normalizeEmbryoDayKey(nextKey || 'day5');
-      setTransferEmbryoDayDraft(embryoKey);
-      try {
-        await updateProfile?.({ transfer_embryo_day: embryoKey });
-      } catch (e) {
-        console.warn('Save transfer_embryo_day error:', e);
-      }
-    },
-    [updateProfile]
-  );
+  // Embryo type is now always Day 5, no need for saveEmbryoDay function
 
   const renderPregnancyDashboard = () => {
     const currentStageKey = getCurrentStageKey();
@@ -445,25 +431,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>Embryo Type</Text>
-          <View style={styles.segmentedControl}>
-            {EMBRYO_DAY_OPTIONS.map((opt) => {
-              const active = normalizeEmbryoDayKey(transferEmbryoDayDraft || 'day5') === opt.key;
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.segment, active && styles.segmentActive]}
-                  onPress={() => setTransferEmbryoDayDraft(opt.key)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
           <Text style={styles.sectionLabel}>Transfer Date (MM/DD/YY)</Text>
           <View style={styles.inputContainer}>
             <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
@@ -480,12 +447,6 @@ export default function HomeScreen() {
             Enter the date when the transfer procedure took place.
           </Text>
 
-          <View style={styles.infoBox}>
-            <Icon name="info" size={16} color="#1E40AF" />
-            <Text style={styles.infoText}>
-              Calculation: Day 3 embryo is considered 2 weeks + 5 days pregnant at transfer. Day 5 embryo is 2 weeks + 0 days.
-            </Text>
-          </View>
 
           <TouchableOpacity
             style={[styles.fullWidthButton, savingTransferDate && styles.fullWidthButtonDisabled]}
@@ -532,9 +493,8 @@ export default function HomeScreen() {
                   const formatted = formatISOToMMDDYY(transferDateStr);
                   setTransferDateDraft(formatted);
                 }
-                if (transferEmbryoDayStr) {
-                  setTransferEmbryoDayDraft(normalizeEmbryoDayKey(transferEmbryoDayStr));
-                }
+                // Always use Day 5
+                setTransferEmbryoDayDraft('day5');
               }}
               style={styles.editButton}
             >
@@ -561,25 +521,6 @@ export default function HomeScreen() {
               >
                 <Icon name="x" size={20} color="#666" />
               </TouchableOpacity>
-            </View>
-
-            <Text style={styles.sectionLabel}>{t('home.embryoType')}</Text>
-            <View style={styles.segmentedControl}>
-              {EMBRYO_DAY_OPTIONS.map((opt) => {
-                const active = normalizeEmbryoDayKey(transferEmbryoDayDraft || embryoKey) === opt.key;
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.segment, active && styles.segmentActive]}
-                    onPress={() => setTransferEmbryoDayDraft(opt.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
             </View>
 
             <Text style={styles.sectionLabel}>{t('home.transferDate')} (MM/DD/YY)</Text>
@@ -654,44 +595,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionLabel}>
-          {t('home.embryoType')} {isParentRole ? t('home.setBySurrogate') : t('home.tapToChange')}
-        </Text>
-        <View style={styles.segmentedControl}>
-          {EMBRYO_DAY_OPTIONS.map((opt) => {
-            const active = embryoKey === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                style={[
-                  styles.segment, 
-                  active && styles.segmentActive,
-                  isParentRole && styles.segmentDisabled
-                ]}
-                onPress={() => {
-                  if (!isParentRole) {
-                    saveEmbryoDay(opt.key);
-                  }
-                }}
-                activeOpacity={isParentRole ? 1 : 0.8}
-                disabled={isParentRole}
-              >
-                <Text style={[
-                  styles.segmentText, 
-                  active && styles.segmentTextActive,
-                  isParentRole && !active && styles.segmentTextDisabled
-                ]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        {isParentRole && (
-          <Text style={[styles.helperText, { marginTop: 8, marginLeft: 4 }]}>
-            {t('home.cannotChangeEmbryo')}
-          </Text>
-        )}
 
         <TouchableOpacity
           style={styles.fullWidthButton}
@@ -1681,8 +1584,8 @@ export default function HomeScreen() {
     const diffDaysRaw = Math.floor((visit.getTime() - transfer.getTime()) / (24 * 60 * 60 * 1000));
     const diffDays = Math.max(0, diffDaysRaw);
     
-    // Get embryo day configuration
-    const embryoKey = normalizeEmbryoDayKey(transferEmbryoDayStr || 'day5');
+    // Always use Day 5 embryo (default)
+    const embryoKey = 'day5';
     const embryoCfg = EMBRYO_DAY_OPTIONS.find((x) => x.key === embryoKey) || EMBRYO_DAY_OPTIONS[0];
     const transferGestationalDays = embryoCfg.transferGestationalDays;
     
