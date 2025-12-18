@@ -1,10 +1,41 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userName, setUserName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const res = await fetch('/api/auth/check');
+        if (res.ok) {
+          const data = await res.json();
+          setUserName(data.user?.name || 'Admin');
+        }
+      } catch (err) {
+        // Not logged in
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUserInfo();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   const navItems = [
     { href: '/', label: 'Applications', icon: '📋' },
@@ -41,10 +72,18 @@ export default function Navigation() {
               ))}
             </div>
           </div>
-          <div className="flex items-center">
-            <div className="text-sm text-gray-500">
-              Admin Dashboard
-            </div>
+          <div className="flex items-center gap-4">
+            {!loading && userName && (
+              <div className="text-sm text-gray-700">
+                Welcome, <span className="font-medium">{userName}</span>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-sm text-red-600 hover:text-red-800 font-medium"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>

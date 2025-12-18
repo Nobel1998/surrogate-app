@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -7,7 +8,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 // Disable caching to always reflect latest matches/profiles
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
@@ -26,9 +27,10 @@ export async function GET(req: Request) {
   });
 
   try {
-    // Get admin user info from query params
+    // Get admin user info from cookie (preferred) or query params (fallback)
+    const cookieStore = await cookies();
     const url = new URL(req.url);
-    const adminUserId = url.searchParams.get('admin_user_id');
+    const adminUserId = cookieStore.get('admin_user_id')?.value || url.searchParams.get('admin_user_id');
     let branchFilter: string | null = null;
     let canViewAllBranches = true;
 

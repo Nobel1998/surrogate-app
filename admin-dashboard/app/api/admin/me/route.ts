@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -7,7 +8,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const dynamic = 'force-dynamic';
 
 // Get current admin user info (role and branch_id)
-// Query param: ?admin_user_id=xxx
+// Gets admin_user_id from session cookie
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -21,13 +22,14 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    const searchParams = req.nextUrl.searchParams;
-    const adminUserId = searchParams.get('admin_user_id');
+    // Get admin_user_id from cookie (preferred) or query param (fallback)
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value || req.nextUrl.searchParams.get('admin_user_id');
 
     if (!adminUserId) {
       return NextResponse.json(
-        { error: 'admin_user_id is required' },
-        { status: 400 }
+        { error: 'Not authenticated' },
+        { status: 401 }
       );
     }
 

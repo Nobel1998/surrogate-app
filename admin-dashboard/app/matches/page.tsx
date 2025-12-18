@@ -175,25 +175,23 @@ export default function MatchesPage() {
   // Load admin user info on mount
   useEffect(() => {
     const loadAdminInfo = async () => {
-      // Get admin_user_id from localStorage or URL params
-      const urlParams = new URLSearchParams(window.location.search);
-      const userId = urlParams.get('admin_user_id') || localStorage.getItem('admin_user_id') || '';
-      
-      if (userId) {
-        setAdminUserId(userId);
-        try {
-          const res = await fetch(`/api/admin/me?admin_user_id=${userId}`);
-          if (res.ok) {
-            const adminInfo = await res.json();
-            setCanViewAllBranches(adminInfo.canViewAllBranches || false);
-            if (adminInfo.branch_id) {
-              setCurrentBranchFilter(adminInfo.branch_id);
-              setSelectedBranchFilter(adminInfo.branch_id);
-            }
+      try {
+        const res = await fetch('/api/admin/me');
+        if (res.ok) {
+          const adminInfo = await res.json();
+          setAdminUserId(adminInfo.id);
+          setCanViewAllBranches(adminInfo.canViewAllBranches || false);
+          if (adminInfo.branch_id) {
+            setCurrentBranchFilter(adminInfo.branch_id);
+            setSelectedBranchFilter(adminInfo.branch_id);
           }
-        } catch (err) {
-          console.error('Error loading admin info:', err);
+        } else {
+          // Not authenticated, redirect to login
+          window.location.href = '/login';
         }
+      } catch (err) {
+        console.error('Error loading admin info:', err);
+        window.location.href = '/login';
       }
     };
     loadAdminInfo();
@@ -203,12 +201,9 @@ export default function MatchesPage() {
     setLoading(true);
     setError(null);
     try {
-      // Build URL with admin_user_id and branch filter if available
+      // Build URL with branch filter if available
       let url = '/api/matches/options';
       const params = new URLSearchParams();
-      if (adminUserId) {
-        params.append('admin_user_id', adminUserId);
-      }
       if (canViewAllBranches && selectedBranchFilter && selectedBranchFilter !== 'all') {
         params.append('branch_id', selectedBranchFilter);
       }
