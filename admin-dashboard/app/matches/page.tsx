@@ -1812,19 +1812,6 @@ export default function MatchesPage() {
                               )}
                             </div>
                           )}
-                          {!associatedCase && canViewAllBranches && (
-                            <button
-                              onClick={() => {
-                                // Create a new case for this match
-                                if (confirm('Create a new case for this match?')) {
-                                  window.location.href = `/cases/new?surrogate_id=${m.surrogate_id}&parent_id=${m.parent_id}`;
-                                }
-                              }}
-                              className="mt-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded"
-                            >
-                              ➕ Create Case
-                            </button>
-                          )}
                           <button
                             onClick={() => openContractModal(m)}
                             className="mt-1 w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
