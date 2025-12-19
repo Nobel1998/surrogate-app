@@ -1005,13 +1005,16 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* Cases Management Section */}
+        {/* Unified Matches & Cases Table */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Internal Cases</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Matches & Cases</h2>
             <div className="flex items-center gap-3">
               <button
-                onClick={loadCases}
+                onClick={() => {
+                  loadData();
+                  loadCases();
+                }}
                 className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium"
               >
                 🔄 Refresh
@@ -1039,7 +1042,7 @@ export default function MatchesPage() {
             <div className="flex items-center gap-3 flex-1">
               <input
                 type="text"
-                placeholder="Search cases..."
+                placeholder="Search matches and cases..."
                 value={caseSearch}
                 onChange={(e) => setCaseSearch(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleCaseSearch()}
@@ -1565,82 +1568,77 @@ export default function MatchesPage() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
-            <button
-              onClick={loadData}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              🔄 Refresh
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {matches.map((m) => {
-                  const surrogate = profileLookup[m.surrogate_id];
-                  const parent = profileLookup[m.parent_id];
-                  const surrogateStageKey = surrogate?.progress_stage || 'pre';
-                  const surrogateStage = STAGE_LABELS[surrogateStageKey] || surrogateStageKey.toUpperCase();
-                  const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
-                  const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
-                  const latestPosts = surrogatePosts.slice(0, 3);
-                  const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
-                  const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
-                  const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
-                  const latestReports = surrogateReports.slice(0, 3);
-                  return (
-                    <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{surrogate?.name || m.surrogate_id}</div>
-                        <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{parent?.name || m.parent_id}</div>
-                        <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              m.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : m.status === 'completed'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : m.status === 'cancelled'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {m.status?.toUpperCase() || 'UNKNOWN'}
-                          </span>
-                          <div className="flex flex-col gap-1">
-                            <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-                              STAGE: {surrogateStage}
+                  {/* Matches Rows */}
+                  {matches
+                    .filter((m) => {
+                      if (caseStatusFilter && m.status !== caseStatusFilter) return false;
+                      if (caseSearch) {
+                        const searchLower = caseSearch.toLowerCase();
+                        const surrogate = profileLookup[m.surrogate_id];
+                        const parent = profileLookup[m.parent_id];
+                        return (
+                          m.id?.toLowerCase().includes(searchLower) ||
+                          surrogate?.name?.toLowerCase().includes(searchLower) ||
+                          parent?.name?.toLowerCase().includes(searchLower) ||
+                          m.status?.toLowerCase().includes(searchLower)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((m) => {
+                      const surrogate = profileLookup[m.surrogate_id];
+                      const parent = profileLookup[m.parent_id];
+                      const surrogateStageKey = surrogate?.progress_stage || 'pre';
+                      const surrogateStage = STAGE_LABELS[surrogateStageKey] || surrogateStageKey.toUpperCase();
+                      const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
+                      const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
+                      const latestPosts = surrogatePosts.slice(0, 3);
+                      const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
+                      const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
+                      const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
+                      const latestReports = surrogateReports.slice(0, 3);
+                      return (
+                        <tr key={`match-${m.id || `${m.surrogate_id}-${m.parent_id}`}`} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                              Match
                             </span>
-                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
-                              BY: {stageUpdater}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {m.id?.substring(0, 8) || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="font-medium">{surrogate?.name || m.surrogate_id}</div>
+                            <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="font-medium">{parent?.name || m.parent_id}</div>
+                            <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                m.status === 'active'
+                                  ? 'bg-green-100 text-green-800'
+                                  : m.status === 'completed'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : m.status === 'cancelled'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {m.status?.toUpperCase() || 'UNKNOWN'}
                             </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-700">
-                        <div className="flex flex-col gap-2">
-                          <div className="font-semibold text-sm">
-                            Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
-                          </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            <div className="max-w-xs truncate" title={surrogateStage}>
+                              {surrogateStage}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-700">
+                            <div className="font-semibold text-sm">
+                              Posts: {surrogatePosts.length} · Reports: {surrogateReports.length}
+                            </div>
                           {latestPosts.length === 0 ? (
                             <div className="text-gray-500 text-xs">No posts</div>
                           ) : (
@@ -1732,82 +1730,64 @@ export default function MatchesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
-                        {m.updated_at ? new Date(m.updated_at).toLocaleString() : m.created_at ? new Date(m.created_at).toLocaleString() : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm space-x-2">
-                        {STATUS_OPTIONS.map((s: string) => (
-                          <button
-                            key={s}
-                            onClick={() => updateMatchStatus(m.id, s)}
-                            className={`px-2 py-1 rounded border text-xs ${
-                              m.status === s
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
-                            }`}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                        <select
-                          className="mt-2 border border-gray-300 rounded px-2 py-1 text-xs"
-                          value={surrogate?.progress_stage || 'pre'}
-                          onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
-                        >
-                          {STAGE_OPTIONS.map((st: string) => (
-                            <option key={st} value={st}>
-                              {STAGE_LABELS[st] || st.toUpperCase()}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => openContractModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          📄 Publish Contract
-                        </button>
-                        <button
-                          onClick={() => openAttorneyModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          ⚖️ Upload Attorney Retainer
-                        </button>
-                        <button
-                          onClick={() => openInsuranceModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          🛡️ Upload Life Insurance
-                        </button>
-                        <button
-                          onClick={() => openHealthInsuranceModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          ❤️ Upload Health Insurance Bill
-                        </button>
-                        <button
-                          onClick={() => openPBOModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          📋 Upload PBO
-                        </button>
-                        <button
-                          onClick={() => openClaimsModal(m)}
-                          className="mt-2 w-full px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                        >
-                          ✅ Upload Online Claims
-                        </button>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="max-w-xs truncate" title={surrogateStage}>
+                              {surrogateStage}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-700">
+                            <div className="font-semibold text-sm">
+                              Posts: {surrogatePosts.length} · Reports: {surrogateReports.length}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500">
+                            {m.updated_at ? new Date(m.updated_at).toLocaleDateString() : m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex flex-col gap-2">
+                              {STATUS_OPTIONS.map((s: string) => (
+                                <button
+                                  key={s}
+                                  onClick={() => updateMatchStatus(m.id, s)}
+                                  className={`px-2 py-1 rounded border text-xs ${
+                                    m.status === s
+                                      ? 'border-blue-500 text-blue-600'
+                                      : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
+                                  }`}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                              <select
+                                className="border border-gray-300 rounded px-2 py-1 text-xs"
+                                value={surrogate?.progress_stage || 'pre'}
+                                onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                              >
+                                {STAGE_OPTIONS.map((st: string) => (
+                                  <option key={st} value={st}>
+                                    {STAGE_LABELS[st] || st.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => openContractModal(m)}
+                                className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                              >
+                                📄 Contract
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                  {filteredCases.length === 0 && matches.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                        No matches or cases found. Create one above.
                       </td>
                     </tr>
-                  );
-                })}
-
-                {matches.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                      No matches found. Create one above.
-                    </td>
-                  </tr>
-                )}
+                  )}
               </tbody>
             </table>
           </div>
