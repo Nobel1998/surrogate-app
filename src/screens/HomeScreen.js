@@ -3740,30 +3740,3 @@ const styles = StyleSheet.create({
     color: '#2A7BF6',
   }
 }); 
-    borderRadius: 8,
-  },
-  statusTextCompleted: {
-    color: '#2A7BF6',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  textCurrent: {
-    color: '#2A7BF6',
-  },
-  textCurrentSub: {
-    color: '#5C6F88',
-  },
-  cardFooter: {
-    marginTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  viewDetailsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2A7BF6',
-  },
-  textCurrentLink: {
-    color: '#2A7BF6',
-  }
-}); 

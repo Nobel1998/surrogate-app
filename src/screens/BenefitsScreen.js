@@ -383,5 +383,3 @@ const styles = StyleSheet.create({
   faqQuestion: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 },
   faqAnswer: { fontSize: 14, color: '#666', lineHeight: 20 },
 }); 
-  faqAnswer: { fontSize: 14, color: '#666', lineHeight: 20 },
-}); 

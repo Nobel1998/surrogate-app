@@ -1599,7 +1599,47 @@ export default function MatchesPage() {
                             <span>{associatedCase.manager_name || '—'}</span>
                           )
                         ) : (
-                          <span className="text-gray-400">—</span>
+                          canViewAllBranches ? (
+                            <button
+                              onClick={async () => {
+                                // Auto-create case for this match
+                                if (confirm('Create case for this match and assign manager?')) {
+                                  try {
+                                    // First, trigger case creation by refreshing data (which will auto-create on next match update)
+                                    // Or directly create case via API
+                                    const res = await fetch('/api/cases', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
+                                        surrogate_id: m.surrogate_id,
+                                        first_parent_id: m.parent_id,
+                                        case_type: 'Surrogacy',
+                                        status: 'active',
+                                      }),
+                                    });
+                                    if (res.ok) {
+                                      await loadCases();
+                                      await loadData();
+                                      alert('Case created successfully! You can now assign a manager.');
+                                    } else {
+                                      const err = await res.text();
+                                      alert(`Failed to create case: ${err}`);
+                                    }
+                                  } catch (err: any) {
+                                    console.error('Error creating case:', err);
+                                    alert(`Error: ${err.message || 'Failed to create case'}`);
+                                  }
+                                }
+                              }}
+                              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
+                              title="Create Case & Assign Manager"
+                            >
+                              + Create Case
+                            </button>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">

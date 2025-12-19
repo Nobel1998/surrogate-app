@@ -233,6 +233,9 @@ export async function POST(req: Request) {
   });
 
   try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+
     const body = await req.json();
     const surrogateId = body.surrogate_id;
     const parentId = body.parent_id;
@@ -262,14 +265,17 @@ export async function POST(req: Request) {
     // For now, we'll set it to null and it can be updated later if needed
     const branchId = null;
 
+    let matchId: string | null = null;
+
     if (existing?.id) {
+      matchId = existing.id;
       const { error: updateError } = await supabase
         .from('surrogate_matches')
         .update({ status, notes, updated_at: new Date().toISOString(), branch_id: branchId })
         .eq('id', existing.id);
       if (updateError) throw updateError;
     } else {
-      const { error: insertError } = await supabase
+      const { data: newMatch, error: insertError } = await supabase
         .from('surrogate_matches')
         .insert({
           surrogate_id: surrogateId,
@@ -277,8 +283,64 @@ export async function POST(req: Request) {
           status,
           notes,
           branch_id: branchId,
-        });
+        })
+        .select('id')
+        .single();
       if (insertError) throw insertError;
+      matchId = newMatch?.id || null;
+    }
+
+    // Auto-create case if match was created/updated and no case exists yet
+    if (matchId) {
+      // Check if case already exists for this match
+      const { data: existingCase, error: caseCheckError } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('surrogate_id', surrogateId)
+        .eq('first_parent_id', parentId)
+        .limit(1)
+        .maybeSingle();
+
+      if (caseCheckError) {
+        console.error('Error checking existing case:', caseCheckError);
+        // Don't throw, just log - case creation is optional
+      } else if (!existingCase) {
+        // Generate claim_id: MATCH-{matchId的前8位}
+        const claimId = `MATCH-${matchId.substring(0, 8).toUpperCase()}`;
+        
+        // Get branch_id from admin user if available
+        let effectiveBranchId = branchId;
+        if (!effectiveBranchId && adminUserId) {
+          const { data: adminUser } = await supabase
+            .from('admin_users')
+            .select('branch_id')
+            .eq('id', adminUserId)
+            .single();
+          if (adminUser?.branch_id) {
+            effectiveBranchId = adminUser.branch_id;
+          }
+        }
+
+        // Create case automatically
+        const { error: caseInsertError } = await supabase
+          .from('cases')
+          .insert({
+            claim_id: claimId,
+            surrogate_id: surrogateId,
+            first_parent_id: parentId,
+            case_type: 'Surrogacy',
+            branch_id: effectiveBranchId,
+            status: 'active',
+            created_by: adminUserId || null,
+          });
+
+        if (caseInsertError) {
+          console.error('Error auto-creating case:', caseInsertError);
+          // Don't throw - match creation succeeded, case creation is optional
+        } else {
+          console.log('✅ Auto-created case for match:', matchId, 'claim_id:', claimId);
+        }
+      }
     }
 
     return NextResponse.json({ success: true });
