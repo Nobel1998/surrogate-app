@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     // Build queries - branch filtering is done on matches, not profiles
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, name, phone, role, email, progress_stage, stage_updated_by')
+      .select('id, name, phone, role, email, progress_stage, stage_updated_by, transfer_date, transfer_embryo_day')
       .in('role', ['surrogate', 'parent']);
 
     let matchesQuery = supabase

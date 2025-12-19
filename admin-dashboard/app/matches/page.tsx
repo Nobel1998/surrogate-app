@@ -1490,6 +1490,45 @@ export default function MatchesPage() {
                       (c.surrogate_id === m.surrogate_id && c.second_parent_id === m.parent_id)
                   );
                   
+                  // Calculate pregnancy weeks from transfer_date if available
+                  const calculatePregnancyWeeks = () => {
+                    // First, try to use weeks_pregnant from case
+                    if (associatedCase?.weeks_pregnant && associatedCase.weeks_pregnant > 0) {
+                      return associatedCase.weeks_pregnant;
+                    }
+                    
+                    // Otherwise, calculate from transfer_date
+                    const transferDate = surrogate?.transfer_date || associatedCase?.transfer_date;
+                    if (!transferDate) return null;
+                    
+                    try {
+                      const transfer = new Date(transferDate);
+                      const today = new Date();
+                      
+                      // Set both dates to midnight for accurate day calculation
+                      transfer.setHours(0, 0, 0, 0);
+                      today.setHours(0, 0, 0, 0);
+                      
+                      // Calculate days from transfer to today
+                      const diffDays = Math.floor((today.getTime() - transfer.getTime()) / (24 * 60 * 60 * 1000));
+                      
+                      if (diffDays < 0) return null; // Transfer date is in the future
+                      
+                      // Day 5 embryo = 19 days gestational at transfer (14+5)
+                      const transferGestationalDays = 19;
+                      const gestationalDays = diffDays + transferGestationalDays;
+                      const weeks = Math.floor(gestationalDays / 7);
+                      const days = gestationalDays % 7;
+                      
+                      return { weeks, days, totalDays: gestationalDays };
+                    } catch (err) {
+                      console.error('Error calculating pregnancy weeks:', err);
+                      return null;
+                    }
+                  };
+                  
+                  const pregnancyWeeks = calculatePregnancyWeeks();
+                  
                   // Debug log for first match
                   if (matches.indexOf(m) === 0) {
                     console.log('🔍 First match debug:', {
@@ -1498,6 +1537,8 @@ export default function MatchesPage() {
                       parentId: m.parent_id,
                       hasAssociatedCase: !!associatedCase,
                       associatedCaseId: associatedCase?.id,
+                      transferDate: surrogate?.transfer_date,
+                      pregnancyWeeks,
                       canViewAllBranches,
                       casesCount: cases.length,
                     });
@@ -1652,7 +1693,15 @@ export default function MatchesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.weeks_pregnant ?? '—'}
+                        {pregnancyWeeks ? (
+                          typeof pregnancyWeeks === 'number' ? (
+                            `${pregnancyWeeks} weeks`
+                          ) : (
+                            `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
+                          )
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {associatedCase?.estimated_due_date 
