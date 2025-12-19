@@ -24,15 +24,15 @@ export async function GET(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
 
     const { data: updates, error: updatesError } = await supabase
-      .from('case_updates')
+      .from('match_updates')
       .select(`
         *,
-        updated_by_user:admin_users!case_updates_updated_by_fkey(id, name)
+        updated_by_user:admin_users!match_updates_updated_by_fkey(id, name)
       `)
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('created_at', { ascending: false });
 
     if (updatesError) throw updatesError;
@@ -66,7 +66,7 @@ export async function POST(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
     const body = await req.json();
 
     const {
@@ -85,9 +85,9 @@ export async function POST(
     }
 
     const { data: update, error: updateError } = await supabase
-      .from('case_updates')
+      .from('match_updates')
       .insert({
-        case_id: caseId,
+        match_id: matchId,
         update_type,
         title: title || null,
         content: content || null,

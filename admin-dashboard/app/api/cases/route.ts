@@ -68,11 +68,12 @@ export async function GET(req: NextRequest) {
     }
 
     let query = supabase
-      .from('cases')
+      .from('surrogate_matches')
       .select(`
         id,
         claim_id,
         surrogate_id,
+        parent_id,
         first_parent_id,
         first_parent_name,
         second_parent_id,
@@ -95,70 +96,71 @@ export async function GET(req: NextRequest) {
         company,
         files,
         status,
+        notes,
         created_at,
         updated_at
       `);
 
-    // Get cases assigned to this manager (regardless of role)
-    // This allows any manager to see cases assigned to them via case_managers table
-    const { data: assignedCaseIds, error: assignedError } = await supabase
-      .from('case_managers')
-      .select('case_id')
+    // Get matches assigned to this manager (regardless of role)
+    // This allows any manager to see matches assigned to them via match_managers table
+    const { data: assignedMatchIds, error: assignedError } = await supabase
+      .from('match_managers')
+      .select('match_id')
       .eq('manager_id', adminUserId);
     
     if (assignedError) {
-      console.error('[cases] Error fetching case_managers:', assignedError);
+      console.error('[cases] Error fetching match_managers:', assignedError);
     }
     
-    const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
+    const matchIdsFromTable = assignedMatchIds?.map(m => m.match_id).filter(Boolean) || [];
     
-    // Also get cases with legacy manager_id
-    const { data: legacyCases, error: legacyError } = await supabase
-      .from('cases')
+    // Also get matches with legacy manager_id
+    const { data: legacyMatches, error: legacyError } = await supabase
+      .from('surrogate_matches')
       .select('id')
       .eq('manager_id', adminUserId);
     
     if (legacyError) {
-      console.error('[cases] Error fetching legacy cases:', legacyError);
+      console.error('[cases] Error fetching legacy matches:', legacyError);
     }
     
-    const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
+    const legacyMatchIds = legacyMatches?.map(m => m.id).filter(Boolean) || [];
     
-    // Combine all case IDs assigned to this manager
-    const assignedCaseIdsList = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
+    // Combine all match IDs assigned to this manager
+    const assignedMatchIdsList = [...new Set([...matchIdsFromTable, ...legacyMatchIds])];
     
-    console.log('[cases] Manager assigned cases:', {
+    console.log('[cases] Manager assigned matches:', {
       adminUserId,
       role: adminUser?.role,
-      caseIdsFromTable: caseIdsFromTable.length,
-      legacyCaseIds: legacyCaseIds.length,
-      assignedCaseIdsList: assignedCaseIdsList.length,
-      assignedCaseIdsList,
+      matchIdsFromTable: matchIdsFromTable.length,
+      legacyMatchIds: legacyMatchIds.length,
+      assignedMatchIdsList: assignedMatchIdsList.length,
+      assignedMatchIdsList,
     });
     
     // Apply filters based on role
     if (isSuperAdmin) {
-      // Super admin can see all cases - no filter needed
+      // Super admin can see all matches - no filter needed
     } else if (isBranchManager && effectiveBranchId) {
       // Branch manager can see:
-      // 1. Cases in their branch
-      // 2. Cases assigned to them (even if not in their branch)
-      if (assignedCaseIdsList.length > 0) {
-        // Use .or() to combine branch filter with assigned cases
-        const caseIdsStr = assignedCaseIdsList.map(id => `"${id}"`).join(',');
-        query = query.or(`branch_id.eq."${effectiveBranchId}",id.in.(${caseIdsStr})`);
+      // 1. Matches in their branch
+      // 2. Matches assigned to them (even if not in their branch)
+      if (assignedMatchIdsList.length > 0) {
+        // Use .or() to combine branch filter with assigned matches
+        const matchIdsStr = assignedMatchIdsList.map(id => `"${id}"`).join(',');
+        query = query.or(`branch_id.eq."${effectiveBranchId}",id.in.(${matchIdsStr})`);
       } else {
         query = query.eq('branch_id', effectiveBranchId);
       }
-    } else if (assignedCaseIdsList.length > 0) {
+    } else if (assignedMatchIdsList.length > 0) {
       // Any other manager (or if adminUserId exists but role is not admin/branch_manager)
-      // can only see cases assigned to them
-      query = query.in('id', assignedCaseIdsList);
+      // can only see matches assigned to them
+      query = query.in('id', assignedMatchIdsList);
     } else if (effectiveBranchId) {
       // Fallback: filter by branch if specified
       query = query.eq('branch_id', effectiveBranchId);
     } else if (adminUserId && !isSuperAdmin && !isBranchManager) {
-      // If manager has no assigned cases and is not super admin or branch manager, return empty
+      // If manager has no assigned matches and is not super admin or branch manager, return empty
       query = query.eq('id', '00000000-0000-0000-0000-000000000000');
     }
 
@@ -243,8 +245,8 @@ export async function GET(req: NextRequest) {
 
     // Enrich cases with profile and manager names
     const enrichedCases = cases?.map(c => {
-      const managersList = caseManagers[c.id] || [];
-      // If no managers from case_managers table, fall back to legacy manager_id
+      const managersList = matchManagers[c.id] || [];
+      // If no managers from match_managers table, fall back to legacy manager_id
       if (managersList.length === 0 && c.manager_id && managers[c.manager_id]) {
         managersList.push(managers[c.manager_id]);
       }
@@ -340,11 +342,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Determine parent_id (use first_parent_id if available, otherwise use a placeholder)
+    const parentId = first_parent_id || null;
+    
     const { data: newCase, error: insertError } = await supabase
-      .from('cases')
+      .from('surrogate_matches')
       .insert({
         claim_id,
         surrogate_id: surrogate_id || null,
+        parent_id: parentId,
         first_parent_id: first_parent_id || null,
         first_parent_name: first_parent_name || null,
         second_parent_id: second_parent_id || null,

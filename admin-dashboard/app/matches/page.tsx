@@ -31,6 +31,32 @@ type Match = {
   created_at?: string;
   updated_at?: string;
   notes?: string | null;
+  // Case fields (merged from cases table)
+  claim_id?: string | null;
+  case_type?: string | null;
+  first_parent_id?: string | null;
+  first_parent_name?: string | null;
+  second_parent_id?: string | null;
+  second_parent_name?: string | null;
+  manager_id?: string | null;
+  branch_id?: string | null;
+  current_step?: string | null;
+  weeks_pregnant?: number;
+  estimated_due_date?: string | null;
+  number_of_fetuses?: number;
+  fetal_beat_confirm?: string | null;
+  sign_date?: string | null;
+  transfer_date?: string | null;
+  beta_confirm_date?: string | null;
+  due_date?: string | null;
+  clinic?: string | null;
+  embryos?: string | null;
+  lawyer?: string | null;
+  company?: string | null;
+  files?: any;
+  managers?: Array<{ id: string; name: string; role?: string }>;
+  manager_ids?: string[];
+  manager_name?: string | null;
 };
 
 type Post = {
@@ -118,16 +144,8 @@ export default function MatchesPage() {
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Cases-specific state
-  const [casesLoading, setCasesLoading] = useState(false);
-  const [casesError, setCasesError] = useState<string | null>(null);
-  const [caseSearch, setCaseSearch] = useState('');
-  const [caseStatusFilter, setCaseStatusFilter] = useState('');
-  const [selectedCases, setSelectedCases] = useState<Set<string>>(new Set());
 
   const [selectedSurrogate, setSelectedSurrogate] = useState<string>('');
   const [selectedParent, setSelectedParent] = useState<string>('');
@@ -321,17 +339,9 @@ export default function MatchesPage() {
     // Load data when component mounts or when admin info is available
     if (adminUserId) {
       loadData();
-      loadCases();
       loadAdminUsers();
     }
   }, [adminUserId]);
-  
-  // Also load cases when caseStatusFilter changes
-  useEffect(() => {
-    if (adminUserId) {
-      loadCases();
-    }
-  }, [caseStatusFilter, adminUserId]);
 
   const loadAdminUsers = async () => {
     try {
@@ -345,9 +355,9 @@ export default function MatchesPage() {
     }
   };
 
-  const assignManagersToCase = async (caseId: string, managerIds: string[]) => {
+  const assignManagersToCase = async (matchId: string, managerIds: string[]) => {
     try {
-      const res = await fetch(`/api/cases/${caseId}/managers`, {
+      const res = await fetch(`/api/cases/${matchId}/managers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -360,7 +370,7 @@ export default function MatchesPage() {
         throw new Error(errData.error || 'Failed to assign managers');
       }
 
-      await loadCases();
+      await loadData(); // Reload matches data instead of cases
       setAssigningManager(null);
       setSelectedManagerIds([]);
       alert(`Successfully assigned ${managerIds.length} manager(s)`);
@@ -368,95 +378,6 @@ export default function MatchesPage() {
       alert(err.message || 'Failed to assign managers');
     }
   };
-
-  useEffect(() => {
-    loadCases();
-  }, [caseStatusFilter]);
-
-  const loadCases = async () => {
-    setCasesLoading(true);
-    setCasesError(null);
-    try {
-      const params = new URLSearchParams();
-      if (caseSearch) params.append('search', caseSearch);
-      if (caseStatusFilter) params.append('status', caseStatusFilter);
-
-      const res = await fetch(`/api/cases?${params.toString()}`);
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Failed to load cases: ${res.status} ${errText}`);
-      }
-      const data = await res.json();
-      console.log('📋 Loaded cases:', {
-        count: data.cases?.length || 0,
-        cases: data.cases?.map((c: Case) => ({
-          id: c.id,
-          claim_id: c.claim_id,
-          managers: c.managers?.map((m: any) => m.name) || [],
-          manager_ids: c.manager_ids || [],
-        })),
-      });
-      setCases(data.cases || []);
-    } catch (err: any) {
-      console.error('Error loading cases:', err);
-      setCasesError(err.message || 'Failed to load cases');
-    } finally {
-      setCasesLoading(false);
-    }
-  };
-
-  const handleCaseSearch = () => {
-    loadCases();
-  };
-
-  const handleDeleteCase = async (caseId: string) => {
-    if (!confirm('Are you sure you want to delete this case?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/cases/${caseId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to delete case');
-      }
-
-      await loadCases();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete case');
-    }
-  };
-
-  const toggleSelectCase = (caseId: string) => {
-    const newSelected = new Set(selectedCases);
-    if (newSelected.has(caseId)) {
-      newSelected.delete(caseId);
-    } else {
-      newSelected.add(caseId);
-    }
-    setSelectedCases(newSelected);
-  };
-
-  const toggleSelectAllCases = () => {
-    if (selectedCases.size === filteredCases.length) {
-      setSelectedCases(new Set());
-    } else {
-      setSelectedCases(new Set(filteredCases.map(c => c.id)));
-    }
-  };
-
-  const filteredCases = useMemo(() => {
-    if (!caseSearch) return cases;
-    const searchLower = caseSearch.toLowerCase();
-    return cases.filter(c =>
-      c.claim_id.toLowerCase().includes(searchLower) ||
-      c.surrogate_name?.toLowerCase().includes(searchLower) ||
-      c.first_parent_name?.toLowerCase().includes(searchLower) ||
-      c.case_type.toLowerCase().includes(searchLower)
-    );
-  }, [cases, caseSearch]);
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
@@ -1444,7 +1365,6 @@ export default function MatchesPage() {
               <button
                 onClick={() => {
                   loadData();
-                  loadCases();
                 }}
                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
               >
@@ -1504,22 +1424,16 @@ export default function MatchesPage() {
                   const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
                   const latestReports = surrogateReports.slice(0, 3);
                   
-                  // Find associated case by matching surrogate_id and parent_id
-                  const associatedCase = cases.find(
-                    (c) => 
-                      (c.surrogate_id === m.surrogate_id && c.first_parent_id === m.parent_id) ||
-                      (c.surrogate_id === m.surrogate_id && c.second_parent_id === m.parent_id)
-                  );
-                  
+                  // Match data now contains all case fields directly
                   // Calculate pregnancy weeks from transfer_date if available
                   const calculatePregnancyWeeks = () => {
-                    // First, try to use weeks_pregnant from case
-                    if (associatedCase?.weeks_pregnant && associatedCase.weeks_pregnant > 0) {
-                      return associatedCase.weeks_pregnant;
+                    // First, try to use weeks_pregnant from match
+                    if (m.weeks_pregnant && m.weeks_pregnant > 0) {
+                      return m.weeks_pregnant;
                     }
                     
                     // Otherwise, calculate from transfer_date
-                    const transferDate = surrogate?.transfer_date || associatedCase?.transfer_date;
+                    const transferDate = surrogate?.transfer_date || m.transfer_date;
                     if (!transferDate) return null;
                     
                     try {
@@ -1556,12 +1470,10 @@ export default function MatchesPage() {
                       matchId: m.id,
                       surrogateId: m.surrogate_id,
                       parentId: m.parent_id,
-                      hasAssociatedCase: !!associatedCase,
-                      associatedCaseId: associatedCase?.id,
-                      transferDate: surrogate?.transfer_date,
+                      claimId: m.claim_id,
+                      transferDate: surrogate?.transfer_date || m.transfer_date,
                       pregnancyWeeks,
                       canViewAllBranches,
-                      casesCount: cases.length,
                     });
                   }
                   
@@ -1573,11 +1485,11 @@ export default function MatchesPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-medium">
-                          {associatedCase?.first_parent_name || parent?.name || m.parent_id}
+                          {m.first_parent_name || parent?.name || m.parent_id}
                         </div>
-                        {associatedCase?.second_parent_name && (
+                        {m.second_parent_name && (
                           <div className="font-medium text-xs text-gray-600 mt-1">
-                            {associatedCase.second_parent_name}
+                            {m.second_parent_name}
                           </div>
                         )}
                         <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
@@ -1598,15 +1510,15 @@ export default function MatchesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.claim_id || '—'}
+                        {m.claim_id || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.case_type || '—'}
+                        {m.case_type || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {canViewAllBranches ? (
                           <div className="flex items-center gap-2">
-                            {assigningManager === (associatedCase?.id || m.id) ? (
+                            {assigningManager === m.id ? (
                               <div className="flex flex-col gap-2 min-w-[200px]">
                                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded p-2 bg-white">
                                   {adminUsers.map((admin) => (
@@ -1631,48 +1543,10 @@ export default function MatchesPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={async () => {
-                                      let caseId = associatedCase?.id;
-                                      
-                                      // If no case exists, create it first
-                                      if (!caseId) {
-                                        try {
-                                          const createCaseRes = await fetch('/api/cases', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                              claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
-                                              surrogate_id: m.surrogate_id,
-                                              first_parent_id: m.parent_id,
-                                              case_type: 'Surrogacy',
-                                              status: 'active',
-                                            }),
-                                          });
-                                          
-                                          if (!createCaseRes.ok) {
-                                            const err = await createCaseRes.text();
-                                            throw new Error(`Failed to create case: ${err}`);
-                                          }
-                                          
-                                          const caseData = await createCaseRes.json();
-                                          caseId = caseData.case?.id || caseData.id;
-                                          
-                                          if (!caseId) {
-                                            throw new Error('Case created but ID not returned');
-                                          }
-                                          
-                                          // Reload cases to get the new case
-                                          await loadCases();
-                                        } catch (err: any) {
-                                          console.error('Error creating case:', err);
-                                          alert(`Error: ${err.message || 'Failed to create case'}`);
-                                          return;
-                                        }
-                                      }
-                                      
-                                      // Assign managers
-                                      await assignManagersToCase(caseId, selectedManagerIds);
-                                    }}
+                                  onClick={async () => {
+                                    // Assign managers directly to match
+                                    await assignManagersToCase(m.id, selectedManagerIds);
+                                  }}
                                     className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
                                   >
                                     ✓ Save
@@ -1691,9 +1565,9 @@ export default function MatchesPage() {
                             ) : (
                               <div className="flex items-center gap-2">
                                 <div className="flex flex-col gap-1">
-                                  {associatedCase?.managers && associatedCase.managers.length > 0 ? (
-                                    associatedCase.managers.map((manager: any, idx: number) => {
-                                      const managersList = associatedCase.managers || [];
+                                  {m.managers && m.managers.length > 0 ? (
+                                    m.managers.map((manager: any, idx: number) => {
+                                      const managersList = m.managers || [];
                                       return (
                                         <span key={manager.id} className="text-xs text-gray-600">
                                           {manager.name}{idx < managersList.length - 1 ? ',' : ''}
@@ -1702,17 +1576,17 @@ export default function MatchesPage() {
                                     })
                                   ) : (
                                     <span className="text-xs text-gray-600">
-                                      {associatedCase?.manager_name || 'No Manager'}
+                                      {m.manager_name || 'No Manager'}
                                     </span>
                                   )}
                                 </div>
                                 <button
                                   onClick={() => {
-                                    setAssigningManager(associatedCase?.id || m.id);
+                                    setAssigningManager(m.id);
                                     // Get manager IDs, filtering out null/undefined values
-                                    const managerIds = associatedCase?.manager_ids 
-                                      ? associatedCase.manager_ids.filter((id): id is string => id != null)
-                                      : (associatedCase?.manager_id ? [associatedCase.manager_id] : []);
+                                    const managerIds = m.manager_ids 
+                                      ? m.manager_ids.filter((id): id is string => id != null)
+                                      : (m.manager_id ? [m.manager_id] : []);
                                     setSelectedManagerIds(managerIds);
                                   }}
                                   className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
@@ -1725,9 +1599,9 @@ export default function MatchesPage() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            {associatedCase?.managers && associatedCase.managers.length > 0 ? (
-                              associatedCase.managers.map((manager: any, idx: number) => {
-                                const managersList = associatedCase.managers || [];
+                            {m.managers && m.managers.length > 0 ? (
+                              m.managers.map((manager: any, idx: number) => {
+                                const managersList = m.managers || [];
                                 return (
                                   <span key={manager.id} className="text-xs text-gray-600">
                                     {manager.name}{idx < managersList.length - 1 ? ',' : ''}
@@ -1736,7 +1610,7 @@ export default function MatchesPage() {
                               })
                             ) : (
                               <span className="text-xs text-gray-600">
-                                {associatedCase?.manager_name || '—'}
+                                {m.manager_name || '—'}
                               </span>
                             )}
                           </div>
@@ -1744,9 +1618,9 @@ export default function MatchesPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex flex-col gap-1">
-                          {associatedCase?.current_step ? (
-                            <div className="max-w-xs truncate" title={associatedCase.current_step}>
-                              {associatedCase.current_step}
+                          {m.current_step ? (
+                            <div className="max-w-xs truncate" title={m.current_step}>
+                              {m.current_step}
                             </div>
                           ) : (
                             <div className="flex flex-col gap-1">
@@ -1772,75 +1646,75 @@ export default function MatchesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.estimated_due_date 
-                          ? new Date(associatedCase.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                        {m.estimated_due_date 
+                          ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
                           : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.number_of_fetuses ?? '—'}
+                        {m.number_of_fetuses ?? '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.fetal_beat_confirm || '—'}
+                        {m.fetal_beat_confirm || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.sign_date 
-                          ? new Date(associatedCase.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                        {m.sign_date 
+                          ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
                           : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.transfer_date 
-                          ? new Date(associatedCase.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                        {m.transfer_date 
+                          ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
                           : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={associatedCase?.clinic || ''}>
-                          {associatedCase?.clinic || '—'}
+                        <div className="max-w-xs truncate" title={m.clinic || ''}>
+                          {m.clinic || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={associatedCase?.embryos || ''}>
-                          {associatedCase?.embryos || '—'}
+                        <div className="max-w-xs truncate" title={m.embryos || ''}>
+                          {m.embryos || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={associatedCase?.lawyer || ''}>
-                          {associatedCase?.lawyer || '—'}
+                        <div className="max-w-xs truncate" title={m.lawyer || ''}>
+                          {m.lawyer || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={associatedCase?.company || ''}>
-                          {associatedCase?.company || '—'}
+                        <div className="max-w-xs truncate" title={m.company || ''}>
+                          {m.company || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.customer_signed_contractfiles ? '✓' : '—'}
+                        {m.files?.customer_signed_contractfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.attorney_contractfiles ? '✓' : '—'}
+                        {m.files?.attorney_contractfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.trust_account_contractfiles ? '✓' : '—'}
+                        {m.files?.trust_account_contractfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.surrogacy_contractfiles ? '✓' : '—'}
+                        {m.files?.surrogacy_contractfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.life_insurance_policyfiles ? '✓' : '—'}
+                        {m.files?.life_insurance_policyfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.surrogate_health_insurancefiles ? '✓' : '—'}
+                        {m.files?.surrogate_health_insurancefiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.wire_recordfiles ? '✓' : '—'}
+                        {m.files?.wire_recordfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.monthly_statementfiles ? '✓' : '—'}
+                        {m.files?.monthly_statementfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.pbofiles ? '✓' : '—'}
+                        {m.files?.pbofiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
+                        {m.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-2">

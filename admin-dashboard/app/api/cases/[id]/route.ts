@@ -24,18 +24,18 @@ export async function GET(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
 
-    // Fetch case
-    const { data: caseData, error: caseError } = await supabase
-      .from('cases')
+    // Fetch match (which now contains all case data)
+    const { data: matchData, error: matchError } = await supabase
+      .from('surrogate_matches')
       .select('*')
-      .eq('id', caseId)
+      .eq('id', matchId)
       .single();
 
-    if (caseError || !caseData) {
+    if (matchError || !matchData) {
       return NextResponse.json(
-        { error: 'Case not found' },
+        { error: 'Match/Case not found' },
         { status: 404 }
       );
     }
@@ -142,16 +142,16 @@ export async function PATCH(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
     const body = await req.json();
 
     const { error: updateError } = await supabase
-      .from('cases')
+      .from('surrogate_matches')
       .update({
         ...body,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', caseId);
+      .eq('id', matchId);
 
     if (updateError) {
       console.error('[cases/[id]] PATCH error:', updateError);
@@ -188,12 +188,12 @@ export async function DELETE(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
 
     const { error: deleteError } = await supabase
-      .from('cases')
+      .from('surrogate_matches')
       .delete()
-      .eq('id', caseId);
+      .eq('id', matchId);
 
     if (deleteError) {
       console.error('[cases/[id]] DELETE error:', deleteError);

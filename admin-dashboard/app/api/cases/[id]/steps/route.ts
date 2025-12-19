@@ -24,12 +24,12 @@ export async function GET(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
 
     const { data: steps, error: stepsError } = await supabase
-      .from('case_steps')
+      .from('match_steps')
       .select('*')
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('stage_number', { ascending: true })
       .order('step_number', { ascending: true });
 
@@ -64,7 +64,7 @@ export async function POST(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
     const body = await req.json();
 
     const {
@@ -85,9 +85,9 @@ export async function POST(
 
     // Upsert step
     const { data: step, error: stepError } = await supabase
-      .from('case_steps')
+      .from('match_steps')
       .upsert({
-        case_id: caseId,
+        match_id: matchId,
         stage_number,
         stage_name: stage_name || `Stage ${stage_number}`,
         step_number,
@@ -97,7 +97,7 @@ export async function POST(
         completed_at: status === 'completed' ? new Date().toISOString() : null,
         completed_by: status === 'completed' ? adminUserId : null,
       }, {
-        onConflict: 'case_id,stage_number,step_number',
+        onConflict: 'match_id,stage_number,step_number',
       })
       .select()
       .single();

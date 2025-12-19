@@ -24,17 +24,17 @@ export async function GET(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
 
-    const { data: caseManagers, error } = await supabase
-      .from('case_managers')
+    const { data: matchManagers, error } = await supabase
+      .from('match_managers')
       .select(`
         id,
         manager_id,
         created_at,
-        manager:admin_users!case_managers_manager_id_fkey(id, name, role)
+        manager:admin_users!match_managers_manager_id_fkey(id, name, role)
       `)
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -45,7 +45,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ managers: caseManagers || [] });
+    return NextResponse.json({ managers: matchManagers || [] });
   } catch (error: any) {
     console.error('[cases/[id]/managers] GET error:', error);
     return NextResponse.json(
@@ -72,7 +72,7 @@ export async function POST(
   });
 
   try {
-    const { id: caseId } = await params;
+    const { id: matchId } = await params;
     const body = await req.json();
     const { manager_ids } = body; // Array of manager IDs
 
@@ -86,11 +86,11 @@ export async function POST(
     // Remove null/empty values
     const validManagerIds = manager_ids.filter((id: string) => id && id.trim() !== '');
 
-    // Delete all existing managers for this case
+    // Delete all existing managers for this match
     const { error: deleteError } = await supabase
-      .from('case_managers')
+      .from('match_managers')
       .delete()
-      .eq('case_id', caseId);
+      .eq('match_id', matchId);
 
     if (deleteError) {
       console.error('[cases/[id]/managers] DELETE error:', deleteError);
@@ -103,12 +103,12 @@ export async function POST(
     // Insert new managers
     if (validManagerIds.length > 0) {
       const newManagers = validManagerIds.map((managerId: string) => ({
-        case_id: caseId,
+        match_id: matchId,
         manager_id: managerId,
       }));
 
       const { error: insertError } = await supabase
-        .from('case_managers')
+        .from('match_managers')
         .insert(newManagers);
 
       if (insertError) {
@@ -122,14 +122,14 @@ export async function POST(
 
     // Fetch updated managers
     const { data: updatedManagers, error: fetchError } = await supabase
-      .from('case_managers')
+      .from('match_managers')
       .select(`
         id,
         manager_id,
         created_at,
-        manager:admin_users!case_managers_manager_id_fkey(id, name, role)
+        manager:admin_users!match_managers_manager_id_fkey(id, name, role)
       `)
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('created_at', { ascending: true });
 
     if (fetchError) {
