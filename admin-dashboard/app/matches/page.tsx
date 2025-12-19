@@ -1856,7 +1856,6 @@ export default function MatchesPage() {
         </div>
         </>
         )}
-      </div>
 
       {/* Contract Upload Modal */}
       {showContractModal && (
