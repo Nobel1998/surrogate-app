@@ -406,3 +406,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

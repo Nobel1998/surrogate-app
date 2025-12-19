@@ -1328,3 +1328,5 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace'
   }
 });
+  }
+});

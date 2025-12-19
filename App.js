@@ -340,3 +340,50 @@ export default function App() {
     </LanguageProvider>
   );
 } 
+        await AsyncStorageLib.removeItem('resume_application_flow');
+      }
+    };
+    checkResume();
+  }, [isAuthenticated]);
+
+  // 如果还在加载且没有达到强制显示条件，显示加载界面
+  if (isLoading && !forceShowApp) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FB' }}>
+        <ActivityIndicator size="large" color="#2A7BF6" />
+        <Text style={{ fontSize: 18, color: '#2A7BF6', marginTop: 16 }}>Loading...</Text>
+        <Text style={{ fontSize: 14, color: '#6E7191', marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+          Connecting to server...
+        </Text>
+      </View>
+    );
+  }
+
+  const navKey = isAuthenticated
+    ? (resumeApplication ? 'auth-resume' : 'auth-nav')
+    : 'guest-nav';
+
+  return (
+    <NavigationContainer linking={linking} key={navKey}>
+      {isAuthenticated ? (
+        <AppStackNavigator initialRouteName={resumeApplication ? 'SurrogateApplication' : 'MainTabs'} />
+      ) : (
+        <GuestStackNavigator />
+      )}
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </NotificationProvider>
+      </AppProvider>
+    </LanguageProvider>
+  );
+} 
