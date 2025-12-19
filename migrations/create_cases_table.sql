@@ -82,6 +82,19 @@ CREATE TABLE IF NOT EXISTS case_updates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add foreign key constraint for updated_by
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'case_updates_updated_by_fkey'
+  ) THEN
+    ALTER TABLE case_updates 
+    ADD CONSTRAINT case_updates_updated_by_fkey 
+    FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_case_updates_case_id ON case_updates(case_id);
 CREATE INDEX IF NOT EXISTS idx_case_updates_created_at ON case_updates(created_at DESC);
 
