@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 type Profile = {
@@ -18,6 +18,7 @@ type AdminUser = {
 
 export default function NewCasePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     claim_id: '',
     surrogate_id: '',
@@ -48,7 +49,17 @@ export default function NewCasePage() {
 
   useEffect(() => {
     loadOptions();
-  }, []);
+    
+    // Pre-fill from URL params if provided
+    const surrogateId = searchParams.get('surrogate_id');
+    const parentId = searchParams.get('parent_id');
+    if (surrogateId) {
+      setFormData(prev => ({ ...prev, surrogate_id: surrogateId }));
+    }
+    if (parentId) {
+      setFormData(prev => ({ ...prev, first_parent_id: parentId }));
+    }
+  }, [searchParams]);
 
   const loadOptions = async () => {
     try {

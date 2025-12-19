@@ -138,6 +138,9 @@ export default function MatchesPage() {
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
+  const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
+  const [assigningManager, setAssigningManager] = useState<string | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -311,8 +314,45 @@ export default function MatchesPage() {
     if (adminUserId || !adminUserId) { // Load data when adminUserId is set or when component mounts
       loadData();
       loadCases();
+      loadAdminUsers();
     }
   }, [adminUserId]);
+
+  const loadAdminUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error('Error loading admin users:', err);
+    }
+  };
+
+  const assignManagerToCase = async (caseId: string, managerId: string | null) => {
+    try {
+      const res = await fetch(`/api/cases/${caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manager_id: managerId || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to assign manager');
+      }
+
+      await loadCases();
+      setAssigningManager(null);
+      setSelectedManagerId('');
+      alert('Manager assigned successfully');
+    } catch (err: any) {
+      alert(err.message || 'Failed to assign manager');
+    }
+  };
 
   useEffect(() => {
     loadCases();
@@ -1467,7 +1507,60 @@ export default function MatchesPage() {
                         {associatedCase?.case_type || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.manager_name || '—'}
+                        {canViewAllBranches && associatedCase ? (
+                          <div className="flex items-center gap-2">
+                            {assigningManager === associatedCase.id ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={selectedManagerId}
+                                  onChange={(e) => setSelectedManagerId(e.target.value)}
+                                  className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                  autoFocus
+                                >
+                                  <option value="">— No Manager —</option>
+                                  {adminUsers.map((admin) => (
+                                    <option key={admin.id} value={admin.id}>
+                                      {admin.name} ({admin.role})
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => {
+                                    assignManagerToCase(associatedCase.id, selectedManagerId || null);
+                                  }}
+                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(null);
+                                    setSelectedManagerId('');
+                                  }}
+                                  className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span>{associatedCase.manager_name || '—'}</span>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(associatedCase.id);
+                                    setSelectedManagerId(associatedCase.manager_id || '');
+                                  }}
+                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                                  title="Assign Manager"
+                                >
+                                  ✏️
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span>{associatedCase?.manager_name || '—'}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {associatedCase ? (
@@ -1625,7 +1718,32 @@ export default function MatchesPage() {
                               >
                                 ✏️ Edit Case
                               </Link>
+                              {canViewAllBranches && (
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(associatedCase.id);
+                                    setSelectedManagerId(associatedCase.manager_id || '');
+                                  }}
+                                  className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+                                  title="Assign Manager"
+                                >
+                                  👤 Assign Manager
+                                </button>
+                              )}
                             </div>
+                          )}
+                          {!associatedCase && canViewAllBranches && (
+                            <button
+                              onClick={() => {
+                                // Create a new case for this match
+                                if (confirm('Create a new case for this match?')) {
+                                  window.location.href = `/cases/new?surrogate_id=${m.surrogate_id}&parent_id=${m.parent_id}`;
+                                }
+                              }}
+                              className="mt-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded"
+                            >
+                              ➕ Create Case
+                            </button>
                           )}
                           <button
                             onClick={() => openContractModal(m)}
