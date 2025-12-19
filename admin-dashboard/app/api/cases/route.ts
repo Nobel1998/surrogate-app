@@ -1,0 +1,263 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+export const dynamic = 'force-dynamic';
+
+// GET all cases with filters
+export async function GET(req: NextRequest) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      { error: 'Missing Supabase env vars' },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const url = new URL(req.url);
+    const search = url.searchParams.get('search') || '';
+    const status = url.searchParams.get('status') || '';
+    const branchId = url.searchParams.get('branch_id') || '';
+    
+    // Get admin user for branch filtering
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    let effectiveBranchId = branchId;
+
+    if (adminUserId && !branchId) {
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('role, branch_id')
+        .eq('id', adminUserId)
+        .single();
+
+      if (adminUser?.role === 'branch_manager' && adminUser.branch_id) {
+        effectiveBranchId = adminUser.branch_id;
+      }
+    }
+
+    let query = supabase
+      .from('cases')
+      .select(`
+        id,
+        claim_id,
+        surrogate_id,
+        first_parent_id,
+        second_parent_id,
+        case_type,
+        manager_id,
+        branch_id,
+        current_step,
+        weeks_pregnant,
+        estimated_due_date,
+        number_of_fetuses,
+        fetal_beat_confirm,
+        sign_date,
+        transfer_date,
+        beta_confirm_date,
+        due_date,
+        clinic,
+        embryos,
+        lawyer,
+        company,
+        files,
+        status,
+        created_at,
+        updated_at
+      `);
+
+    // Apply filters
+    if (effectiveBranchId) {
+      query = query.eq('branch_id', effectiveBranchId);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.or(`claim_id.ilike.%${search}%,case_type.ilike.%${search}%`);
+    }
+
+    const { data: cases, error: casesError } = await query
+      .order('created_at', { ascending: false });
+
+    if (casesError) throw casesError;
+
+    // Fetch related profiles for surrogate and parents
+    const surrogateIds = [...new Set(cases?.map(c => c.surrogate_id).filter(Boolean) || [])];
+    const parentIds = [...new Set([
+      ...(cases?.map(c => c.first_parent_id).filter(Boolean) || []),
+      ...(cases?.map(c => c.second_parent_id).filter(Boolean) || [])
+    ])];
+
+    const profiles: Record<string, any> = {};
+    
+    if (surrogateIds.length > 0 || parentIds.length > 0) {
+      const allIds = [...surrogateIds, ...parentIds];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, phone')
+        .in('id', allIds);
+
+      if (profilesData) {
+        profilesData.forEach(p => {
+          profiles[p.id] = p;
+        });
+      }
+    }
+
+    // Fetch manager names
+    const managerIds = [...new Set(cases?.map(c => c.manager_id).filter(Boolean) || [])];
+    const managers: Record<string, any> = {};
+
+    if (managerIds.length > 0) {
+      const { data: managersData } = await supabase
+        .from('admin_users')
+        .select('id, name')
+        .in('id', managerIds);
+
+      if (managersData) {
+        managersData.forEach(m => {
+          managers[m.id] = m;
+        });
+      }
+    }
+
+    // Enrich cases with profile and manager names
+    const enrichedCases = cases?.map(c => ({
+      ...c,
+      surrogate_name: c.surrogate_id ? profiles[c.surrogate_id]?.name : null,
+      first_parent_name: c.first_parent_id ? profiles[c.first_parent_id]?.name : null,
+      second_parent_name: c.second_parent_id ? profiles[c.second_parent_id]?.name : null,
+      manager_name: c.manager_id ? managers[c.manager_id]?.name : null,
+    })) || [];
+
+    return NextResponse.json({ cases: enrichedCases });
+  } catch (error: any) {
+    console.error('[cases] GET error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to load cases' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST create new case
+export async function POST(req: NextRequest) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      { error: 'Missing Supabase env vars' },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+
+    const body = await req.json();
+    const {
+      claim_id,
+      surrogate_id,
+      first_parent_id,
+      second_parent_id,
+      case_type,
+      manager_id,
+      branch_id,
+      current_step,
+      weeks_pregnant,
+      estimated_due_date,
+      number_of_fetuses,
+      fetal_beat_confirm,
+      sign_date,
+      transfer_date,
+      beta_confirm_date,
+      due_date,
+      clinic,
+      embryos,
+      lawyer,
+      company,
+      files,
+      status,
+    } = body;
+
+    if (!claim_id) {
+      return NextResponse.json(
+        { error: 'claim_id is required' },
+        { status: 400 }
+      );
+    }
+
+    // Get branch_id from admin user if not provided
+    let effectiveBranchId = branch_id;
+    if (!effectiveBranchId && adminUserId) {
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('branch_id')
+        .eq('id', adminUserId)
+        .single();
+
+      if (adminUser?.branch_id) {
+        effectiveBranchId = adminUser.branch_id;
+      }
+    }
+
+    const { data: newCase, error: insertError } = await supabase
+      .from('cases')
+      .insert({
+        claim_id,
+        surrogate_id: surrogate_id || null,
+        first_parent_id: first_parent_id || null,
+        second_parent_id: second_parent_id || null,
+        case_type: case_type || 'Surrogacy',
+        manager_id: manager_id || null,
+        branch_id: effectiveBranchId || null,
+        current_step: current_step || null,
+        weeks_pregnant: weeks_pregnant || 0,
+        estimated_due_date: estimated_due_date || null,
+        number_of_fetuses: number_of_fetuses || 0,
+        fetal_beat_confirm: fetal_beat_confirm || 'None',
+        sign_date: sign_date || null,
+        transfer_date: transfer_date || null,
+        beta_confirm_date: beta_confirm_date || null,
+        due_date: due_date || null,
+        clinic: clinic || null,
+        embryos: embryos || null,
+        lawyer: lawyer || null,
+        company: company || null,
+        files: files || {},
+        status: status || 'active',
+        created_by: adminUserId || null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[cases] POST error:', insertError);
+      return NextResponse.json(
+        { error: insertError.message || 'Failed to create case' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ case: newCase });
+  } catch (error: any) {
+    console.error('[cases] POST error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to create case' },
+      { status: 500 }
+    );
+  }
+}
