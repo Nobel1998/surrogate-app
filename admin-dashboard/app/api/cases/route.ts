@@ -144,7 +144,9 @@ export async function GET(req: NextRequest) {
       // 1. Cases in their branch
       // 2. Cases assigned to them (even if not in their branch)
       if (assignedCaseIdsList.length > 0) {
-        query = query.or(`branch_id.eq.${effectiveBranchId},id.in.(${assignedCaseIdsList.join(',')})`);
+        // Use .or() to combine branch filter with assigned cases
+        const caseIdsStr = assignedCaseIdsList.map(id => `"${id}"`).join(',');
+        query = query.or(`branch_id.eq."${effectiveBranchId}",id.in.(${caseIdsStr})`);
       } else {
         query = query.eq('branch_id', effectiveBranchId);
       }
