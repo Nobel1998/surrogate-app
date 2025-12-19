@@ -318,12 +318,20 @@ export default function MatchesPage() {
   };
 
   useEffect(() => {
-    if (adminUserId || !adminUserId) { // Load data when adminUserId is set or when component mounts
+    // Load data when component mounts or when admin info is available
+    if (adminUserId) {
       loadData();
       loadCases();
       loadAdminUsers();
     }
   }, [adminUserId]);
+  
+  // Also load cases when caseStatusFilter changes
+  useEffect(() => {
+    if (adminUserId) {
+      loadCases();
+    }
+  }, [caseStatusFilter, adminUserId]);
 
   const loadAdminUsers = async () => {
     try {
