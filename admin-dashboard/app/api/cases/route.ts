@@ -51,10 +51,20 @@ export async function GET(req: NextRequest) {
             effectiveBranchId = adminUser.branch_id;
           }
         } else {
-          // Other roles (like case_manager) should see cases assigned to them
+          // Other roles (like case_manager, or any non-admin, non-branch_manager role)
+          // should see cases assigned to them via case_managers table
           isCaseManager = true;
         }
       }
+      
+      console.log('[cases] Admin user role check:', {
+        adminUserId,
+        role: adminUser?.role,
+        isSuperAdmin,
+        isBranchManager,
+        isCaseManager,
+        effectiveBranchId,
+      });
     }
 
     let query = supabase
@@ -98,23 +108,39 @@ export async function GET(req: NextRequest) {
     } else if (isCaseManager && adminUserId) {
       // Case manager can see cases assigned to them (via case_managers table)
       // First, get all case IDs assigned to this manager from case_managers table
-      const { data: assignedCaseIds } = await supabase
+      const { data: assignedCaseIds, error: assignedError } = await supabase
         .from('case_managers')
         .select('case_id')
         .eq('manager_id', adminUserId);
       
+      if (assignedError) {
+        console.error('[cases] Error fetching case_managers:', assignedError);
+      }
+      
       const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
       
       // Also get cases with legacy manager_id (single query)
-      const { data: legacyCases } = await supabase
+      const { data: legacyCases, error: legacyError } = await supabase
         .from('cases')
         .select('id')
         .eq('manager_id', adminUserId);
+      
+      if (legacyError) {
+        console.error('[cases] Error fetching legacy cases:', legacyError);
+      }
       
       const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
       
       // Combine all case IDs (remove duplicates)
       const allCaseIds = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
+      
+      console.log('[cases] Case manager filter:', {
+        adminUserId,
+        caseIdsFromTable: caseIdsFromTable.length,
+        legacyCaseIds: legacyCaseIds.length,
+        allCaseIds: allCaseIds.length,
+        allCaseIdsList: allCaseIds,
+      });
       
       if (allCaseIds.length > 0) {
         // Filter by case IDs using .in()
