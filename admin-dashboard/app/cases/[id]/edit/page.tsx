@@ -32,6 +32,7 @@ type Profile = {
   id: string;
   name?: string;
   phone?: string;
+  role?: string;
 };
 
 export default function EditCasePage() {
