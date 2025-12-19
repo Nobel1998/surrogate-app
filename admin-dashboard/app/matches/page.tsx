@@ -1558,6 +1558,11 @@ export default function MatchesPage() {
                         <div className="font-medium">
                           {associatedCase?.first_parent_name || parent?.name || m.parent_id}
                         </div>
+                        {associatedCase?.second_parent_name && (
+                          <div className="font-medium text-xs text-gray-600 mt-1">
+                            {associatedCase.second_parent_name}
+                          </div>
+                        )}
                         <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
