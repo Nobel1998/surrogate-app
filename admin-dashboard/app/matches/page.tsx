@@ -1507,59 +1507,63 @@ export default function MatchesPage() {
                         {associatedCase?.case_type || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {canViewAllBranches && associatedCase ? (
-                          <div className="flex items-center gap-2">
-                            {assigningManager === associatedCase.id ? (
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={selectedManagerId}
-                                  onChange={(e) => setSelectedManagerId(e.target.value)}
-                                  className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                  autoFocus
-                                >
-                                  <option value="">— No Manager —</option>
-                                  {adminUsers.map((admin) => (
-                                    <option key={admin.id} value={admin.id}>
-                                      {admin.name} ({admin.role})
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={() => {
-                                    assignManagerToCase(associatedCase.id, selectedManagerId || null);
-                                  }}
-                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                                >
-                                  ✓
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setAssigningManager(null);
-                                    setSelectedManagerId('');
-                                  }}
-                                  className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span>{associatedCase.manager_name || '—'}</span>
-                                <button
-                                  onClick={() => {
-                                    setAssigningManager(associatedCase.id);
-                                    setSelectedManagerId(associatedCase.manager_id || '');
-                                  }}
-                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                                  title="Assign Manager"
-                                >
-                                  ✏️
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                        {associatedCase ? (
+                          canViewAllBranches ? (
+                            <div className="flex items-center gap-2">
+                              {assigningManager === associatedCase.id ? (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={selectedManagerId}
+                                    onChange={(e) => setSelectedManagerId(e.target.value)}
+                                    className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                    autoFocus
+                                  >
+                                    <option value="">— No Manager —</option>
+                                    {adminUsers.map((admin) => (
+                                      <option key={admin.id} value={admin.id}>
+                                        {admin.name} ({admin.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => {
+                                      assignManagerToCase(associatedCase.id, selectedManagerId || null);
+                                    }}
+                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setAssigningManager(null);
+                                      setSelectedManagerId('');
+                                    }}
+                                    className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span>{associatedCase.manager_name || '—'}</span>
+                                  <button
+                                    onClick={() => {
+                                      setAssigningManager(associatedCase.id);
+                                      setSelectedManagerId(associatedCase.manager_id || '');
+                                    }}
+                                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                                    title="Assign Manager"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span>{associatedCase.manager_name || '—'}</span>
+                          )
                         ) : (
-                          <span>{associatedCase?.manager_name || '—'}</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
