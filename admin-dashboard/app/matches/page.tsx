@@ -104,8 +104,6 @@ type Case = {
   created_at: string;
   updated_at: string;
   surrogate_name?: string | null;
-  first_parent_name?: string | null;
-  second_parent_name?: string | null;
   manager_name?: string | null;
   managers?: Array<{ id: string; name: string; role?: string }>;
   manager_ids?: string[];
