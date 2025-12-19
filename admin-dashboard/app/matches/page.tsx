@@ -105,7 +105,6 @@ type Case = {
 };
 
 export default function MatchesPage() {
-  const [activeTab, setActiveTab] = useState<'matches' | 'cases'>('matches');
   const [surrogates, setSurrogates] = useState<Profile[]>([]);
   const [parents, setParents] = useState<Profile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -310,14 +309,13 @@ export default function MatchesPage() {
   useEffect(() => {
     if (adminUserId || !adminUserId) { // Load data when adminUserId is set or when component mounts
       loadData();
+      loadCases();
     }
   }, [adminUserId]);
 
   useEffect(() => {
-    if (activeTab === 'cases') {
-      loadCases();
-    }
-  }, [activeTab, caseStatusFilter]);
+    loadCases();
+  }, [caseStatusFilter]);
 
   const loadCases = async () => {
     setCasesLoading(true);
@@ -978,12 +976,8 @@ export default function MatchesPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches & Cases</h1>
-              <p className="text-gray-600">
-                {activeTab === 'matches' 
-                  ? 'Pair parents with surrogates and manage their match status.'
-                  : 'Manage internal cases and track their progress.'}
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
+              <p className="text-gray-600">Pair parents with surrogates, manage matches, and track internal cases.</p>
             </div>
             {canViewAllBranches && branches.length > 0 && (
               <div className="flex items-center gap-3">
@@ -1008,243 +1002,206 @@ export default function MatchesPage() {
               </div>
             )}
           </div>
-          
-          {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200 mb-6">
-            <button
-              onClick={() => setActiveTab('matches')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'matches'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              🤝 Matches
-            </button>
-            <button
-              onClick={() => setActiveTab('cases')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'cases'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              📁 Cases
-            </button>
-          </div>
         </div>
 
-        {/* Cases Tab Content */}
-        {activeTab === 'cases' && (
-          <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">Cases</h2>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={loadCases}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium"
-                >
-                  🔄 Refresh
-                </button>
-                <Link
-                  href="/cases/new"
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
-                >
-                  + Add
-                </Link>
-                {selectedCases.size > 0 && (
-                  <button
-                    onClick={() => {
-                      alert(`Edit ${selectedCases.size} cases`);
-                    }}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md text-sm font-medium"
-                  >
-                    Edit
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1">
-                <input
-                  type="text"
-                  placeholder="Search"
-                  value={caseSearch}
-                  onChange={(e) => setCaseSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleCaseSearch()}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleCaseSearch}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
-                >
-                  🔍
-                </button>
-              </div>
-              <select
-                value={caseStatusFilter}
-                onChange={(e) => setCaseStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Cases Management Section */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Internal Cases</h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={loadCases}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium"
               >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="on_hold">On Hold</option>
-              </select>
+                🔄 Refresh
+              </button>
+              <Link
+                href="/cases/new"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
+              >
+                + Add Case
+              </Link>
+              {selectedCases.size > 0 && (
+                <button
+                  onClick={() => {
+                    alert(`Edit ${selectedCases.size} cases`);
+                  }}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md text-sm font-medium"
+                >
+                  Edit
+                </button>
+              )}
             </div>
+          </div>
 
-            {casesError && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="text-sm text-red-800">{casesError}</div>
-              </div>
-            )}
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3 flex-1">
+              <input
+                type="text"
+                placeholder="Search cases..."
+                value={caseSearch}
+                onChange={(e) => setCaseSearch(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCaseSearch()}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleCaseSearch}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+              >
+                🔍
+              </button>
+            </div>
+            <select
+              value={caseStatusFilter}
+              onChange={(e) => setCaseStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="on_hold">On Hold</option>
+            </select>
+          </div>
 
-            {casesLoading ? (
-              <div className="text-center py-12">
-                <div className="text-gray-500">Loading cases...</div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left">
+          {casesError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+              <div className="text-sm text-red-800">{casesError}</div>
+            </div>
+          )}
+
+          {casesLoading ? (
+            <div className="text-center py-8">
+              <div className="text-gray-500">Loading cases...</div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedCases.size === filteredCases.length && filteredCases.length > 0}
+                        onChange={toggleSelectAllCases}
+                        className="rounded border-gray-300"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Claim ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Surrogate/Donor
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      First Parent
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Second Parent
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Operate
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Manager
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Current Step
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredCases.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                        No cases found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCases.map((c) => (
+                      <tr key={c.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
                           <input
                             type="checkbox"
-                            checked={selectedCases.size === filteredCases.length && filteredCases.length > 0}
-                            onChange={toggleSelectAllCases}
+                            checked={selectedCases.has(c.id)}
+                            onChange={() => toggleSelectCase(c.id)}
                             className="rounded border-gray-300"
                           />
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                          Claim ID ↕
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Surrogate/Donor
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          First Parent
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Second Parent
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                          Type ↕
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Operate
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                          Manager ↕
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                          Current Step ↕
-                        </th>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                          {c.claim_id}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {c.surrogate_name || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {c.first_parent_name || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {c.second_parent_name || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {c.case_type}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/cases/${c.id}`}
+                              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                            >
+                              📄 Detail
+                            </Link>
+                            <Link
+                              href={`/cases/${c.id}/update-step`}
+                              className="px-2 py-1 bg-gray-700 hover:bg-gray-800 text-white text-xs rounded"
+                            >
+                              Update Step
+                            </Link>
+                            <Link
+                              href={`/cases/${c.id}/admin-update`}
+                              className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded"
+                            >
+                              Admin Update
+                            </Link>
+                            <Link
+                              href={`/cases/${c.id}/step-status`}
+                              className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                            >
+                              Step Status
+                            </Link>
+                            <Link
+                              href={`/cases/${c.id}/edit`}
+                              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
+                            >
+                              ✏️
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteCase(c.id)}
+                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {c.manager_name || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          <div className="max-w-xs truncate" title={c.current_step || ''}>
+                            {c.current_step || '—'}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredCases.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
-                            No cases found
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredCases.map((c) => (
-                          <tr key={c.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedCases.has(c.id)}
-                                onChange={() => toggleSelectCase(c.id)}
-                                className="rounded border-gray-300"
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                              {c.claim_id}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {c.surrogate_name || '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {c.first_parent_name || '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {c.second_parent_name || '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {c.case_type}
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Link
-                                  href={`/cases/${c.id}`}
-                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                                >
-                                  📄 Detail
-                                </Link>
-                                <Link
-                                  href={`/cases/${c.id}/update-step`}
-                                  className="px-2 py-1 bg-gray-700 hover:bg-gray-800 text-white text-xs rounded"
-                                >
-                                  Update Step
-                                </Link>
-                                <Link
-                                  href={`/cases/${c.id}/admin-update`}
-                                  className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded"
-                                >
-                                  Admin Update
-                                </Link>
-                                <Link
-                                  href={`/cases/${c.id}/step-status`}
-                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                                >
-                                  Step Status
-                                </Link>
-                                <Link
-                                  href={`/cases/${c.id}/edit`}
-                                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
-                                >
-                                  ✏️
-                                </Link>
-                                <button
-                                  onClick={() => handleDeleteCase(c.id)}
-                                  className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {c.manager_name || '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              <div className="max-w-xs truncate" title={c.current_step || ''}>
-                                {c.current_step || '—'}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <div className="text-sm text-gray-700">
-                    Show {filteredCases.length > 0 ? 1 : 0} To {filteredCases.length} Records. Total {filteredCases.length} Records
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Matches Tab Content */}
-        {activeTab === 'matches' && (
-          <>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Document Upload Section */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
