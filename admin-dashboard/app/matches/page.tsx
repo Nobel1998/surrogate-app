@@ -1477,6 +1477,19 @@ export default function MatchesPage() {
                       (c.surrogate_id === m.surrogate_id && c.second_parent_id === m.parent_id)
                   );
                   
+                  // Debug log for first match
+                  if (matches.indexOf(m) === 0) {
+                    console.log('🔍 First match debug:', {
+                      matchId: m.id,
+                      surrogateId: m.surrogate_id,
+                      parentId: m.parent_id,
+                      hasAssociatedCase: !!associatedCase,
+                      associatedCaseId: associatedCase?.id,
+                      canViewAllBranches,
+                      casesCount: cases.length,
+                    });
+                  }
+                  
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
                       <td className="px-4 py-3 text-sm text-gray-900">
