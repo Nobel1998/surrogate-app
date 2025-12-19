@@ -103,17 +103,25 @@ export async function GET(req: NextRequest) {
         .select('case_id')
         .eq('manager_id', adminUserId);
       
-      const caseIds = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
+      const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
       
-      // Build filter: cases assigned via case_managers OR legacy manager_id
-      if (caseIds.length > 0) {
-        // Combine case IDs from case_managers table with legacy manager_id
-        // Use .or() with proper syntax: id.in.(uuid1,uuid2) or manager_id.eq.uuid
-        const caseIdsStr = caseIds.map(id => `"${id}"`).join(',');
-        query = query.or(`id.in.(${caseIdsStr}),manager_id.eq."${adminUserId}"`);
+      // Also get cases with legacy manager_id
+      const { data: legacyCases } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('manager_id', adminUserId);
+      
+      const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
+      
+      // Combine all case IDs
+      const allCaseIds = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
+      
+      if (allCaseIds.length > 0) {
+        // Filter by case IDs
+        query = query.in('id', allCaseIds);
       } else {
-        // Only legacy manager_id
-        query = query.eq('manager_id', adminUserId);
+        // No cases assigned, return empty result
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000'); // Impossible ID to return empty
       }
     } else if (effectiveBranchId) {
       // Fallback: filter by branch if specified
