@@ -1439,8 +1439,22 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weeks Pregnant</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetuses</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetal Beat</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clinic</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Embryos</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lawyer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -1612,6 +1626,59 @@ export default function MatchesPage() {
                             {associatedCase?.manager_name || '—'}
                           </span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.claim_id || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.case_type || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.current_step || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.weeks_pregnant ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.estimated_due_date 
+                          ? new Date(associatedCase.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.number_of_fetuses ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.fetal_beat_confirm || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.sign_date 
+                          ? new Date(associatedCase.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.transfer_date 
+                          ? new Date(associatedCase.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={associatedCase?.clinic || ''}>
+                          {associatedCase?.clinic || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={associatedCase?.embryos || ''}>
+                          {associatedCase?.embryos || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={associatedCase?.lawyer || ''}>
+                          {associatedCase?.lawyer || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={associatedCase?.company || ''}>
+                          {associatedCase?.company || '—'}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-2">
@@ -1796,7 +1863,7 @@ export default function MatchesPage() {
 
                 {matches.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                    <td colSpan={20} className="px-4 py-6 text-center text-gray-500">
                       No matches found. Create one above.
                     </td>
                   </tr>
