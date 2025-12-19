@@ -1514,29 +1514,19 @@ export default function MatchesPage() {
                         <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              m.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : m.status === 'completed'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : m.status === 'cancelled'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {m.status?.toUpperCase() || 'UNKNOWN'}
-                          </span>
-                          <div className="flex flex-col gap-1">
-                            <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-                              STAGE: {surrogateStage}
-                            </span>
-                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
-                              BY: {stageUpdater}
-                            </span>
-                          </div>
-                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            m.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : m.status === 'completed'
+                                ? 'bg-blue-100 text-blue-800'
+                                : m.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {m.status?.toUpperCase() || 'UNKNOWN'}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {associatedCase?.claim_id || '—'}
@@ -1644,7 +1634,22 @@ export default function MatchesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.current_step || '—'}
+                        <div className="flex flex-col gap-1">
+                          {associatedCase?.current_step ? (
+                            <div className="max-w-xs truncate" title={associatedCase.current_step}>
+                              {associatedCase.current_step}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                                STAGE: {surrogateStage}
+                              </span>
+                              <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                                BY: {stageUpdater}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {associatedCase?.weeks_pregnant ?? '—'}
