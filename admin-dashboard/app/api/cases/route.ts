@@ -99,59 +99,65 @@ export async function GET(req: NextRequest) {
         updated_at
       `);
 
+    // Get cases assigned to this manager (regardless of role)
+    // This allows any manager to see cases assigned to them via case_managers table
+    const { data: assignedCaseIds, error: assignedError } = await supabase
+      .from('case_managers')
+      .select('case_id')
+      .eq('manager_id', adminUserId);
+    
+    if (assignedError) {
+      console.error('[cases] Error fetching case_managers:', assignedError);
+    }
+    
+    const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
+    
+    // Also get cases with legacy manager_id
+    const { data: legacyCases, error: legacyError } = await supabase
+      .from('cases')
+      .select('id')
+      .eq('manager_id', adminUserId);
+    
+    if (legacyError) {
+      console.error('[cases] Error fetching legacy cases:', legacyError);
+    }
+    
+    const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
+    
+    // Combine all case IDs assigned to this manager
+    const assignedCaseIdsList = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
+    
+    console.log('[cases] Manager assigned cases:', {
+      adminUserId,
+      role: adminUser?.role,
+      caseIdsFromTable: caseIdsFromTable.length,
+      legacyCaseIds: legacyCaseIds.length,
+      assignedCaseIdsList: assignedCaseIdsList.length,
+      assignedCaseIdsList,
+    });
+    
     // Apply filters based on role
     if (isSuperAdmin) {
       // Super admin can see all cases - no filter needed
     } else if (isBranchManager && effectiveBranchId) {
-      // Branch manager can only see cases in their branch
-      query = query.eq('branch_id', effectiveBranchId);
-    } else if (isCaseManager && adminUserId) {
-      // Case manager can see cases assigned to them (via case_managers table)
-      // First, get all case IDs assigned to this manager from case_managers table
-      const { data: assignedCaseIds, error: assignedError } = await supabase
-        .from('case_managers')
-        .select('case_id')
-        .eq('manager_id', adminUserId);
-      
-      if (assignedError) {
-        console.error('[cases] Error fetching case_managers:', assignedError);
-      }
-      
-      const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
-      
-      // Also get cases with legacy manager_id (single query)
-      const { data: legacyCases, error: legacyError } = await supabase
-        .from('cases')
-        .select('id')
-        .eq('manager_id', adminUserId);
-      
-      if (legacyError) {
-        console.error('[cases] Error fetching legacy cases:', legacyError);
-      }
-      
-      const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
-      
-      // Combine all case IDs (remove duplicates)
-      const allCaseIds = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
-      
-      console.log('[cases] Case manager filter:', {
-        adminUserId,
-        caseIdsFromTable: caseIdsFromTable.length,
-        legacyCaseIds: legacyCaseIds.length,
-        allCaseIds: allCaseIds.length,
-        allCaseIdsList: allCaseIds,
-      });
-      
-      if (allCaseIds.length > 0) {
-        // Filter by case IDs using .in()
-        query = query.in('id', allCaseIds);
+      // Branch manager can see:
+      // 1. Cases in their branch
+      // 2. Cases assigned to them (even if not in their branch)
+      if (assignedCaseIdsList.length > 0) {
+        query = query.or(`branch_id.eq.${effectiveBranchId},id.in.(${assignedCaseIdsList.join(',')})`);
       } else {
-        // No cases assigned, return empty result by using impossible filter
-        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+        query = query.eq('branch_id', effectiveBranchId);
       }
+    } else if (assignedCaseIdsList.length > 0) {
+      // Any other manager (or if adminUserId exists but role is not admin/branch_manager)
+      // can only see cases assigned to them
+      query = query.in('id', assignedCaseIdsList);
     } else if (effectiveBranchId) {
       // Fallback: filter by branch if specified
       query = query.eq('branch_id', effectiveBranchId);
+    } else if (adminUserId && !isSuperAdmin && !isBranchManager) {
+      // If manager has no assigned cases and is not super admin or branch manager, return empty
+      query = query.eq('id', '00000000-0000-0000-0000-000000000000');
     }
 
     if (status) {
