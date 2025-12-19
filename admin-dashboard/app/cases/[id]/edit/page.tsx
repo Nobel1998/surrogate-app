@@ -47,6 +47,8 @@ export default function EditCasePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [firstParentMode, setFirstParentMode] = useState<'select' | 'manual'>('select');
+  const [secondParentMode, setSecondParentMode] = useState<'select' | 'manual'>('select');
 
   useEffect(() => {
     if (caseId) {
@@ -78,11 +80,17 @@ export default function EditCasePage() {
         }
       };
 
+      // Determine parent mode based on whether name or ID is present
+      const firstParentMode = caseData.case.first_parent_name ? 'manual' : 'select';
+      const secondParentMode = caseData.case.second_parent_name ? 'manual' : 'select';
+      
       setFormData({
         claim_id: caseData.case.claim_id,
         surrogate_id: caseData.case.surrogate_id || '',
         first_parent_id: caseData.case.first_parent_id || '',
+        first_parent_name: caseData.case.first_parent_name || '',
         second_parent_id: caseData.case.second_parent_id || '',
+        second_parent_name: caseData.case.second_parent_name || '',
         case_type: caseData.case.case_type,
         manager_id: caseData.case.manager_id || '',
         weeks_pregnant: caseData.case.weeks_pregnant || 0,
@@ -100,6 +108,10 @@ export default function EditCasePage() {
         status: caseData.case.status,
         current_step: caseData.case.current_step || '',
       });
+      
+      // Set parent modes
+      setFirstParentMode(firstParentMode);
+      setSecondParentMode(secondParentMode);
 
       if (profilesRes.ok) {
         const profilesData = await profilesRes.json();
@@ -236,36 +248,116 @@ export default function EditCasePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 First Parent
               </label>
-              <select
-                value={formData.first_parent_id}
-                onChange={(e) => setFormData({ ...formData, first_parent_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Parent</option>
-                {parents.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name || p.phone || p.id.substring(0, 8)}
-                  </option>
-                ))}
-              </select>
+              <div className="mb-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFirstParentMode('select');
+                    setFormData({ ...formData, first_parent_name: '' });
+                  }}
+                  className={`px-3 py-1 text-xs rounded ${
+                    firstParentMode === 'select'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Select Existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFirstParentMode('manual');
+                    setFormData({ ...formData, first_parent_id: '' });
+                  }}
+                  className={`px-3 py-1 text-xs rounded ${
+                    firstParentMode === 'manual'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Enter Name
+                </button>
+              </div>
+              {firstParentMode === 'select' ? (
+                <select
+                  value={formData.first_parent_id}
+                  onChange={(e) => setFormData({ ...formData, first_parent_id: e.target.value, first_parent_name: '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Parent</option>
+                  {parents.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name || p.phone || p.id.substring(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.first_parent_name}
+                  onChange={(e) => setFormData({ ...formData, first_parent_name: e.target.value, first_parent_id: '' })}
+                  placeholder="Enter first parent name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Second Parent
               </label>
-              <select
-                value={formData.second_parent_id}
-                onChange={(e) => setFormData({ ...formData, second_parent_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Parent</option>
-                {parents.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name || p.phone || p.id.substring(0, 8)}
-                  </option>
-                ))}
-              </select>
+              <div className="mb-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecondParentMode('select');
+                    setFormData({ ...formData, second_parent_name: '' });
+                  }}
+                  className={`px-3 py-1 text-xs rounded ${
+                    secondParentMode === 'select'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Select Existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecondParentMode('manual');
+                    setFormData({ ...formData, second_parent_id: '' });
+                  }}
+                  className={`px-3 py-1 text-xs rounded ${
+                    secondParentMode === 'manual'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Enter Name
+                </button>
+              </div>
+              {secondParentMode === 'select' ? (
+                <select
+                  value={formData.second_parent_id}
+                  onChange={(e) => setFormData({ ...formData, second_parent_id: e.target.value, second_parent_name: '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Parent</option>
+                  {parents.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name || p.phone || p.id.substring(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.second_parent_name}
+                  onChange={(e) => setFormData({ ...formData, second_parent_name: e.target.value, second_parent_id: '' })}
+                  placeholder="Enter second parent name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
             </div>
 
             <div>

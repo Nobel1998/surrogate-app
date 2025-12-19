@@ -80,7 +80,9 @@ type Case = {
   claim_id: string;
   surrogate_id?: string | null;
   first_parent_id?: string | null;
+  first_parent_name?: string | null;
   second_parent_id?: string | null;
+  second_parent_name?: string | null;
   case_type: string;
   manager_id?: string | null;
   branch_id?: string | null;
@@ -1555,7 +1557,9 @@ export default function MatchesPage() {
                         <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{parent?.name || m.parent_id}</div>
+                        <div className="font-medium">
+                          {associatedCase?.first_parent_name || parent?.name || m.parent_id}
+                        </div>
                         <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">

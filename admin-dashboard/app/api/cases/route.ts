@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
         claim_id,
         surrogate_id,
         first_parent_id,
+        first_parent_name,
         second_parent_id,
+        second_parent_name,
         case_type,
         manager_id,
         branch_id,
@@ -165,11 +167,15 @@ export async function GET(req: NextRequest) {
         managersList.push(managers[c.manager_id]);
       }
       
+      // Use manually entered name if available, otherwise use linked profile name
+      const firstParentName = c.first_parent_name || (c.first_parent_id ? profiles[c.first_parent_id]?.name : null);
+      const secondParentName = c.second_parent_name || (c.second_parent_id ? profiles[c.second_parent_id]?.name : null);
+      
       return {
         ...c,
         surrogate_name: c.surrogate_id ? profiles[c.surrogate_id]?.name : null,
-        first_parent_name: c.first_parent_id ? profiles[c.first_parent_id]?.name : null,
-        second_parent_name: c.second_parent_id ? profiles[c.second_parent_id]?.name : null,
+        first_parent_name: firstParentName,
+        second_parent_name: secondParentName,
         manager_name: managersList.length > 0 ? managersList.map(m => m.name).join(', ') : null,
         managers: managersList,
         manager_ids: managersList.map(m => m.id),
@@ -208,7 +214,9 @@ export async function POST(req: NextRequest) {
       claim_id,
       surrogate_id,
       first_parent_id,
+      first_parent_name,
       second_parent_id,
+      second_parent_name,
       case_type,
       manager_id,
       branch_id,
@@ -256,7 +264,9 @@ export async function POST(req: NextRequest) {
         claim_id,
         surrogate_id: surrogate_id || null,
         first_parent_id: first_parent_id || null,
+        first_parent_name: first_parent_name || null,
         second_parent_id: second_parent_id || null,
+        second_parent_name: second_parent_name || null,
         case_type: case_type || 'Surrogacy',
         manager_id: manager_id || null,
         branch_id: effectiveBranchId || null,

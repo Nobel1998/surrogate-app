@@ -93,12 +93,22 @@ export async function GET(
       .eq('case_id', caseId)
       .order('created_at', { ascending: false });
 
+    // Use manually entered name if available, otherwise use linked profile
+    const firstParent = caseData.first_parent_id ? profiles[caseData.first_parent_id] : null;
+    const secondParent = caseData.second_parent_id ? profiles[caseData.second_parent_id] : null;
+    
     return NextResponse.json({
       case: {
         ...caseData,
         surrogate: caseData.surrogate_id ? profiles[caseData.surrogate_id] : null,
-        first_parent: caseData.first_parent_id ? profiles[caseData.first_parent_id] : null,
-        second_parent: caseData.second_parent_id ? profiles[caseData.second_parent_id] : null,
+        first_parent: firstParent ? {
+          ...firstParent,
+          display_name: caseData.first_parent_name || firstParent.name
+        } : (caseData.first_parent_name ? { name: caseData.first_parent_name, display_name: caseData.first_parent_name } : null),
+        second_parent: secondParent ? {
+          ...secondParent,
+          display_name: caseData.second_parent_name || secondParent.name
+        } : (caseData.second_parent_name ? { name: caseData.second_parent_name, display_name: caseData.second_parent_name } : null),
         manager,
       },
       steps: steps || [],
