@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // GET case steps
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -24,7 +24,7 @@ export async function GET(
   });
 
   try {
-    const caseId = params.id;
+    const { id: caseId } = await params;
 
     const { data: steps, error: stepsError } = await supabase
       .from('case_steps')
@@ -48,7 +48,7 @@ export async function GET(
 // POST create/update case step
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -64,7 +64,7 @@ export async function POST(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const caseId = params.id;
+    const { id: caseId } = await params;
     const body = await req.json();
 
     const {

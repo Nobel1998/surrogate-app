@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // GET single case with details
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -24,7 +24,7 @@ export async function GET(
   });
 
   try {
-    const caseId = params.id;
+    const { id: caseId } = await params;
 
     // Fetch case
     const { data: caseData, error: caseError } = await supabase
@@ -116,7 +116,7 @@ export async function GET(
 // PATCH update case
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -132,7 +132,7 @@ export async function PATCH(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const caseId = params.id;
+    const { id: caseId } = await params;
     const body = await req.json();
 
     const { error: updateError } = await supabase
@@ -164,7 +164,7 @@ export async function PATCH(
 // DELETE case
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -178,7 +178,7 @@ export async function DELETE(
   });
 
   try {
-    const caseId = params.id;
+    const { id: caseId } = await params;
 
     const { error: deleteError } = await supabase
       .from('cases')
