@@ -387,6 +387,15 @@ export default function MatchesPage() {
         throw new Error(`Failed to load cases: ${res.status} ${errText}`);
       }
       const data = await res.json();
+      console.log('📋 Loaded cases:', {
+        count: data.cases?.length || 0,
+        cases: data.cases?.map((c: Case) => ({
+          id: c.id,
+          claim_id: c.claim_id,
+          managers: c.managers?.map((m: any) => m.name) || [],
+          manager_ids: c.manager_ids || [],
+        })),
+      });
       setCases(data.cases || []);
     } catch (err: any) {
       console.error('Error loading cases:', err);
