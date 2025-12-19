@@ -1685,7 +1685,11 @@ export default function MatchesPage() {
                                 <button
                                   onClick={() => {
                                     setAssigningManager(associatedCase?.id || m.id);
-                                    setSelectedManagerIds(associatedCase?.manager_ids || associatedCase?.manager_id ? [associatedCase.manager_id] : []);
+                                    // Get manager IDs, filtering out null/undefined values
+                                    const managerIds = associatedCase?.manager_ids 
+                                      ? associatedCase.manager_ids.filter((id): id is string => id != null)
+                                      : (associatedCase?.manager_id ? [associatedCase.manager_id] : []);
+                                    setSelectedManagerIds(managerIds);
                                   }}
                                   className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
                                   title="Assign Managers"
