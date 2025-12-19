@@ -223,8 +223,11 @@ export default function MatchesPage() {
         const res = await fetch('/api/admin/me');
         if (res.ok) {
           const adminInfo = await res.json();
+          console.log('🔍 Admin Info:', adminInfo);
           setAdminUserId(adminInfo.id);
-          setCanViewAllBranches(adminInfo.canViewAllBranches || false);
+          const canView = adminInfo.canViewAllBranches || false;
+          console.log('🔍 canViewAllBranches:', canView, 'role:', adminInfo.role);
+          setCanViewAllBranches(canView);
           if (adminInfo.branch_id) {
             setCurrentBranchFilter(adminInfo.branch_id);
             setSelectedBranchFilter(adminInfo.branch_id);
@@ -1408,13 +1411,33 @@ export default function MatchesPage() {
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
-            <button
-              onClick={loadData}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              🔄 Refresh
-            </button>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
+              {canViewAllBranches && (
+                <p className="text-sm text-gray-500 mt-1">
+                  You can assign case managers by clicking the ✏️ button in the Manager column
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  loadData();
+                  loadCases();
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                🔄 Refresh
+              </button>
+              {canViewAllBranches && (
+                <Link
+                  href="/cases/new"
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
+                >
+                  + Add Case
+                </Link>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
