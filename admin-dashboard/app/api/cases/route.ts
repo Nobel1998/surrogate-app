@@ -107,8 +107,10 @@ export async function GET(req: NextRequest) {
       
       // Build filter: cases assigned via case_managers OR legacy manager_id
       if (caseIds.length > 0) {
-        // Use .in() for case_managers and .eq() for legacy manager_id, combined with .or()
-        query = query.or(`id.in.(${caseIds.join(',')}),manager_id.eq.${adminUserId}`);
+        // Combine case IDs from case_managers table with legacy manager_id
+        // Use .or() with proper syntax: id.in.(uuid1,uuid2) or manager_id.eq.uuid
+        const caseIdsStr = caseIds.map(id => `"${id}"`).join(',');
+        query = query.or(`id.in.(${caseIdsStr}),manager_id.eq."${adminUserId}"`);
       } else {
         // Only legacy manager_id
         query = query.eq('manager_id', adminUserId);
