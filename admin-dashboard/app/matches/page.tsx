@@ -105,6 +105,8 @@ type Case = {
   first_parent_name?: string | null;
   second_parent_name?: string | null;
   manager_name?: string | null;
+  managers?: Array<{ id: string; name: string; role?: string }>;
+  manager_ids?: string[];
 };
 
 export default function MatchesPage() {
@@ -142,7 +144,7 @@ export default function MatchesPage() {
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [assigningManager, setAssigningManager] = useState<string | null>(null);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+  const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -335,27 +337,27 @@ export default function MatchesPage() {
     }
   };
 
-  const assignManagerToCase = async (caseId: string, managerId: string | null) => {
+  const assignManagersToCase = async (caseId: string, managerIds: string[]) => {
     try {
-      const res = await fetch(`/api/cases/${caseId}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/cases/${caseId}/managers`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          manager_id: managerId || null,
+          manager_ids: managerIds,
         }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to assign manager');
+        throw new Error(errData.error || 'Failed to assign managers');
       }
 
       await loadCases();
       setAssigningManager(null);
-      setSelectedManagerId('');
-      alert('Manager assigned successfully');
+      setSelectedManagerIds([]);
+      alert(`Successfully assigned ${managerIds.length} manager(s)`);
     } catch (err: any) {
-      alert(err.message || 'Failed to assign manager');
+      alert(err.message || 'Failed to assign managers');
     }
   };
 
@@ -1581,99 +1583,129 @@ export default function MatchesPage() {
                         {canViewAllBranches ? (
                           <div className="flex items-center gap-2">
                             {assigningManager === (associatedCase?.id || m.id) ? (
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={selectedManagerId}
-                                  onChange={(e) => setSelectedManagerId(e.target.value)}
-                                  className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                  autoFocus
-                                >
-                                  <option value="">— No Manager —</option>
+                              <div className="flex flex-col gap-2 min-w-[200px]">
+                                <div className="max-h-40 overflow-y-auto border border-gray-300 rounded p-2 bg-white">
                                   {adminUsers.map((admin) => (
-                                    <option key={admin.id} value={admin.id}>
-                                      {admin.name} ({admin.role})
-                                    </option>
+                                    <label key={admin.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedManagerIds.includes(admin.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedManagerIds([...selectedManagerIds, admin.id]);
+                                          } else {
+                                            setSelectedManagerIds(selectedManagerIds.filter(id => id !== admin.id));
+                                          }
+                                        }}
+                                        className="rounded border-gray-300"
+                                      />
+                                      <span className="text-xs">
+                                        {admin.name} ({admin.role})
+                                      </span>
+                                    </label>
                                   ))}
-                                </select>
-                                <button
-                                  onClick={async () => {
-                                    let caseId = associatedCase?.id;
-                                    
-                                    // If no case exists, create it first
-                                    if (!caseId) {
-                                      try {
-                                        const createCaseRes = await fetch('/api/cases', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
-                                            surrogate_id: m.surrogate_id,
-                                            first_parent_id: m.parent_id,
-                                            case_type: 'Surrogacy',
-                                            status: 'active',
-                                          }),
-                                        });
-                                        
-                                        if (!createCaseRes.ok) {
-                                          const err = await createCaseRes.text();
-                                          throw new Error(`Failed to create case: ${err}`);
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={async () => {
+                                      let caseId = associatedCase?.id;
+                                      
+                                      // If no case exists, create it first
+                                      if (!caseId) {
+                                        try {
+                                          const createCaseRes = await fetch('/api/cases', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
+                                              surrogate_id: m.surrogate_id,
+                                              first_parent_id: m.parent_id,
+                                              case_type: 'Surrogacy',
+                                              status: 'active',
+                                            }),
+                                          });
+                                          
+                                          if (!createCaseRes.ok) {
+                                            const err = await createCaseRes.text();
+                                            throw new Error(`Failed to create case: ${err}`);
+                                          }
+                                          
+                                          const caseData = await createCaseRes.json();
+                                          caseId = caseData.case?.id || caseData.id;
+                                          
+                                          if (!caseId) {
+                                            throw new Error('Case created but ID not returned');
+                                          }
+                                          
+                                          // Reload cases to get the new case
+                                          await loadCases();
+                                        } catch (err: any) {
+                                          console.error('Error creating case:', err);
+                                          alert(`Error: ${err.message || 'Failed to create case'}`);
+                                          return;
                                         }
-                                        
-                                        const caseData = await createCaseRes.json();
-                                        caseId = caseData.case?.id || caseData.id;
-                                        
-                                        if (!caseId) {
-                                          throw new Error('Case created but ID not returned');
-                                        }
-                                        
-                                        // Reload cases to get the new case
-                                        await loadCases();
-                                      } catch (err: any) {
-                                        console.error('Error creating case:', err);
-                                        alert(`Error: ${err.message || 'Failed to create case'}`);
-                                        return;
                                       }
-                                    }
-                                    
-                                    // Assign manager
-                                    await assignManagerToCase(caseId, selectedManagerId || null);
-                                  }}
-                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                                >
-                                  ✓
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setAssigningManager(null);
-                                    setSelectedManagerId('');
-                                  }}
-                                  className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
-                                >
-                                  ✕
-                                </button>
+                                      
+                                      // Assign managers
+                                      await assignManagersToCase(caseId, selectedManagerIds);
+                                    }}
+                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                  >
+                                    ✓ Save
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setAssigningManager(null);
+                                      setSelectedManagerIds([]);
+                                    }}
+                                    className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                  >
+                                    ✕ Cancel
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-600">
-                                  {associatedCase?.manager_name || 'No Manager'}
-                                </span>
+                                <div className="flex flex-col gap-1">
+                                  {associatedCase?.managers && associatedCase.managers.length > 0 ? (
+                                    associatedCase.managers.map((manager: any, idx: number) => (
+                                      <span key={manager.id} className="text-xs text-gray-600">
+                                        {manager.name}{idx < associatedCase.managers.length - 1 ? ',' : ''}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-xs text-gray-600">
+                                      {associatedCase?.manager_name || 'No Manager'}
+                                    </span>
+                                  )}
+                                </div>
                                 <button
                                   onClick={() => {
                                     setAssigningManager(associatedCase?.id || m.id);
-                                    setSelectedManagerId(associatedCase?.manager_id || '');
+                                    setSelectedManagerIds(associatedCase?.manager_ids || associatedCase?.manager_id ? [associatedCase.manager_id] : []);
                                   }}
                                   className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                                  title="Assign Manager"
+                                  title="Assign Managers"
                                 >
-                                  Assign Manager
+                                  Assign Managers
                                 </button>
                               </div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-600">
-                            {associatedCase?.manager_name || '—'}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            {associatedCase?.managers && associatedCase.managers.length > 0 ? (
+                              associatedCase.managers.map((manager: any, idx: number) => (
+                                <span key={manager.id} className="text-xs text-gray-600">
+                                  {manager.name}{idx < associatedCase.managers.length - 1 ? ',' : ''}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-gray-600">
+                                {associatedCase?.manager_name || '—'}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">

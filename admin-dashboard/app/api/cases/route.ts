@@ -114,7 +114,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fetch manager names
+    // Fetch case managers (multiple managers per case)
+    const caseIds = cases?.map(c => c.id).filter(Boolean) || [];
+    const caseManagers: Record<string, any[]> = {};
+    
+    if (caseIds.length > 0) {
+      const { data: caseManagersData } = await supabase
+        .from('case_managers')
+        .select(`
+          case_id,
+          manager_id,
+          manager:admin_users!case_managers_manager_id_fkey(id, name, role)
+        `)
+        .in('case_id', caseIds);
+
+      if (caseManagersData) {
+        caseManagersData.forEach(cm => {
+          if (!caseManagers[cm.case_id]) {
+            caseManagers[cm.case_id] = [];
+          }
+          if (cm.manager) {
+            caseManagers[cm.case_id].push(cm.manager);
+          }
+        });
+      }
+    }
+
+    // Also fetch legacy manager_id for backward compatibility
     const managerIds = [...new Set(cases?.map(c => c.manager_id).filter(Boolean) || [])];
     const managers: Record<string, any> = {};
 
@@ -132,13 +158,23 @@ export async function GET(req: NextRequest) {
     }
 
     // Enrich cases with profile and manager names
-    const enrichedCases = cases?.map(c => ({
-      ...c,
-      surrogate_name: c.surrogate_id ? profiles[c.surrogate_id]?.name : null,
-      first_parent_name: c.first_parent_id ? profiles[c.first_parent_id]?.name : null,
-      second_parent_name: c.second_parent_id ? profiles[c.second_parent_id]?.name : null,
-      manager_name: c.manager_id ? managers[c.manager_id]?.name : null,
-    })) || [];
+    const enrichedCases = cases?.map(c => {
+      const managersList = caseManagers[c.id] || [];
+      // If no managers from case_managers table, fall back to legacy manager_id
+      if (managersList.length === 0 && c.manager_id && managers[c.manager_id]) {
+        managersList.push(managers[c.manager_id]);
+      }
+      
+      return {
+        ...c,
+        surrogate_name: c.surrogate_id ? profiles[c.surrogate_id]?.name : null,
+        first_parent_name: c.first_parent_id ? profiles[c.first_parent_id]?.name : null,
+        second_parent_name: c.second_parent_id ? profiles[c.second_parent_id]?.name : null,
+        manager_name: managersList.length > 0 ? managersList.map(m => m.name).join(', ') : null,
+        managers: managersList,
+        manager_ids: managersList.map(m => m.id),
+      };
+    }) || [];
 
     return NextResponse.json({ cases: enrichedCases });
   } catch (error: any) {
