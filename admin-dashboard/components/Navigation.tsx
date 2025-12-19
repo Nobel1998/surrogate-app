@@ -39,7 +39,6 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/', label: 'Applications', icon: '📋' },
-    { href: '/cases', label: 'Cases', icon: '📁' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
