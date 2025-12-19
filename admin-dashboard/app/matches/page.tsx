@@ -118,12 +118,7 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Cases-specific state
-  const [casesLoading, setCasesLoading] = useState(false);
-  const [casesError, setCasesError] = useState<string | null>(null);
-  const [caseSearch, setCaseSearch] = useState('');
-  const [caseStatusFilter, setCaseStatusFilter] = useState('');
-  const [selectedCases, setSelectedCases] = useState<Set<string>>(new Set());
+  // Cases removed - match IS the case
 
   const [selectedSurrogate, setSelectedSurrogate] = useState<string>('');
   const [selectedParent, setSelectedParent] = useState<string>('');
@@ -316,7 +311,6 @@ export default function MatchesPage() {
   useEffect(() => {
     if (adminUserId || !adminUserId) { // Load data when adminUserId is set or when component mounts
       loadData();
-      loadCases();
       loadAdminUsers();
     }
   }, [adminUserId]);
@@ -333,12 +327,13 @@ export default function MatchesPage() {
     }
   };
 
-  const assignManagerToCase = async (caseId: string, managerId: string | null) => {
+  const assignManagerToMatch = async (matchId: string, managerId: string | null) => {
     try {
-      const res = await fetch(`/api/cases/${caseId}`, {
+      const res = await fetch('/api/matches/options', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          match_id: matchId,
           manager_id: managerId || null,
         }),
       });
@@ -348,7 +343,7 @@ export default function MatchesPage() {
         throw new Error(errData.error || 'Failed to assign manager');
       }
 
-      await loadCases();
+      await loadData();
       setAssigningManager(null);
       setSelectedManagerId('');
       alert('Manager assigned successfully');
@@ -357,85 +352,7 @@ export default function MatchesPage() {
     }
   };
 
-  useEffect(() => {
-    loadCases();
-  }, [caseStatusFilter]);
-
-  const loadCases = async () => {
-    setCasesLoading(true);
-    setCasesError(null);
-    try {
-      const params = new URLSearchParams();
-      if (caseSearch) params.append('search', caseSearch);
-      if (caseStatusFilter) params.append('status', caseStatusFilter);
-
-      const res = await fetch(`/api/cases?${params.toString()}`);
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Failed to load cases: ${res.status} ${errText}`);
-      }
-      const data = await res.json();
-      setCases(data.cases || []);
-    } catch (err: any) {
-      console.error('Error loading cases:', err);
-      setCasesError(err.message || 'Failed to load cases');
-    } finally {
-      setCasesLoading(false);
-    }
-  };
-
-  const handleCaseSearch = () => {
-    loadCases();
-  };
-
-  const handleDeleteCase = async (caseId: string) => {
-    if (!confirm('Are you sure you want to delete this case?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/cases/${caseId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to delete case');
-      }
-
-      await loadCases();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete case');
-    }
-  };
-
-  const toggleSelectCase = (caseId: string) => {
-    const newSelected = new Set(selectedCases);
-    if (newSelected.has(caseId)) {
-      newSelected.delete(caseId);
-    } else {
-      newSelected.add(caseId);
-    }
-    setSelectedCases(newSelected);
-  };
-
-  const toggleSelectAllCases = () => {
-    if (selectedCases.size === filteredCases.length) {
-      setSelectedCases(new Set());
-    } else {
-      setSelectedCases(new Set(filteredCases.map(c => c.id)));
-    }
-  };
-
-  const filteredCases = useMemo(() => {
-    if (!caseSearch) return cases;
-    const searchLower = caseSearch.toLowerCase();
-    return cases.filter(c =>
-      c.claim_id.toLowerCase().includes(searchLower) ||
-      c.surrogate_name?.toLowerCase().includes(searchLower) ||
-      c.first_parent_name?.toLowerCase().includes(searchLower) ||
-      c.case_type.toLowerCase().includes(searchLower)
-    );
-  }, [cases, caseSearch]);
+  // All case-related functions removed - match IS the case
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
@@ -1423,20 +1340,11 @@ export default function MatchesPage() {
               <button
                 onClick={() => {
                   loadData();
-                  loadCases();
                 }}
                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
               >
                 🔄 Refresh
               </button>
-              {canViewAllBranches && (
-                <Link
-                  href="/cases/new"
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
-                >
-                  + Add Case
-                </Link>
-              )}
             </div>
           </div>
 
@@ -1447,10 +1355,7 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Case Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1469,26 +1374,6 @@ export default function MatchesPage() {
                   const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
                   const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
                   const latestReports = surrogateReports.slice(0, 3);
-                  
-                  // Find associated case by matching surrogate_id and parent_id
-                  const associatedCase = cases.find(
-                    (c) => 
-                      (c.surrogate_id === m.surrogate_id && c.first_parent_id === m.parent_id) ||
-                      (c.surrogate_id === m.surrogate_id && c.second_parent_id === m.parent_id)
-                  );
-                  
-                  // Debug log for first match
-                  if (matches.indexOf(m) === 0) {
-                    console.log('🔍 First match debug:', {
-                      matchId: m.id,
-                      surrogateId: m.surrogate_id,
-                      parentId: m.parent_id,
-                      hasAssociatedCase: !!associatedCase,
-                      associatedCaseId: associatedCase?.id,
-                      canViewAllBranches,
-                      casesCount: cases.length,
-                    });
-                  }
                   
                   return (
                     <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
@@ -1526,129 +1411,59 @@ export default function MatchesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase ? (
+                        {canViewAllBranches ? (
                           <div className="flex items-center gap-2">
-                            <Link
-                              href={`/cases/${associatedCase.id}`}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              {associatedCase.claim_id}
-                            </Link>
+                            {assigningManager === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={selectedManagerId}
+                                  onChange={(e) => setSelectedManagerId(e.target.value)}
+                                  className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                  autoFocus
+                                >
+                                  <option value="">— No Manager —</option>
+                                  {adminUsers.map((admin) => (
+                                    <option key={admin.id} value={admin.id}>
+                                      {admin.name} ({admin.role})
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => {
+                                    assignManagerToMatch(m.id, selectedManagerId || null);
+                                  }}
+                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(null);
+                                    setSelectedManagerId('');
+                                  }}
+                                  className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span>{(m as any).manager_name || '—'}</span>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(m.id);
+                                    setSelectedManagerId((m as any).manager_id || '');
+                                  }}
+                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                                  title="Assign Manager"
+                                >
+                                  ✏️
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase?.case_type || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase ? (
-                          canViewAllBranches ? (
-                            <div className="flex items-center gap-2">
-                              {assigningManager === associatedCase.id ? (
-                                <div className="flex items-center gap-2">
-                                  <select
-                                    value={selectedManagerId}
-                                    onChange={(e) => setSelectedManagerId(e.target.value)}
-                                    className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                    autoFocus
-                                  >
-                                    <option value="">— No Manager —</option>
-                                    {adminUsers.map((admin) => (
-                                      <option key={admin.id} value={admin.id}>
-                                        {admin.name} ({admin.role})
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    onClick={() => {
-                                      assignManagerToCase(associatedCase.id, selectedManagerId || null);
-                                    }}
-                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                                  >
-                                    ✓
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setAssigningManager(null);
-                                      setSelectedManagerId('');
-                                    }}
-                                    className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <span>{associatedCase.manager_name || '—'}</span>
-                                  <button
-                                    onClick={() => {
-                                      setAssigningManager(associatedCase.id);
-                                      setSelectedManagerId(associatedCase.manager_id || '');
-                                    }}
-                                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                                    title="Assign Manager"
-                                  >
-                                    ✏️
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span>{associatedCase.manager_name || '—'}</span>
-                          )
-                        ) : (
-                          canViewAllBranches ? (
-                            <button
-                              onClick={async () => {
-                                // Auto-create case for this match
-                                if (confirm('Create case for this match and assign manager?')) {
-                                  try {
-                                    // First, trigger case creation by refreshing data (which will auto-create on next match update)
-                                    // Or directly create case via API
-                                    const res = await fetch('/api/cases', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
-                                        surrogate_id: m.surrogate_id,
-                                        first_parent_id: m.parent_id,
-                                        case_type: 'Surrogacy',
-                                        status: 'active',
-                                      }),
-                                    });
-                                    if (res.ok) {
-                                      await loadCases();
-                                      await loadData();
-                                      alert('Case created successfully! You can now assign a manager.');
-                                    } else {
-                                      const err = await res.text();
-                                      alert(`Failed to create case: ${err}`);
-                                    }
-                                  } catch (err: any) {
-                                    console.error('Error creating case:', err);
-                                    alert(`Error: ${err.message || 'Failed to create case'}`);
-                                  }
-                                }
-                              }}
-                              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
-                              title="Create Case & Assign Manager"
-                            >
-                              + Create Case
-                            </button>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {associatedCase ? (
-                          <div className="max-w-xs truncate" title={associatedCase.current_step || ''}>
-                            {associatedCase.current_step || '—'}
-                          </div>
-                        ) : (
-                          '—'
+                          <span>{(m as any).manager_name || '—'}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
@@ -1778,40 +1593,7 @@ export default function MatchesPage() {
                               </option>
                             ))}
                           </select>
-                          {associatedCase && (
-                            <div className="flex gap-1 flex-wrap mt-1">
-                              <Link
-                                href={`/cases/${associatedCase.id}`}
-                                className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                              >
-                                📄 Case Detail
-                              </Link>
-                              <Link
-                                href={`/cases/${associatedCase.id}/step-status`}
-                                className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                              >
-                                Step Status
-                              </Link>
-                              <Link
-                                href={`/cases/${associatedCase.id}/edit`}
-                                className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
-                              >
-                                ✏️ Edit Case
-                              </Link>
-                              {canViewAllBranches && (
-                                <button
-                                  onClick={() => {
-                                    setAssigningManager(associatedCase.id);
-                                    setSelectedManagerId(associatedCase.manager_id || '');
-                                  }}
-                                  className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
-                                  title="Assign Manager"
-                                >
-                                  👤 Assign Manager
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          {/* Case-related buttons removed - match IS the case */}
                           <button
                             onClick={() => openContractModal(m)}
                             className="mt-1 w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"

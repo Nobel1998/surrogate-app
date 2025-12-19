@@ -71,9 +71,21 @@ export async function GET(req: NextRequest) {
       .select('id, name, phone, role, email, progress_stage, stage_updated_by')
       .in('role', ['surrogate', 'parent']);
 
+    // Fetch matches with manager information
     let matchesQuery = supabase
       .from('surrogate_matches')
-      .select('id, surrogate_id, parent_id, status, created_at, updated_at, notes, branch_id');
+      .select(`
+        id, 
+        surrogate_id, 
+        parent_id, 
+        status, 
+        created_at, 
+        updated_at, 
+        notes, 
+        branch_id,
+        manager_id,
+        admin_users!surrogate_matches_manager_id_fkey(id, name, role)
+      `);
 
     // Apply branch filter on matches only (profiles table doesn't have branch_id anymore)
     if (effectiveBranchFilter && effectiveBranchFilter !== 'all') {
@@ -88,6 +100,29 @@ export async function GET(req: NextRequest) {
 
     if (profilesError) throw profilesError;
     if (matchesError) throw matchesError;
+
+    // Enrich matches with manager information
+    const matchesWithManager = await Promise.all(
+      (matches || []).map(async (match: any) => {
+        if (match.manager_id) {
+          const { data: manager } = await supabase
+            .from('admin_users')
+            .select('id, name, role')
+            .eq('id', match.manager_id)
+            .single();
+          return {
+            ...match,
+            manager_name: manager?.name || null,
+            manager_role: manager?.role || null,
+          };
+        }
+        return {
+          ...match,
+          manager_name: null,
+          manager_role: null,
+        };
+      })
+    );
 
     // 拉取所有代母的帖子，供后台展示（不仅仅是匹配的代母）
     const allSurrogateIds = Array.from(
@@ -201,7 +236,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       profiles,
-      matches,
+      matches: matchesWithManager,
       posts,
       comments,
       postLikes,
@@ -290,64 +325,54 @@ export async function POST(req: Request) {
       matchId = newMatch?.id || null;
     }
 
-    // Auto-create case if match was created/updated and no case exists yet
-    if (matchId) {
-      // Check if case already exists for this match
-      const { data: existingCase, error: caseCheckError } = await supabase
-        .from('cases')
-        .select('id')
-        .eq('surrogate_id', surrogateId)
-        .eq('first_parent_id', parentId)
-        .limit(1)
-        .maybeSingle();
-
-      if (caseCheckError) {
-        console.error('Error checking existing case:', caseCheckError);
-        // Don't throw, just log - case creation is optional
-      } else if (!existingCase) {
-        // Generate claim_id: MATCH-{matchId的前8位}
-        const claimId = `MATCH-${matchId.substring(0, 8).toUpperCase()}`;
-        
-        // Get branch_id from admin user if available
-        let effectiveBranchId = branchId;
-        if (!effectiveBranchId && adminUserId) {
-          const { data: adminUser } = await supabase
-            .from('admin_users')
-            .select('branch_id')
-            .eq('id', adminUserId)
-            .single();
-          if (adminUser?.branch_id) {
-            effectiveBranchId = adminUser.branch_id;
-          }
-        }
-
-        // Create case automatically
-        const { error: caseInsertError } = await supabase
-          .from('cases')
-          .insert({
-            claim_id: claimId,
-            surrogate_id: surrogateId,
-            first_parent_id: parentId,
-            case_type: 'Surrogacy',
-            branch_id: effectiveBranchId,
-            status: 'active',
-            created_by: adminUserId || null,
-          });
-
-        if (caseInsertError) {
-          console.error('Error auto-creating case:', caseInsertError);
-          // Don't throw - match creation succeeded, case creation is optional
-        } else {
-          console.log('✅ Auto-created case for match:', matchId, 'claim_id:', claimId);
-        }
-      }
-    }
-
+    // Match IS the case - no need to create separate case
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error creating match:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to create match' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: Update match manager
+export async function PATCH(req: Request) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      { error: 'Missing Supabase env vars' },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const body = await req.json();
+    const matchId = body.match_id;
+    const managerId = body.manager_id || null;
+
+    if (!matchId) {
+      return NextResponse.json(
+        { error: 'match_id is required' },
+        { status: 400 }
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from('surrogate_matches')
+      .update({ manager_id: managerId, updated_at: new Date().toISOString() })
+      .eq('id', matchId);
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating match manager:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update match manager' },
       { status: 500 }
     );
   }
