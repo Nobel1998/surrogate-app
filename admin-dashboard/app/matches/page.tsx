@@ -13,6 +13,8 @@ type Profile = {
   progress_stage?: string | null;
   stage_updated_by?: string | null;
   branch_id?: string | null;
+  transfer_date?: string | null;
+  transfer_embryo_day?: string | null;
 };
 
 type Branch = {
