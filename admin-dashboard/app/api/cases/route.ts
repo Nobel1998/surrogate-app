@@ -26,10 +26,13 @@ export async function GET(req: NextRequest) {
     const status = url.searchParams.get('status') || '';
     const branchId = url.searchParams.get('branch_id') || '';
     
-    // Get admin user for branch filtering
+    // Get admin user for branch and manager filtering
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
     let effectiveBranchId = branchId;
+    let isSuperAdmin = false;
+    let isBranchManager = false;
+    let isCaseManager = false;
 
     if (adminUserId && !branchId) {
       const { data: adminUser } = await supabase
@@ -38,8 +41,19 @@ export async function GET(req: NextRequest) {
         .eq('id', adminUserId)
         .single();
 
-      if (adminUser?.role === 'branch_manager' && adminUser.branch_id) {
-        effectiveBranchId = adminUser.branch_id;
+      if (adminUser) {
+        const role = (adminUser.role || '').toLowerCase();
+        if (role === 'admin') {
+          isSuperAdmin = true;
+        } else if (role === 'branch_manager') {
+          isBranchManager = true;
+          if (adminUser.branch_id) {
+            effectiveBranchId = adminUser.branch_id;
+          }
+        } else {
+          // Other roles (like case_manager) should see cases assigned to them
+          isCaseManager = true;
+        }
       }
     }
 
@@ -75,8 +89,32 @@ export async function GET(req: NextRequest) {
         updated_at
       `);
 
-    // Apply filters
-    if (effectiveBranchId) {
+    // Apply filters based on role
+    if (isSuperAdmin) {
+      // Super admin can see all cases - no filter needed
+    } else if (isBranchManager && effectiveBranchId) {
+      // Branch manager can only see cases in their branch
+      query = query.eq('branch_id', effectiveBranchId);
+    } else if (isCaseManager && adminUserId) {
+      // Case manager can see cases assigned to them (via case_managers table)
+      // First, get all case IDs assigned to this manager
+      const { data: assignedCaseIds } = await supabase
+        .from('case_managers')
+        .select('case_id')
+        .eq('manager_id', adminUserId);
+      
+      const caseIds = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
+      
+      // Build filter: cases assigned via case_managers OR legacy manager_id
+      if (caseIds.length > 0) {
+        // Use .in() for case_managers and .eq() for legacy manager_id, combined with .or()
+        query = query.or(`id.in.(${caseIds.join(',')}),manager_id.eq.${adminUserId}`);
+      } else {
+        // Only legacy manager_id
+        query = query.eq('manager_id', adminUserId);
+      }
+    } else if (effectiveBranchId) {
+      // Fallback: filter by branch if specified
       query = query.eq('branch_id', effectiveBranchId);
     }
 
