@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       query = query.eq('branch_id', effectiveBranchId);
     } else if (isCaseManager && adminUserId) {
       // Case manager can see cases assigned to them (via case_managers table)
-      // First, get all case IDs assigned to this manager
+      // First, get all case IDs assigned to this manager from case_managers table
       const { data: assignedCaseIds } = await supabase
         .from('case_managers')
         .select('case_id')
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
       
       const caseIdsFromTable = assignedCaseIds?.map(c => c.case_id).filter(Boolean) || [];
       
-      // Also get cases with legacy manager_id
+      // Also get cases with legacy manager_id (single query)
       const { data: legacyCases } = await supabase
         .from('cases')
         .select('id')
@@ -113,15 +113,15 @@ export async function GET(req: NextRequest) {
       
       const legacyCaseIds = legacyCases?.map(c => c.id).filter(Boolean) || [];
       
-      // Combine all case IDs
+      // Combine all case IDs (remove duplicates)
       const allCaseIds = [...new Set([...caseIdsFromTable, ...legacyCaseIds])];
       
       if (allCaseIds.length > 0) {
-        // Filter by case IDs
+        // Filter by case IDs using .in()
         query = query.in('id', allCaseIds);
       } else {
-        // No cases assigned, return empty result
-        query = query.eq('id', '00000000-0000-0000-0000-000000000000'); // Impossible ID to return empty
+        // No cases assigned, return empty result by using impossible filter
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
       }
     } else if (effectiveBranchId) {
       // Fallback: filter by branch if specified
