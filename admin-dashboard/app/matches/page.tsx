@@ -1439,10 +1439,7 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Case Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1518,111 +1515,102 @@ export default function MatchesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {associatedCase ? (
-                          canViewAllBranches ? (
-                            <div className="flex items-center gap-2">
-                              {assigningManager === associatedCase.id ? (
-                                <div className="flex items-center gap-2">
-                                  <select
-                                    value={selectedManagerId}
-                                    onChange={(e) => setSelectedManagerId(e.target.value)}
-                                    className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                    autoFocus
-                                  >
-                                    <option value="">— No Manager —</option>
-                                    {adminUsers.map((admin) => (
-                                      <option key={admin.id} value={admin.id}>
-                                        {admin.name} ({admin.role})
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    onClick={() => {
-                                      assignManagerToCase(associatedCase.id, selectedManagerId || null);
-                                    }}
-                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                                  >
-                                    ✓
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setAssigningManager(null);
-                                      setSelectedManagerId('');
-                                    }}
-                                    className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <span>{associatedCase.manager_name || '—'}</span>
-                                  <button
-                                    onClick={() => {
-                                      setAssigningManager(associatedCase.id);
-                                      setSelectedManagerId(associatedCase.manager_id || '');
-                                    }}
-                                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                                    title="Assign Manager"
-                                  >
-                                    ✏️
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span>{associatedCase.manager_name || '—'}</span>
-                          )
+                        {canViewAllBranches ? (
+                          <div className="flex items-center gap-2">
+                            {assigningManager === (associatedCase?.id || m.id) ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={selectedManagerId}
+                                  onChange={(e) => setSelectedManagerId(e.target.value)}
+                                  className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                  autoFocus
+                                >
+                                  <option value="">— No Manager —</option>
+                                  {adminUsers.map((admin) => (
+                                    <option key={admin.id} value={admin.id}>
+                                      {admin.name} ({admin.role})
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={async () => {
+                                    let caseId = associatedCase?.id;
+                                    
+                                    // If no case exists, create it first
+                                    if (!caseId) {
+                                      try {
+                                        const createCaseRes = await fetch('/api/cases', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
+                                            surrogate_id: m.surrogate_id,
+                                            first_parent_id: m.parent_id,
+                                            case_type: 'Surrogacy',
+                                            status: 'active',
+                                          }),
+                                        });
+                                        
+                                        if (!createCaseRes.ok) {
+                                          const err = await createCaseRes.text();
+                                          throw new Error(`Failed to create case: ${err}`);
+                                        }
+                                        
+                                        const caseData = await createCaseRes.json();
+                                        caseId = caseData.case?.id || caseData.id;
+                                        
+                                        if (!caseId) {
+                                          throw new Error('Case created but ID not returned');
+                                        }
+                                        
+                                        // Reload cases to get the new case
+                                        await loadCases();
+                                      } catch (err: any) {
+                                        console.error('Error creating case:', err);
+                                        alert(`Error: ${err.message || 'Failed to create case'}`);
+                                        return;
+                                      }
+                                    }
+                                    
+                                    // Assign manager
+                                    await assignManagerToCase(caseId, selectedManagerId || null);
+                                  }}
+                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(null);
+                                    setSelectedManagerId('');
+                                  }}
+                                  className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-600">
+                                  {associatedCase?.manager_name || 'No Manager'}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setAssigningManager(associatedCase?.id || m.id);
+                                    setSelectedManagerId(associatedCase?.manager_id || '');
+                                  }}
+                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                                  title="Assign Manager"
+                                >
+                                  Assign Manager
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          canViewAllBranches ? (
-                            <button
-                              onClick={async () => {
-                                // Auto-create case and assign manager
-                                try {
-                                  // First create case
-                                  const createCaseRes = await fetch('/api/cases', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      claim_id: `MATCH-${m.id.substring(0, 8).toUpperCase()}`,
-                                      surrogate_id: m.surrogate_id,
-                                      first_parent_id: m.parent_id,
-                                      case_type: 'Surrogacy',
-                                      status: 'active',
-                                    }),
-                                  });
-                                  
-                                  if (!createCaseRes.ok) {
-                                    const err = await createCaseRes.text();
-                                    throw new Error(`Failed to create case: ${err}`);
-                                  }
-                                  
-                                  const caseData = await createCaseRes.json();
-                                  const newCaseId = caseData.case?.id || caseData.id;
-                                  
-                                  if (!newCaseId) {
-                                    throw new Error('Case created but ID not returned');
-                                  }
-                                  
-                                  // Reload cases to get the new case
-                                  await loadCases();
-                                  
-                                  // Now show manager selection
-                                  setAssigningManager(newCaseId);
-                                  setSelectedManagerId('');
-                                } catch (err: any) {
-                                  console.error('Error creating case:', err);
-                                  alert(`Error: ${err.message || 'Failed to create case and assign manager'}`);
-                                }
-                              }}
-                              className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
-                              title="Assign Manager"
-                            >
-                              Assign Manager
-                            </button>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )
+                          <span className="text-xs text-gray-600">
+                            {associatedCase?.manager_name || '—'}
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
