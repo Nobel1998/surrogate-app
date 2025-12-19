@@ -1811,6 +1811,7 @@ export default function MatchesPage() {
             </table>
           </div>
         </div>
+      </div>
 
       {/* Contract Upload Modal */}
       {showContractModal && (
