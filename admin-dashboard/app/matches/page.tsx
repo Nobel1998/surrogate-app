@@ -1453,6 +1453,16 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Embryos</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lawyer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Contract</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Contract</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trust Account</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogacy Contract</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Life Insurance</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Health Insurance</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wire Record</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Statement</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PBO</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Retainer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
@@ -1680,6 +1690,36 @@ export default function MatchesPage() {
                           {associatedCase?.company || '—'}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.customer_signed_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.attorney_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.trust_account_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.surrogacy_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.life_insurance_policyfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.surrogate_health_insurancefiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.wire_recordfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.monthly_statementfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.pbofiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {associatedCase?.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-2">
                           <div className="font-semibold text-sm">
@@ -1863,7 +1903,7 @@ export default function MatchesPage() {
 
                 {matches.length === 0 && (
                   <tr>
-                    <td colSpan={20} className="px-4 py-6 text-center text-gray-500">
+                    <td colSpan={30} className="px-4 py-6 text-center text-gray-500">
                       No matches found. Create one above.
                     </td>
                   </tr>
