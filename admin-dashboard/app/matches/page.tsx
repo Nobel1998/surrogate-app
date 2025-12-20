@@ -165,7 +165,6 @@ export default function MatchesPage() {
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
   const [editingParent2, setEditingParent2] = useState<string | null>(null);
   const [parent2Name, setParent2Name] = useState<string>('');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -1448,50 +1447,7 @@ export default function MatchesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent 2</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Operate</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
-                  {expandedRows.size > 0 && (
-                    <>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weeks Pregnant</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetuses</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetal Beat</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clinic</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Embryos</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lawyer</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trust Account</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogacy Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Life Insurance</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Health Insurance</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wire Record</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Statement</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PBO</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Retainer</th>
-                    </>
-                  )}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+          <div className="space-y-4">
                 {matches.map((m) => {
                   const surrogate = profileLookup[m.surrogate_id];
                   const parent = profileLookup[m.parent_id];
@@ -1557,7 +1513,617 @@ export default function MatchesPage() {
                   }
                   
                   return (
-                    <tr key={m.id || `${m.surrogate_id}-${m.parent_id}`}>
+                    <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
+                      {/* Header Section */}
+                      <div className="flex items-start justify-between border-b pb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-4 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {m.claim_id || `Match ${m.id?.substring(0, 8)}`}
+                            </h3>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              m.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : m.status === 'completed'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : m.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {m.status?.toUpperCase() || 'UNKNOWN'}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                              {m.case_type || '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <Link
+                              href={`/cases/${m.id}`}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              <span>📄</span>
+                              Detail
+                            </Link>
+                            {m.updated_at && (
+                              <span>Updated: {new Date(m.updated_at).toLocaleString()}</span>
+                            )}
+                            {m.created_at && (
+                              <span>Created: {new Date(m.created_at).toLocaleString()}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Main Content Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Basic Information */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Basic Information</h4>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Surrogate</div>
+                            <div className="text-sm font-medium text-gray-900">{surrogate?.name || m.surrogate_id}</div>
+                            <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Parent</div>
+                            <div className="text-sm font-medium text-gray-900">{m.first_parent_name || parent?.name || m.parent_id}</div>
+                            <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Parent 2</div>
+                            {editingParent2 === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={parent2Name}
+                                  onChange={(e) => setParent2Name(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateParent2(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingParent2(null);
+                                      setParent2Name('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateParent2(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingParent2(null);
+                                    setParent2Name('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingParent2(m.id);
+                                  setParent2Name(m.second_parent_name || '');
+                                }}
+                                title="Click to edit Parent 2 name"
+                              >
+                                {m.second_parent_name || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Manager</div>
+                            {canViewAllBranches ? (
+                              <div className="flex items-center gap-2">
+                                {assigningManager === m.id ? (
+                                  <div className="flex flex-col gap-2 w-full">
+                                    <div className="max-h-40 overflow-y-auto border border-gray-300 rounded p-2 bg-white">
+                                      {adminUsers.map((admin) => {
+                                        const isChecked = selectedManagerIds.includes(admin.id);
+                                        return (
+                                          <label key={admin.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={(e) => {
+                                                console.log('[matches] Checkbox changed:', {
+                                                  adminId: admin.id,
+                                                  adminName: admin.name,
+                                                  checked: e.target.checked,
+                                                  currentSelectedManagerIds: selectedManagerIds,
+                                                  currentCount: selectedManagerIds.length,
+                                                });
+                                                if (e.target.checked) {
+                                                  const newIds = [...selectedManagerIds, admin.id];
+                                                  console.log('[matches] Adding manager, new selectedManagerIds:', {
+                                                    newIds,
+                                                    newCount: newIds.length,
+                                                  });
+                                                  setSelectedManagerIds(newIds);
+                                                } else {
+                                                  const newIds = selectedManagerIds.filter(id => id !== admin.id);
+                                                  console.log('[matches] Removing manager, new selectedManagerIds:', {
+                                                    newIds,
+                                                    newCount: newIds.length,
+                                                  });
+                                                  setSelectedManagerIds(newIds);
+                                                }
+                                              }}
+                                              className="rounded border-gray-300"
+                                            />
+                                            <span className="text-xs">
+                                              {admin.name} ({admin.role})
+                                            </span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={async () => {
+                                          console.log('[matches] Save button clicked:', {
+                                            matchId: m.id,
+                                            selectedManagerIds,
+                                            selectedManagerIdsCount: selectedManagerIds.length,
+                                          });
+                                          await assignManagersToCase(m.id, selectedManagerIds);
+                                        }}
+                                        className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                                      >
+                                        ✓ Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setAssigningManager(null);
+                                          setSelectedManagerIds([]);
+                                        }}
+                                        className="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white text-xs rounded"
+                                      >
+                                        ✕ Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      {(() => {
+                                        const managersList = m.managers || [];
+                                        console.log(`👥 Match ${m.id} managers debug:`, {
+                                          matchId: m.id,
+                                          managers: managersList,
+                                          managersCount: managersList.length,
+                                          manager_ids: m.manager_ids || [],
+                                          manager_idsCount: m.manager_ids?.length || 0,
+                                          manager_name: m.manager_name,
+                                        });
+                                        
+                                        if (managersList.length > 0) {
+                                          return (
+                                            <div className="flex flex-wrap gap-x-1 gap-y-0.5 items-center">
+                                              {managersList.map((manager: any, idx: number) => (
+                                                <span key={`${m.id}-manager-${manager.id}`} className="text-xs text-gray-600 whitespace-nowrap">
+                                                  {manager.name}{idx < managersList.length - 1 ? ',' : ''}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          );
+                                        } else {
+                                          return (
+                                            <span className="text-xs text-gray-600">
+                                              {m.manager_name || 'No Manager'}
+                                            </span>
+                                          );
+                                        }
+                                      })()}
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        setAssigningManager(m.id);
+                                        const managerIds = m.manager_ids 
+                                          ? m.manager_ids.filter((id): id is string => id != null)
+                                          : (m.manager_id ? [m.manager_id] : []);
+                                        setSelectedManagerIds(managerIds);
+                                      }}
+                                      className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+                                      title="Assign Managers"
+                                    >
+                                      Assign Managers
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                {(() => {
+                                  const managersList = m.managers || [];
+                                  if (managersList.length > 0) {
+                                    return (
+                                      <div className="flex flex-wrap gap-x-1 gap-y-0.5 items-center">
+                                        {managersList.map((manager: any, idx: number) => (
+                                          <span key={`${m.id}-manager-${manager.id}`} className="text-xs text-gray-600 whitespace-nowrap">
+                                            {manager.name}{idx < managersList.length - 1 ? ',' : ''}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-xs text-gray-600">
+                                        {m.manager_name || '—'}
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pregnancy & Medical Information */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Pregnancy & Medical</h4>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Current Step</div>
+                            <div className="text-sm text-gray-900">
+                              {m.current_step ? (
+                                <div className="max-w-xs">{m.current_step}</div>
+                              ) : (
+                                <div className="flex flex-col gap-1">
+                                  <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                                    STAGE: {surrogateStage}
+                                  </span>
+                                  <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                                    BY: {stageUpdater}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Weeks Pregnant</div>
+                            <div className="text-sm text-gray-900">
+                              {pregnancyWeeks ? (
+                                typeof pregnancyWeeks === 'number' ? (
+                                  `${pregnancyWeeks} weeks`
+                                ) : (
+                                  `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
+                                )
+                              ) : (
+                                '—'
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Due Date</div>
+                            <div className="text-sm text-gray-900">
+                              {m.estimated_due_date 
+                                ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                : '—'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Fetuses</div>
+                            <div className="text-sm text-gray-900">{m.number_of_fetuses ?? '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Fetal Beat Confirm</div>
+                            <div className="text-sm text-gray-900">{m.fetal_beat_confirm || '—'}</div>
+                          </div>
+                        </div>
+
+                        {/* Important Dates */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Important Dates</h4>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Sign Date</div>
+                            <div className="text-sm text-gray-900">
+                              {m.sign_date 
+                                ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                : '—'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Transfer Date</div>
+                            <div className="text-sm text-gray-900">
+                              {m.transfer_date 
+                                ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                : '—'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Beta Confirm Date</div>
+                            <div className="text-sm text-gray-900">
+                              {m.beta_confirm_date 
+                                ? new Date(m.beta_confirm_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                : '—'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Clinic & Legal Information */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Clinic & Legal</h4>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Clinic</div>
+                            <div className="text-sm text-gray-900">{m.clinic || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Embryos</div>
+                            <div className="text-sm text-gray-900">{m.embryos || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Lawyer</div>
+                            <div className="text-sm text-gray-900">{m.lawyer || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Company</div>
+                            <div className="text-sm text-gray-900">{m.company || '—'}</div>
+                          </div>
+                        </div>
+
+                        {/* Document Status */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Document Status</h4>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.customer_signed_contractfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.customer_signed_contractfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Customer Contract</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.attorney_contractfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.attorney_contractfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Attorney Contract</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.trust_account_contractfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.trust_account_contractfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Trust Account</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.surrogacy_contractfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.surrogacy_contractfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Surrogacy Contract</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.life_insurance_policyfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.life_insurance_policyfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Life Insurance</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.surrogate_health_insurancefiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.surrogate_health_insurancefiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Health Insurance</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.wire_recordfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.wire_recordfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Wire Record</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.monthly_statementfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.monthly_statementfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Monthly Statement</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.pbofiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.pbofiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">PBO</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={m.files?.attorney_retainer_agreementfiles ? 'text-green-600' : 'text-gray-400'}>
+                                {m.files?.attorney_retainer_agreementfiles ? '✓' : '○'}
+                              </span>
+                              <span className="text-gray-600">Attorney Retainer</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Posts & Medical Reports */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Activity</h4>
+                          <div className="text-xs text-gray-700">
+                            <div className="font-semibold mb-2">
+                              Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
+                            </div>
+                            {latestPosts.length === 0 ? (
+                              <div className="text-gray-500 text-xs">No posts</div>
+                            ) : (
+                              <div className="space-y-2">
+                                {latestPosts.map((p) => (
+                                  <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
+                                    <div className="text-[11px] text-gray-500">
+                                      {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
+                                      {p.stage ? ` · ${p.stage}` : ''}
+                                    </div>
+                                    <div className="text-sm text-gray-900 line-clamp-2">
+                                      {p.content || p.text || '(no text)'}
+                                    </div>
+                                    {((p.media_url || p.media_uri) && (
+                                      <a
+                                        href={String(p.media_url || p.media_uri || '#')}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs text-blue-600 hover:text-blue-800"
+                                      >
+                                        Media
+                                      </a>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-gray-300">
+                            <div className="font-semibold text-sm text-green-700 mb-2">
+                              Medical Check-ins: {surrogateReports.length}
+                            </div>
+                            {latestReports.length === 0 ? (
+                              <div className="text-gray-500 text-xs">No medical reports</div>
+                            ) : (
+                              <div className="space-y-2">
+                                {latestReports.map((r) => {
+                                  const reportData = r.report_data || {};
+                                  const visitDate = r.visit_date ? new Date(r.visit_date).toLocaleDateString() : '';
+                                  let keyMetrics: string[] = [];
+                                  
+                                  if (r.stage === 'Pre-Transfer') {
+                                    if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness}mm`);
+                                    if (reportData.follicle_1_mm) keyMetrics.push(`Follicle: ${reportData.follicle_1_mm}mm`);
+                                    if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
+                                      keyMetrics.push(`Labs: ${reportData.labs.slice(0, 2).join(', ')}`);
+                                    }
+                                  } else if (r.stage === 'Post-Transfer') {
+                                    if (reportData.fetal_heart_rate) keyMetrics.push(`HR: ${reportData.fetal_heart_rate}bpm`);
+                                    if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter}mm`);
+                                    if (reportData.beta_hcg) keyMetrics.push(`Beta HCG: ${reportData.beta_hcg}`);
+                                  } else if (r.stage === 'OBGYN') {
+                                    if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight}lbs`);
+                                    if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
+                                    if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats}bpm`);
+                                  }
+                                  
+                                  return (
+                                    <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50">
+                                      <div className="text-[11px] text-gray-600 font-semibold">
+                                        {r.stage} · {visitDate}
+                                        {r.provider_name && ` · ${r.provider_name}`}
+                                      </div>
+                                      {keyMetrics.length > 0 && (
+                                        <div className="text-xs text-gray-700 mt-1">
+                                          {keyMetrics.join(' · ')}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {r.proof_image_url && (
+                                          <a
+                                            href={r.proof_image_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-xs text-blue-600 hover:text-blue-800"
+                                          >
+                                            📎 View Proof
+                                          </a>
+                                        )}
+                                        <button
+                                          onClick={() => deleteMedicalReport(r.id)}
+                                          className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                                          title="Delete this medical report"
+                                        >
+                                          🗑️ Delete
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions Section */}
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
+                        <div className="flex flex-wrap gap-2">
+                          <div className="flex gap-1">
+                            {STATUS_OPTIONS.map((s: string) => (
+                              <button
+                                key={s}
+                                onClick={() => updateMatchStatus(m.id, s)}
+                                className={`px-2 py-1 rounded border text-xs ${
+                                  m.status === s
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
+                                }`}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                          <select
+                            className="border border-gray-300 rounded px-2 py-1 text-xs"
+                            value={surrogate?.progress_stage || 'pre'}
+                            onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                          >
+                            {STAGE_OPTIONS.map((st: string) => (
+                              <option key={st} value={st}>
+                                {STAGE_LABELS[st] || st.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                          {canViewAllBranches && m && (
+                            <button
+                              onClick={() => {
+                                setAssigningManager(m.id);
+                                const managerIds = m.manager_ids 
+                                  ? m.manager_ids.filter((id): id is string => id != null)
+                                  : (m.manager_id ? [m.manager_id] : []);
+                                setSelectedManagerIds(managerIds);
+                              }}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+                              title="Assign Managers"
+                            >
+                              👤 Assign Managers
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openContractModal(m)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            📄 Publish Contract
+                          </button>
+                          <button
+                            onClick={() => openAttorneyModal(m)}
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            ⚖️ Upload Attorney Retainer
+                          </button>
+                          <button
+                            onClick={() => openInsuranceModal(m)}
+                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            🛡️ Upload Life Insurance
+                          </button>
+                          <button
+                            onClick={() => openHealthInsuranceModal(m)}
+                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            ❤️ Upload Health Insurance Bill
+                          </button>
+                          <button
+                            onClick={() => openPBOModal(m)}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            📋 Upload PBO
+                          </button>
+                          <button
+                            onClick={() => openClaimsModal(m)}
+                            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            ✅ Upload Online Claims
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-medium">{surrogate?.name || m.surrogate_id}</div>
                         <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
@@ -1639,21 +2205,13 @@ export default function MatchesPage() {
                         {m.case_type || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <button
-                          onClick={() => {
-                            const newExpanded = new Set(expandedRows);
-                            if (newExpanded.has(m.id)) {
-                              newExpanded.delete(m.id);
-                            } else {
-                              newExpanded.add(m.id);
-                            }
-                            setExpandedRows(newExpanded);
-                          }}
+                        <Link
+                          href={`/cases/${m.id}`}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           <span>📄</span>
-                          {expandedRows.has(m.id) ? 'Hide' : 'Detail'}
-                        </button>
+                          Detail
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {canViewAllBranches ? (
@@ -1830,92 +2388,88 @@ export default function MatchesPage() {
                           )}
                         </div>
                       </td>
-                      {expandedRows.has(m.id) && (
-                        <>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {pregnancyWeeks ? (
-                              typeof pregnancyWeeks === 'number' ? (
-                                `${pregnancyWeeks} weeks`
-                              ) : (
-                                `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
-                              )
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.estimated_due_date 
-                              ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.number_of_fetuses ?? '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.fetal_beat_confirm || '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.sign_date 
-                              ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.transfer_date 
-                              ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <div className="max-w-xs truncate" title={m.clinic || ''}>
-                              {m.clinic || '—'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <div className="max-w-xs truncate" title={m.embryos || ''}>
-                              {m.embryos || '—'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <div className="max-w-xs truncate" title={m.lawyer || ''}>
-                              {m.lawyer || '—'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <div className="max-w-xs truncate" title={m.company || ''}>
-                              {m.company || '—'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.customer_signed_contractfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.attorney_contractfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.trust_account_contractfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.surrogacy_contractfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.life_insurance_policyfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.surrogate_health_insurancefiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.wire_recordfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.monthly_statementfiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.pbofiles ? '✓' : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {m.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
-                          </td>
-                        </>
-                      )}
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {pregnancyWeeks ? (
+                          typeof pregnancyWeeks === 'number' ? (
+                            `${pregnancyWeeks} weeks`
+                          ) : (
+                            `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
+                          )
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.estimated_due_date 
+                          ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.number_of_fetuses ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.fetal_beat_confirm || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.sign_date 
+                          ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.transfer_date 
+                          ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={m.clinic || ''}>
+                          {m.clinic || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={m.embryos || ''}>
+                          {m.embryos || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={m.lawyer || ''}>
+                          {m.lawyer || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="max-w-xs truncate" title={m.company || ''}>
+                          {m.company || '—'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.customer_signed_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.attorney_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.trust_account_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.surrogacy_contractfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.life_insurance_policyfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.surrogate_health_insurancefiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.wire_recordfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.monthly_statementfiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.pbofiles ? '✓' : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {m.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-2">
                           <div className="font-semibold text-sm">
@@ -2102,14 +2656,10 @@ export default function MatchesPage() {
                 })}
 
                 {matches.length === 0 && (
-                  <tr>
-                    <td colSpan={30} className="px-4 py-6 text-center text-gray-500">
-                      No matches found. Create one above.
-                    </td>
-                  </tr>
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
+                    <div className="text-gray-500">No matches found. Create one above.</div>
+                  </div>
                 )}
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
