@@ -131,11 +131,38 @@ export async function POST(
         .select();
 
       if (insertError) {
-        console.error('[cases/[id]/managers] INSERT error:', insertError);
+        console.error('[cases/[id]/managers] INSERT error:', {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          newManagers,
+        });
         return NextResponse.json(
           { error: insertError.message || 'Failed to add managers' },
           { status: 500 }
         );
+      }
+      
+      if (!insertedData || insertedData.length === 0) {
+        console.error('[cases/[id]/managers] INSERT returned no data:', {
+          newManagers,
+          insertedData,
+        });
+        return NextResponse.json(
+          { error: 'Insert operation returned no data' },
+          { status: 500 }
+        );
+      }
+      
+      if (insertedData.length !== newManagers.length) {
+        console.warn('[cases/[id]/managers] INSERT returned fewer rows than expected:', {
+          expected: newManagers.length,
+          actual: insertedData.length,
+          newManagers,
+          insertedData,
+        });
       }
       
       console.log('[cases/[id]/managers] Successfully inserted managers:', {
@@ -144,7 +171,21 @@ export async function POST(
       });
     }
 
-    // Fetch updated managers
+    // First, try a simple query without join to verify data exists
+    const { data: rawManagers, error: rawError } = await supabase
+      .from('match_managers')
+      .select('id, manager_id, created_at')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: true });
+    
+    console.log('[cases/[id]/managers] Raw managers (without join):', {
+      matchId,
+      rawCount: rawManagers?.length || 0,
+      rawManagers: rawManagers,
+      rawError,
+    });
+
+    // Fetch updated managers with join
     const { data: updatedManagers, error: fetchError } = await supabase
       .from('match_managers')
       .select(`
@@ -157,17 +198,28 @@ export async function POST(
       .order('created_at', { ascending: true });
 
     if (fetchError) {
-      console.error('[cases/[id]/managers] FETCH error:', fetchError);
+      console.error('[cases/[id]/managers] FETCH error:', {
+        error: fetchError,
+        code: fetchError.code,
+        message: fetchError.message,
+        details: fetchError.details,
+        hint: fetchError.hint,
+      });
     }
     
-    console.log('[cases/[id]/managers] Fetched updated managers:', {
+    console.log('[cases/[id]/managers] Fetched updated managers (with join):', {
       matchId,
       managersCount: updatedManagers?.length || 0,
       managers: updatedManagers?.map((m: any) => ({
         id: m.id,
         manager_id: m.manager_id,
         manager_name: m.manager?.name,
+        has_manager: !!m.manager,
       })) || [],
+      fetchError: fetchError ? {
+        code: fetchError.code,
+        message: fetchError.message,
+      } : null,
     });
 
     return NextResponse.json({
