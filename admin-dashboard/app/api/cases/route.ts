@@ -208,8 +208,7 @@ export async function GET(req: NextRequest) {
     const matchManagers: Record<string, any[]> = {};
     
     if (matchIds.length > 0) {
-      // Try both possible foreign key names
-      let result = await supabase
+      const { data: matchManagersData, error: managersError } = await supabase
         .from('match_managers')
         .select(`
           match_id,
@@ -217,26 +216,6 @@ export async function GET(req: NextRequest) {
           manager:admin_users!match_managers_manager_id_fkey(id, name, role)
         `)
         .in('match_id', matchIds);
-      
-      if (result.error) {
-        console.warn('[cases] First join attempt failed, trying alternative FK name:', {
-          error: result.error.message,
-          code: result.error.code,
-        });
-        
-        // Try with case_managers_manager_id_fkey (original name before rename)
-        result = await supabase
-          .from('match_managers')
-          .select(`
-            match_id,
-            manager_id,
-            manager:admin_users!case_managers_manager_id_fkey(id, name, role)
-          `)
-          .in('match_id', matchIds);
-      }
-      
-      const matchManagersData = result.data;
-      const managersError = result.error;
 
       if (managersError) {
         console.error('[cases] Error fetching match_managers:', managersError);

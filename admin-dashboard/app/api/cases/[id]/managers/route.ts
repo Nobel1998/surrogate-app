@@ -26,8 +26,7 @@ export async function GET(
   try {
     const { id: matchId } = await params;
 
-    // Try both possible foreign key names
-    let result = await supabase
+    const { data: matchManagers, error } = await supabase
       .from('match_managers')
       .select(`
         id,
@@ -37,27 +36,6 @@ export async function GET(
       `)
       .eq('match_id', matchId)
       .order('created_at', { ascending: true });
-    
-    if (result.error) {
-      console.warn('[cases/[id]/managers] GET: First join attempt failed, trying alternative FK name:', {
-        error: result.error.message,
-        code: result.error.code,
-      });
-      
-      // Try with case_managers_manager_id_fkey (original name before rename)
-      result = await supabase
-        .from('match_managers')
-        .select(`
-          id,
-          manager_id,
-          created_at,
-          manager:admin_users!case_managers_manager_id_fkey(id, name, role)
-        `)
-        .eq('match_id', matchId)
-        .order('created_at', { ascending: true });
-    }
-    
-    const { data: matchManagers, error } = result;
 
     if (error) {
       console.error('[cases/[id]/managers] GET error:', error);
@@ -208,12 +186,7 @@ export async function POST(
     });
 
     // Fetch updated managers with join
-    // Try both possible foreign key names (case_managers was renamed to match_managers)
-    let updatedManagers: any[] | null = null;
-    let fetchError: any = null;
-    
-    // First try with match_managers_manager_id_fkey
-    let result = await supabase
+    const { data: updatedManagers, error: fetchError } = await supabase
       .from('match_managers')
       .select(`
         id,
@@ -223,28 +196,6 @@ export async function POST(
       `)
       .eq('match_id', matchId)
       .order('created_at', { ascending: true });
-    
-    if (result.error) {
-      console.warn('[cases/[id]/managers] First join attempt failed, trying alternative FK name:', {
-        error: result.error.message,
-        code: result.error.code,
-      });
-      
-      // Try with case_managers_manager_id_fkey (original name before rename)
-      result = await supabase
-        .from('match_managers')
-        .select(`
-          id,
-          manager_id,
-          created_at,
-          manager:admin_users!case_managers_manager_id_fkey(id, name, role)
-        `)
-        .eq('match_id', matchId)
-        .order('created_at', { ascending: true });
-    }
-    
-    updatedManagers = result.data;
-    fetchError = result.error;
 
     if (fetchError) {
       console.error('[cases/[id]/managers] FETCH error:', {
