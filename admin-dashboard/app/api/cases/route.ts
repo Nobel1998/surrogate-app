@@ -126,7 +126,6 @@ export async function GET(req: NextRequest) {
       adminUserId,
       role: adminUser?.role,
       matchIdsFromTableCount: matchIdsFromTable.length,
-      legacyMatchIdsCount: legacyMatchIds.length,
       assignedMatchIdsListCount: assignedMatchIdsList.length,
       assignedMatchIdsList,
     });

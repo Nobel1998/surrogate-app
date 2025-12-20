@@ -113,13 +113,11 @@ export async function POST(
       deleted: deletedData,
     });
 
-    // Update legacy manager_id field in surrogate_matches
-    // If no managers are assigned, set manager_id to null
-    // If managers are assigned, set manager_id to the first manager (for backward compatibility)
-    const newManagerId = validManagerIds.length > 0 ? validManagerIds[0] : null;
+    // Update legacy manager_id field in surrogate_matches to null
+    // We no longer use this field for filtering, but we keep it updated for consistency
     const { error: updateLegacyError } = await supabase
       .from('surrogate_matches')
-      .update({ manager_id: newManagerId })
+      .update({ manager_id: null })
       .eq('id', matchId);
     
     if (updateLegacyError) {
