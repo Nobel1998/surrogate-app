@@ -1843,14 +1843,14 @@ export default function MatchesPage() {
                               </option>
                             ))}
                           </select>
-                          {canViewAllBranches && associatedCase && (
+                          {canViewAllBranches && m && (
                             <button
                               onClick={() => {
-                                setAssigningManager(associatedCase.id);
+                                setAssigningManager(m.id);
                                 // Get manager IDs, filtering out null/undefined values
-                                const managerIds = associatedCase.manager_ids 
-                                  ? associatedCase.manager_ids.filter((id): id is string => id != null)
-                                  : (associatedCase.manager_id ? [associatedCase.manager_id] : []);
+                                const managerIds = m.manager_ids 
+                                  ? m.manager_ids.filter((id): id is string => id != null)
+                                  : (m.manager_id ? [m.manager_id] : []);
                                 setSelectedManagerIds(managerIds);
                               }}
                               className="mt-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
