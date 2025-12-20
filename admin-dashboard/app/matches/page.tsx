@@ -1568,6 +1568,11 @@ export default function MatchesPage() {
                                 <div className="flex items-center gap-2">
                                   <button
                                   onClick={async () => {
+                                    console.log('[matches] Save button clicked:', {
+                                      matchId: m.id,
+                                      selectedManagerIds,
+                                      selectedManagerIdsCount: selectedManagerIds.length,
+                                    });
                                     // Assign managers directly to match
                                     await assignManagersToCase(m.id, selectedManagerIds);
                                   }}
@@ -1608,11 +1613,21 @@ export default function MatchesPage() {
                                 </div>
                                 <button
                                   onClick={() => {
-                                    setAssigningManager(m.id);
                                     // Get manager IDs, filtering out null/undefined values
                                     const managerIds = m.manager_ids 
                                       ? m.manager_ids.filter((id): id is string => id != null)
                                       : (m.manager_id ? [m.manager_id] : []);
+                                    
+                                    console.log('[matches] Assign Managers button clicked:', {
+                                      matchId: m.id,
+                                      m_manager_ids: m.manager_ids,
+                                      m_manager_id: m.manager_id,
+                                      managerIds,
+                                      managerIdsCount: managerIds.length,
+                                      managers: m.managers?.map((mg: any) => ({ id: mg.id, name: mg.name })) || [],
+                                    });
+                                    
+                                    setAssigningManager(m.id);
                                     setSelectedManagerIds(managerIds);
                                   }}
                                   className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
