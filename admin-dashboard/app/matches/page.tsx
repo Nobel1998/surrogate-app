@@ -285,6 +285,7 @@ export default function MatchesPage() {
         const errText = await res.text();
         throw new Error(`Options request failed: ${res.status} ${errText || ''}`.trim());
       }
+      const data = await res.json();
       const {
         profiles = [],
         matches: matchData = [],
@@ -296,7 +297,17 @@ export default function MatchesPage() {
         branches: branchesData = [],
         currentBranchFilter: branchFilter,
         canViewAllBranches: canViewAll,
-      } = await res.json();
+      } = data;
+      
+      // Debug: Log matches with managers
+      console.log('[matches] Loaded matches data:', {
+        totalMatches: matchData.length,
+        matchesWithManagers: matchData.filter((m: any) => m.managers && m.managers.length > 0).map((m: any) => ({
+          id: m.id,
+          managersCount: m.managers.length,
+          managers: m.managers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+        })),
+      });
 
       const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
       const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
