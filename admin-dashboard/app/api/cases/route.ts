@@ -33,13 +33,16 @@ export async function GET(req: NextRequest) {
     let isSuperAdmin = false;
     let isBranchManager = false;
     let isCaseManager = false;
+    let adminUser: { role?: string; branch_id?: string } | null = null;
 
     if (adminUserId && !branchId) {
-      const { data: adminUser } = await supabase
+      const { data: adminUserData } = await supabase
         .from('admin_users')
         .select('role, branch_id')
         .eq('id', adminUserId)
         .single();
+
+      adminUser = adminUserData || null;
 
       if (adminUser) {
         const role = (adminUser.role || '').toLowerCase();
