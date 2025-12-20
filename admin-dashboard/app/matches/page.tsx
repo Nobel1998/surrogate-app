@@ -163,6 +163,8 @@ export default function MatchesPage() {
   const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [assigningManager, setAssigningManager] = useState<string | null>(null);
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
+  const [editingParent2, setEditingParent2] = useState<string | null>(null);
+  const [parent2Name, setParent2Name] = useState<string>('');
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -372,6 +374,32 @@ export default function MatchesPage() {
       }
     } catch (err) {
       console.error('Error loading admin users:', err);
+    }
+  };
+
+  const handleUpdateParent2 = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          second_parent_name: parent2Name.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Parent 2 name');
+      }
+
+      // Reload matches data to get updated parent name
+      await loadData();
+      setEditingParent2(null);
+      setParent2Name('');
+      alert('Parent 2 name updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Parent 2 name:', err);
+      alert(err.message || 'Failed to update Parent 2 name');
     }
   };
 
@@ -1425,6 +1453,7 @@ export default function MatchesPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent 2</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim ID</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -1531,12 +1560,56 @@ export default function MatchesPage() {
                         <div className="font-medium">
                           {m.first_parent_name || parent?.name || m.parent_id}
                         </div>
-                        {m.second_parent_name && (
-                          <div className="font-medium text-xs text-gray-600 mt-1">
-                            {m.second_parent_name}
+                        <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {editingParent2 === m.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={parent2Name}
+                              onChange={(e) => setParent2Name(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleUpdateParent2(m.id);
+                                } else if (e.key === 'Escape') {
+                                  setEditingParent2(null);
+                                  setParent2Name('');
+                                }
+                              }}
+                              className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleUpdateParent2(m.id)}
+                              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingParent2(null);
+                                setParent2Name('');
+                              }}
+                              className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div 
+                            className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+                            onClick={() => {
+                              setEditingParent2(m.id);
+                              setParent2Name(m.second_parent_name || '');
+                            }}
+                            title="Click to edit Parent 2 name"
+                          >
+                            {m.second_parent_name || (
+                              <span className="text-gray-400 italic">Click to add</span>
+                            )}
                           </div>
                         )}
-                        <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span
