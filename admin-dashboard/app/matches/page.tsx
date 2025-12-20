@@ -357,6 +357,12 @@ export default function MatchesPage() {
 
   const assignManagersToCase = async (matchId: string, managerIds: string[]) => {
     try {
+      console.log('[matches] Assigning managers:', {
+        matchId,
+        managerIds,
+        managerIdsCount: managerIds.length,
+      });
+      
       const res = await fetch(`/api/cases/${matchId}/managers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -370,11 +376,20 @@ export default function MatchesPage() {
         throw new Error(errData.error || 'Failed to assign managers');
       }
 
-      await loadData(); // Reload matches data instead of cases
+      const result = await res.json();
+      console.log('[matches] Assignment result:', {
+        success: result.success,
+        managersCount: result.managers?.length || 0,
+        managers: result.managers?.map((m: any) => ({ id: m.manager_id, name: m.manager?.name })) || [],
+      });
+
+      // Reload matches data to get updated manager assignments
+      await loadData();
       setAssigningManager(null);
       setSelectedManagerIds([]);
       alert(`Successfully assigned ${managerIds.length} manager(s)`);
     } catch (err: any) {
+      console.error('[matches] Error assigning managers:', err);
       alert(err.message || 'Failed to assign managers');
     }
   };
@@ -1464,16 +1479,14 @@ export default function MatchesPage() {
                   
                   const pregnancyWeeks = calculatePregnancyWeeks();
                   
-                  // Debug log for first match
-                  if (matches.indexOf(m) === 0) {
-                    console.log('🔍 First match debug:', {
+                  // Debug log for matches with managers
+                  if (m.managers && m.managers.length > 0) {
+                    console.log('👥 Match managers debug:', {
                       matchId: m.id,
-                      surrogateId: m.surrogate_id,
-                      parentId: m.parent_id,
-                      claimId: m.claim_id,
-                      transferDate: surrogate?.transfer_date || m.transfer_date,
-                      pregnancyWeeks,
-                      canViewAllBranches,
+                      managersCount: m.managers.length,
+                      managers: m.managers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+                      manager_ids: m.manager_ids,
+                      manager_name: m.manager_name,
                     });
                   }
                   

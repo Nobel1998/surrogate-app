@@ -224,6 +224,15 @@ export async function GET(req: NextRequest) {
         .in('match_id', matchIds);
 
       if (matchManagersData) {
+        console.log('[matches/options] Raw matchManagersData:', {
+          total: matchManagersData.length,
+          data: matchManagersData.map((mm: any) => ({
+            match_id: mm.match_id,
+            manager_id: mm.manager_id,
+            manager_name: mm.manager?.name,
+          })),
+        });
+        
         matchManagersData.forEach((mm: any) => {
           if (!matchManagers[mm.match_id]) {
             matchManagers[mm.match_id] = [];
@@ -231,6 +240,15 @@ export async function GET(req: NextRequest) {
           if (mm.manager) {
             matchManagers[mm.match_id].push(mm.manager);
           }
+        });
+        
+        console.log('[matches/options] Processed matchManagers:', {
+          matchIds: Object.keys(matchManagers),
+          details: Object.entries(matchManagers).map(([matchId, mgrs]: [string, any]) => ({
+            matchId,
+            count: mgrs.length,
+            managers: mgrs.map((m: any) => ({ id: m.id, name: m.name })),
+          })),
         });
       }
     }
