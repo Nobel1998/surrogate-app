@@ -2127,14 +2127,7 @@ export default function MatchesPage() {
                       </div>
                     </div>
                   );
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">
-                          {m.first_parent_name || parent?.name || m.parent_id}
-                        </div>
-                        <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {editingParent2 === m.id ? (
+                })}
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
