@@ -35,7 +35,9 @@ export default function Home() {
       email: formData.email || 'N/A',
       age: formData.age || 'N/A',
       dateOfBirth: formData.dateOfBirth || 'N/A',
-      address: formData.address || 'N/A',
+      // location is the field name used in the form, address is for display
+      address: formData.location || formData.address || 'N/A',
+      location: formData.location || formData.address || 'N/A',
     };
   };
 
