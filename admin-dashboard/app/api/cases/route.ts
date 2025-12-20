@@ -216,6 +216,29 @@ export async function GET(req: NextRequest) {
           manager:admin_users!match_managers_manager_id_fkey(id, name, role)
         `)
         .in('match_id', matchIds);
+      
+      if (assignedError) {
+        console.warn('[cases] First join attempt failed, trying alternative FK name:', {
+          error: assignedError.message,
+          code: assignedError.code,
+        });
+        
+        // Try with case_managers_manager_id_fkey (original name before rename)
+        const altResult = await supabase
+          .from('match_managers')
+          .select(`
+            match_id,
+            manager_id,
+            manager:admin_users!case_managers_manager_id_fkey(id, name, role)
+          `)
+          .in('match_id', matchIds);
+        
+        if (!altResult.error) {
+          assignedMatchIds = (altResult.data || []).map((mm: any) => mm.match_id).filter(Boolean);
+        }
+      } else {
+        assignedMatchIds = (assignedData || []).map((mm: any) => mm.match_id).filter(Boolean);
+      }
 
       if (matchManagersData) {
         matchManagersData.forEach(mm => {
