@@ -179,8 +179,8 @@ export default function CaseDetailPage() {
                   <div className="text-sm text-gray-900">{caseData.embryos || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-purple-700 mb-2">Fund</div>
-                  <div className="text-sm text-gray-900">—</div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">Company</div>
+                  <div className="text-sm text-gray-900">{caseData.company || '—'}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-purple-700 mb-2">Agency Case Manager</div>
@@ -243,6 +243,22 @@ export default function CaseDetailPage() {
                 </div>
               </div>
 
+              {/* Pregnancy Information */}
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Weeks Pregnant:</span>
+                  <span className="text-gray-900">{caseData.weeks_pregnant ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Number of Fetuses:</span>
+                  <span className="text-gray-900">{caseData.number_of_fetuses ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Fetal Beat Confirm:</span>
+                  <span className="text-gray-900">{caseData.fetal_beat_confirm || '—'}</span>
+                </div>
+              </div>
+
               {/* Important Dates */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -260,6 +276,10 @@ export default function CaseDetailPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Due Date:</span>
                   <span className="text-gray-900">{formatDate(caseData.due_date)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Estimated Due Date:</span>
+                  <span className="text-gray-900">{formatDate(caseData.estimated_due_date)}</span>
                 </div>
               </div>
             </div>
