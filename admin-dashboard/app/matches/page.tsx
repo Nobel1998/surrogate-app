@@ -381,7 +381,14 @@ export default function MatchesPage() {
         matchId,
         managerIds,
         managerIdsCount: managerIds.length,
+        managerIdsArray: managerIds,
       });
+      
+      // Validate that we have manager IDs
+      if (!managerIds || managerIds.length === 0) {
+        alert('Please select at least one manager');
+        return;
+      }
       
       const res = await fetch(`/api/cases/${matchId}/managers`, {
         method: 'POST',
@@ -401,10 +408,14 @@ export default function MatchesPage() {
         success: result.success,
         managersCount: result.managers?.length || 0,
         managers: result.managers?.map((m: any) => ({ id: m.manager_id, name: m.manager?.name })) || [],
+        rawManagers: result.managers,
       });
 
       // Reload matches data to get updated manager assignments
+      console.log('[matches] Reloading data after assignment...');
       await loadData();
+      console.log('[matches] Data reloaded');
+      
       setAssigningManager(null);
       setSelectedManagerIds([]);
       alert(`Successfully assigned ${managerIds.length} manager(s)`);
@@ -1554,25 +1565,45 @@ export default function MatchesPage() {
                             {assigningManager === m.id ? (
                               <div className="flex flex-col gap-2 min-w-[200px]">
                                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded p-2 bg-white">
-                                  {adminUsers.map((admin) => (
-                                    <label key={admin.id} className="flex items-center gap-2 py-1 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedManagerIds.includes(admin.id)}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setSelectedManagerIds([...selectedManagerIds, admin.id]);
-                                          } else {
-                                            setSelectedManagerIds(selectedManagerIds.filter(id => id !== admin.id));
-                                          }
-                                        }}
-                                        className="rounded border-gray-300"
-                                      />
-                                      <span className="text-xs">
-                                        {admin.name} ({admin.role})
-                                      </span>
-                                    </label>
-                                  ))}
+                                  {adminUsers.map((admin) => {
+                                    const isChecked = selectedManagerIds.includes(admin.id);
+                                    return (
+                                      <label key={admin.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            console.log('[matches] Checkbox changed:', {
+                                              adminId: admin.id,
+                                              adminName: admin.name,
+                                              checked: e.target.checked,
+                                              currentSelectedManagerIds: selectedManagerIds,
+                                              currentCount: selectedManagerIds.length,
+                                            });
+                                            if (e.target.checked) {
+                                              const newIds = [...selectedManagerIds, admin.id];
+                                              console.log('[matches] Adding manager, new selectedManagerIds:', {
+                                                newIds,
+                                                newCount: newIds.length,
+                                              });
+                                              setSelectedManagerIds(newIds);
+                                            } else {
+                                              const newIds = selectedManagerIds.filter(id => id !== admin.id);
+                                              console.log('[matches] Removing manager, new selectedManagerIds:', {
+                                                newIds,
+                                                newCount: newIds.length,
+                                              });
+                                              setSelectedManagerIds(newIds);
+                                            }
+                                          }}
+                                          className="rounded border-gray-300"
+                                        />
+                                        <span className="text-xs">
+                                          {admin.name} ({admin.role})
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
