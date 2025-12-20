@@ -214,8 +214,13 @@ export async function GET(req: NextRequest) {
     const matchManagers: Record<string, any[]> = {};
     let matchManagersData: any[] | null = null;
     
+    console.log('[matches/options] Fetching managers for matches:', {
+      matchIdsCount: matchIds.length,
+      matchIds: matchIds.slice(0, 5), // Show first 5 IDs
+    });
+    
     if (matchIds.length > 0) {
-      const { data: data } = await supabase
+      const { data: data, error: managersError } = await supabase
         .from('match_managers')
         .select(`
           match_id,
@@ -224,7 +229,21 @@ export async function GET(req: NextRequest) {
         `)
         .in('match_id', matchIds);
       
+      if (managersError) {
+        console.error('[matches/options] Error fetching match_managers:', managersError);
+      }
+      
       matchManagersData = data;
+      
+      console.log('[matches/options] Query result:', {
+        matchManagersDataExists: !!matchManagersData,
+        matchManagersDataLength: matchManagersData?.length || 0,
+        matchManagersDataIsArray: Array.isArray(matchManagersData),
+        error: managersError ? {
+          code: managersError.code,
+          message: managersError.message,
+        } : null,
+      });
 
       if (matchManagersData && matchManagersData.length > 0) {
         console.log('[matches/options] Raw matchManagersData:', {
@@ -270,8 +289,14 @@ export async function GET(req: NextRequest) {
           })),
         });
       } else {
-        console.log('[matches/options] No matchManagersData found');
+        console.log('[matches/options] No matchManagersData found or empty:', {
+          matchManagersData: matchManagersData,
+          matchIdsCount: matchIds.length,
+          matchIds: matchIds,
+        });
       }
+    } else {
+      console.log('[matches/options] No matchIds to query managers for');
     }
 
     // Also fetch legacy manager_id for backward compatibility
