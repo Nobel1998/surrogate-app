@@ -42,9 +42,10 @@ export async function GET(
 
     // Fetch related profiles
     const profileIds = [
-      caseData.surrogate_id,
-      caseData.first_parent_id,
-      caseData.second_parent_id,
+      matchData.surrogate_id,
+      matchData.first_parent_id,
+      matchData.second_parent_id,
+      matchData.parent_id,
     ].filter(Boolean);
 
     const profiles: Record<string, any> = {};
@@ -63,11 +64,11 @@ export async function GET(
 
     // Fetch manager
     let manager = null;
-    if (caseData.manager_id) {
+    if (matchData.manager_id) {
       const { data: managerData } = await supabase
         .from('admin_users')
         .select('id, name')
-        .eq('id', caseData.manager_id)
+        .eq('id', matchData.manager_id)
         .single();
 
       if (managerData) {
@@ -75,40 +76,40 @@ export async function GET(
       }
     }
 
-    // Fetch case steps
+    // Fetch match steps
     const { data: steps } = await supabase
-      .from('case_steps')
+      .from('match_steps')
       .select('*')
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('stage_number', { ascending: true })
       .order('step_number', { ascending: true });
 
-    // Fetch case updates
+    // Fetch match updates
     const { data: updates } = await supabase
-      .from('case_updates')
+      .from('match_updates')
       .select(`
         *,
-        updated_by_user:admin_users!case_updates_updated_by_fkey(id, name)
+        updated_by_user:admin_users!match_updates_updated_by_fkey(id, name)
       `)
-      .eq('case_id', caseId)
+      .eq('match_id', matchId)
       .order('created_at', { ascending: false });
 
     // Use manually entered name if available, otherwise use linked profile
-    const firstParent = caseData.first_parent_id ? profiles[caseData.first_parent_id] : null;
-    const secondParent = caseData.second_parent_id ? profiles[caseData.second_parent_id] : null;
+    const firstParent = matchData.first_parent_id ? profiles[matchData.first_parent_id] : null;
+    const secondParent = matchData.second_parent_id ? profiles[matchData.second_parent_id] : null;
     
     return NextResponse.json({
       case: {
-        ...caseData,
-        surrogate: caseData.surrogate_id ? profiles[caseData.surrogate_id] : null,
+        ...matchData,
+        surrogate: matchData.surrogate_id ? profiles[matchData.surrogate_id] : null,
         first_parent: firstParent ? {
           ...firstParent,
-          display_name: caseData.first_parent_name || firstParent.name
-        } : (caseData.first_parent_name ? { name: caseData.first_parent_name, display_name: caseData.first_parent_name } : null),
+          display_name: matchData.first_parent_name || firstParent.name
+        } : (matchData.first_parent_name ? { name: matchData.first_parent_name, display_name: matchData.first_parent_name } : null),
         second_parent: secondParent ? {
           ...secondParent,
-          display_name: caseData.second_parent_name || secondParent.name
-        } : (caseData.second_parent_name ? { name: caseData.second_parent_name, display_name: caseData.second_parent_name } : null),
+          display_name: matchData.second_parent_name || secondParent.name
+        } : (matchData.second_parent_name ? { name: matchData.second_parent_name, display_name: matchData.second_parent_name } : null),
         manager,
       },
       steps: steps || [],
