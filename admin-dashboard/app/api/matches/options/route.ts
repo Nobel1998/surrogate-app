@@ -283,17 +283,23 @@ export async function GET(req: NextRequest) {
         index === self.findIndex((m: any) => m.id === mg.id)
       );
       
+      // Ensure we have an array even if empty
+      const finalManagers = Array.isArray(uniqueManagers) ? uniqueManagers : [];
+      
       console.log('[matches/options] Enriching match:', {
         matchId: m.id,
-        managersCount: uniqueManagers.length,
-        managers: uniqueManagers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+        matchManagersCount: matchManagers[m.id]?.length || 0,
+        managersListCount: managersList.length,
+        uniqueManagersCount: finalManagers.length,
+        managers: finalManagers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+        manager_ids: finalManagers.map((mg: any) => mg.id),
       });
       
       return {
         ...m,
-        managers: uniqueManagers,
-        manager_ids: uniqueManagers.map((mg: any) => mg.id),
-        manager_name: uniqueManagers.length > 0 ? uniqueManagers.map((mg: any) => mg.name).join(', ') : null,
+        managers: finalManagers,
+        manager_ids: finalManagers.map((mg: any) => mg.id),
+        manager_name: finalManagers.length > 0 ? finalManagers.map((mg: any) => mg.name).join(', ') : null,
       };
     }) || [];
 
