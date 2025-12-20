@@ -1501,6 +1501,9 @@ export default function MatchesPage() {
                   
                   const pregnancyWeeks = calculatePregnancyWeeks();
                   
+                  const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
+                  const latestReports = surrogateReports.slice(0, 3);
+                  
                   // Debug log for matches with managers
                   if (m.managers && m.managers.length > 0) {
                     console.log('👥 Match managers debug:', {
