@@ -135,9 +135,9 @@ export async function GET(req: NextRequest) {
     console.log('[cases] Manager assigned matches:', {
       adminUserId,
       role: adminUser?.role,
-      matchIdsFromTable: matchIdsFromTable.length,
-      legacyMatchIds: legacyMatchIds.length,
-      assignedMatchIdsList: assignedMatchIdsList.length,
+      matchIdsFromTableCount: matchIdsFromTable.length,
+      legacyMatchIdsCount: legacyMatchIds.length,
+      assignedMatchIdsListCount: assignedMatchIdsList.length,
       assignedMatchIdsList,
     });
     
