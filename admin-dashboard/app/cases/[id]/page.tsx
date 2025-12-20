@@ -96,6 +96,34 @@ export default function CaseDetailPage() {
     }
   };
 
+  // Calculate due date from transfer_date
+  const calculateDueDate = (transferDate: string | null | undefined, estimatedDueDate: string | null | undefined) => {
+    // First, try to use estimated_due_date if available
+    if (estimatedDueDate) {
+      return formatDate(estimatedDueDate);
+    }
+    
+    // Otherwise, calculate from transfer_date
+    if (!transferDate) return '—';
+    
+    try {
+      const transfer = new Date(transferDate);
+      transfer.setHours(0, 0, 0, 0);
+      
+      // Day 5 embryo = 19 days gestational at transfer (14+5)
+      // Normal pregnancy is 280 days (40 weeks)
+      // So from transfer date, we need 280 - 19 = 261 days to reach full term
+      const daysToAdd = 261; // 40 weeks - 19 days = 280 - 19 = 261 days
+      const dueDate = new Date(transfer);
+      dueDate.setDate(dueDate.getDate() + daysToAdd);
+      
+      return formatDate(dueDate.toISOString());
+    } catch (err) {
+      console.error('Error calculating due date:', err);
+      return '—';
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 bg-gray-50 min-h-screen">
@@ -275,11 +303,9 @@ export default function CaseDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Due Date:</span>
-                  <span className="text-gray-900">{formatDate(caseData.due_date)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Estimated Due Date:</span>
-                  <span className="text-gray-900">{formatDate(caseData.estimated_due_date)}</span>
+                  <span className="text-gray-900">
+                    {calculateDueDate(caseData.transfer_date, caseData.estimated_due_date)}
+                  </span>
                 </div>
               </div>
             </div>

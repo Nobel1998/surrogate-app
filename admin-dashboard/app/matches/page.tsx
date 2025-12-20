@@ -1501,6 +1501,37 @@ export default function MatchesPage() {
                   
                   const pregnancyWeeks = calculatePregnancyWeeks();
                   
+                  // Calculate due date from transfer_date
+                  const calculateDueDate = () => {
+                    // First, try to use estimated_due_date from match if available
+                    if (m.estimated_due_date) {
+                      return new Date(m.estimated_due_date);
+                    }
+                    
+                    // Otherwise, calculate from transfer_date
+                    const transferDate = surrogate?.transfer_date || m.transfer_date;
+                    if (!transferDate) return null;
+                    
+                    try {
+                      const transfer = new Date(transferDate);
+                      transfer.setHours(0, 0, 0, 0);
+                      
+                      // Day 5 embryo = 19 days gestational at transfer (14+5)
+                      // Normal pregnancy is 280 days (40 weeks)
+                      // So from transfer date, we need 280 - 19 = 261 days to reach full term
+                      const daysToAdd = 261; // 40 weeks - 19 days = 280 - 19 = 261 days
+                      const dueDate = new Date(transfer);
+                      dueDate.setDate(dueDate.getDate() + daysToAdd);
+                      
+                      return dueDate;
+                    } catch (err) {
+                      console.error('Error calculating due date:', err);
+                      return null;
+                    }
+                  };
+                  
+                  const calculatedDueDate = calculateDueDate();
+                  
                   // Debug log for matches with managers
                   if (m.managers && m.managers.length > 0) {
                     console.log('👥 Match managers debug:', {
@@ -1804,8 +1835,8 @@ export default function MatchesPage() {
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Due Date</div>
                             <div className="text-sm text-gray-900">
-                              {m.estimated_due_date 
-                                ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                              {calculatedDueDate 
+                                ? calculatedDueDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
                                 : '—'}
                             </div>
                           </div>
