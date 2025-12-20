@@ -2128,10 +2128,6 @@ export default function MatchesPage() {
                     </div>
                   );
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{surrogate?.name || m.surrogate_id}</div>
-                        <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-medium">
                           {m.first_parent_name || parent?.name || m.parent_id}
                         </div>
