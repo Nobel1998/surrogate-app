@@ -113,6 +113,20 @@ export async function POST(
       deleted: deletedData,
     });
 
+    // Update legacy manager_id field in surrogate_matches
+    // If no managers are assigned, set manager_id to null
+    // If managers are assigned, set manager_id to the first manager (for backward compatibility)
+    const newManagerId = validManagerIds.length > 0 ? validManagerIds[0] : null;
+    const { error: updateLegacyError } = await supabase
+      .from('surrogate_matches')
+      .update({ manager_id: newManagerId })
+      .eq('id', matchId);
+    
+    if (updateLegacyError) {
+      console.warn('[cases/[id]/managers] Warning: Failed to update legacy manager_id:', updateLegacyError);
+      // Don't fail the request, just log the warning
+    }
+
     // Insert new managers
     if (validManagerIds.length > 0) {
       const newManagers = validManagerIds.map((managerId: string) => ({

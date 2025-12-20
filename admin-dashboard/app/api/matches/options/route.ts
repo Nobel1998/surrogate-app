@@ -134,18 +134,9 @@ export async function GET(req: NextRequest) {
         assignedMatchIds = assignedMatches?.map((m: any) => m.match_id).filter(Boolean) || [];
       }
       
-      // Also get matches with legacy manager_id (for backward compatibility)
-      const { data: legacyMatches, error: legacyError } = await supabase
-        .from('surrogate_matches')
-        .select('id')
-        .eq('manager_id', adminUserId);
-      
-      if (legacyError) {
-        console.error('[matches/options] Error fetching legacy matches:', legacyError);
-      } else {
-        const legacyMatchIds = legacyMatches?.map((m: any) => m.id).filter(Boolean) || [];
-        assignedMatchIds = [...new Set([...assignedMatchIds, ...legacyMatchIds])];
-      }
+      // Note: We no longer use legacy manager_id field for filtering
+      // All manager assignments should be in match_managers table
+      // Legacy manager_id is only kept for backward compatibility in display
       
       console.log('[matches/options] Manager assigned matches:', {
         adminUserId,
