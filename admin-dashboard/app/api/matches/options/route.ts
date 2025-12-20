@@ -257,9 +257,9 @@ export async function GET(req: NextRequest) {
         matchManagersDataExists: !!matchManagersData,
         matchManagersDataLength: matchManagersData?.length || 0,
         matchManagersDataIsArray: Array.isArray(matchManagersData),
-        error: managersError ? {
-          code: managersError.code,
-          message: managersError.message,
+        error: result.error ? {
+          code: result.error.code,
+          message: result.error.message,
         } : null,
       });
 
