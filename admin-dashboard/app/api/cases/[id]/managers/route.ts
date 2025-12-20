@@ -85,12 +85,20 @@ export async function POST(
 
     // Remove null/empty values
     const validManagerIds = manager_ids.filter((id: string) => id && id.trim() !== '');
+    
+    console.log('[cases/[id]/managers] POST request:', {
+      matchId,
+      manager_ids,
+      validManagerIds,
+      validManagerIdsCount: validManagerIds.length,
+    });
 
     // Delete all existing managers for this match
-    const { error: deleteError } = await supabase
+    const { error: deleteError, data: deletedData } = await supabase
       .from('match_managers')
       .delete()
-      .eq('match_id', matchId);
+      .eq('match_id', matchId)
+      .select();
 
     if (deleteError) {
       console.error('[cases/[id]/managers] DELETE error:', deleteError);
@@ -99,6 +107,11 @@ export async function POST(
         { status: 500 }
       );
     }
+    
+    console.log('[cases/[id]/managers] Deleted existing managers:', {
+      deletedCount: deletedData?.length || 0,
+      deleted: deletedData,
+    });
 
     // Insert new managers
     if (validManagerIds.length > 0) {
@@ -107,9 +120,15 @@ export async function POST(
         manager_id: managerId,
       }));
 
-      const { error: insertError } = await supabase
+      console.log('[cases/[id]/managers] Inserting managers:', {
+        newManagers,
+        count: newManagers.length,
+      });
+
+      const { data: insertedData, error: insertError } = await supabase
         .from('match_managers')
-        .insert(newManagers);
+        .insert(newManagers)
+        .select();
 
       if (insertError) {
         console.error('[cases/[id]/managers] INSERT error:', insertError);
@@ -118,6 +137,11 @@ export async function POST(
           { status: 500 }
         );
       }
+      
+      console.log('[cases/[id]/managers] Successfully inserted managers:', {
+        insertedCount: insertedData?.length || 0,
+        inserted: insertedData,
+      });
     }
 
     // Fetch updated managers
@@ -135,6 +159,16 @@ export async function POST(
     if (fetchError) {
       console.error('[cases/[id]/managers] FETCH error:', fetchError);
     }
+    
+    console.log('[cases/[id]/managers] Fetched updated managers:', {
+      matchId,
+      managersCount: updatedManagers?.length || 0,
+      managers: updatedManagers?.map((m: any) => ({
+        id: m.id,
+        manager_id: m.manager_id,
+        manager_name: m.manager?.name,
+      })) || [],
+    });
 
     return NextResponse.json({
       success: true,

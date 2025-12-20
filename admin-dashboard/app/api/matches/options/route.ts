@@ -230,6 +230,7 @@ export async function GET(req: NextRequest) {
             match_id: mm.match_id,
             manager_id: mm.manager_id,
             manager_name: mm.manager?.name,
+            has_manager: !!mm.manager,
           })),
         });
         
@@ -238,7 +239,22 @@ export async function GET(req: NextRequest) {
             matchManagers[mm.match_id] = [];
           }
           if (mm.manager) {
-            matchManagers[mm.match_id].push(mm.manager);
+            // Check for duplicates before adding
+            const existingIndex = matchManagers[mm.match_id].findIndex((m: any) => m.id === mm.manager.id);
+            if (existingIndex === -1) {
+              matchManagers[mm.match_id].push(mm.manager);
+            } else {
+              console.warn('[matches/options] Duplicate manager detected:', {
+                match_id: mm.match_id,
+                manager_id: mm.manager.id,
+                manager_name: mm.manager.name,
+              });
+            }
+          } else {
+            console.warn('[matches/options] Manager data missing for:', {
+              match_id: mm.match_id,
+              manager_id: mm.manager_id,
+            });
           }
         });
         
@@ -250,6 +266,8 @@ export async function GET(req: NextRequest) {
             managers: mgrs.map((m: any) => ({ id: m.id, name: m.name })),
           })),
         });
+      } else {
+        console.log('[matches/options] No matchManagersData found');
       }
     }
 
