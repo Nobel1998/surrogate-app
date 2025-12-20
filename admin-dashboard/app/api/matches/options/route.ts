@@ -69,6 +69,9 @@ export async function GET(req: NextRequest) {
       adminUserId,
       branchFilter,
       canViewAllBranches,
+      isSuperAdmin,
+      isBranchManager,
+      isCaseManager,
     });
 
     // Get optional branch filter from query params (for admin filtering)
@@ -115,9 +118,10 @@ export async function GET(req: NextRequest) {
         files
       `);
 
-    // Get matches assigned to this manager (if case manager)
+    // Get matches assigned to this manager (for all roles, but especially for case managers)
     let assignedMatchIds: string[] = [];
-    if (isCaseManager && adminUserId) {
+    if (adminUserId) {
+      // First, try to get from match_managers table
       const { data: assignedMatches, error: assignedError } = await supabase
         .from('match_managers')
         .select('match_id')
@@ -125,11 +129,12 @@ export async function GET(req: NextRequest) {
       
       if (assignedError) {
         console.error('[matches/options] Error fetching match_managers:', assignedError);
+        // If table doesn't exist, that's okay - we'll fall back to legacy manager_id
       } else {
         assignedMatchIds = assignedMatches?.map((m: any) => m.match_id).filter(Boolean) || [];
       }
       
-      // Also get matches with legacy manager_id
+      // Also get matches with legacy manager_id (for backward compatibility)
       const { data: legacyMatches, error: legacyError } = await supabase
         .from('surrogate_matches')
         .select('id')
@@ -142,16 +147,28 @@ export async function GET(req: NextRequest) {
         assignedMatchIds = [...new Set([...assignedMatchIds, ...legacyMatchIds])];
       }
       
-      console.log('[matches/options] Case manager assigned matches:', {
+      console.log('[matches/options] Manager assigned matches:', {
         adminUserId,
+        isCaseManager,
+        isBranchManager,
+        isSuperAdmin,
         assignedMatchIdsCount: assignedMatchIds.length,
         assignedMatchIdsList: assignedMatchIds,
       });
     }
 
     // Apply filters based on role
+    console.log('[matches/options] Applying filters:', {
+      isSuperAdmin,
+      isBranchManager,
+      isCaseManager,
+      effectiveBranchFilter,
+      assignedMatchIdsCount: assignedMatchIds.length,
+    });
+    
     if (isSuperAdmin) {
       // Super admin can see all matches - no filter needed
+      console.log('[matches/options] Super admin - no filter applied');
     } else if (isBranchManager && effectiveBranchFilter && effectiveBranchFilter !== 'all') {
       // Branch manager can see:
       // 1. Matches in their branch
@@ -160,18 +177,27 @@ export async function GET(req: NextRequest) {
         // Use .or() to combine branch filter with assigned matches
         const matchIdsStr = assignedMatchIds.map(id => `"${id}"`).join(',');
         matchesQuery = matchesQuery.or(`branch_id.eq."${effectiveBranchFilter}",id.in.(${matchIdsStr})`);
+        console.log('[matches/options] Branch manager filter: branch OR assigned matches');
       } else {
         matchesQuery = matchesQuery.eq('branch_id', effectiveBranchFilter);
+        console.log('[matches/options] Branch manager filter: branch only');
       }
-    } else if (isCaseManager && assignedMatchIds.length > 0) {
-      // Case manager can only see matches assigned to them
-      matchesQuery = matchesQuery.in('id', assignedMatchIds);
-    } else if (isCaseManager && assignedMatchIds.length === 0) {
-      // Case manager with no assigned matches, return empty result
-      matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+    } else if (isCaseManager) {
+      if (assignedMatchIds.length > 0) {
+        // Case manager can only see matches assigned to them
+        matchesQuery = matchesQuery.in('id', assignedMatchIds);
+        console.log('[matches/options] Case manager filter: assigned matches only', assignedMatchIds);
+      } else {
+        // Case manager with no assigned matches, return empty result
+        matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        console.log('[matches/options] Case manager filter: no assigned matches, returning empty');
+      }
     } else if (effectiveBranchFilter && effectiveBranchFilter !== 'all') {
       // Fallback: apply branch filter if specified
       matchesQuery = matchesQuery.eq('branch_id', effectiveBranchFilter);
+      console.log('[matches/options] Fallback: branch filter');
+    } else {
+      console.log('[matches/options] No filter applied');
     }
 
     const [{ data: profiles, error: profilesError }, { data: matches, error: matchesError }] =
