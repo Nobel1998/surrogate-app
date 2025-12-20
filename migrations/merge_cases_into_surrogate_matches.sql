@@ -55,54 +55,78 @@ CREATE INDEX IF NOT EXISTS idx_surrogate_matches_manager_id ON surrogate_matches
 CREATE INDEX IF NOT EXISTS idx_surrogate_matches_case_type ON surrogate_matches(case_type);
 CREATE INDEX IF NOT EXISTS idx_surrogate_matches_current_step ON surrogate_matches(current_step);
 
--- Step 3: Migrate data from cases to surrogate_matches
--- Match cases to surrogate_matches by surrogate_id and parent_id
-UPDATE surrogate_matches sm
-SET
-  claim_id = c.claim_id,
-  case_type = COALESCE(sm.case_type, c.case_type),
-  first_parent_id = COALESCE(sm.first_parent_id, c.first_parent_id),
-  second_parent_id = COALESCE(sm.second_parent_id, c.second_parent_id),
-  first_parent_name = COALESCE(sm.first_parent_name, c.first_parent_name),
-  second_parent_name = COALESCE(sm.second_parent_name, c.second_parent_name),
-  manager_id = COALESCE(sm.manager_id, c.manager_id),
-  branch_id = COALESCE(sm.branch_id, c.branch_id),
-  current_step = COALESCE(sm.current_step, c.current_step),
-  weeks_pregnant = COALESCE(sm.weeks_pregnant, c.weeks_pregnant),
-  estimated_due_date = COALESCE(sm.estimated_due_date, c.estimated_due_date),
-  number_of_fetuses = COALESCE(sm.number_of_fetuses, c.number_of_fetuses),
-  fetal_beat_confirm = COALESCE(sm.fetal_beat_confirm, c.fetal_beat_confirm),
-  sign_date = COALESCE(sm.sign_date, c.sign_date),
-  transfer_date = COALESCE(sm.transfer_date, c.transfer_date),
-  beta_confirm_date = COALESCE(sm.beta_confirm_date, c.beta_confirm_date),
-  due_date = COALESCE(sm.due_date, c.due_date),
-  clinic = COALESCE(sm.clinic, c.clinic),
-  embryos = COALESCE(sm.embryos, c.embryos),
-  lawyer = COALESCE(sm.lawyer, c.lawyer),
-  company = COALESCE(sm.company, c.company),
-  files = COALESCE(sm.files, c.files, '{}'::jsonb),
-  status = COALESCE(sm.status, c.status, 'active'),
-  created_by = COALESCE(sm.created_by, c.created_by),
-  updated_at = GREATEST(sm.updated_at, c.updated_at)
-FROM cases c
-WHERE 
-  (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
-  OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
-  OR (sm.surrogate_id = c.surrogate_id AND c.first_parent_id IS NULL AND c.second_parent_id IS NULL);
+-- Step 3: Migrate data from cases to surrogate_matches (if cases table exists)
+-- Check if cases table exists before migrating
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+    -- Match cases to surrogate_matches by surrogate_id and parent_id
+    UPDATE surrogate_matches sm
+    SET
+      claim_id = c.claim_id,
+      case_type = COALESCE(sm.case_type, c.case_type),
+      first_parent_id = COALESCE(sm.first_parent_id, c.first_parent_id),
+      second_parent_id = COALESCE(sm.second_parent_id, c.second_parent_id),
+      first_parent_name = COALESCE(sm.first_parent_name, c.first_parent_name),
+      second_parent_name = COALESCE(sm.second_parent_name, c.second_parent_name),
+      manager_id = COALESCE(sm.manager_id, c.manager_id),
+      branch_id = COALESCE(sm.branch_id, c.branch_id),
+      current_step = COALESCE(sm.current_step, c.current_step),
+      weeks_pregnant = COALESCE(sm.weeks_pregnant, c.weeks_pregnant),
+      estimated_due_date = COALESCE(sm.estimated_due_date, c.estimated_due_date),
+      number_of_fetuses = COALESCE(sm.number_of_fetuses, c.number_of_fetuses),
+      fetal_beat_confirm = COALESCE(sm.fetal_beat_confirm, c.fetal_beat_confirm),
+      sign_date = COALESCE(sm.sign_date, c.sign_date),
+      transfer_date = COALESCE(sm.transfer_date, c.transfer_date),
+      beta_confirm_date = COALESCE(sm.beta_confirm_date, c.beta_confirm_date),
+      due_date = COALESCE(sm.due_date, c.due_date),
+      clinic = COALESCE(sm.clinic, c.clinic),
+      embryos = COALESCE(sm.embryos, c.embryos),
+      lawyer = COALESCE(sm.lawyer, c.lawyer),
+      company = COALESCE(sm.company, c.company),
+      files = COALESCE(sm.files, c.files, '{}'::jsonb),
+      status = COALESCE(sm.status, c.status, 'active'),
+      created_by = COALESCE(sm.created_by, c.created_by),
+      updated_at = GREATEST(sm.updated_at, c.updated_at)
+    FROM cases c
+    WHERE 
+      (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
+      OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
+      OR (sm.surrogate_id = c.surrogate_id AND c.first_parent_id IS NULL AND c.second_parent_id IS NULL);
+    
+    RAISE NOTICE 'Migrated data from cases table to surrogate_matches';
+  ELSE
+    RAISE NOTICE 'Cases table does not exist, skipping data migration';
+  END IF;
+END $$;
 
--- Step 4: Update case_managers table to reference matches instead of cases
--- First, add match_id column to case_managers
-ALTER TABLE case_managers
-  ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
+-- Step 4: Update case_managers table to reference matches instead of cases (if tables exist)
+-- First, check if case_managers table exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_managers') THEN
+    -- Add match_id column to case_managers
+    ALTER TABLE case_managers
+      ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
 
--- Migrate case_id to match_id by matching cases to surrogate_matches
-UPDATE case_managers cm
-SET match_id = sm.id
-FROM cases c
-JOIN surrogate_matches sm ON 
-  (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
-  OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
-WHERE cm.case_id = c.id;
+    -- Migrate case_id to match_id by matching cases to surrogate_matches (if cases table exists)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+      UPDATE case_managers cm
+      SET match_id = sm.id
+      FROM cases c
+      JOIN surrogate_matches sm ON 
+        (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
+        OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
+      WHERE cm.case_id = c.id;
+      
+      RAISE NOTICE 'Migrated case_managers case_id to match_id';
+    ELSE
+      RAISE NOTICE 'Cases table does not exist, skipping case_managers migration';
+    END IF;
+  ELSE
+    RAISE NOTICE 'case_managers table does not exist, skipping';
+  END IF;
+END $$;
 
 -- Create index for match_id
 CREATE INDEX IF NOT EXISTS idx_case_managers_match_id ON case_managers(match_id);
@@ -123,30 +147,45 @@ CREATE INDEX IF NOT EXISTS idx_match_managers_manager_id ON match_managers(manag
 ALTER TABLE match_managers DROP CONSTRAINT IF EXISTS case_managers_case_id_manager_id_key;
 ALTER TABLE match_managers ADD CONSTRAINT match_managers_match_id_manager_id_key UNIQUE(match_id, manager_id);
 
--- Step 6: Update case_steps and case_updates tables to reference matches
--- First, add match_id columns
-ALTER TABLE case_steps
-  ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
+-- Step 6: Update case_steps and case_updates tables to reference matches (if tables exist)
+DO $$
+BEGIN
+  -- Update case_steps if it exists
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_steps') THEN
+    ALTER TABLE case_steps
+      ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
 
-ALTER TABLE case_updates
-  ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+      UPDATE case_steps cs
+      SET match_id = sm.id
+      FROM cases c
+      JOIN surrogate_matches sm ON 
+        (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
+        OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
+      WHERE cs.case_id = c.id;
+      
+      RAISE NOTICE 'Migrated case_steps case_id to match_id';
+    END IF;
+  END IF;
 
--- Migrate case_id to match_id
-UPDATE case_steps cs
-SET match_id = sm.id
-FROM cases c
-JOIN surrogate_matches sm ON 
-  (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
-  OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
-WHERE cs.case_id = c.id;
+  -- Update case_updates if it exists
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_updates') THEN
+    ALTER TABLE case_updates
+      ADD COLUMN IF NOT EXISTS match_id UUID REFERENCES surrogate_matches(id) ON DELETE CASCADE;
 
-UPDATE case_updates cu
-SET match_id = sm.id
-FROM cases c
-JOIN surrogate_matches sm ON 
-  (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
-  OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
-WHERE cu.case_id = c.id;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+      UPDATE case_updates cu
+      SET match_id = sm.id
+      FROM cases c
+      JOIN surrogate_matches sm ON 
+        (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.first_parent_id)
+        OR (sm.surrogate_id = c.surrogate_id AND sm.parent_id = c.second_parent_id)
+      WHERE cu.case_id = c.id;
+      
+      RAISE NOTICE 'Migrated case_updates case_id to match_id';
+    END IF;
+  END IF;
+END $$;
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_case_steps_match_id ON case_steps(match_id);
@@ -173,26 +212,39 @@ CREATE INDEX IF NOT EXISTS idx_match_updates_match_id ON match_updates(match_id)
 ALTER TABLE match_steps DROP CONSTRAINT IF EXISTS case_steps_case_id_stage_number_step_number_key;
 ALTER TABLE match_steps ADD CONSTRAINT match_steps_match_id_stage_number_step_number_key UNIQUE(match_id, stage_number, step_number);
 
--- Step 7: Drop the cases table and its related objects
--- Drop triggers first
-DROP TRIGGER IF EXISTS update_cases_updated_at_trigger ON cases;
-DROP TRIGGER IF EXISTS update_case_steps_updated_at_trigger ON match_steps;
+-- Step 7: Drop the cases table and its related objects (if they exist)
+DO $$
+BEGIN
+  -- Drop triggers first (if cases table exists)
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+    DROP TRIGGER IF EXISTS update_cases_updated_at_trigger ON cases;
+    
+    -- Drop indexes on cases table
+    DROP INDEX IF EXISTS idx_cases_claim_id;
+    DROP INDEX IF EXISTS idx_cases_surrogate_id;
+    DROP INDEX IF EXISTS idx_cases_first_parent_id;
+    DROP INDEX IF EXISTS idx_cases_manager_id;
+    DROP INDEX IF EXISTS idx_cases_branch_id;
+    DROP INDEX IF EXISTS idx_cases_status;
+    DROP INDEX IF EXISTS idx_cases_created_at;
 
--- Drop functions (keep them if used elsewhere, but typically safe to drop)
-DROP FUNCTION IF EXISTS update_cases_updated_at();
-DROP FUNCTION IF EXISTS update_case_steps_updated_at();
+    -- Drop the cases table
+    DROP TABLE IF EXISTS cases CASCADE;
+    
+    RAISE NOTICE 'Dropped cases table';
+  ELSE
+    RAISE NOTICE 'Cases table does not exist, skipping drop';
+  END IF;
+  
+  -- Drop triggers on match_steps (if it exists)
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_steps') THEN
+    DROP TRIGGER IF EXISTS update_case_steps_updated_at_trigger ON match_steps;
+  END IF;
 
--- Drop indexes on cases table
-DROP INDEX IF EXISTS idx_cases_claim_id;
-DROP INDEX IF EXISTS idx_cases_surrogate_id;
-DROP INDEX IF EXISTS idx_cases_first_parent_id;
-DROP INDEX IF EXISTS idx_cases_manager_id;
-DROP INDEX IF EXISTS idx_cases_branch_id;
-DROP INDEX IF EXISTS idx_cases_status;
-DROP INDEX IF EXISTS idx_cases_created_at;
-
--- Drop the cases table
-DROP TABLE IF EXISTS cases CASCADE;
+  -- Drop functions (safe to drop if not used elsewhere)
+  DROP FUNCTION IF EXISTS update_cases_updated_at();
+  DROP FUNCTION IF EXISTS update_case_steps_updated_at();
+END $$;
 
 -- Step 8: Update RLS policies
 -- Drop old policies
