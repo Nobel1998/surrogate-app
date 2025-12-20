@@ -1566,14 +1566,13 @@ export default function MatchesPage() {
                               <div className="flex items-center gap-2">
                                 <div className="flex flex-col gap-1">
                                   {m.managers && m.managers.length > 0 ? (
-                                    m.managers.map((manager: any, idx: number) => {
-                                      const managersList = m.managers || [];
-                                      return (
+                                    <div className="flex flex-wrap gap-1">
+                                      {m.managers.map((manager: any, idx: number) => (
                                         <span key={manager.id} className="text-xs text-gray-600">
-                                          {manager.name}{idx < managersList.length - 1 ? ',' : ''}
+                                          {manager.name}{idx < m.managers.length - 1 ? ',' : ''}
                                         </span>
-                                      );
-                                    })
+                                      ))}
+                                    </div>
                                   ) : (
                                     <span className="text-xs text-gray-600">
                                       {m.manager_name || 'No Manager'}
@@ -1600,14 +1599,13 @@ export default function MatchesPage() {
                         ) : (
                           <div className="flex flex-col gap-1">
                             {m.managers && m.managers.length > 0 ? (
-                              m.managers.map((manager: any, idx: number) => {
-                                const managersList = m.managers || [];
-                                return (
+                              <div className="flex flex-wrap gap-1">
+                                {m.managers.map((manager: any, idx: number) => (
                                   <span key={manager.id} className="text-xs text-gray-600">
-                                    {manager.name}{idx < managersList.length - 1 ? ',' : ''}
+                                    {manager.name}{idx < m.managers.length - 1 ? ',' : ''}
                                   </span>
-                                );
-                              })
+                                ))}
+                              </div>
                             ) : (
                               <span className="text-xs text-gray-600">
                                 {m.manager_name || '—'}

@@ -260,11 +260,22 @@ export async function GET(req: NextRequest) {
         managersList.push(managers[m.manager_id]);
       }
       
+      // Remove duplicates by manager id
+      const uniqueManagers = managersList.filter((mg: any, index: number, self: any[]) => 
+        index === self.findIndex((m: any) => m.id === mg.id)
+      );
+      
+      console.log('[matches/options] Enriching match:', {
+        matchId: m.id,
+        managersCount: uniqueManagers.length,
+        managers: uniqueManagers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+      });
+      
       return {
         ...m,
-        managers: managersList,
-        manager_ids: managersList.map((mg: any) => mg.id),
-        manager_name: managersList.length > 0 ? managersList.map((mg: any) => mg.name).join(', ') : null,
+        managers: uniqueManagers,
+        manager_ids: uniqueManagers.map((mg: any) => mg.id),
+        manager_name: uniqueManagers.length > 0 ? uniqueManagers.map((mg: any) => mg.name).join(', ') : null,
       };
     }) || [];
 
