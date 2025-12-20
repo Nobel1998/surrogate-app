@@ -203,27 +203,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fetch case managers (multiple managers per case)
-    const caseIds = cases?.map(c => c.id).filter(Boolean) || [];
-    const caseManagers: Record<string, any[]> = {};
+    // Fetch match managers (multiple managers per match)
+    const matchIds = cases?.map(c => c.id).filter(Boolean) || [];
+    const matchManagers: Record<string, any[]> = {};
     
-    if (caseIds.length > 0) {
-      const { data: caseManagersData } = await supabase
-        .from('case_managers')
+    if (matchIds.length > 0) {
+      const { data: matchManagersData } = await supabase
+        .from('match_managers')
         .select(`
-          case_id,
+          match_id,
           manager_id,
-          manager:admin_users!case_managers_manager_id_fkey(id, name, role)
+          manager:admin_users!match_managers_manager_id_fkey(id, name, role)
         `)
-        .in('case_id', caseIds);
+        .in('match_id', matchIds);
 
-      if (caseManagersData) {
-        caseManagersData.forEach(cm => {
-          if (!caseManagers[cm.case_id]) {
-            caseManagers[cm.case_id] = [];
+      if (matchManagersData) {
+        matchManagersData.forEach(mm => {
+          if (!matchManagers[mm.match_id]) {
+            matchManagers[mm.match_id] = [];
           }
-          if (cm.manager) {
-            caseManagers[cm.case_id].push(cm.manager);
+          if (mm.manager) {
+            matchManagers[mm.match_id].push(mm.manager);
           }
         });
       }
