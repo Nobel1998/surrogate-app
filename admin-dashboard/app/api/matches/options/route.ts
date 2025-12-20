@@ -212,9 +212,10 @@ export async function GET(req: NextRequest) {
     // Fetch managers for matches
     const matchIds = matches?.map((m: any) => m.id).filter(Boolean) || [];
     const matchManagers: Record<string, any[]> = {};
+    let matchManagersData: any[] | null = null;
     
     if (matchIds.length > 0) {
-      const { data: matchManagersData } = await supabase
+      const { data: data } = await supabase
         .from('match_managers')
         .select(`
           match_id,
@@ -222,8 +223,10 @@ export async function GET(req: NextRequest) {
           manager:admin_users!match_managers_manager_id_fkey(id, name, role)
         `)
         .in('match_id', matchIds);
+      
+      matchManagersData = data;
 
-      if (matchManagersData) {
+      if (matchManagersData && matchManagersData.length > 0) {
         console.log('[matches/options] Raw matchManagersData:', {
           total: matchManagersData.length,
           data: matchManagersData.map((mm: any) => ({
