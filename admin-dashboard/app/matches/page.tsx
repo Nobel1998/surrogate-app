@@ -306,6 +306,15 @@ export default function MatchesPage() {
           id: m.id,
           managersCount: m.managers.length,
           managers: m.managers.map((mg: any) => ({ id: mg.id, name: mg.name })),
+          manager_ids: m.manager_ids || [],
+          manager_idsCount: m.manager_ids?.length || 0,
+        })),
+        allMatchesWithManagerIds: matchData.map((m: any) => ({
+          id: m.id,
+          manager_ids: m.manager_ids || [],
+          manager_idsCount: m.manager_ids?.length || 0,
+          managers: m.managers || [],
+          managersCount: m.managers?.length || 0,
         })),
       });
 
@@ -1594,22 +1603,35 @@ export default function MatchesPage() {
                             ) : (
                               <div className="flex items-center gap-2">
                                 <div className="flex flex-col gap-1">
-                                  {m.managers && m.managers.length > 0 ? (
-                                    <div className="flex flex-wrap gap-x-1 gap-y-0.5 items-center">
-                                      {m.managers.map((manager: any, idx: number) => {
-                                        const managersList = m.managers || [];
-                                        return (
-                                          <span key={`${m.id}-manager-${manager.id}`} className="text-xs text-gray-600 whitespace-nowrap">
-                                            {manager.name}{idx < managersList.length - 1 ? ',' : ''}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-gray-600">
-                                      {m.manager_name || 'No Manager'}
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    const managersList = m.managers || [];
+                                    console.log(`👥 Match ${m.id} managers debug:`, {
+                                      matchId: m.id,
+                                      managers: managersList,
+                                      managersCount: managersList.length,
+                                      manager_ids: m.manager_ids || [],
+                                      manager_idsCount: m.manager_ids?.length || 0,
+                                      manager_name: m.manager_name,
+                                    });
+                                    
+                                    if (managersList.length > 0) {
+                                      return (
+                                        <div className="flex flex-wrap gap-x-1 gap-y-0.5 items-center">
+                                          {managersList.map((manager: any, idx: number) => (
+                                            <span key={`${m.id}-manager-${manager.id}`} className="text-xs text-gray-600 whitespace-nowrap">
+                                              {manager.name}{idx < managersList.length - 1 ? ',' : ''}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      );
+                                    } else {
+                                      return (
+                                        <span className="text-xs text-gray-600">
+                                          {m.manager_name || 'No Manager'}
+                                        </span>
+                                      );
+                                    }
+                                  })()}
                                 </div>
                                 <button
                                   onClick={() => {
