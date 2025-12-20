@@ -304,13 +304,21 @@ export async function GET(req: NextRequest) {
       // Ensure we have an array even if empty
       const finalManagers = Array.isArray(uniqueManagers) ? uniqueManagers : [];
       
+      const managerIdsArray = finalManagers.map((mg: any) => mg.id);
       console.log('[matches/options] Enriching match:', {
         matchId: m.id,
         matchManagersCount: matchManagers[m.id]?.length || 0,
         managersListCount: managersList.length,
         uniqueManagersCount: finalManagers.length,
         managers: finalManagers.map((mg: any) => ({ id: mg.id, name: mg.name })),
-        manager_ids: finalManagers.map((mg: any) => mg.id),
+        manager_ids: managerIdsArray,
+        manager_idsCount: managerIdsArray.length,
+        rawMatchManagersData: matchManagersData?.filter((mm: any) => mm.match_id === m.id).map((mm: any) => ({
+          match_id: mm.match_id,
+          manager_id: mm.manager_id,
+          manager_name: mm.manager?.name,
+          has_manager: !!mm.manager,
+        })) || [],
       });
       
       return {
