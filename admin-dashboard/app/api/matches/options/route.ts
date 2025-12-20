@@ -144,8 +144,8 @@ export async function GET(req: NextRequest) {
       
       console.log('[matches/options] Case manager assigned matches:', {
         adminUserId,
-        assignedMatchIds: assignedMatchIds.length,
-        assignedMatchIds,
+        assignedMatchIdsCount: assignedMatchIds.length,
+        assignedMatchIdsList: assignedMatchIds,
       });
     }
 
