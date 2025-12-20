@@ -128,24 +128,34 @@ BEGIN
   END IF;
 END $$;
 
--- Create index for match_id
-CREATE INDEX IF NOT EXISTS idx_case_managers_match_id ON case_managers(match_id);
+-- Step 5: Complete case_managers to match_managers migration (if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_managers') THEN
+    -- Create index for match_id
+    CREATE INDEX IF NOT EXISTS idx_case_managers_match_id ON case_managers(match_id);
 
--- Step 5: Drop foreign key constraint on case_id, then drop case_id column
-ALTER TABLE case_managers DROP CONSTRAINT IF EXISTS case_managers_case_id_fkey;
-ALTER TABLE case_managers DROP COLUMN IF EXISTS case_id;
+    -- Drop foreign key constraint on case_id, then drop case_id column
+    ALTER TABLE case_managers DROP CONSTRAINT IF EXISTS case_managers_case_id_fkey;
+    ALTER TABLE case_managers DROP COLUMN IF EXISTS case_id;
 
--- Rename case_managers to match_managers for clarity
-ALTER TABLE case_managers RENAME TO match_managers;
+    -- Rename case_managers to match_managers for clarity
+    ALTER TABLE case_managers RENAME TO match_managers;
 
--- Update indexes
-DROP INDEX IF EXISTS idx_case_managers_case_id;
-CREATE INDEX IF NOT EXISTS idx_match_managers_match_id ON match_managers(match_id);
-CREATE INDEX IF NOT EXISTS idx_match_managers_manager_id ON match_managers(manager_id);
+    -- Update indexes
+    DROP INDEX IF EXISTS idx_case_managers_case_id;
+    CREATE INDEX IF NOT EXISTS idx_match_managers_match_id ON match_managers(match_id);
+    CREATE INDEX IF NOT EXISTS idx_match_managers_manager_id ON match_managers(manager_id);
 
--- Update unique constraint
-ALTER TABLE match_managers DROP CONSTRAINT IF EXISTS case_managers_case_id_manager_id_key;
-ALTER TABLE match_managers ADD CONSTRAINT match_managers_match_id_manager_id_key UNIQUE(match_id, manager_id);
+    -- Update unique constraint
+    ALTER TABLE match_managers DROP CONSTRAINT IF EXISTS case_managers_case_id_manager_id_key;
+    ALTER TABLE match_managers ADD CONSTRAINT match_managers_match_id_manager_id_key UNIQUE(match_id, manager_id);
+    
+    RAISE NOTICE 'Completed case_managers to match_managers migration';
+  ELSE
+    RAISE NOTICE 'case_managers table does not exist, skipping Step 5';
+  END IF;
+END $$;
 
 -- Step 6: Update case_steps and case_updates tables to reference matches (if tables exist)
 DO $$
@@ -187,30 +197,42 @@ BEGIN
   END IF;
 END $$;
 
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_case_steps_match_id ON case_steps(match_id);
-CREATE INDEX IF NOT EXISTS idx_case_updates_match_id ON case_updates(match_id);
+-- Complete case_steps and case_updates migration (if tables exist)
+DO $$
+BEGIN
+  -- Handle case_steps
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_steps') THEN
+    CREATE INDEX IF NOT EXISTS idx_case_steps_match_id ON case_steps(match_id);
+    
+    ALTER TABLE case_steps DROP CONSTRAINT IF EXISTS case_steps_case_id_fkey;
+    ALTER TABLE case_steps DROP COLUMN IF EXISTS case_id;
+    
+    ALTER TABLE case_steps RENAME TO match_steps;
+    
+    DROP INDEX IF EXISTS idx_case_steps_case_id;
+    CREATE INDEX IF NOT EXISTS idx_match_steps_match_id ON match_steps(match_id);
+    
+    ALTER TABLE match_steps DROP CONSTRAINT IF EXISTS case_steps_case_id_stage_number_step_number_key;
+    ALTER TABLE match_steps ADD CONSTRAINT match_steps_match_id_stage_number_step_number_key UNIQUE(match_id, stage_number, step_number);
+    
+    RAISE NOTICE 'Completed case_steps to match_steps migration';
+  END IF;
 
--- Drop foreign key constraints and case_id columns
-ALTER TABLE case_steps DROP CONSTRAINT IF EXISTS case_steps_case_id_fkey;
-ALTER TABLE case_steps DROP COLUMN IF EXISTS case_id;
-
-ALTER TABLE case_updates DROP CONSTRAINT IF EXISTS case_updates_case_id_fkey;
-ALTER TABLE case_updates DROP COLUMN IF EXISTS case_id;
-
--- Rename tables for clarity
-ALTER TABLE case_steps RENAME TO match_steps;
-ALTER TABLE case_updates RENAME TO match_updates;
-
--- Update indexes
-DROP INDEX IF EXISTS idx_case_steps_case_id;
-DROP INDEX IF EXISTS idx_case_updates_case_id;
-CREATE INDEX IF NOT EXISTS idx_match_steps_match_id ON match_steps(match_id);
-CREATE INDEX IF NOT EXISTS idx_match_updates_match_id ON match_updates(match_id);
-
--- Update unique constraint in match_steps
-ALTER TABLE match_steps DROP CONSTRAINT IF EXISTS case_steps_case_id_stage_number_step_number_key;
-ALTER TABLE match_steps ADD CONSTRAINT match_steps_match_id_stage_number_step_number_key UNIQUE(match_id, stage_number, step_number);
+  -- Handle case_updates
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'case_updates') THEN
+    CREATE INDEX IF NOT EXISTS idx_case_updates_match_id ON case_updates(match_id);
+    
+    ALTER TABLE case_updates DROP CONSTRAINT IF EXISTS case_updates_case_id_fkey;
+    ALTER TABLE case_updates DROP COLUMN IF EXISTS case_id;
+    
+    ALTER TABLE case_updates RENAME TO match_updates;
+    
+    DROP INDEX IF EXISTS idx_case_updates_case_id;
+    CREATE INDEX IF NOT EXISTS idx_match_updates_match_id ON match_updates(match_id);
+    
+    RAISE NOTICE 'Completed case_updates to match_updates migration';
+  END IF;
+END $$;
 
 -- Step 7: Drop the cases table and its related objects (if they exist)
 DO $$
@@ -247,33 +269,56 @@ BEGIN
 END $$;
 
 -- Step 8: Update RLS policies
--- Drop old policies
-DROP POLICY IF EXISTS "Service role can access cases" ON cases;
-DROP POLICY IF EXISTS "Service role can access case_managers" ON match_managers;
-DROP POLICY IF EXISTS "Service role can access case_steps" ON match_steps;
-DROP POLICY IF EXISTS "Service role can access case_updates" ON match_updates;
+DO $$
+BEGIN
+  -- Drop old policies (only if tables exist)
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cases') THEN
+    DROP POLICY IF EXISTS "Service role can access cases" ON cases;
+  END IF;
+  
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_managers') THEN
+    DROP POLICY IF EXISTS "Service role can access case_managers" ON match_managers;
+  END IF;
+  
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_steps') THEN
+    DROP POLICY IF EXISTS "Service role can access case_steps" ON match_steps;
+  END IF;
+  
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_updates') THEN
+    DROP POLICY IF EXISTS "Service role can access case_updates" ON match_updates;
+  END IF;
+END $$;
 
--- Create new policies for renamed tables
-DROP POLICY IF EXISTS "Service role can access match_managers" ON match_managers;
-CREATE POLICY "Service role can access match_managers"
-  ON match_managers
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Service role can access match_steps" ON match_steps;
-CREATE POLICY "Service role can access match_steps"
-  ON match_steps
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Service role can access match_updates" ON match_updates;
-CREATE POLICY "Service role can access match_updates"
-  ON match_updates
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
+-- Create new policies for renamed tables (if they exist)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_managers') THEN
+    DROP POLICY IF EXISTS "Service role can access match_managers" ON match_managers;
+    CREATE POLICY "Service role can access match_managers"
+      ON match_managers
+      FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+  
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_steps') THEN
+    DROP POLICY IF EXISTS "Service role can access match_steps" ON match_steps;
+    CREATE POLICY "Service role can access match_steps"
+      ON match_steps
+      FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+  
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_updates') THEN
+    DROP POLICY IF EXISTS "Service role can access match_updates" ON match_updates;
+    CREATE POLICY "Service role can access match_updates"
+      ON match_updates
+      FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- Step 9: Add comments
 COMMENT ON COLUMN surrogate_matches.claim_id IS 'Unique claim/case identifier (merged from cases table)';
