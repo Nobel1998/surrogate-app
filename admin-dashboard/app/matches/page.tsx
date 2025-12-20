@@ -165,6 +165,7 @@ export default function MatchesPage() {
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
   const [editingParent2, setEditingParent2] = useState<string | null>(null);
   const [parent2Name, setParent2Name] = useState<string>('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -1460,26 +1461,30 @@ export default function MatchesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Operate</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weeks Pregnant</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetuses</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetal Beat</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clinic</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Embryos</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lawyer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Contract</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Contract</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trust Account</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogacy Contract</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Life Insurance</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Health Insurance</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wire Record</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Statement</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PBO</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Retainer</th>
+                  {expandedRows.size > 0 && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weeks Pregnant</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetuses</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fetal Beat</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clinic</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Embryos</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lawyer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trust Account</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogacy Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Life Insurance</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Health Insurance</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wire Record</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Statement</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PBO</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attorney Retainer</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
@@ -1634,13 +1639,21 @@ export default function MatchesPage() {
                         {m.case_type || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <Link
-                          href={`/cases/${m.id}`}
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedRows);
+                            if (newExpanded.has(m.id)) {
+                              newExpanded.delete(m.id);
+                            } else {
+                              newExpanded.add(m.id);
+                            }
+                            setExpandedRows(newExpanded);
+                          }}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                         >
                           <span>📄</span>
-                          Detail
-                        </Link>
+                          {expandedRows.has(m.id) ? 'Hide' : 'Detail'}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {canViewAllBranches ? (
@@ -1817,88 +1830,92 @@ export default function MatchesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {pregnancyWeeks ? (
-                          typeof pregnancyWeeks === 'number' ? (
-                            `${pregnancyWeeks} weeks`
-                          ) : (
-                            `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
-                          )
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.estimated_due_date 
-                          ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.number_of_fetuses ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.fetal_beat_confirm || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.sign_date 
-                          ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.transfer_date 
-                          ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={m.clinic || ''}>
-                          {m.clinic || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={m.embryos || ''}>
-                          {m.embryos || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={m.lawyer || ''}>
-                          {m.lawyer || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={m.company || ''}>
-                          {m.company || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.customer_signed_contractfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.attorney_contractfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.trust_account_contractfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.surrogacy_contractfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.life_insurance_policyfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.surrogate_health_insurancefiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.wire_recordfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.monthly_statementfiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.pbofiles ? '✓' : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {m.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
-                      </td>
+                      {expandedRows.has(m.id) && (
+                        <>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {pregnancyWeeks ? (
+                              typeof pregnancyWeeks === 'number' ? (
+                                `${pregnancyWeeks} weeks`
+                              ) : (
+                                `${pregnancyWeeks.weeks} weeks ${pregnancyWeeks.days} days`
+                              )
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.estimated_due_date 
+                              ? new Date(m.estimated_due_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.number_of_fetuses ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.fetal_beat_confirm || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.sign_date 
+                              ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.transfer_date 
+                              ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="max-w-xs truncate" title={m.clinic || ''}>
+                              {m.clinic || '—'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="max-w-xs truncate" title={m.embryos || ''}>
+                              {m.embryos || '—'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="max-w-xs truncate" title={m.lawyer || ''}>
+                              {m.lawyer || '—'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="max-w-xs truncate" title={m.company || ''}>
+                              {m.company || '—'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.customer_signed_contractfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.attorney_contractfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.trust_account_contractfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.surrogacy_contractfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.life_insurance_policyfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.surrogate_health_insurancefiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.wire_recordfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.monthly_statementfiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.pbofiles ? '✓' : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {m.files?.attorney_retainer_agreementfiles ? '✓' : '—'}
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-3 text-xs text-gray-700">
                         <div className="flex flex-col gap-2">
                           <div className="font-semibold text-sm">
