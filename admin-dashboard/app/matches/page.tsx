@@ -2824,21 +2824,6 @@ export default function MatchesPage() {
                             </option>
                           ))}
                         </select>
-                          {canViewAllBranches && m && (
-                            <button
-                              onClick={() => {
-                                setAssigningManager(m.id);
-                                const managerIds = m.manager_ids 
-                                  ? m.manager_ids.filter((id): id is string => id != null)
-                                  : (m.manager_id ? [m.manager_id] : []);
-                                setSelectedManagerIds(managerIds);
-                              }}
-                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
-                              title="Assign Managers"
-                            >
-                              👤 Assign Managers
-                            </button>
-                          )}
                           <button
                             onClick={() => openContractModal(m)}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
