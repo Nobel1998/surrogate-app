@@ -169,6 +169,22 @@ export default function MatchesPage() {
   const [fetusesValue, setFetusesValue] = useState<string>('');
   const [editingFetalBeat, setEditingFetalBeat] = useState<string | null>(null);
   const [fetalBeatValue, setFetalBeatValue] = useState<string>('');
+  // Date fields
+  const [editingSignDate, setEditingSignDate] = useState<string | null>(null);
+  const [signDateValue, setSignDateValue] = useState<string>('');
+  const [editingTransferDate, setEditingTransferDate] = useState<string | null>(null);
+  const [transferDateValue, setTransferDateValue] = useState<string>('');
+  const [editingBetaConfirmDate, setEditingBetaConfirmDate] = useState<string | null>(null);
+  const [betaConfirmDateValue, setBetaConfirmDateValue] = useState<string>('');
+  // Text fields
+  const [editingClinic, setEditingClinic] = useState<string | null>(null);
+  const [clinicValue, setClinicValue] = useState<string>('');
+  const [editingEmbryos, setEditingEmbryos] = useState<string | null>(null);
+  const [embryosValue, setEmbryosValue] = useState<string>('');
+  const [editingLawyer, setEditingLawyer] = useState<string | null>(null);
+  const [lawyerValue, setLawyerValue] = useState<string>('');
+  const [editingCompany, setEditingCompany] = useState<string | null>(null);
+  const [companyValue, setCompanyValue] = useState<string>('');
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -460,6 +476,186 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Fetal Beat Confirm:', err);
       alert(err.message || 'Failed to update Fetal Beat Confirm');
+    }
+  };
+
+  // Date field update functions
+  const handleUpdateSignDate = async (matchId: string) => {
+    try {
+      const dateValue = signDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sign_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Sign Date');
+      }
+
+      await loadData();
+      setEditingSignDate(null);
+      setSignDateValue('');
+      alert('Sign Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Sign Date:', err);
+      alert(err.message || 'Failed to update Sign Date');
+    }
+  };
+
+  const handleUpdateTransferDate = async (matchId: string) => {
+    try {
+      const dateValue = transferDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transfer_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Transfer Date');
+      }
+
+      await loadData();
+      setEditingTransferDate(null);
+      setTransferDateValue('');
+      alert('Transfer Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Transfer Date:', err);
+      alert(err.message || 'Failed to update Transfer Date');
+    }
+  };
+
+  const handleUpdateBetaConfirmDate = async (matchId: string) => {
+    try {
+      const dateValue = betaConfirmDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beta_confirm_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Beta Confirm Date');
+      }
+
+      await loadData();
+      setEditingBetaConfirmDate(null);
+      setBetaConfirmDateValue('');
+      alert('Beta Confirm Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Beta Confirm Date:', err);
+      alert(err.message || 'Failed to update Beta Confirm Date');
+    }
+  };
+
+  // Text field update functions
+  const handleUpdateClinic = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clinic: clinicValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Clinic');
+      }
+
+      await loadData();
+      setEditingClinic(null);
+      setClinicValue('');
+      alert('Clinic updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Clinic:', err);
+      alert(err.message || 'Failed to update Clinic');
+    }
+  };
+
+  const handleUpdateEmbryos = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          embryos: embryosValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Embryos');
+      }
+
+      await loadData();
+      setEditingEmbryos(null);
+      setEmbryosValue('');
+      alert('Embryos updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Embryos:', err);
+      alert(err.message || 'Failed to update Embryos');
+    }
+  };
+
+  const handleUpdateLawyer = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lawyer: lawyerValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Lawyer');
+      }
+
+      await loadData();
+      setEditingLawyer(null);
+      setLawyerValue('');
+      alert('Lawyer updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Lawyer:', err);
+      alert(err.message || 'Failed to update Lawyer');
+    }
+  };
+
+  const handleUpdateCompany = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company: companyValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Company');
+      }
+
+      await loadData();
+      setEditingCompany(null);
+      setCompanyValue('');
+      alert('Company updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Company:', err);
+      alert(err.message || 'Failed to update Company');
     }
   };
 
@@ -2008,27 +2204,177 @@ export default function MatchesPage() {
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Important Dates</h4>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Sign Date</div>
-                            <div className="text-sm text-gray-900">
-                              {m.sign_date 
-                                ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                                : '—'}
-                            </div>
+                            {editingSignDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={signDateValue}
+                                  onChange={(e) => setSignDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSignDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSignDate(null);
+                                      setSignDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateSignDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSignDate(null);
+                                    setSignDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingSignDate(m.id);
+                                  if (m.sign_date) {
+                                    const date = new Date(m.sign_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setSignDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setSignDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Sign Date"
+                              >
+                                {m.sign_date 
+                                  ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Transfer Date</div>
-                            <div className="text-sm text-gray-900">
-                              {m.transfer_date 
-                                ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                                : '—'}
-                            </div>
+                            {editingTransferDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={transferDateValue}
+                                  onChange={(e) => setTransferDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateTransferDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingTransferDate(null);
+                                      setTransferDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateTransferDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingTransferDate(null);
+                                    setTransferDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingTransferDate(m.id);
+                                  if (m.transfer_date) {
+                                    const date = new Date(m.transfer_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setTransferDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setTransferDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Transfer Date"
+                              >
+                                {m.transfer_date 
+                                  ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Beta Confirm Date</div>
-                            <div className="text-sm text-gray-900">
-                              {m.beta_confirm_date 
-                                ? new Date(m.beta_confirm_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                                : '—'}
-                            </div>
+                            {editingBetaConfirmDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={betaConfirmDateValue}
+                                  onChange={(e) => setBetaConfirmDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateBetaConfirmDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingBetaConfirmDate(null);
+                                      setBetaConfirmDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateBetaConfirmDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingBetaConfirmDate(null);
+                                    setBetaConfirmDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingBetaConfirmDate(m.id);
+                                  if (m.beta_confirm_date) {
+                                    const date = new Date(m.beta_confirm_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setBetaConfirmDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setBetaConfirmDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Beta Confirm Date"
+                              >
+                                {m.beta_confirm_date 
+                                  ? new Date(m.beta_confirm_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -2037,19 +2383,203 @@ export default function MatchesPage() {
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Clinic & Legal</h4>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Clinic</div>
-                            <div className="text-sm text-gray-900">{m.clinic || '—'}</div>
+                            {editingClinic === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={clinicValue}
+                                  onChange={(e) => setClinicValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateClinic(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingClinic(null);
+                                      setClinicValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateClinic(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingClinic(null);
+                                    setClinicValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingClinic(m.id);
+                                  setClinicValue(m.clinic || '');
+                                }}
+                                title="Click to edit Clinic"
+                              >
+                                {m.clinic || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Embryos</div>
-                            <div className="text-sm text-gray-900">{m.embryos || '—'}</div>
+                            {editingEmbryos === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={embryosValue}
+                                  onChange={(e) => setEmbryosValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateEmbryos(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingEmbryos(null);
+                                      setEmbryosValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateEmbryos(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingEmbryos(null);
+                                    setEmbryosValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingEmbryos(m.id);
+                                  setEmbryosValue(m.embryos || '');
+                                }}
+                                title="Click to edit Embryos"
+                              >
+                                {m.embryos || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Lawyer</div>
-                            <div className="text-sm text-gray-900">{m.lawyer || '—'}</div>
+                            {editingLawyer === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={lawyerValue}
+                                  onChange={(e) => setLawyerValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateLawyer(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingLawyer(null);
+                                      setLawyerValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateLawyer(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingLawyer(null);
+                                    setLawyerValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingLawyer(m.id);
+                                  setLawyerValue(m.lawyer || '');
+                                }}
+                                title="Click to edit Lawyer"
+                              >
+                                {m.lawyer || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Company</div>
-                            <div className="text-sm text-gray-900">{m.company || '—'}</div>
+                            {editingCompany === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={companyValue}
+                                  onChange={(e) => setCompanyValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateCompany(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCompany(null);
+                                      setCompanyValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateCompany(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingCompany(null);
+                                    setCompanyValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingCompany(m.id);
+                                  setCompanyValue(m.company || '');
+                                }}
+                                title="Click to edit Company"
+                              >
+                                {m.company || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
