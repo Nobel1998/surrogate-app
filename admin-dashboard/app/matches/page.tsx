@@ -250,7 +250,7 @@ export default function MatchesPage() {
   
   // Photo Release upload state
   const [showPhotoReleaseModal, setShowPhotoReleaseModal] = useState(false);
-  const [photoReleaseMatchId, setPhotoReleaseMatchId] = useState<string>('');
+  const [photoReleaseUserId, setPhotoReleaseUserId] = useState<string>('');
   const [photoReleaseFile, setPhotoReleaseFile] = useState<File | null>(null);
   const [uploadingPhotoRelease, setUploadingPhotoRelease] = useState(false);
 
@@ -382,7 +382,7 @@ export default function MatchesPage() {
   useEffect(() => {
     // Load data when component mounts or when admin info is available
     if (adminUserId) {
-      loadData();
+    loadData();
       loadAdminUsers();
     }
   }, [adminUserId]);
@@ -1262,7 +1262,7 @@ export default function MatchesPage() {
   };
 
   const openPhotoReleaseModal = () => {
-    setPhotoReleaseMatchId('');
+    setPhotoReleaseUserId('');
     setPhotoReleaseFile(null);
     setShowPhotoReleaseModal(true);
   };
@@ -1272,8 +1272,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!photoReleaseMatchId) {
-      alert('Please select a match');
+    if (!photoReleaseUserId) {
+      alert('Please select a user');
       return;
     }
 
@@ -1281,7 +1281,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', photoReleaseFile);
-      formData.append('match_id', photoReleaseMatchId);
+      formData.append('user_id', photoReleaseUserId);
 
       const res = await fetch('/api/matches/photo-release', {
         method: 'POST',
@@ -1294,10 +1294,10 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Photo Release uploaded successfully! Both surrogate and parent(s) in this match can now see it in their User Center.');
+      alert('Photo Release uploaded successfully! The user can now see it in their User Center.');
       setShowPhotoReleaseModal(false);
       setPhotoReleaseFile(null);
-      setPhotoReleaseMatchId('');
+      setPhotoReleaseUserId('');
       await loadData();
     } catch (err: any) {
       console.error('Error uploading photo release:', err);
@@ -1328,8 +1328,8 @@ export default function MatchesPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Matches</h1>
               <p className="text-gray-600">Pair parents with surrogates, manage matches, and track internal cases.</p>
             </div>
             {canViewAllBranches && branches.length > 0 && (
@@ -1494,7 +1494,7 @@ export default function MatchesPage() {
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
               {canViewAllBranches && (
                 <p className="text-sm text-gray-500 mt-1">
                   You can assign case managers by clicking the "Assign Manager" button in the Manager column
@@ -1502,14 +1502,14 @@ export default function MatchesPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button
+            <button
                 onClick={() => {
                   loadData();
                 }}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                🔄 Refresh
-              </button>
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              🔄 Refresh
+            </button>
             </div>
           </div>
 
@@ -1652,8 +1652,8 @@ export default function MatchesPage() {
                                     ? 'bg-red-100 text-red-800'
                                     : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {m.status?.toUpperCase() || 'UNKNOWN'}
-                            </span>
+                            {m.status?.toUpperCase() || 'UNKNOWN'}
+                          </span>
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                               {m.case_type || '—'}
                             </span>
@@ -1898,16 +1898,16 @@ export default function MatchesPage() {
                               {m.current_step ? (
                                 <div className="max-w-xs">{m.current_step}</div>
                               ) : (
-                                <div className="flex flex-col gap-1">
-                                  <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-                                    STAGE: {surrogateStage}
-                                  </span>
-                                  <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
-                                    BY: {stageUpdater}
-                                  </span>
-                                </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                              STAGE: {surrogateStage}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                              BY: {stageUpdater}
+                            </span>
+                          </div>
                               )}
-                            </div>
+                        </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Weeks Pregnant</div>
@@ -2589,36 +2589,36 @@ export default function MatchesPage() {
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Activity</h4>
                           <div className="text-xs text-gray-700">
                             <div className="font-semibold mb-2">
-                              Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
-                            </div>
-                            {latestPosts.length === 0 ? (
+                            Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
+                          </div>
+                          {latestPosts.length === 0 ? (
                               <div className="text-gray-500 text-xs">No posts</div>
-                            ) : (
+                          ) : (
                               <div className="space-y-2">
                                 {latestPosts.map((p) => (
-                                  <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
-                                    <div className="text-[11px] text-gray-500">
-                                      {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
-                                      {p.stage ? ` · ${p.stage}` : ''}
-                                    </div>
-                                    <div className="text-sm text-gray-900 line-clamp-2">
-                                      {p.content || p.text || '(no text)'}
-                                    </div>
+                              <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
+                                <div className="text-[11px] text-gray-500">
+                                  {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
+                                  {p.stage ? ` · ${p.stage}` : ''}
+                                </div>
+                                <div className="text-sm text-gray-900 line-clamp-2">
+                                  {p.content || p.text || '(no text)'}
+                                </div>
                                     {((p.media_url || p.media_uri) && (
-                                      <a
+                                  <a
                                         href={String(p.media_url || p.media_uri || '#')}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs text-blue-600 hover:text-blue-800"
-                                      >
-                                        Media
-                                      </a>
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    Media
+                                  </a>
                                     ))}
                                   </div>
                                 ))}
                               </div>
-                            )}
-                          </div>
+                                )}
+                              </div>
                           <div className="mt-2 pt-2 border-t border-gray-300">
                             <div className="font-semibold text-sm text-green-700 mb-2">
                               Medical Check-ins: {surrogateReports.length}
@@ -2677,7 +2677,7 @@ export default function MatchesPage() {
                                         >
                                           🗑️ Delete
                                         </button>
-                                      </div>
+                        </div>
                                     </div>
                                   );
                                 })}
@@ -2692,31 +2692,31 @@ export default function MatchesPage() {
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
                         <div className="flex flex-wrap gap-2">
                           <div className="flex gap-1">
-                            {STATUS_OPTIONS.map((s: string) => (
-                              <button
-                                key={s}
-                                onClick={() => updateMatchStatus(m.id, s)}
-                                className={`px-2 py-1 rounded border text-xs ${
-                                  m.status === s
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
-                                }`}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                          <select
-                            className="border border-gray-300 rounded px-2 py-1 text-xs"
-                            value={surrogate?.progress_stage || 'pre'}
-                            onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                        {STATUS_OPTIONS.map((s: string) => (
+                          <button
+                            key={s}
+                            onClick={() => updateMatchStatus(m.id, s)}
+                            className={`px-2 py-1 rounded border text-xs ${
+                              m.status === s
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
+                            }`}
                           >
-                            {STAGE_OPTIONS.map((st: string) => (
-                              <option key={st} value={st}>
+                            {s}
+                          </button>
+                        ))}
+                          </div>
+                        <select
+                            className="border border-gray-300 rounded px-2 py-1 text-xs"
+                          value={surrogate?.progress_stage || 'pre'}
+                          onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                        >
+                          {STAGE_OPTIONS.map((st: string) => (
+                            <option key={st} value={st}>
                                 {STAGE_LABELS[st] || st.toUpperCase()}
-                              </option>
-                            ))}
-                          </select>
+                            </option>
+                          ))}
+                        </select>
                           {canViewAllBranches && m && (
                             <button
                               onClick={() => {
@@ -3416,24 +3416,19 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Match *
+                  Select User *
                 </label>
                 <select
-                  value={photoReleaseMatchId}
-                  onChange={(e) => setPhotoReleaseMatchId(e.target.value)}
+                  value={photoReleaseUserId}
+                  onChange={(e) => setPhotoReleaseUserId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">-- Select a match --</option>
-                  {matches.map((match) => {
-                    const surrogate = surrogates.find(s => s.id === match.surrogate_id);
-                    const parent = parents.find(p => p.id === match.parent_id || p.id === match.first_parent_id);
-                    const matchLabel = `Match: ${surrogate?.name || match.surrogate_id} & ${parent?.name || match.first_parent_name || match.parent_id}`;
-                    return (
-                      <option key={match.id} value={match.id}>
-                        {matchLabel}
-                      </option>
-                    );
-                  })}
+                  <option value="">-- Select a user --</option>
+                  {[...surrogates, ...parents].map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -3453,7 +3448,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to both surrogate and parent(s) in this match in their User Center.
+                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to the selected user in their User Center.
                 </p>
               </div>
 
@@ -3466,9 +3461,9 @@ export default function MatchesPage() {
                 </button>
                 <button
                   onClick={uploadPhotoRelease}
-                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseMatchId}
+                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId}
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseMatchId
+                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId
                       ? 'bg-gray-400'
                       : 'bg-purple-600 hover:bg-purple-700'
                   } transition-colors`}

@@ -134,13 +134,11 @@ export default function MyMatchScreen({ navigation }) {
         const GLOBAL_CONTRACT_USER_ID = '00000000-0000-0000-0000-000000000000';
         
         // Build query to get documents for current user OR partner user (for match-uploaded files)
-        // Also include documents associated with this match via match_id
         const userIdOrClause = [
           currentUserId ? `user_id.eq.${currentUserId}` : null,
           partnerUserId ? `user_id.eq.${partnerUserId}` : null,
           `user_id.eq.${GLOBAL_CONTRACT_USER_ID}`,
           'user_id.is.null',
-          match.id ? `match_id.eq.${match.id}` : null, // Include documents associated with this match
         ]
           .filter(Boolean)
           .join(',');
@@ -161,7 +159,6 @@ export default function MyMatchScreen({ navigation }) {
             'online_claims',
             'agency_retainer',
             'hipaa_release',
-            'photo_release', // Include photo_release documents
           ])
           .or(userIdOrClause)
           .order('created_at', { ascending: false });

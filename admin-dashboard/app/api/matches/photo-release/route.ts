@@ -23,13 +23,13 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const matchId = formData.get('match_id') as string | null;
+    const userId = formData.get('user_id') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
-    if (!matchId) {
-      return NextResponse.json({ error: 'match_id is required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
     }
 
     // Validate file extension - only image formats allowed
@@ -39,22 +39,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `File format not supported. Only image formats are allowed: ${allowedExtensions.join(', ')}` }, { status: 400 });
     }
 
-    // Get match details to find surrogate_id and parent_id
-    const { data: match, error: matchError } = await supabase
-      .from('surrogate_matches')
-      .select('surrogate_id, parent_id, first_parent_id, second_parent_id')
-      .eq('id', matchId)
-      .single();
-
-    if (matchError || !match) {
-      return NextResponse.json({ error: 'Match not found' }, { status: 404 });
-    }
-
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).slice(2);
     
-    // Upload file to storage - one file for the match
-    const path = `photo-release/${matchId}-${timestamp}-${randomStr}${ext}`;
+    // Upload file to storage - each user gets their own file
+    const path = `photo-release/${userId}-${timestamp}-${randomStr}${ext}`;
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, {
@@ -66,26 +55,19 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Insert a single document record associated with the match
-    // This file will be visible to all users in the match (surrogate and parents)
+    // Insert document for this specific user only
     const { error: insertError } = await supabase
       .from('documents')
       .insert({
         document_type: 'photo_release',
         file_url: publicUrl,
         file_name: file.name,
-        match_id: matchId,
-        // user_id is null - this file is associated with the match, not a specific user
+        user_id: userId,
       });
     
     if (insertError) throw insertError;
 
-    return NextResponse.json({ 
-      success: true, 
-      url: publicUrl, 
-      path, 
-      match_id: matchId
-    });
+    return NextResponse.json({ success: true, url: publicUrl, path, user_id: userId });
   } catch (err: any) {
     console.error('[matches/photo-release] POST error', err);
     return NextResponse.json({ error: err.message || 'Failed to upload photo release' }, { status: 500 });

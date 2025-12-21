@@ -24,3 +24,4 @@ ALTER TABLE public.events DISABLE ROW LEVEL SECURITY;
 
 
 
+
