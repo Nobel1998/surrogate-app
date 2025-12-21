@@ -2262,61 +2262,15 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Transfer Date</div>
-                            {editingTransferDate === m.id ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="date"
-                                  value={transferDateValue}
-                                  onChange={(e) => setTransferDateValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleUpdateTransferDate(m.id);
-                                    } else if (e.key === 'Escape') {
-                                      setEditingTransferDate(null);
-                                      setTransferDateValue('');
-                                    }
-                                  }}
-                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleUpdateTransferDate(m.id)}
-                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
-                                >
-                                  ✓
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingTransferDate(null);
-                                    setTransferDateValue('');
-                                  }}
-                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ) : (
-                              <div 
-                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
-                                onClick={() => {
-                                  setEditingTransferDate(m.id);
-                                  if (m.transfer_date) {
-                                    const date = new Date(m.transfer_date);
-                                    const year = date.getFullYear();
-                                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                                    const day = String(date.getDate()).padStart(2, '0');
-                                    setTransferDateValue(`${year}-${month}-${day}`);
-                                  } else {
-                                    setTransferDateValue('');
-                                  }
-                                }}
-                                title="Click to edit Transfer Date"
-                              >
-                                {m.transfer_date 
-                                  ? new Date(m.transfer_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                                  : <span className="text-gray-400 italic">Click to add</span>}
-                              </div>
-                            )}
+                            <div className="text-sm text-gray-900">
+                              {(() => {
+                                // Read transfer_date from surrogate's app input, fallback to match data
+                                const transferDate = surrogate?.transfer_date || m.transfer_date;
+                                return transferDate 
+                                  ? new Date(transferDate).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  : '—';
+                              })()}
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Beta Confirm Date</div>
