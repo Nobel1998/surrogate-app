@@ -32,6 +32,7 @@ type CaseDetail = {
   first_parent?: any;
   second_parent?: any;
   manager?: any;
+  managers?: Array<{ id: string; name: string }>;
 };
 
 type CaseUpdate = {
@@ -239,7 +240,9 @@ export default function CaseDetailPage() {
                 <div>
                   <div className="text-sm font-medium text-purple-700 mb-2">Agency Case Manager</div>
                   <div className="text-sm text-gray-900">
-                    {caseData.manager?.name || '—'}
+                    {caseData.managers && caseData.managers.length > 0
+                      ? caseData.managers.map(m => m.name).join(', ')
+                      : caseData.manager?.name || '—'}
                   </div>
                 </div>
               </div>

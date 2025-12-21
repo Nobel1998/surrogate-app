@@ -62,9 +62,34 @@ export async function GET(
       }
     }
 
-    // Fetch manager
+    // Fetch all managers assigned to this match (from match_managers table)
+    const { data: matchManagersData } = await supabase
+      .from('match_managers')
+      .select(`
+        manager_id,
+        admin_users!match_managers_manager_id_fkey(id, name)
+      `)
+      .eq('match_id', matchId);
+
+    // Extract managers from the result
+    const managers: Array<{ id: string; name: string }> = [];
+    if (matchManagersData) {
+      matchManagersData.forEach((mm: any) => {
+        if (mm.admin_users) {
+          managers.push({
+            id: mm.admin_users.id,
+            name: mm.admin_users.name,
+          });
+        }
+      });
+    }
+
+    // For backward compatibility, also check legacy manager_id
     let manager = null;
-    if (matchData.manager_id) {
+    if (managers.length > 0) {
+      // Use the first manager for backward compatibility
+      manager = managers[0];
+    } else if (matchData.manager_id) {
       const { data: managerData } = await supabase
         .from('admin_users')
         .select('id, name')
@@ -111,6 +136,7 @@ export async function GET(
           display_name: matchData.second_parent_name || secondParent.name
         } : (matchData.second_parent_name ? { name: matchData.second_parent_name, display_name: matchData.second_parent_name } : null),
         manager,
+        managers, // Include all managers array
       },
       steps: steps || [],
       updates: updates || [],
