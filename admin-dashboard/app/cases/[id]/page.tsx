@@ -83,10 +83,22 @@ export default function CaseDetailPage() {
     }
   };
 
+  // Format date without timezone conversion to avoid date offset issues
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      // Parse date string directly to avoid timezone conversion
+      // Handle both ISO format (2024-12-05) and full datetime strings
+      const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        // Format as MM/DD/YYYY without timezone conversion
+        return `${month}/${day}/${year}`;
+      }
+      // Fallback to Date object for other formats
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -107,8 +119,18 @@ export default function CaseDetailPage() {
     if (!transferDate) return '—';
     
     try {
-      const transfer = new Date(transferDate);
-      transfer.setHours(0, 0, 0, 0);
+      // Parse date string directly to avoid timezone issues
+      const dateMatch = transferDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      let transfer: Date;
+      
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        // Create date in local timezone to avoid timezone conversion
+        transfer = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        transfer = new Date(transferDate);
+        transfer.setHours(0, 0, 0, 0);
+      }
       
       // Day 5 embryo = 19 days gestational at transfer (14+5)
       // Normal pregnancy is 280 days (40 weeks)
@@ -117,7 +139,11 @@ export default function CaseDetailPage() {
       const dueDate = new Date(transfer);
       dueDate.setDate(dueDate.getDate() + daysToAdd);
       
-      return formatDate(dueDate.toISOString());
+      // Format the calculated date
+      const year = dueDate.getFullYear();
+      const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+      const day = String(dueDate.getDate()).padStart(2, '0');
+      return formatDate(`${year}-${month}-${day}`);
     } catch (err) {
       console.error('Error calculating due date:', err);
       return '—';
