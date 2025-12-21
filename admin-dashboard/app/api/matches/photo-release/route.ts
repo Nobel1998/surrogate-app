@@ -66,27 +66,17 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Collect all user IDs who should see this file
-    const userIds: string[] = [];
-    if (match.surrogate_id) userIds.push(match.surrogate_id);
-    if (match.parent_id) userIds.push(match.parent_id);
-    if (match.first_parent_id) userIds.push(match.first_parent_id);
-    if (match.second_parent_id) userIds.push(match.second_parent_id);
-
-    // Remove duplicates
-    const uniqueUserIds = [...new Set(userIds)];
-
-    // Insert documents for all users in the match (same file, all can see it)
-    const documentsToInsert = uniqueUserIds.map(userId => ({
-      document_type: 'photo_release',
-      file_url: publicUrl,
-      file_name: file.name,
-      user_id: userId,
-    }));
-
+    // Insert a single document record associated with the match
+    // This file will be visible to all users in the match (surrogate and parents)
     const { error: insertError } = await supabase
       .from('documents')
-      .insert(documentsToInsert);
+      .insert({
+        document_type: 'photo_release',
+        file_url: publicUrl,
+        file_name: file.name,
+        match_id: matchId,
+        // user_id is null - this file is associated with the match, not a specific user
+      });
     
     if (insertError) throw insertError;
 
@@ -94,8 +84,7 @@ export async function POST(req: Request) {
       success: true, 
       url: publicUrl, 
       path, 
-      match_id: matchId,
-      user_ids: uniqueUserIds 
+      match_id: matchId
     });
   } catch (err: any) {
     console.error('[matches/photo-release] POST error', err);

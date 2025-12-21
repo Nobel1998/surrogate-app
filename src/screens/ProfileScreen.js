@@ -80,12 +80,55 @@ export default function ProfileScreen({ navigation }) {
     
     setLoadingPhotoDoc(true);
     try {
-      const { data, error } = await supabase
+      // First, get user's active match
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      const role = (profileData?.role || user?.role || 'surrogate').toLowerCase();
+      const isSurrogate = role === 'surrogate';
+      
+      let matchId = null;
+      if (isSurrogate) {
+        const { data: matchData } = await supabase
+          .from('surrogate_matches')
+          .select('id')
+          .eq('surrogate_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        matchId = matchData?.id || null;
+      } else {
+        const { data: matchData } = await supabase
+          .from('surrogate_matches')
+          .select('id')
+          .or(`parent_id.eq.${user.id},first_parent_id.eq.${user.id},second_parent_id.eq.${user.id}`)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        matchId = matchData?.id || null;
+      }
+      
+      // Query documents: either user_id matches OR match_id matches
+      let query = supabase
         .from('documents')
         .select('*')
-        .eq('user_id', user.id)
         .eq('document_type', 'photo_release')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
+      
+      if (matchId) {
+        // Query documents where user_id matches OR match_id matches
+        query = query.or(`user_id.eq.${user.id},match_id.eq.${matchId}`);
+      } else {
+        // If no match, only query by user_id
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query
         .limit(1)
         .maybeSingle();
 
