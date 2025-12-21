@@ -1908,6 +1908,24 @@ export default function MatchesPage() {
                           </div>
                               )}
                         </div>
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-500 mb-1">Status</div>
+                              <div className="flex flex-wrap gap-1">
+                                {STATUS_OPTIONS.map((s: string) => (
+                                  <button
+                                    key={s}
+                                    onClick={() => updateMatchStatus(m.id, s)}
+                                    className={`px-2 py-1 rounded border text-xs ${
+                                      m.status === s
+                                        ? 'border-blue-500 text-blue-600 bg-blue-50'
+                                        : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
+                                    }`}
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Weeks Pregnant</div>
@@ -2798,21 +2816,6 @@ export default function MatchesPage() {
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
                         <div className="flex flex-wrap gap-2">
-                          <div className="flex gap-1">
-                        {STATUS_OPTIONS.map((s: string) => (
-                          <button
-                            key={s}
-                            onClick={() => updateMatchStatus(m.id, s)}
-                            className={`px-2 py-1 rounded border text-xs ${
-                              m.status === s
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600'
-                            }`}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                          </div>
                         <select
                             className="border border-gray-300 rounded px-2 py-1 text-xs"
                           value={surrogate?.progress_stage || 'pre'}
