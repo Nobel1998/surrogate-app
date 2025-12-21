@@ -2477,10 +2477,10 @@ export default function MatchesPage() {
                             
                             return (
                               <div className="grid grid-cols-2 gap-2 text-xs">
-                                {renderFileList('customer_contract', ['parent_contract', 'surrogate_contract'], 'Customer Contract')}
+                                {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract')}
                                 {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
                                 {renderFileList('trust_account', [], 'Trust Account')}
-                                {renderFileList('surrogacy_contract', ['parent_contract', 'surrogate_contract'], 'Surrogacy Contract')}
+                                {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract')}
                                 {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                 {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                 {renderFileList('wire_record', [], 'Wire Record')}
