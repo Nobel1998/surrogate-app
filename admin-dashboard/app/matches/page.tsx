@@ -2575,8 +2575,6 @@ export default function MatchesPage() {
                                 {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract')}
                                 {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                 {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
-                                {renderFileList('wire_record', [], 'Wire Record')}
-                                {renderFileList('monthly_statement', [], 'Monthly Statement')}
                                 {renderFileList('pbo', ['parental_rights'], 'PBO')}
                                 {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
                               </div>
