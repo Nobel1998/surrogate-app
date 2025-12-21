@@ -2477,7 +2477,16 @@ export default function MatchesPage() {
                             
                             // Helper function to get files for a document type
                             const getFilesForDocType = (docTypes: string[]) => {
+                              if (docTypes.length === 0) {
+                                // For empty array, return empty (used for categories without specific document types)
+                                return [];
+                              }
                               return matchContracts.filter(c => docTypes.includes(c.document_type));
+                            };
+                            
+                            // Helper function to get files for a specific document type by name
+                            const getFilesByDocumentType = (docType: string) => {
+                              return matchContracts.filter(c => c.document_type === docType);
                             };
                             
                             // Helper function to identify user type
@@ -2563,7 +2572,10 @@ export default function MatchesPage() {
                             
                             // Helper function to render file list for a document type
                             const renderFileList = (docTypeKey: string, docTypes: string[], label: string) => {
-                              const docFiles = getFilesForDocType(docTypes);
+                              // Special handling for trust_account which uses document_type directly
+                              const docFiles = docTypeKey === 'trust_account' 
+                                ? getFilesByDocumentType('trust_account')
+                                : getFilesForDocType(docTypes);
                               const mergedFiles = mergeDuplicateFiles(docFiles);
                               const hasFiles = mergedFiles.length > 0;
                               const isExpanded = expandedDocTypes.has(`${m.id}-${docTypeKey}`);
