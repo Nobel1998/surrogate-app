@@ -2452,11 +2452,22 @@ export default function MatchesPage() {
                               const parents = uploaders.filter(u => u.user_type === 'parent');
                               
                               const parts: string[] = [];
+                              
+                              // Get actual user names from profileLookup
                               if (surrogates.length > 0) {
-                                parts.push(`surrogate ${surrogates.length}`);
+                                const surrogateNames = surrogates.map(u => {
+                                  const profile = profileLookup[u.user_id];
+                                  return profile?.name || profile?.phone || u.user_id.substring(0, 8);
+                                });
+                                parts.push(...surrogateNames);
                               }
+                              
                               if (parents.length > 0) {
-                                parts.push(`parent ${parents.length}`);
+                                const parentNames = parents.map(u => {
+                                  const profile = profileLookup[u.user_id];
+                                  return profile?.name || profile?.phone || u.user_id.substring(0, 8);
+                                });
+                                parts.push(...parentNames);
                               }
                               
                               return parts.length > 0 ? parts.join(' & ') : 'Unknown';
