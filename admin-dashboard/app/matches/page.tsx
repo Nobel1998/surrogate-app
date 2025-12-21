@@ -2381,7 +2381,10 @@ export default function MatchesPage() {
                           {(() => {
                             // Filter contracts related to this match
                             const matchContracts = contracts.filter(c => 
-                              c.user_id === m.surrogate_id || c.user_id === m.parent_id
+                              c.user_id === m.surrogate_id || 
+                              c.user_id === m.parent_id || 
+                              c.user_id === m.first_parent_id || 
+                              c.user_id === m.second_parent_id
                             );
                             
                             // Helper function to get files for a document type
@@ -2389,10 +2392,81 @@ export default function MatchesPage() {
                               return matchContracts.filter(c => docTypes.includes(c.document_type));
                             };
                             
+                            // Helper function to identify user type
+                            const getUserType = (userId: string): 'surrogate' | 'parent' | null => {
+                              if (userId === m.surrogate_id) return 'surrogate';
+                              if (userId === m.parent_id || userId === m.first_parent_id || userId === m.second_parent_id) return 'parent';
+                              return null;
+                            };
+                            
+                            // Helper function to merge duplicate files
+                            const mergeDuplicateFiles = (files: Contract[]) => {
+                              const fileMap = new Map<string, {
+                                file_name: string;
+                                file_url: string;
+                                uploaders: Array<{
+                                  user_id: string;
+                                  user_type: 'surrogate' | 'parent' | null;
+                                  contract_id: string;
+                                  created_at: string | null;
+                                }>;
+                              }>();
+                              
+                              files.forEach(contract => {
+                                // Use file_name as key, fallback to file_url if file_name is missing
+                                const key = contract.file_name || contract.file_url;
+                                const userType = getUserType(contract.user_id);
+                                
+                                if (fileMap.has(key)) {
+                                  const existing = fileMap.get(key)!;
+                                  // Check if this user already uploaded this file
+                                  const alreadyExists = existing.uploaders.some(u => u.user_id === contract.user_id);
+                                  if (!alreadyExists) {
+                                    existing.uploaders.push({
+                                      user_id: contract.user_id,
+                                      user_type: userType,
+                                      contract_id: contract.id,
+                                      created_at: contract.created_at || null,
+                                    });
+                                  }
+                                } else {
+                                  fileMap.set(key, {
+                                    file_name: contract.file_name || 'Unnamed file',
+                                    file_url: contract.file_url,
+                                    uploaders: [{
+                                      user_id: contract.user_id,
+                                      user_type: userType,
+                                      contract_id: contract.id,
+                                      created_at: contract.created_at || null,
+                                    }],
+                                  });
+                                }
+                              });
+                              
+                              return Array.from(fileMap.values());
+                            };
+                            
+                            // Helper function to format uploaders display
+                            const formatUploaders = (uploaders: Array<{ user_id: string; user_type: 'surrogate' | 'parent' | null }>) => {
+                              const surrogates = uploaders.filter(u => u.user_type === 'surrogate');
+                              const parents = uploaders.filter(u => u.user_type === 'parent');
+                              
+                              const parts: string[] = [];
+                              if (surrogates.length > 0) {
+                                parts.push(`surrogate ${surrogates.length}`);
+                              }
+                              if (parents.length > 0) {
+                                parts.push(`parent ${parents.length}`);
+                              }
+                              
+                              return parts.length > 0 ? parts.join(' & ') : 'Unknown';
+                            };
+                            
                             // Helper function to render file list for a document type
                             const renderFileList = (docTypeKey: string, docTypes: string[], label: string) => {
                               const docFiles = getFilesForDocType(docTypes);
-                              const hasFiles = docFiles.length > 0;
+                              const mergedFiles = mergeDuplicateFiles(docFiles);
+                              const hasFiles = mergedFiles.length > 0;
                               const isExpanded = expandedDocTypes.has(`${m.id}-${docTypeKey}`);
                               
                               return (
@@ -2418,33 +2492,37 @@ export default function MatchesPage() {
                                     <span className="text-gray-600 flex-1">{label}</span>
                                     {hasFiles && (
                                       <span className="text-[10px] text-gray-400">
-                                        ({docFiles.length}) {isExpanded ? '▼' : '▶'}
+                                        ({mergedFiles.length}) {isExpanded ? '▼' : '▶'}
                                       </span>
                                     )}
                                   </div>
                                   {isExpanded && hasFiles && (
                                     <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
-                                      {docFiles.map((contract) => {
-                                        const user = profileLookup[contract.user_id];
+                                      {mergedFiles.map((fileGroup, idx) => {
+                                        const earliestDate = fileGroup.uploaders
+                                          .map(u => u.created_at)
+                                          .filter(d => d)
+                                          .sort()[0];
+                                        
                                         return (
-                                          <div key={contract.id} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                          <div key={`${fileGroup.file_url}-${idx}`} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
                                             <div className="flex items-start justify-between">
                                               <div className="flex-1 min-w-0">
                                                 <div className="font-medium text-gray-900 truncate">
-                                                  {contract.file_name || 'Unnamed file'}
+                                                  {fileGroup.file_name}
                                                 </div>
                                                 <div className="text-gray-500 mt-0.5">
-                                                  {user?.name || user?.phone || contract.user_id.substring(0, 8)}
+                                                  {formatUploaders(fileGroup.uploaders)}
                                                 </div>
-                                                {contract.created_at && (
+                                                {earliestDate && (
                                                   <div className="text-gray-400 mt-0.5">
-                                                    {formatDateOnly(contract.created_at.split('T')[0])}
+                                                    {formatDateOnly(earliestDate.split('T')[0])}
                                                   </div>
                                                 )}
                                               </div>
                                               <div className="flex items-center gap-1.5 ml-2">
                                                 <a
-                                                  href={contract.file_url}
+                                                  href={fileGroup.file_url}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
                                                   className="text-blue-600 hover:text-blue-800"
@@ -2455,12 +2533,15 @@ export default function MatchesPage() {
                                                 <button
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (confirm('Delete this file?')) {
-                                                      deleteContract(contract.id);
+                                                    if (confirm(`Delete this file? This will delete ${fileGroup.uploaders.length} file record(s).`)) {
+                                                      // Delete all file records for this file
+                                                      fileGroup.uploaders.forEach(uploader => {
+                                                        deleteContract(uploader.contract_id);
+                                                      });
                                                     }
                                                   }}
                                                   className="text-red-600 hover:text-red-800"
-                                                  title="Delete"
+                                                  title="Delete all copies"
                                                 >
                                                   🗑️
                                                 </button>
