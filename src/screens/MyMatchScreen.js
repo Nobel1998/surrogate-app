@@ -159,6 +159,7 @@ export default function MyMatchScreen({ navigation }) {
             'online_claims',
             'agency_retainer',
             'hipaa_release',
+            'photo_release',
           ])
           .or(userIdOrClause)
           .order('created_at', { ascending: false });
@@ -319,6 +320,33 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'online_claims',
       },
     ];
+    
+    // Add surrogate-only documents (only visible to surrogates)
+    if (isSurrogate) {
+      documentConfig.push(
+        {
+          key: 'agency_retainer',
+          label: t('myMatch.agencyRetainer') || 'Agency Retainer Agreement',
+          icon: 'file-text',
+          iconColor: '#00B894',
+          documentType: 'agency_retainer',
+        },
+        {
+          key: 'hipaa_release',
+          label: t('myMatch.hipaaRelease') || 'HIPAA Release',
+          icon: 'shield',
+          iconColor: '#6C5CE7',
+          documentType: 'hipaa_release',
+        },
+        {
+          key: 'photo_release',
+          label: t('myMatch.photoRelease') || 'Photo Release',
+          icon: 'camera',
+          iconColor: '#E17055',
+          documentType: 'photo_release',
+        }
+      );
+    }
     
     return (
       <ScrollView 
