@@ -1926,6 +1926,20 @@ export default function MatchesPage() {
                                 ))}
                               </div>
                             </div>
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-500 mb-1">Stage</div>
+                              <select
+                                className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
+                                value={surrogate?.progress_stage || 'pre'}
+                                onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
+                              >
+                                {STAGE_OPTIONS.map((st: string) => (
+                                  <option key={st} value={st}>
+                                    {STAGE_LABELS[st] || st.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Weeks Pregnant</div>
@@ -2816,17 +2830,6 @@ export default function MatchesPage() {
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
                         <div className="flex flex-wrap gap-2">
-                        <select
-                            className="border border-gray-300 rounded px-2 py-1 text-xs"
-                          value={surrogate?.progress_stage || 'pre'}
-                          onChange={(e) => updateStage(m.surrogate_id, e.target.value)}
-                        >
-                          {STAGE_OPTIONS.map((st: string) => (
-                            <option key={st} value={st}>
-                                {STAGE_LABELS[st] || st.toUpperCase()}
-                            </option>
-                          ))}
-                        </select>
                           <button
                             onClick={() => openContractModal(m)}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
