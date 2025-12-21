@@ -709,14 +709,49 @@ export default function MatchesPage() {
     }
   };
 
+  // Format date without timezone conversion to avoid date offset issues
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      // Parse date string directly to avoid timezone conversion
+      // Handle both ISO format (2024-12-05) and full datetime strings
+      const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        // Format as MM/DD/YYYY without timezone conversion
+        return `${month}/${day}/${year}`;
+      }
+      // Fallback to Date object for other formats
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
       });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Format date for display (same logic, avoiding timezone issues)
+  const formatDateOnly = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    try {
+      // Parse date string directly to avoid timezone conversion
+      const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        // Format as MM/DD/YYYY
+        return `${month}/${day}/${year}`;
+      }
+      // Fallback: use UTC methods to avoid timezone conversion
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      return `${month}/${day}/${year}`;
     } catch {
       return dateStr;
     }
@@ -1730,11 +1765,20 @@ export default function MatchesPage() {
                     if (!transferDate) return null;
                     
                     try {
-                      const transfer = new Date(transferDate);
-                      const today = new Date();
+                      // Parse date string directly to avoid timezone issues
+                      const dateMatch = transferDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      let transfer: Date;
                       
-                      // Set both dates to midnight for accurate day calculation
-                      transfer.setHours(0, 0, 0, 0);
+                      if (dateMatch) {
+                        const [, year, month, day] = dateMatch;
+                        // Create date in local timezone to avoid timezone conversion
+                        transfer = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      } else {
+                        transfer = new Date(transferDate);
+                        transfer.setHours(0, 0, 0, 0);
+                      }
+                      
+                      const today = new Date();
                       today.setHours(0, 0, 0, 0);
                       
                       // Calculate days from transfer to today
@@ -1761,6 +1805,12 @@ export default function MatchesPage() {
                   const calculateDueDate = () => {
                     // First, try to use estimated_due_date from match if available
                     if (m.estimated_due_date) {
+                      // Parse date string directly to avoid timezone issues
+                      const dateMatch = m.estimated_due_date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      if (dateMatch) {
+                        const [, year, month, day] = dateMatch;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      }
                       return new Date(m.estimated_due_date);
                     }
                     
@@ -1769,8 +1819,18 @@ export default function MatchesPage() {
                     if (!transferDate) return null;
                     
                     try {
-                      const transfer = new Date(transferDate);
-                      transfer.setHours(0, 0, 0, 0);
+                      // Parse date string directly to avoid timezone issues
+                      const dateMatch = transferDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      let transfer: Date;
+                      
+                      if (dateMatch) {
+                        const [, year, month, day] = dateMatch;
+                        // Create date in local timezone to avoid timezone conversion
+                        transfer = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      } else {
+                        transfer = new Date(transferDate);
+                        transfer.setHours(0, 0, 0, 0);
+                      }
                       
                       // Day 5 embryo = 19 days gestational at transfer (14+5)
                       // Normal pregnancy is 280 days (40 weeks)
@@ -2092,7 +2152,12 @@ export default function MatchesPage() {
                             <div className="text-xs text-gray-500 mb-1">Due Date</div>
                             <div className="text-sm text-gray-900">
                               {calculatedDueDate 
-                                ? calculatedDueDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                ? (() => {
+                                    const year = calculatedDueDate.getFullYear();
+                                    const month = String(calculatedDueDate.getMonth() + 1).padStart(2, '0');
+                                    const day = String(calculatedDueDate.getDate()).padStart(2, '0');
+                                    return formatDateOnly(`${year}-${month}-${day}`);
+                                  })()
                                 : '—'}
                             </div>
                           </div>
@@ -2255,7 +2320,7 @@ export default function MatchesPage() {
                                 title="Click to edit Sign Date"
                               >
                                 {m.sign_date 
-                                  ? new Date(m.sign_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  ? formatDateOnly(m.sign_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
@@ -2266,9 +2331,7 @@ export default function MatchesPage() {
                               {(() => {
                                 // Read transfer_date from surrogate's app input, fallback to match data
                                 const transferDate = surrogate?.transfer_date || m.transfer_date;
-                                return transferDate 
-                                  ? new Date(transferDate).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                                  : '—';
+                                return formatDateOnly(transferDate);
                               })()}
                             </div>
                           </div>
@@ -2325,7 +2388,7 @@ export default function MatchesPage() {
                                 title="Click to edit Beta Confirm Date"
                               >
                                 {m.beta_confirm_date 
-                                  ? new Date(m.beta_confirm_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                                  ? formatDateOnly(m.beta_confirm_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
@@ -2649,7 +2712,7 @@ export default function MatchesPage() {
                               <div className="space-y-2">
                                 {latestReports.map((r) => {
                                   const reportData = r.report_data || {};
-                                  const visitDate = r.visit_date ? new Date(r.visit_date).toLocaleDateString() : '';
+                                  const visitDate = formatDateOnly(r.visit_date);
                                   let keyMetrics: string[] = [];
                                   
                                   if (r.stage === 'Pre-Transfer') {
