@@ -250,7 +250,7 @@ export default function MatchesPage() {
   
   // Photo Release upload state
   const [showPhotoReleaseModal, setShowPhotoReleaseModal] = useState(false);
-  const [photoReleaseUserId, setPhotoReleaseUserId] = useState<string>('');
+  const [photoReleaseMatchId, setPhotoReleaseMatchId] = useState<string>('');
   const [photoReleaseFile, setPhotoReleaseFile] = useState<File | null>(null);
   const [uploadingPhotoRelease, setUploadingPhotoRelease] = useState(false);
 
@@ -1262,7 +1262,7 @@ export default function MatchesPage() {
   };
 
   const openPhotoReleaseModal = () => {
-    setPhotoReleaseUserId('');
+    setPhotoReleaseMatchId('');
     setPhotoReleaseFile(null);
     setShowPhotoReleaseModal(true);
   };
@@ -1272,8 +1272,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!photoReleaseUserId) {
-      alert('Please select a user');
+    if (!photoReleaseMatchId) {
+      alert('Please select a match');
       return;
     }
 
@@ -1281,7 +1281,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', photoReleaseFile);
-      formData.append('user_id', photoReleaseUserId);
+      formData.append('match_id', photoReleaseMatchId);
 
       const res = await fetch('/api/matches/photo-release', {
         method: 'POST',
@@ -1294,10 +1294,10 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Photo Release uploaded successfully! The user can now see it in their User Center.');
+      alert('Photo Release uploaded successfully! Both surrogate and parent(s) in this match can now see it in their User Center.');
       setShowPhotoReleaseModal(false);
       setPhotoReleaseFile(null);
-      setPhotoReleaseUserId('');
+      setPhotoReleaseMatchId('');
       await loadData();
     } catch (err: any) {
       console.error('Error uploading photo release:', err);
@@ -2446,30 +2446,17 @@ export default function MatchesPage() {
                               return Array.from(fileMap.values());
                             };
                             
-                            // Helper function to format visible users display
-                            const formatVisibleUsers = (uploaders: Array<{ user_id: string; user_type: 'surrogate' | 'parent' | null }>) => {
-                              const hasSurrogate = uploaders.some(u => u.user_type === 'surrogate');
-                              const parentIds = uploaders
-                                .filter(u => u.user_type === 'parent')
-                                .map(u => u.user_id);
+                            // Helper function to format uploaders display
+                            const formatUploaders = (uploaders: Array<{ user_id: string; user_type: 'surrogate' | 'parent' | null }>) => {
+                              const surrogates = uploaders.filter(u => u.user_type === 'surrogate');
+                              const parents = uploaders.filter(u => u.user_type === 'parent');
                               
                               const parts: string[] = [];
-                              if (hasSurrogate) {
-                                parts.push('Surrogate');
+                              if (surrogates.length > 0) {
+                                parts.push(`surrogate ${surrogates.length}`);
                               }
-                              
-                              // Check which parent(s) can see this file
-                              if (parentIds.includes(m.first_parent_id || '')) {
-                                parts.push('Parent 1');
-                              }
-                              if (parentIds.includes(m.second_parent_id || '')) {
-                                parts.push('Parent 2');
-                              }
-                              // Fallback: if parent_id exists but not first/second parent
-                              if (parentIds.includes(m.parent_id || '') && 
-                                  m.parent_id !== m.first_parent_id && 
-                                  m.parent_id !== m.second_parent_id) {
-                                parts.push('Parent');
+                              if (parents.length > 0) {
+                                parts.push(`parent ${parents.length}`);
                               }
                               
                               return parts.length > 0 ? parts.join(' & ') : 'Unknown';
@@ -2525,7 +2512,7 @@ export default function MatchesPage() {
                                                   {fileGroup.file_name}
                                                 </div>
                                                 <div className="text-gray-500 mt-0.5">
-                                                  {formatVisibleUsers(fileGroup.uploaders)}
+                                                  {formatUploaders(fileGroup.uploaders)}
                                                 </div>
                                                 {earliestDate && (
                                                   <div className="text-gray-400 mt-0.5">
@@ -3418,19 +3405,24 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select User *
+                  Select Match *
                 </label>
                 <select
-                  value={photoReleaseUserId}
-                  onChange={(e) => setPhotoReleaseUserId(e.target.value)}
+                  value={photoReleaseMatchId}
+                  onChange={(e) => setPhotoReleaseMatchId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">-- Select a user --</option>
-                  {[...surrogates, ...parents].map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
-                    </option>
-                  ))}
+                  <option value="">-- Select a match --</option>
+                  {matches.map((match) => {
+                    const surrogate = surrogates.find(s => s.id === match.surrogate_id);
+                    const parent = parents.find(p => p.id === match.parent_id || p.id === match.first_parent_id);
+                    const matchLabel = `Match: ${surrogate?.name || match.surrogate_id} & ${parent?.name || match.first_parent_name || match.parent_id}`;
+                    return (
+                      <option key={match.id} value={match.id}>
+                        {matchLabel}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -3450,7 +3442,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to the selected user in their User Center.
+                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to both surrogate and parent(s) in this match in their User Center.
                 </p>
               </div>
 
@@ -3463,9 +3455,9 @@ export default function MatchesPage() {
                 </button>
                 <button
                   onClick={uploadPhotoRelease}
-                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId}
+                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseMatchId}
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId
+                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseMatchId
                       ? 'bg-gray-400'
                       : 'bg-purple-600 hover:bg-purple-700'
                   } transition-colors`}
