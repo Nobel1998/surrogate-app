@@ -2582,6 +2582,115 @@ export default function MatchesPage() {
                           })()}
                         </div>
 
+                        {/* Uploaded Files (Surrogate Only) */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Uploaded Files</h4>
+                          {(() => {
+                            // Filter documents for this match's surrogate only
+                            const surrogateFiles = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              (c.document_type === 'agency_retainer' || 
+                               c.document_type === 'hipaa_release' || 
+                               c.document_type === 'photo_release')
+                            );
+                            
+                            const fileCategories = [
+                              { key: 'agency_retainer', label: 'Agency Retainer Agreement', docType: 'agency_retainer' },
+                              { key: 'hipaa_release', label: 'HIPAA Release', docType: 'hipaa_release' },
+                              { key: 'photo_release', label: 'Photo Release', docType: 'photo_release' },
+                            ];
+                            
+                            return (
+                              <div className="space-y-2 text-xs">
+                                {fileCategories.map((category) => {
+                                  const categoryFiles = surrogateFiles.filter(f => f.document_type === category.docType);
+                                  const hasFiles = categoryFiles.length > 0;
+                                  const isExpanded = expandedDocTypes.has(`${m.id}-${category.key}`);
+                                  
+                                  return (
+                                    <div key={category.key} className="space-y-1">
+                                      <div 
+                                        className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${hasFiles ? '' : 'opacity-60'}`}
+                                        onClick={() => {
+                                          if (hasFiles) {
+                                            const newExpanded = new Set(expandedDocTypes);
+                                            const key = `${m.id}-${category.key}`;
+                                            if (newExpanded.has(key)) {
+                                              newExpanded.delete(key);
+                                            } else {
+                                              newExpanded.add(key);
+                                            }
+                                            setExpandedDocTypes(newExpanded);
+                                          }
+                                        }}
+                                      >
+                                        <span className={hasFiles ? 'text-green-600' : 'text-gray-400'}>
+                                          {hasFiles ? '✓' : '○'}
+                                        </span>
+                                        <span className="text-gray-600 flex-1">{category.label}</span>
+                                        {hasFiles && (
+                                          <span className="text-[10px] text-gray-400">
+                                            ({categoryFiles.length}) {isExpanded ? '▼' : '▶'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {isExpanded && hasFiles && (
+                                        <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
+                                          {categoryFiles.map((file) => {
+                                            const user = profileLookup[file.user_id];
+                                            return (
+                                              <div key={file.id} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                                <div className="flex items-start justify-between">
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-gray-900 truncate">
+                                                      {file.file_name || 'Unnamed file'}
+                                                    </div>
+                                                    <div className="text-gray-500 mt-0.5">
+                                                      {user?.name || user?.phone || file.user_id.substring(0, 8)}
+                                                    </div>
+                                                    {file.created_at && (
+                                                      <div className="text-gray-400 mt-0.5">
+                                                        {formatDateOnly(file.created_at.split('T')[0])}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center gap-1.5 ml-2">
+                                                    <a
+                                                      href={file.file_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-blue-600 hover:text-blue-800"
+                                                      title="Download"
+                                                    >
+                                                      📥
+                                                    </a>
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm('Delete this file?')) {
+                                                          deleteContract(file.id);
+                                                        }
+                                                      }}
+                                                      className="text-red-600 hover:text-red-800"
+                                                      title="Delete"
+                                                    >
+                                                      🗑️
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
                         {/* Posts & Medical Reports */}
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Activity</h4>
