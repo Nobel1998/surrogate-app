@@ -1,0 +1,15 @@
+Trust Account Document - Test File
+====================================
+
+Document Type: Trust Account Agreement / Wire Receipt
+Date: December 11, 2025
+Match ID: Test Match
+
+This is a test document for Trust Account upload functionality.
+
+Content:
+- Trust Account Agreement
+- Wire Transfer Receipt
+- Financial Documentation
+
+This file can be used to test the Trust Account upload feature in the admin dashboard.
