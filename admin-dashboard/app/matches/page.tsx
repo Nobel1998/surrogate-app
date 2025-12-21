@@ -186,6 +186,7 @@ export default function MatchesPage() {
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyValue, setCompanyValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -2376,290 +2377,116 @@ export default function MatchesPage() {
 
                         {/* Document Status */}
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-semibold text-gray-700 border-b pb-1 flex-1">Document Status</h4>
-                            <button
-                              onClick={() => {
-                                const newExpanded = new Set(expandedFiles);
-                                if (newExpanded.has(m.id)) {
-                                  newExpanded.delete(m.id);
-                                } else {
-                                  newExpanded.add(m.id);
-                                }
-                                setExpandedFiles(newExpanded);
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-800 ml-2"
-                            >
-                              {expandedFiles.has(m.id) ? '▼ Hide Files' : '▶ Show Files'}
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.customer_signed_contractfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.customer_signed_contractfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Customer Contract</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.attorney_contractfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.attorney_contractfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Attorney Contract</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.trust_account_contractfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.trust_account_contractfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Trust Account</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.surrogacy_contractfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.surrogacy_contractfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Surrogacy Contract</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.life_insurance_policyfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.life_insurance_policyfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Life Insurance</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.surrogate_health_insurancefiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.surrogate_health_insurancefiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Health Insurance</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.wire_recordfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.wire_recordfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Wire Record</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.monthly_statementfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.monthly_statementfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Monthly Statement</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.pbofiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.pbofiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">PBO</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={m.files?.attorney_retainer_agreementfiles ? 'text-green-600' : 'text-gray-400'}>
-                                {m.files?.attorney_retainer_agreementfiles ? '✓' : '○'}
-                              </span>
-                              <span className="text-gray-600">Attorney Retainer</span>
-                            </div>
-                          </div>
-                          
-                          {/* Uploaded Files for this match */}
-                          {expandedFiles.has(m.id) && (() => {
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Document Status</h4>
+                          {(() => {
                             // Filter contracts related to this match
                             const matchContracts = contracts.filter(c => 
                               c.user_id === m.surrogate_id || c.user_id === m.parent_id
                             );
                             
-                            if (matchContracts.length === 0) {
+                            // Helper function to get files for a document type
+                            const getFilesForDocType = (docTypes: string[]) => {
+                              return matchContracts.filter(c => docTypes.includes(c.document_type));
+                            };
+                            
+                            // Helper function to render file list for a document type
+                            const renderFileList = (docTypeKey: string, docTypes: string[], label: string) => {
+                              const docFiles = getFilesForDocType(docTypes);
+                              const hasFiles = docFiles.length > 0;
+                              const isExpanded = expandedDocTypes.has(`${m.id}-${docTypeKey}`);
+                              
                               return (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                  <div className="text-xs text-gray-500">No files uploaded for this match.</div>
+                                <div key={docTypeKey} className="space-y-1">
+                                  <div 
+                                    className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${hasFiles ? '' : 'opacity-60'}`}
+                                    onClick={() => {
+                                      if (hasFiles) {
+                                        const newExpanded = new Set(expandedDocTypes);
+                                        const key = `${m.id}-${docTypeKey}`;
+                                        if (newExpanded.has(key)) {
+                                          newExpanded.delete(key);
+                                        } else {
+                                          newExpanded.add(key);
+                                        }
+                                        setExpandedDocTypes(newExpanded);
+                                      }
+                                    }}
+                                  >
+                                    <span className={hasFiles ? 'text-green-600' : 'text-gray-400'}>
+                                      {hasFiles ? '✓' : '○'}
+                                    </span>
+                                    <span className="text-gray-600 flex-1">{label}</span>
+                                    {hasFiles && (
+                                      <span className="text-[10px] text-gray-400">
+                                        ({docFiles.length}) {isExpanded ? '▼' : '▶'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isExpanded && hasFiles && (
+                                    <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
+                                      {docFiles.map((contract) => {
+                                        const user = profileLookup[contract.user_id];
+                                        return (
+                                          <div key={contract.id} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                            <div className="flex items-start justify-between">
+                                              <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-gray-900 truncate">
+                                                  {contract.file_name || 'Unnamed file'}
+                                                </div>
+                                                <div className="text-gray-500 mt-0.5">
+                                                  {user?.name || user?.phone || contract.user_id.substring(0, 8)}
+                                                </div>
+                                                {contract.created_at && (
+                                                  <div className="text-gray-400 mt-0.5">
+                                                    {formatDateOnly(contract.created_at.split('T')[0])}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-1.5 ml-2">
+                                                <a
+                                                  href={contract.file_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800"
+                                                  title="Download"
+                                                >
+                                                  📥
+                                                </a>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('Delete this file?')) {
+                                                      deleteContract(contract.id);
+                                                    }
+                                                  }}
+                                                  className="text-red-600 hover:text-red-800"
+                                                  title="Delete"
+                                                >
+                                                  🗑️
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               );
-                            }
-                            
-                            // Group contracts by file_url and document_type
-                            const contractGroups = new Map<string, Contract[]>();
-                            const processedIds = new Set<string>();
-                            
-                            matchContracts.forEach((contract) => {
-                              if (processedIds.has(contract.id)) return;
-                              
-                              const matchTypes = ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims'];
-                              const isMatchType = matchTypes.includes(contract.document_type);
-                              
-                              if (isMatchType) {
-                                const relatedContracts = matchContracts.filter(
-                                  (c) => c.file_url === contract.file_url && 
-                                         c.document_type === contract.document_type &&
-                                         c.id !== contract.id
-                                );
-                                
-                                if (relatedContracts.length > 0) {
-                                  const groupKey = `${contract.file_url}-${contract.document_type}`;
-                                  if (!contractGroups.has(groupKey)) {
-                                    contractGroups.set(groupKey, [contract, ...relatedContracts]);
-                                    processedIds.add(contract.id);
-                                    relatedContracts.forEach(c => processedIds.add(c.id));
-                                  }
-                                } else {
-                                  let correspondingType = '';
-                                  if (contract.document_type === 'parent_contract') {
-                                    correspondingType = 'surrogate_contract';
-                                  } else if (contract.document_type === 'surrogate_contract') {
-                                    correspondingType = 'parent_contract';
-                                  }
-                                  
-                                  if (correspondingType) {
-                                    const correspondingContract = matchContracts.find(
-                                      (c) => c.file_url === contract.file_url && 
-                                             c.document_type === correspondingType
-                                    );
-                                    
-                                    if (correspondingContract) {
-                                      const groupKey = `${contract.file_url}-contract-pair`;
-                                      if (!contractGroups.has(groupKey)) {
-                                        contractGroups.set(groupKey, [contract, correspondingContract]);
-                                        processedIds.add(contract.id);
-                                        processedIds.add(correspondingContract.id);
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            });
-                            
-                            const singleContracts = matchContracts.filter(c => !processedIds.has(c.id));
+                            };
                             
                             return (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <div className="text-xs font-semibold text-gray-700 mb-2">Uploaded Files ({matchContracts.length})</div>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                  {Array.from(contractGroups.values()).map((groupContracts, idx) => {
-                                    const firstContract = groupContracts[0];
-                                    const user1 = profileLookup[firstContract.user_id];
-                                    const user2 = groupContracts.length > 1 ? profileLookup[groupContracts[1].user_id] : null;
-                                    
-                                    let contractTypeLabel = '';
-                                    if (firstContract.document_type === 'parent_contract' || firstContract.document_type === 'surrogate_contract') {
-                                      contractTypeLabel = 'Contract';
-                                    } else if (firstContract.document_type === 'legal_contract') {
-                                      contractTypeLabel = 'Attorney Retainer';
-                                    } else if (firstContract.document_type === 'insurance_policy') {
-                                      contractTypeLabel = 'Life Insurance';
-                                    } else if (firstContract.document_type === 'health_insurance_bill') {
-                                      contractTypeLabel = 'Health Insurance';
-                                    } else if (firstContract.document_type === 'parental_rights') {
-                                      contractTypeLabel = 'PBO';
-                                    } else if (firstContract.document_type === 'online_claims') {
-                                      contractTypeLabel = 'Online Claims';
-                                    } else {
-                                      contractTypeLabel = firstContract.document_type;
-                                    }
-                                    
-                                    return (
-                                      <div key={`group-${idx}`} className="p-2 bg-gray-50 rounded border border-gray-200">
-                                        <div className="flex items-start justify-between">
-                                          <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-medium text-gray-900 truncate">
-                                              {firstContract.file_name || 'Unnamed file'}
-                                            </div>
-                                            <div className="text-[10px] text-gray-500 mt-0.5">
-                                              {contractTypeLabel} · {user1?.name || user1?.phone || firstContract.user_id.substring(0, 8)}
-                                              {user2 && ` & ${user2?.name || user2?.phone || groupContracts[1].user_id.substring(0, 8)}`}
-                                            </div>
-                                            {firstContract.created_at && (
-                                              <div className="text-[10px] text-gray-400 mt-0.5">
-                                                {formatDateOnly(firstContract.created_at.split('T')[0])}
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2 ml-2">
-                                            <a
-                                              href={firstContract.file_url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-[10px] text-blue-600 hover:text-blue-800"
-                                            >
-                                              📥
-                                            </a>
-                                            <button
-                                              onClick={() => {
-                                                if (confirm('Delete this file?')) {
-                                                  groupContracts.forEach(c => deleteContract(c.id));
-                                                }
-                                              }}
-                                              className="text-[10px] text-red-600 hover:text-red-800"
-                                            >
-                                              🗑️
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                  
-                                  {singleContracts.map((contract) => {
-                                    const user = profileLookup[contract.user_id];
-                                    let contractTypeLabel = '';
-                                    if (contract.document_type === 'parent_contract') {
-                                      contractTypeLabel = 'Parent Contract';
-                                    } else if (contract.document_type === 'surrogate_contract') {
-                                      contractTypeLabel = 'Surrogate Contract';
-                                    } else if (contract.document_type === 'legal_contract') {
-                                      contractTypeLabel = 'Attorney Retainer';
-                                    } else if (contract.document_type === 'insurance_policy') {
-                                      contractTypeLabel = 'Life Insurance';
-                                    } else if (contract.document_type === 'health_insurance_bill') {
-                                      contractTypeLabel = 'Health Insurance';
-                                    } else if (contract.document_type === 'parental_rights') {
-                                      contractTypeLabel = 'PBO';
-                                    } else if (contract.document_type === 'online_claims') {
-                                      contractTypeLabel = 'Online Claims';
-                                    } else if (contract.document_type === 'agency_retainer') {
-                                      contractTypeLabel = 'Agency Retainer';
-                                    } else if (contract.document_type === 'hipaa_release') {
-                                      contractTypeLabel = 'HIPAA Release';
-                                    } else if (contract.document_type === 'photo_release') {
-                                      contractTypeLabel = 'Photo Release';
-                                    } else {
-                                      contractTypeLabel = contract.document_type;
-                                    }
-                                    
-                                    return (
-                                      <div key={contract.id} className="p-2 bg-gray-50 rounded border border-gray-200">
-                                        <div className="flex items-start justify-between">
-                                          <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-medium text-gray-900 truncate">
-                                              {contract.file_name || 'Unnamed file'}
-                                            </div>
-                                            <div className="text-[10px] text-gray-500 mt-0.5">
-                                              {contractTypeLabel} · {user?.name || user?.phone || contract.user_id.substring(0, 8)}
-                                            </div>
-                                            {contract.created_at && (
-                                              <div className="text-[10px] text-gray-400 mt-0.5">
-                                                {formatDateOnly(contract.created_at.split('T')[0])}
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2 ml-2">
-                                            <a
-                                              href={contract.file_url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-[10px] text-blue-600 hover:text-blue-800"
-                                            >
-                                              📥
-                                            </a>
-                                            <button
-                                              onClick={() => {
-                                                if (confirm('Delete this file?')) {
-                                                  deleteContract(contract.id);
-                                                }
-                                              }}
-                                              className="text-[10px] text-red-600 hover:text-red-800"
-                                            >
-                                              🗑️
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {renderFileList('customer_contract', ['parent_contract', 'surrogate_contract'], 'Customer Contract')}
+                                {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
+                                {renderFileList('trust_account', [], 'Trust Account')}
+                                {renderFileList('surrogacy_contract', ['parent_contract', 'surrogate_contract'], 'Surrogacy Contract')}
+                                {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
+                                {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
+                                {renderFileList('wire_record', [], 'Wire Record')}
+                                {renderFileList('monthly_statement', [], 'Monthly Statement')}
+                                {renderFileList('pbo', ['parental_rights'], 'PBO')}
+                                {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
                               </div>
                             );
                           })()}
