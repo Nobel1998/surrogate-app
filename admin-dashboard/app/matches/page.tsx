@@ -2446,17 +2446,30 @@ export default function MatchesPage() {
                               return Array.from(fileMap.values());
                             };
                             
-                            // Helper function to format uploaders display
-                            const formatUploaders = (uploaders: Array<{ user_id: string; user_type: 'surrogate' | 'parent' | null }>) => {
-                              const surrogates = uploaders.filter(u => u.user_type === 'surrogate');
-                              const parents = uploaders.filter(u => u.user_type === 'parent');
+                            // Helper function to format visible users display
+                            const formatVisibleUsers = (uploaders: Array<{ user_id: string; user_type: 'surrogate' | 'parent' | null }>) => {
+                              const hasSurrogate = uploaders.some(u => u.user_type === 'surrogate');
+                              const parentIds = uploaders
+                                .filter(u => u.user_type === 'parent')
+                                .map(u => u.user_id);
                               
                               const parts: string[] = [];
-                              if (surrogates.length > 0) {
-                                parts.push(`surrogate ${surrogates.length}`);
+                              if (hasSurrogate) {
+                                parts.push('Surrogate');
                               }
-                              if (parents.length > 0) {
-                                parts.push(`parent ${parents.length}`);
+                              
+                              // Check which parent(s) can see this file
+                              if (parentIds.includes(m.first_parent_id || '')) {
+                                parts.push('Parent 1');
+                              }
+                              if (parentIds.includes(m.second_parent_id || '')) {
+                                parts.push('Parent 2');
+                              }
+                              // Fallback: if parent_id exists but not first/second parent
+                              if (parentIds.includes(m.parent_id || '') && 
+                                  m.parent_id !== m.first_parent_id && 
+                                  m.parent_id !== m.second_parent_id) {
+                                parts.push('Parent');
                               }
                               
                               return parts.length > 0 ? parts.join(' & ') : 'Unknown';
@@ -2512,7 +2525,7 @@ export default function MatchesPage() {
                                                   {fileGroup.file_name}
                                                 </div>
                                                 <div className="text-gray-500 mt-0.5">
-                                                  {formatUploaders(fileGroup.uploaders)}
+                                                  {formatVisibleUsers(fileGroup.uploaders)}
                                                 </div>
                                                 {earliestDate && (
                                                   <div className="text-gray-400 mt-0.5">
