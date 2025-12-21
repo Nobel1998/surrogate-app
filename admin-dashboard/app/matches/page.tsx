@@ -165,6 +165,10 @@ export default function MatchesPage() {
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
   const [editingParent2, setEditingParent2] = useState<string | null>(null);
   const [parent2Name, setParent2Name] = useState<string>('');
+  const [editingFetuses, setEditingFetuses] = useState<string | null>(null);
+  const [fetusesValue, setFetusesValue] = useState<string>('');
+  const [editingFetalBeat, setEditingFetalBeat] = useState<string | null>(null);
+  const [fetalBeatValue, setFetalBeatValue] = useState<string>('');
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -400,6 +404,62 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Parent 2 name:', err);
       alert(err.message || 'Failed to update Parent 2 name');
+    }
+  };
+
+  const handleUpdateFetuses = async (matchId: string) => {
+    try {
+      const numValue = fetusesValue.trim() ? parseInt(fetusesValue.trim(), 10) : null;
+      if (fetusesValue.trim() && (isNaN(numValue!) || numValue! < 0)) {
+        alert('Please enter a valid number for fetuses');
+        return;
+      }
+
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number_of_fetuses: numValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update number of fetuses');
+      }
+
+      await loadData();
+      setEditingFetuses(null);
+      setFetusesValue('');
+      alert('Number of fetuses updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating number of fetuses:', err);
+      alert(err.message || 'Failed to update number of fetuses');
+    }
+  };
+
+  const handleUpdateFetalBeat = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fetal_beat_confirm: fetalBeatValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Fetal Beat Confirm');
+      }
+
+      await loadData();
+      setEditingFetalBeat(null);
+      setFetalBeatValue('');
+      alert('Fetal Beat Confirm updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Fetal Beat Confirm:', err);
+      alert(err.message || 'Failed to update Fetal Beat Confirm');
     }
   };
 
@@ -1842,11 +1902,104 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Fetuses</div>
-                            <div className="text-sm text-gray-900">{m.number_of_fetuses ?? '—'}</div>
+                            {editingFetuses === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={fetusesValue}
+                                  onChange={(e) => setFetusesValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateFetuses(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingFetuses(null);
+                                      setFetusesValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateFetuses(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingFetuses(null);
+                                    setFetusesValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingFetuses(m.id);
+                                  setFetusesValue(m.number_of_fetuses?.toString() || '');
+                                }}
+                                title="Click to edit number of fetuses"
+                              >
+                                {m.number_of_fetuses ?? (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Fetal Beat Confirm</div>
-                            <div className="text-sm text-gray-900">{m.fetal_beat_confirm || '—'}</div>
+                            {editingFetalBeat === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={fetalBeatValue}
+                                  onChange={(e) => setFetalBeatValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateFetalBeat(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingFetalBeat(null);
+                                      setFetalBeatValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateFetalBeat(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingFetalBeat(null);
+                                    setFetalBeatValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingFetalBeat(m.id);
+                                  setFetalBeatValue(m.fetal_beat_confirm || '');
+                                }}
+                                title="Click to edit Fetal Beat Confirm"
+                              >
+                                {m.fetal_beat_confirm || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
