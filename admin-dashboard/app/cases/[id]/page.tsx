@@ -407,13 +407,3 @@ export default function CaseDetailPage() {
     </div>
   );
 }
-
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
