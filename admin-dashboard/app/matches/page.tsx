@@ -1469,33 +1469,6 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* Document Upload Section */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Document Upload</h2>
-          <div className="flex gap-3 flex-wrap">
-            <button
-              onClick={() => openAgencyRetainerModal()}
-              className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-sm font-medium rounded transition-colors"
-            >
-              📄 Upload Agency Retainer Agreement
-            </button>
-            <button
-              onClick={() => openHipaaReleaseModal()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
-            >
-              🔒 Upload HIPAA Release
-            </button>
-            <button
-              onClick={() => openPhotoReleaseModal()}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded transition-colors"
-            >
-              📷 Upload Photo Release
-            </button>
-          </div>
-          <p className="mt-3 text-sm text-gray-500">
-            Upload documents for individual users. Each user will see their own document in User Center.
-          </p>
-        </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>
@@ -2623,7 +2596,7 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Document Status</h4>
                           {(() => {
-                            // Filter contracts related to this match
+                            // Filter contracts related to this match (for match documents)
                             const matchContracts = contracts.filter(c => 
                               c.user_id === m.surrogate_id || 
                               c.user_id === m.parent_id || 
@@ -2631,18 +2604,28 @@ export default function MatchesPage() {
                               c.user_id === m.second_parent_id
                             );
                             
+                            // Filter contracts for surrogate only (for single user documents)
+                            const surrogateOnlyContracts = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              (c.document_type === 'agency_retainer' || 
+                               c.document_type === 'hipaa_release' || 
+                               c.document_type === 'photo_release')
+                            );
+                            
                             // Helper function to get files for a document type
-                            const getFilesForDocType = (docTypes: string[]) => {
+                            const getFilesForDocType = (docTypes: string[], isSingleUser: boolean = false) => {
                               if (docTypes.length === 0) {
                                 // For empty array, return empty (used for categories without specific document types)
                                 return [];
                               }
-                              return matchContracts.filter(c => docTypes.includes(c.document_type));
+                              const sourceContracts = isSingleUser ? surrogateOnlyContracts : matchContracts;
+                              return sourceContracts.filter(c => docTypes.includes(c.document_type));
                             };
                             
                             // Helper function to get files for a specific document type by name
-                            const getFilesByDocumentType = (docType: string) => {
-                              return matchContracts.filter(c => c.document_type === docType);
+                            const getFilesByDocumentType = (docType: string, isSingleUser: boolean = false) => {
+                              const sourceContracts = isSingleUser ? surrogateOnlyContracts : matchContracts;
+                              return sourceContracts.filter(c => c.document_type === docType);
                             };
                             
                             // Helper function to identify user type
@@ -2727,11 +2710,11 @@ export default function MatchesPage() {
                             };
                             
                             // Helper function to render file list for a document type
-                            const renderFileList = (docTypeKey: string, docTypes: string[], label: string) => {
+                            const renderFileList = (docTypeKey: string, docTypes: string[], label: string, isSingleUser: boolean = false) => {
                               // Special handling for trust_account which uses document_type directly
                               const docFiles = docTypeKey === 'trust_account' 
-                                ? getFilesByDocumentType('trust_account')
-                                : getFilesForDocType(docTypes);
+                                ? getFilesByDocumentType('trust_account', isSingleUser)
+                                : getFilesForDocType(docTypes, isSingleUser);
                               const mergedFiles = mergeDuplicateFiles(docFiles);
                               const hasFiles = mergedFiles.length > 0;
                               const isExpanded = expandedDocTypes.has(`${m.id}-${docTypeKey}`);
@@ -2824,128 +2807,30 @@ export default function MatchesPage() {
                             };
                             
                             return (
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract')}
-                                {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
-                                {renderFileList('trust_account', [], 'Trust Account')}
-                                {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract')}
-                                {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
-                                {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
-                                {renderFileList('pbo', ['parental_rights'], 'PBO')}
-                                {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract')}
+                                  {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
+                                  {renderFileList('trust_account', [], 'Trust Account')}
+                                  {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract')}
+                                  {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
+                                  {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
+                                  {renderFileList('pbo', ['parental_rights'], 'PBO')}
+                                  {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
+                                </div>
+                                <div className="pt-2 border-t border-gray-300">
+                                  <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {renderFileList('agency_retainer', ['agency_retainer'], 'Agency Retainer Agreement', true)}
+                                    {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
+                                    {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
+                                  </div>
+                                </div>
                               </div>
                             );
                           })()}
                         </div>
 
-                        {/* Uploaded Files (Surrogate Only) */}
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Uploaded Files</h4>
-                          {(() => {
-                            // Filter documents for this match's surrogate only
-                            const surrogateFiles = contracts.filter(c => 
-                              c.user_id === m.surrogate_id &&
-                              (c.document_type === 'agency_retainer' || 
-                               c.document_type === 'hipaa_release' || 
-                               c.document_type === 'photo_release')
-                            );
-                            
-                            const fileCategories = [
-                              { key: 'agency_retainer', label: 'Agency Retainer Agreement', docType: 'agency_retainer' },
-                              { key: 'hipaa_release', label: 'HIPAA Release', docType: 'hipaa_release' },
-                              { key: 'photo_release', label: 'Photo Release', docType: 'photo_release' },
-                            ];
-                            
-                            return (
-                              <div className="space-y-2 text-xs">
-                                {fileCategories.map((category) => {
-                                  const categoryFiles = surrogateFiles.filter(f => f.document_type === category.docType);
-                                  const hasFiles = categoryFiles.length > 0;
-                                  const isExpanded = expandedDocTypes.has(`${m.id}-${category.key}`);
-                                  
-                                  return (
-                                    <div key={category.key} className="space-y-1">
-                                      <div 
-                                        className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${hasFiles ? '' : 'opacity-60'}`}
-                                        onClick={() => {
-                                          if (hasFiles) {
-                                            const newExpanded = new Set(expandedDocTypes);
-                                            const key = `${m.id}-${category.key}`;
-                                            if (newExpanded.has(key)) {
-                                              newExpanded.delete(key);
-                                            } else {
-                                              newExpanded.add(key);
-                                            }
-                                            setExpandedDocTypes(newExpanded);
-                                          }
-                                        }}
-                                      >
-                                        <span className={hasFiles ? 'text-green-600' : 'text-gray-400'}>
-                                          {hasFiles ? '✓' : '○'}
-                                        </span>
-                                        <span className="text-gray-600 flex-1">{category.label}</span>
-                                        {hasFiles && (
-                                          <span className="text-[10px] text-gray-400">
-                                            ({categoryFiles.length}) {isExpanded ? '▼' : '▶'}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {isExpanded && hasFiles && (
-                                        <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
-                                          {categoryFiles.map((file) => {
-                                            const user = profileLookup[file.user_id];
-                                            return (
-                                              <div key={file.id} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
-                                                <div className="flex items-start justify-between">
-                                                  <div className="flex-1 min-w-0">
-                                                    <div className="font-medium text-gray-900 truncate">
-                                                      {file.file_name || 'Unnamed file'}
-                                                    </div>
-                                                    <div className="text-gray-500 mt-0.5">
-                                                      {user?.name || user?.phone || file.user_id.substring(0, 8)}
-                                                    </div>
-                                                    {file.created_at && (
-                                                      <div className="text-gray-400 mt-0.5">
-                                                        {formatDateOnly(file.created_at.split('T')[0])}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                  <div className="flex items-center gap-1.5 ml-2">
-                                                    <a
-                                                      href={file.file_url}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="text-blue-600 hover:text-blue-800"
-                                                      title="Download"
-                                                    >
-                                                      📥
-                                                    </a>
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (confirm('Delete this file?')) {
-                                                          deleteContract(file.id);
-                                                        }
-                                                      }}
-                                                      className="text-red-600 hover:text-red-800"
-                                                      title="Delete"
-                                                    >
-                                                      🗑️
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()}
-                        </div>
 
                         {/* Posts & Medical Reports */}
                         <div className="space-y-3">
@@ -3053,49 +2938,94 @@ export default function MatchesPage() {
                       {/* Actions Section */}
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
-                        <div className="flex flex-wrap gap-2">
+                        
+                        {/* Single User Documents */}
+                        <div className="mb-4">
+                          <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
+                          <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => openContractModal(m)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            📄 Publish Contract
+                              onClick={() => {
+                                setAgencyRetainerUserId(m.surrogate_id);
+                                setShowAgencyRetainerModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Agency Retainer Agreement
                           </button>
-                          <button
-                            onClick={() => openAttorneyModal(m)}
-                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            ⚖️ Upload Attorney Retainer
-                          </button>
-                          <button
-                            onClick={() => openInsuranceModal(m)}
-                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            🛡️ Upload Life Insurance
-                          </button>
-                          <button
-                            onClick={() => openHealthInsuranceModal(m)}
-                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            ❤️ Upload Health Insurance Bill
-                          </button>
-                          <button
-                            onClick={() => openPBOModal(m)}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            📋 Upload PBO
-                          </button>
-                          <button
-                            onClick={() => openTrustAccountModal(m)}
-                            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            💰 Upload Trust Account
-                          </button>
-                          <button
-                            onClick={() => openClaimsModal(m)}
-                            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                          >
-                            ✅ Upload Online Claims
-                          </button>
+                            <button
+                              onClick={() => {
+                                setHipaaReleaseUserId(m.surrogate_id);
+                                setShowHipaaReleaseModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              🔒 Upload HIPAA Release
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPhotoReleaseUserId(m.surrogate_id);
+                                setShowPhotoReleaseModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📷 Upload Photo Release
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-500">
+                            Upload documents for individual users. Each user will see their own document in User Center.
+                          </p>
+                        </div>
+
+                        {/* Match Documents */}
+                        <div>
+                          <div className="text-xs font-semibold text-gray-600 mb-2">Match Documents</div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => openContractModal(m)}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Publish Contract
+                            </button>
+                            <button
+                              onClick={() => openAttorneyModal(m)}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ⚖️ Upload Attorney Retainer
+                            </button>
+                            <button
+                              onClick={() => openInsuranceModal(m)}
+                              className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              🛡️ Upload Life Insurance
+                            </button>
+                            <button
+                              onClick={() => openHealthInsuranceModal(m)}
+                              className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ❤️ Upload Health Insurance Bill
+                            </button>
+                            <button
+                              onClick={() => openPBOModal(m)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📋 Upload PBO
+                            </button>
+                            <button
+                              onClick={() => openTrustAccountModal(m)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              💰 Upload Trust Account
+                            </button>
+                            <button
+                              onClick={() => openClaimsModal(m)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ✅ Upload Online Claims
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-500">
+                            Upload documents for this match. Both surrogate and parent(s) will see these documents in their My Match section.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -3669,7 +3599,7 @@ export default function MatchesPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select User *
                 </label>
-                <select
+                        <select
                   value={hipaaReleaseUserId}
                   onChange={(e) => setHipaaReleaseUserId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3678,9 +3608,9 @@ export default function MatchesPage() {
                   {[...surrogates, ...parents].map((profile) => (
                     <option key={profile.id} value={profile.id}>
                       {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
-                    </option>
-                  ))}
-                </select>
+                            </option>
+                          ))}
+                        </select>
               </div>
 
               <div>
@@ -3701,7 +3631,7 @@ export default function MatchesPage() {
                 <p className="mt-2 text-xs text-gray-500">
                   Supported formats: PDF, DOC, DOCX, TXT. The HIPAA release will be visible to the selected user in their User Center.
                 </p>
-              </div>
+          </div>
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -3721,8 +3651,8 @@ export default function MatchesPage() {
                 >
                   {uploadingHipaaRelease ? 'Uploading...' : 'Upload & Publish'}
                 </button>
-              </div>
-            </div>
+        </div>
+      </div>
           </div>
         </div>
       )}
