@@ -687,16 +687,16 @@ export default function MatchesPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update 捐卵');
+        throw new Error(errData.error || 'Failed to update Egg Donation');
       }
 
       await loadData();
       setEditingEggDonation(null);
       setEggDonationValue('');
-      alert('捐卵 updated successfully');
+      alert('Egg Donation updated successfully');
     } catch (err: any) {
-      console.error('[matches] Error updating 捐卵:', err);
-      alert(err.message || 'Failed to update 捐卵');
+      console.error('[matches] Error updating Egg Donation:', err);
+      alert(err.message || 'Failed to update Egg Donation');
     }
   };
 
@@ -712,16 +712,16 @@ export default function MatchesPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update 捐精');
+        throw new Error(errData.error || 'Failed to update Sperm Donation');
       }
 
       await loadData();
       setEditingSpermDonation(null);
       setSpermDonationValue('');
-      alert('捐精 updated successfully');
+      alert('Sperm Donation updated successfully');
     } catch (err: any) {
-      console.error('[matches] Error updating 捐精:', err);
-      alert(err.message || 'Failed to update 捐精');
+      console.error('[matches] Error updating Sperm Donation:', err);
+      alert(err.message || 'Failed to update Sperm Donation');
     }
   };
 
@@ -2518,7 +2518,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">捐卵</div>
+                            <div className="text-xs text-gray-500 mb-1">Egg Donation</div>
                             {editingEggDonation === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -2559,7 +2559,7 @@ export default function MatchesPage() {
                                   setEditingEggDonation(m.id);
                                   setEggDonationValue(m.egg_donation || '');
                                 }}
-                                title="Click to edit 捐卵"
+                                title="Click to edit Egg Donation"
                               >
                                 {m.egg_donation || (
                                   <span className="text-gray-400 italic">Click to add</span>
@@ -2568,7 +2568,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">捐精</div>
+                            <div className="text-xs text-gray-500 mb-1">Sperm Donation</div>
                             {editingSpermDonation === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -2609,7 +2609,7 @@ export default function MatchesPage() {
                                   setEditingSpermDonation(m.id);
                                   setSpermDonationValue(m.sperm_donation || '');
                                 }}
-                                title="Click to edit 捐精"
+                                title="Click to edit Sperm Donation"
                               >
                                 {m.sperm_donation || (
                                   <span className="text-gray-400 italic">Click to add</span>
@@ -3729,6 +3729,162 @@ export default function MatchesPage() {
 
       {/* Photo Release Upload Modal */}
       {showPhotoReleaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Photo Release</h3>
+              <button
+                onClick={() => setShowPhotoReleaseModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select User *
+                </label>
+                <select
+                  value={photoReleaseUserId}
+                  onChange={(e) => setPhotoReleaseUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Select a user --</option>
+                  {[...surrogates, ...parents].map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Photo Release File *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
+                  onChange={(e) => setPhotoReleaseFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                />
+                {photoReleaseFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {photoReleaseFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to the selected user in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowPhotoReleaseModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadPhotoRelease}
+                  disabled={uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingPhotoRelease || !photoReleaseFile || !photoReleaseUserId
+                      ? 'bg-gray-400'
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  } transition-colors`}
+                >
+                  {uploadingPhotoRelease ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trust Account Upload Modal */}
+      {showTrustAccountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Trust Account Document</h3>
+              <button
+                onClick={() => setShowTrustAccountModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogate
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[trustAccountSurrogateId]?.name || trustAccountSurrogateId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[trustAccountParentId]?.name || trustAccountParentId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Trust Account Document *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  onChange={(e) => setTrustAccountFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+                {trustAccountFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {trustAccountFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG. Upload trust account documents (trust agreements, wire receipts, etc.). Both users can see this document in their My Match section.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowTrustAccountModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadTrustAccount}
+                  disabled={uploadingTrustAccount || !trustAccountFile}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingTrustAccount || !trustAccountFile
+                      ? 'bg-gray-400'
+                      : 'bg-teal-600 hover:bg-teal-700'
+                  } transition-colors`}
+                >
+                  {uploadingTrustAccount ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">

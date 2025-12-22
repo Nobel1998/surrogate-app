@@ -240,11 +240,11 @@ export default function CaseDetailPage() {
                   <div className="text-sm text-gray-900">{caseData.company || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-purple-700 mb-2">捐卵</div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">Egg Donation</div>
                   <div className="text-sm text-gray-900">{caseData.egg_donation || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-purple-700 mb-2">捐精</div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">Sperm Donation</div>
                   <div className="text-sm text-gray-900">{caseData.sperm_donation || '—'}</div>
                 </div>
                 <div>
@@ -398,6 +398,16 @@ export default function CaseDetailPage() {
                       ))
                     )}
                   </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
                 </table>
               </div>
             </div>
