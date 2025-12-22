@@ -3689,47 +3689,20 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select {agencyRetainerUserType === 'parent' ? 'Parent' : agencyRetainerUserType === 'surrogate' ? 'Surrogate' : 'User'} *
+                  {agencyRetainerUserType === 'parent' ? 'Parent' : agencyRetainerUserType === 'surrogate' ? 'Surrogate' : 'User'}
                 </label>
-                <select
-                  value={agencyRetainerUserId}
-                  onChange={(e) => setAgencyRetainerUserId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  disabled={!!agencyRetainerUserType}
-                >
-                  <option value="">-- Select a {agencyRetainerUserType === 'parent' ? 'parent' : agencyRetainerUserType === 'surrogate' ? 'surrogate' : 'user'} --</option>
-                  {agencyRetainerUserType === 'parent' ? (
-                    parents.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name || profile.id} (Parent)
-                      </option>
-                    ))
-                  ) : agencyRetainerUserType === 'surrogate' ? (
-                    surrogates.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name || profile.id} (Surrogate)
-                      </option>
-                    ))
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {agencyRetainerUserType === 'parent' && profileLookup[agencyRetainerUserId] ? (
+                    `${profileLookup[agencyRetainerUserId].name || agencyRetainerUserId} (Parent)`
+                  ) : agencyRetainerUserType === 'surrogate' && profileLookup[agencyRetainerUserId] ? (
+                    `${profileLookup[agencyRetainerUserId].name || agencyRetainerUserId} (Surrogate)`
                   ) : (
-                    <>
-                      {parents.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.name || profile.id} (Parent)
-                        </option>
-                      ))}
-                      {surrogates.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.name || profile.id} (Surrogate)
-                        </option>
-                      ))}
-                    </>
+                    'N/A'
                   )}
-                </select>
-                {agencyRetainerUserType && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Only {agencyRetainerUserType === 'parent' ? 'parent' : 'surrogate'} users are available for selection.
-                  </p>
-                )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  This document will be uploaded for the {agencyRetainerUserType === 'parent' ? 'parent' : 'surrogate'} in this match.
+                </p>
               </div>
 
               <div>
@@ -3793,20 +3766,18 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Parent User *
+                  Parent
                 </label>
-                <select
-                  value={customerContractUserId}
-                  onChange={(e) => setCustomerContractUserId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">-- Select a parent --</option>
-                  {parents.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} (Parent)
-                    </option>
-                  ))}
-                </select>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[customerContractUserId] ? (
+                    `${profileLookup[customerContractUserId].name || customerContractUserId} (Parent)`
+                  ) : (
+                    'N/A'
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  This document will be uploaded for the parent in this match.
+                </p>
               </div>
 
               <div>
@@ -3870,20 +3841,18 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Surrogate User *
+                  Surrogate
                 </label>
-                <select
-                  value={surrogacyContractUserId}
-                  onChange={(e) => setSurrogacyContractUserId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">-- Select a surrogate --</option>
-                  {surrogates.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} (Surrogate)
-                    </option>
-                  ))}
-                </select>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {profileLookup[surrogacyContractUserId] ? (
+                    `${profileLookup[surrogacyContractUserId].name || surrogacyContractUserId} (Surrogate)`
+                  ) : (
+                    'N/A'
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  This document will be uploaded for the surrogate in this match.
+                </p>
               </div>
 
               <div>
