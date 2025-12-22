@@ -997,7 +997,7 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Surrogacy Contract uploaded successfully! The user can now see it in their User Center.');
+      alert('Surrogacy Contract (Surrogate) uploaded successfully! The user can now see it in their User Center.');
       setShowSurrogacyContractModal(false);
       setSurrogacyContractFile(null);
       setSurrogacyContractUserId('');
@@ -2953,8 +2953,8 @@ export default function MatchesPage() {
                                 <div className="pt-2 border-t border-gray-300">
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
-                                    {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract', true, parentOnlyContracts)}
-                                    {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract', true, surrogateOnlyContractsForContract)}
+                                    {renderFileList('customer_contract', ['parent_contract'], 'Surrogacy Contract (Parent)', true, parentOnlyContracts)}
+                                    {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract (Surrogate)', true, surrogateOnlyContractsForContract)}
                                     {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
                                     {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
@@ -3085,7 +3085,7 @@ export default function MatchesPage() {
                               }}
                               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
                             >
-                              📄 Upload Customer Contract
+                              📄 Upload Surrogacy Contract (Parent)
                             </button>
                             <button
                               onClick={() => {
@@ -3094,7 +3094,7 @@ export default function MatchesPage() {
                               }}
                               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
                             >
-                              📄 Upload Surrogacy Contract
+                              📄 Upload Surrogacy Contract (Surrogate)
                             </button>
                             <button
                               onClick={() => {
@@ -3746,7 +3746,7 @@ export default function MatchesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Upload Customer Contract</h3>
+              <h3 className="text-xl font-bold text-gray-900">Upload Surrogacy Contract (Parent)</h3>
               <button
                 onClick={() => setShowCustomerContractModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -3776,7 +3776,7 @@ export default function MatchesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Customer Contract File *
+                  Surrogacy Contract File (Parent) *
                 </label>
                 <input
                   type="file"
@@ -3790,7 +3790,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The customer contract will be visible to the selected parent in their User Center.
+                  Supported formats: PDF, DOC, DOCX, TXT. The surrogacy contract will be visible to the selected parent in their User Center.
                 </p>
               </div>
 
@@ -3823,7 +3823,7 @@ export default function MatchesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Upload Surrogacy Contract</h3>
+              <h3 className="text-xl font-bold text-gray-900">Upload Surrogacy Contract (Surrogate)</h3>
               <button
                 onClick={() => setShowSurrogacyContractModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -3853,7 +3853,7 @@ export default function MatchesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Surrogacy Contract File *
+                  Surrogacy Contract File (Surrogate) *
                 </label>
                 <input
                   type="file"
