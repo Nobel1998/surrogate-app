@@ -3149,12 +3149,6 @@ export default function MatchesPage() {
                           <div className="text-xs font-semibold text-gray-600 mb-2">Match Documents</div>
                           <div className="flex flex-wrap gap-2">
                             <button
-                              onClick={() => openAttorneyModal(m)}
-                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              ⚖️ Upload Attorney Retainer
-                            </button>
-                            <button
                               onClick={() => openInsuranceModal(m)}
                               className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
                             >
