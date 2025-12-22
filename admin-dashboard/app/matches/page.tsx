@@ -53,6 +53,8 @@ type Match = {
   embryos?: string | null;
   lawyer?: string | null;
   company?: string | null;
+  egg_donation?: string | null;
+  sperm_donation?: string | null;
   files?: any;
   managers?: Array<{ id: string; name: string; role?: string }>;
   manager_ids?: string[];
@@ -185,6 +187,10 @@ export default function MatchesPage() {
   const [lawyerValue, setLawyerValue] = useState<string>('');
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyValue, setCompanyValue] = useState<string>('');
+  const [editingEggDonation, setEditingEggDonation] = useState<string | null>(null);
+  const [eggDonationValue, setEggDonationValue] = useState<string>('');
+  const [editingSpermDonation, setEditingSpermDonation] = useState<string | null>(null);
+  const [spermDonationValue, setSpermDonationValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   
@@ -2412,7 +2418,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Company</div>
+                            <div className="text-xs text-gray-500 mb-1">Escrow</div>
                             {editingCompany === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -2453,9 +2459,109 @@ export default function MatchesPage() {
                                   setEditingCompany(m.id);
                                   setCompanyValue(m.company || '');
                                 }}
-                                title="Click to edit Company"
+                                title="Click to edit Escrow"
                               >
                                 {m.company || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">捐卵</div>
+                            {editingEggDonation === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={eggDonationValue}
+                                  onChange={(e) => setEggDonationValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateEggDonation(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingEggDonation(null);
+                                      setEggDonationValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateEggDonation(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingEggDonation(null);
+                                    setEggDonationValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingEggDonation(m.id);
+                                  setEggDonationValue(m.egg_donation || '');
+                                }}
+                                title="Click to edit 捐卵"
+                              >
+                                {m.egg_donation || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">捐精</div>
+                            {editingSpermDonation === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={spermDonationValue}
+                                  onChange={(e) => setSpermDonationValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSpermDonation(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSpermDonation(null);
+                                      setSpermDonationValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateSpermDonation(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSpermDonation(null);
+                                    setSpermDonationValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingSpermDonation(m.id);
+                                  setSpermDonationValue(m.sperm_donation || '');
+                                }}
+                                title="Click to edit 捐精"
+                              >
+                                {m.sperm_donation || (
                                   <span className="text-gray-400 italic">Click to add</span>
                                 )}
                               </div>

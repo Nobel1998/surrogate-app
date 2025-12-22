@@ -26,6 +26,8 @@ type CaseDetail = {
   embryos?: string | null;
   lawyer?: string | null;
   company?: string | null;
+  egg_donation?: string | null;
+  sperm_donation?: string | null;
   files?: any;
   status: string;
   surrogate?: any;
@@ -234,8 +236,16 @@ export default function CaseDetailPage() {
                   <div className="text-sm text-gray-900">{caseData.embryos || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-purple-700 mb-2">Company</div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">Escrow</div>
                   <div className="text-sm text-gray-900">{caseData.company || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">捐卵</div>
+                  <div className="text-sm text-gray-900">{caseData.egg_donation || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-purple-700 mb-2">捐精</div>
+                  <div className="text-sm text-gray-900">{caseData.sperm_donation || '—'}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-purple-700 mb-2">Agency Case Manager</div>
