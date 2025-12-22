@@ -662,16 +662,66 @@ export default function MatchesPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update Company');
+        throw new Error(errData.error || 'Failed to update Escrow');
       }
 
       await loadData();
       setEditingCompany(null);
       setCompanyValue('');
-      alert('Company updated successfully');
+      alert('Escrow updated successfully');
     } catch (err: any) {
-      console.error('[matches] Error updating Company:', err);
-      alert(err.message || 'Failed to update Company');
+      console.error('[matches] Error updating Escrow:', err);
+      alert(err.message || 'Failed to update Escrow');
+    }
+  };
+
+  const handleUpdateEggDonation = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          egg_donation: eggDonationValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update 捐卵');
+      }
+
+      await loadData();
+      setEditingEggDonation(null);
+      setEggDonationValue('');
+      alert('捐卵 updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating 捐卵:', err);
+      alert(err.message || 'Failed to update 捐卵');
+    }
+  };
+
+  const handleUpdateSpermDonation = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sperm_donation: spermDonationValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update 捐精');
+      }
+
+      await loadData();
+      setEditingSpermDonation(null);
+      setSpermDonationValue('');
+      alert('捐精 updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating 捐精:', err);
+      alert(err.message || 'Failed to update 捐精');
     }
   };
 
