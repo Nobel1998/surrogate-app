@@ -267,6 +267,18 @@ export default function MatchesPage() {
   const [trustAccountParentId, setTrustAccountParentId] = useState<string>('');
   const [trustAccountFile, setTrustAccountFile] = useState<File | null>(null);
   const [uploadingTrustAccount, setUploadingTrustAccount] = useState(false);
+  
+  // Customer Contract upload state (for parent)
+  const [showCustomerContractModal, setShowCustomerContractModal] = useState(false);
+  const [customerContractUserId, setCustomerContractUserId] = useState<string>('');
+  const [customerContractFile, setCustomerContractFile] = useState<File | null>(null);
+  const [uploadingCustomerContract, setUploadingCustomerContract] = useState(false);
+  
+  // Surrogacy Contract upload state (for surrogate)
+  const [showSurrogacyContractModal, setShowSurrogacyContractModal] = useState(false);
+  const [surrogacyContractUserId, setSurrogacyContractUserId] = useState<string>('');
+  const [surrogacyContractFile, setSurrogacyContractFile] = useState<File | null>(null);
+  const [uploadingSurrogacyContract, setUploadingSurrogacyContract] = useState(false);
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -904,6 +916,98 @@ export default function MatchesPage() {
     setContractParentId(match.parent_id);
     setContractFile(null);
     setShowContractModal(true);
+  };
+
+  const openCustomerContractModal = () => {
+    setCustomerContractUserId('');
+    setCustomerContractFile(null);
+    setShowCustomerContractModal(true);
+  };
+
+  const uploadCustomerContract = async () => {
+    if (!customerContractFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!customerContractUserId) {
+      alert('Please select a user');
+      return;
+    }
+
+    setUploadingCustomerContract(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', customerContractFile);
+      formData.append('user_id', customerContractUserId);
+
+      const res = await fetch('/api/matches/customer-contract', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Customer Contract uploaded successfully! The user can now see it in their User Center.');
+      setShowCustomerContractModal(false);
+      setCustomerContractFile(null);
+      setCustomerContractUserId('');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading customer contract:', err);
+      alert(err.message || 'Failed to upload customer contract');
+    } finally {
+      setUploadingCustomerContract(false);
+    }
+  };
+
+  const openSurrogacyContractModal = () => {
+    setSurrogacyContractUserId('');
+    setSurrogacyContractFile(null);
+    setShowSurrogacyContractModal(true);
+  };
+
+  const uploadSurrogacyContract = async () => {
+    if (!surrogacyContractFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!surrogacyContractUserId) {
+      alert('Please select a user');
+      return;
+    }
+
+    setUploadingSurrogacyContract(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', surrogacyContractFile);
+      formData.append('user_id', surrogacyContractUserId);
+
+      const res = await fetch('/api/matches/surrogacy-contract', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Surrogacy Contract uploaded successfully! The user can now see it in their User Center.');
+      setShowSurrogacyContractModal(false);
+      setSurrogacyContractFile(null);
+      setSurrogacyContractUserId('');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading surrogacy contract:', err);
+      alert(err.message || 'Failed to upload surrogacy contract');
+    } finally {
+      setUploadingSurrogacyContract(false);
+    }
   };
 
   const uploadContract = async () => {
@@ -2612,6 +2716,18 @@ export default function MatchesPage() {
                                c.document_type === 'photo_release')
                             );
                             
+                            // Filter contracts for parent only (for Agency Retainer Agreement)
+                            const parentAgencyRetainerContracts = contracts.filter(c => 
+                              c.user_id === m.parent_id &&
+                              c.document_type === 'agency_retainer'
+                            );
+                            
+                            // Filter contracts for surrogate only (for Agency Retainer Agreement)
+                            const surrogateAgencyRetainerContracts = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              c.document_type === 'agency_retainer'
+                            );
+                            
                             // Helper function to get files for a document type
                             const getFilesForDocType = (docTypes: string[], isSingleUser: boolean = false) => {
                               if (docTypes.length === 0) {
@@ -2710,11 +2826,17 @@ export default function MatchesPage() {
                             };
                             
                             // Helper function to render file list for a document type
-                            const renderFileList = (docTypeKey: string, docTypes: string[], label: string, isSingleUser: boolean = false) => {
-                              // Special handling for trust_account which uses document_type directly
-                              const docFiles = docTypeKey === 'trust_account' 
-                                ? getFilesByDocumentType('trust_account', isSingleUser)
-                                : getFilesForDocType(docTypes, isSingleUser);
+                            const renderFileList = (docTypeKey: string, docTypes: string[], label: string, isSingleUser: boolean = false, customFiles?: Contract[]) => {
+                              // Use custom files if provided, otherwise use standard logic
+                              let docFiles: Contract[];
+                              if (customFiles) {
+                                docFiles = customFiles;
+                              } else {
+                                // Special handling for trust_account which uses document_type directly
+                                docFiles = docTypeKey === 'trust_account' 
+                                  ? getFilesByDocumentType('trust_account', isSingleUser)
+                                  : getFilesForDocType(docTypes, isSingleUser);
+                              }
                               const mergedFiles = mergeDuplicateFiles(docFiles);
                               const hasFiles = mergedFiles.length > 0;
                               const isExpanded = expandedDocTypes.has(`${m.id}-${docTypeKey}`);
@@ -2806,13 +2928,23 @@ export default function MatchesPage() {
                               );
                             };
                             
+                            // Filter contracts for parent only (for Customer Contract)
+                            const parentOnlyContracts = contracts.filter(c => 
+                              c.user_id === m.parent_id &&
+                              c.document_type === 'parent_contract'
+                            );
+                            
+                            // Filter contracts for surrogate only (for Surrogacy Contract)
+                            const surrogateOnlyContractsForContract = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              c.document_type === 'surrogate_contract'
+                            );
+                            
                             return (
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                  {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract')}
                                   {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
                                   {renderFileList('trust_account', [], 'Trust Account')}
-                                  {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract')}
                                   {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                   {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                   {renderFileList('pbo', ['parental_rights'], 'PBO')}
@@ -2821,7 +2953,10 @@ export default function MatchesPage() {
                                 <div className="pt-2 border-t border-gray-300">
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
-                                    {renderFileList('agency_retainer', ['agency_retainer'], 'Agency Retainer Agreement', true)}
+                                    {renderFileList('customer_contract', ['parent_contract'], 'Customer Contract', true, parentOnlyContracts)}
+                                    {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract', true, surrogateOnlyContractsForContract)}
+                                    {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
+                                    {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
                                   </div>
@@ -2943,15 +3078,42 @@ export default function MatchesPage() {
                         <div className="mb-4">
                           <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                           <div className="flex flex-wrap gap-2">
-                          <button
+                            <button
+                              onClick={() => {
+                                setCustomerContractUserId(m.parent_id);
+                                setShowCustomerContractModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Customer Contract
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSurrogacyContractUserId(m.surrogate_id);
+                                setShowSurrogacyContractModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Surrogacy Contract
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAgencyRetainerUserId(m.parent_id);
+                                setShowAgencyRetainerModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Agency Retainer (Parent)
+                            </button>
+                            <button
                               onClick={() => {
                                 setAgencyRetainerUserId(m.surrogate_id);
                                 setShowAgencyRetainerModal(true);
                               }}
                               className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
                             >
-                              📄 Upload Agency Retainer Agreement
-                          </button>
+                              📄 Upload Agency Retainer (Surrogate)
+                            </button>
                             <button
                               onClick={() => {
                                 setHipaaReleaseUserId(m.surrogate_id);
@@ -2980,12 +3142,6 @@ export default function MatchesPage() {
                         <div>
                           <div className="text-xs font-semibold text-gray-600 mb-2">Match Documents</div>
                           <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => openContractModal(m)}
-                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📄 Publish Contract
-                            </button>
                             <button
                               onClick={() => openAttorneyModal(m)}
                               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
@@ -3520,7 +3676,7 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select User *
+                  Select User (Parent or Surrogate) *
                 </label>
                 <select
                   value={agencyRetainerUserId}
@@ -3528,9 +3684,14 @@ export default function MatchesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 >
                   <option value="">-- Select a user --</option>
-                  {[...surrogates, ...parents].map((profile) => (
+                  {parents.map((profile) => (
                     <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
+                      {profile.name || profile.id} (Parent)
+                    </option>
+                  ))}
+                  {surrogates.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} (Surrogate)
                     </option>
                   ))}
                 </select>
@@ -3573,6 +3734,160 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingAgencyRetainer ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Contract Upload Modal */}
+      {showCustomerContractModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Customer Contract</h3>
+              <button
+                onClick={() => setShowCustomerContractModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Parent User *
+                </label>
+                <select
+                  value={customerContractUserId}
+                  onChange={(e) => setCustomerContractUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">-- Select a parent --</option>
+                  {parents.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} (Parent)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Contract File *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setCustomerContractFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                />
+                {customerContractFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {customerContractFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The customer contract will be visible to the selected parent in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowCustomerContractModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadCustomerContract}
+                  disabled={uploadingCustomerContract || !customerContractFile || !customerContractUserId}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingCustomerContract || !customerContractFile || !customerContractUserId
+                      ? 'bg-gray-400'
+                      : 'bg-green-600 hover:bg-green-700'
+                  } transition-colors`}
+                >
+                  {uploadingCustomerContract ? 'Uploading...' : 'Upload & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Surrogacy Contract Upload Modal */}
+      {showSurrogacyContractModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Upload Surrogacy Contract</h3>
+              <button
+                onClick={() => setShowSurrogacyContractModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Surrogate User *
+                </label>
+                <select
+                  value={surrogacyContractUserId}
+                  onChange={(e) => setSurrogacyContractUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">-- Select a surrogate --</option>
+                  {surrogates.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name || profile.id} (Surrogate)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Surrogacy Contract File *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setSurrogacyContractFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                />
+                {surrogacyContractFile && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Selected: {surrogacyContractFile.name}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, TXT. The surrogacy contract will be visible to the selected surrogate in their User Center.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowSurrogacyContractModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadSurrogacyContract}
+                  disabled={uploadingSurrogacyContract || !surrogacyContractFile || !surrogacyContractUserId}
+                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                    uploadingSurrogacyContract || !surrogacyContractFile || !surrogacyContractUserId
+                      ? 'bg-gray-400'
+                      : 'bg-green-600 hover:bg-green-700'
+                  } transition-colors`}
+                >
+                  {uploadingSurrogacyContract ? 'Uploading...' : 'Upload & Publish'}
                 </button>
               </div>
             </div>

@@ -9,19 +9,58 @@ import * as StoreReview from 'expo-store-review';
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { language, getLanguageLabel, t } = useLanguage();
+  const [userRole, setUserRole] = useState(null);
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [photoReleaseDoc, setPhotoReleaseDoc] = useState(null);
+  const [trustAccountDoc, setTrustAccountDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
   const [loadingPhotoDoc, setLoadingPhotoDoc] = useState(false);
+  const [loadingTrustAccountDoc, setLoadingTrustAccountDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadAgencyRetainerDoc();
-    loadHipaaReleaseDoc();
-    loadPhotoReleaseDoc();
+    loadUserRole();
   }, [user]);
+
+  useEffect(() => {
+    if (userRole !== null) {
+      loadAgencyRetainerDoc();
+      // Only load HIPAA Release and Photo Release for surrogates
+      if (userRole === 'surrogate') {
+        loadHipaaReleaseDoc();
+        loadPhotoReleaseDoc();
+      }
+      // Only load Trust Account for parents
+      if (userRole === 'parent') {
+        loadTrustAccountDoc();
+      }
+    }
+  }, [user, userRole]);
+
+  const loadUserRole = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading user role:', error);
+        // Fallback to user.role
+        setUserRole((user?.role || 'surrogate').toLowerCase());
+      } else {
+        setUserRole((profileData?.role || user?.role || 'surrogate').toLowerCase());
+      }
+    } catch (error) {
+      console.error('Failed to load user role:', error);
+      setUserRole((user?.role || 'surrogate').toLowerCase());
+    }
+  };
 
   const loadAgencyRetainerDoc = async () => {
     if (!user?.id) return;
@@ -101,6 +140,32 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const loadTrustAccountDoc = async () => {
+    if (!user?.id) return;
+    
+    setLoadingTrustAccountDoc(true);
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('document_type', 'trust_account')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading trust account doc:', error);
+      } else {
+        setTrustAccountDoc(data);
+      }
+    } catch (error) {
+      console.error('Failed to load trust account doc:', error);
+    } finally {
+      setLoadingTrustAccountDoc(false);
+    }
+  };
+
   const handleHipaaReleasePress = async () => {
     if (loadingHipaaDoc) return;
     
@@ -130,11 +195,17 @@ export default function ProfileScreen({ navigation }) {
     setRefreshing(true);
     try {
       // Refresh all data that might have changed
-      await Promise.all([
-        loadAgencyRetainerDoc(),
-        loadHipaaReleaseDoc(),
-        loadPhotoReleaseDoc(),
-      ]);
+      const refreshPromises = [loadAgencyRetainerDoc()];
+      
+      if (userRole === 'surrogate') {
+        refreshPromises.push(loadHipaaReleaseDoc(), loadPhotoReleaseDoc());
+      }
+      
+      if (userRole === 'parent') {
+        refreshPromises.push(loadTrustAccountDoc());
+      }
+      
+      await Promise.all(refreshPromises);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -180,6 +251,31 @@ export default function ProfileScreen({ navigation }) {
 
     try {
       const url = photoReleaseDoc.file_url;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(t('common.error'), t('documents.cannotOpen'));
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert(t('common.error'), t('documents.openError'));
+    }
+  };
+
+  const handleTrustAccountPress = async () => {
+    if (loadingTrustAccountDoc) return;
+    
+    if (!trustAccountDoc || !trustAccountDoc.file_url) {
+      Alert.alert(
+        t('documents.noDocument'),
+        t('documents.notUploaded', { document: 'Trust Account' })
+      );
+      return;
+    }
+
+    try {
+      const url = trustAccountDoc.file_url;
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);
@@ -474,21 +570,37 @@ export default function ProfileScreen({ navigation }) {
             agencyRetainerDoc ? t('profile.available') : t('profile.notAvailable'),
             loadingDoc
           )}
-          {renderMenuItem(
-            t('profile.hipaaRelease'),
-            'shield',
-            handleHipaaReleasePress,
-            '#333',
-            hipaaReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
-            loadingHipaaDoc
+          {/* Only show HIPAA Release and Photo Release for surrogates */}
+          {userRole === 'surrogate' && (
+            <>
+              {renderMenuItem(
+                t('profile.hipaaRelease'),
+                'shield',
+                handleHipaaReleasePress,
+                '#333',
+                hipaaReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
+                loadingHipaaDoc
+              )}
+              {renderMenuItem(
+                t('profile.photoRelease'),
+                'camera',
+                handlePhotoReleasePress,
+                '#333',
+                photoReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
+                loadingPhotoDoc
+              )}
+            </>
           )}
-          {renderMenuItem(
-            t('profile.photoRelease'),
-            'camera',
-            handlePhotoReleasePress,
-            '#333',
-            photoReleaseDoc ? t('profile.available') : t('profile.notAvailable'),
-            loadingPhotoDoc
+          {/* Only show Trust Account for parents */}
+          {userRole === 'parent' && (
+            renderMenuItem(
+              'Trust Account',
+              'dollar-sign',
+              handleTrustAccountPress,
+              '#00B894',
+              trustAccountDoc ? t('profile.available') : t('profile.notAvailable'),
+              loadingTrustAccountDoc
+            )
           )}
           {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
           {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}

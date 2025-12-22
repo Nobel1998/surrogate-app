@@ -1,0 +1,49 @@
+Agency Retainer Agreement - Parent Version
+===========================================
+
+Document Type: Agency Retainer Agreement
+User Type: Parent
+Date: December 11, 2025
+
+This is a test document for Agency Retainer Agreement upload functionality (Parent version).
+
+AGENCY RETAINER AGREEMENT
+
+This agreement is entered into between:
+- Agency: Baby Tree Surrogacy
+- Client: [Parent Name]
+- Date: December 11, 2025
+
+TERMS AND CONDITIONS:
+
+1. Retainer Fee
+   The client agrees to pay a retainer fee as specified in the service agreement.
+
+2. Services Provided
+   The agency will provide the following services:
+   - Surrogacy matching services
+   - Legal coordination
+   - Medical coordination
+   - Case management
+
+3. Payment Terms
+   Payment schedule and terms as outlined in the main service agreement.
+
+4. Confidentiality
+   All parties agree to maintain confidentiality regarding personal information.
+
+5. Duration
+   This agreement remains in effect for the duration of the surrogacy process.
+
+SIGNATURES:
+
+Agency Representative: _________________
+Date: _________________
+
+Client (Parent): _________________
+Date: _________________
+
+---
+This file can be used to test the Agency Retainer Agreement upload feature 
+for parent users in the admin dashboard. The document will be visible to the 
+selected parent user in their User Center (Profile Screen).

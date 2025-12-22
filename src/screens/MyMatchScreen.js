@@ -143,23 +143,27 @@ export default function MyMatchScreen({ navigation }) {
           .filter(Boolean)
           .join(',');
 
+        // Build document types list based on role
+        // Surrogates see: agency_retainer, hipaa_release (but not in My Match, only in Profile)
+        // Parents see: trust_account (but not in My Match, only in Profile)
+        const documentTypes = [
+          'surrogacy_contract',
+          'legal_contract',
+          'agency_contract',
+          'insurance_policy',
+          'health_insurance_bill',
+          'parental_rights',
+          'medical_records',
+          'parent_contract',
+          'surrogate_contract',
+          'online_claims',
+          'trust_account', // Add trust_account for parents to see in My Match
+        ];
+
         const { data: docs, error: docsError } = await supabase
           .from('documents')
           .select('*')
-          .in('document_type', [
-            'surrogacy_contract',
-            'legal_contract',
-            'agency_contract',
-            'insurance_policy',
-            'health_insurance_bill',
-            'parental_rights',
-            'medical_records',
-            'parent_contract',
-            'surrogate_contract',
-            'online_claims',
-            'agency_retainer',
-            'hipaa_release',
-          ])
+          .in('document_type', documentTypes)
           .or(userIdOrClause)
           .order('created_at', { ascending: false });
 
@@ -318,6 +322,14 @@ export default function MyMatchScreen({ navigation }) {
         iconColor: '#6C5CE7',
         documentType: 'online_claims',
       },
+      // Trust Account - only visible to parents
+      ...(isSurrogate ? [] : [{
+        key: 'trust_account',
+        label: 'Trust Account',
+        icon: 'dollar-sign',
+        iconColor: '#00B894',
+        documentType: 'trust_account',
+      }]),
     ];
     
     return (
