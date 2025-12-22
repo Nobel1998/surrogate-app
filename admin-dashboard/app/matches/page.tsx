@@ -263,11 +263,10 @@ export default function MatchesPage() {
   
   // Trust Account upload state
   const [showTrustAccountModal, setShowTrustAccountModal] = useState(false);
-  const [trustAccountMatchId, setTrustAccountMatchId] = useState<string | null>(null);
-  const [trustAccountSurrogateId, setTrustAccountSurrogateId] = useState<string>('');
-  const [trustAccountParentId, setTrustAccountParentId] = useState<string>('');
+  const [trustAccountUserId, setTrustAccountUserId] = useState<string>('');
   const [trustAccountFile, setTrustAccountFile] = useState<File | null>(null);
   const [uploadingTrustAccount, setUploadingTrustAccount] = useState(false);
+  const [trustAccountUserType, setTrustAccountUserType] = useState<'parent' | 'surrogate' | null>(null);
   
   // Customer Contract upload state (for parent)
   const [showCustomerContractModal, setShowCustomerContractModal] = useState(false);
@@ -1477,10 +1476,9 @@ export default function MatchesPage() {
     }
   };
 
-  const openTrustAccountModal = (match: Match) => {
-    setTrustAccountMatchId(match.id);
-    setTrustAccountSurrogateId(match.surrogate_id);
-    setTrustAccountParentId(match.parent_id);
+  const openTrustAccountModal = (match: Match, userType: 'parent' | 'surrogate') => {
+    setTrustAccountUserType(userType);
+    setTrustAccountUserId(userType === 'parent' ? match.parent_id : match.surrogate_id);
     setTrustAccountFile(null);
     setShowTrustAccountModal(true);
   };
@@ -1490,8 +1488,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!trustAccountSurrogateId || !trustAccountParentId) {
-      alert('Surrogate and Parent IDs are required');
+    if (!trustAccountUserId) {
+      alert('User ID is required');
       return;
     }
 
@@ -1499,8 +1497,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', trustAccountFile);
-      formData.append('surrogate_id', trustAccountSurrogateId);
-      formData.append('parent_id', trustAccountParentId);
+      formData.append('user_id', trustAccountUserId);
 
       const res = await fetch('/api/matches/trust-account', {
         method: 'POST',
@@ -1513,9 +1510,11 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Trust Account document uploaded successfully! Both users can now see it in their My Match section.');
+      alert('Trust Account document uploaded successfully! The user can now see it in their User Center.');
       setShowTrustAccountModal(false);
       setTrustAccountFile(null);
+      setTrustAccountUserId('');
+      setTrustAccountUserType(null);
       await loadData();
     } catch (err: any) {
       console.error('Error uploading trust account document:', err);
@@ -2942,11 +2941,22 @@ export default function MatchesPage() {
                               c.document_type === 'surrogate_contract'
                             );
                             
+                            // Filter contracts for parent only (for Trust Account)
+                            const parentTrustAccountContracts = contracts.filter(c => 
+                              c.user_id === m.parent_id &&
+                              c.document_type === 'trust_account'
+                            );
+                            
+                            // Filter contracts for surrogate only (for Trust Account)
+                            const surrogateTrustAccountContracts = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              c.document_type === 'trust_account'
+                            );
+                            
                             return (
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                   {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
-                                  {renderFileList('trust_account', [], 'Trust Account')}
                                   {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                   {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                   {renderFileList('pbo', ['parental_rights'], 'PBO')}
@@ -2959,6 +2969,8 @@ export default function MatchesPage() {
                                     {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract (Surrogate)', true, surrogateOnlyContractsForContract)}
                                     {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
                                     {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
+                                    {renderFileList('trust_account_parent', ['trust_account'], 'Trust Account (Parent)', true, parentTrustAccountContracts)}
+                                    {renderFileList('trust_account_surrogate', ['trust_account'], 'Trust Account (Surrogate)', true, surrogateTrustAccountContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
                                   </div>
@@ -3138,6 +3150,18 @@ export default function MatchesPage() {
                             >
                               📷 Upload Photo Release
                             </button>
+                            <button
+                              onClick={() => openTrustAccountModal(m, 'parent')}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              💰 Upload Trust Account (Parent)
+                            </button>
+                            <button
+                              onClick={() => openTrustAccountModal(m, 'surrogate')}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              💰 Upload Trust Account (Surrogate)
+                            </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500">
                             Upload documents for individual users. Each user will see their own document in User Center.
@@ -3165,12 +3189,6 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               📋 Upload PBO
-                            </button>
-                            <button
-                              onClick={() => openTrustAccountModal(m)}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              💰 Upload Trust Account
                             </button>
                             <button
                               onClick={() => openClaimsModal(m)}
@@ -4052,9 +4070,16 @@ export default function MatchesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Upload Trust Account Document</h3>
+              <h3 className="text-xl font-bold text-gray-900">
+                Upload Trust Account {trustAccountUserType === 'parent' ? '(Parent)' : trustAccountUserType === 'surrogate' ? '(Surrogate)' : ''}
+              </h3>
               <button
-                onClick={() => setShowTrustAccountModal(false)}
+                onClick={() => {
+                  setShowTrustAccountModal(false);
+                  setTrustAccountUserType(null);
+                  setTrustAccountUserId('');
+                  setTrustAccountFile(null);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
@@ -4064,20 +4089,20 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Surrogate
+                  {trustAccountUserType === 'parent' ? 'Parent' : trustAccountUserType === 'surrogate' ? 'Surrogate' : 'User'}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[trustAccountSurrogateId]?.name || trustAccountSurrogateId}
+                  {trustAccountUserType === 'parent' && profileLookup[trustAccountUserId] ? (
+                    `${profileLookup[trustAccountUserId].name || trustAccountUserId} (Parent)`
+                  ) : trustAccountUserType === 'surrogate' && profileLookup[trustAccountUserId] ? (
+                    `${profileLookup[trustAccountUserId].name || trustAccountUserId} (Surrogate)`
+                  ) : (
+                    'N/A'
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[trustAccountParentId]?.name || trustAccountParentId}
-                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  This document will be uploaded for the {trustAccountUserType === 'parent' ? 'parent' : 'surrogate'} in this match.
+                </p>
               </div>
 
               <div>
@@ -4096,22 +4121,27 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG. Upload trust account documents (trust agreements, wire receipts, etc.). Both users can see this document in their My Match section.
+                  Supported formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG. Upload trust account documents (trust agreements, wire receipts, etc.). The document will be visible to the selected user in their User Center.
                 </p>
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setShowTrustAccountModal(false)}
+                  onClick={() => {
+                    setShowTrustAccountModal(false);
+                    setTrustAccountUserType(null);
+                    setTrustAccountUserId('');
+                    setTrustAccountFile(null);
+                  }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={uploadTrustAccount}
-                  disabled={uploadingTrustAccount || !trustAccountFile}
+                  disabled={uploadingTrustAccount || !trustAccountFile || !trustAccountUserId}
                   className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingTrustAccount || !trustAccountFile
+                    uploadingTrustAccount || !trustAccountFile || !trustAccountUserId
                       ? 'bg-gray-400'
                       : 'bg-teal-600 hover:bg-teal-700'
                   } transition-colors`}
