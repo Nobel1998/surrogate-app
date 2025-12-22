@@ -1,31 +1,32 @@
-Agency Retainer Agreement - Parent Version
-===========================================
+Agency Retainer Agreement - Surrogate Version
+==============================================
 
 Document Type: Agency Retainer Agreement
-User Type: Parent
+User Type: Surrogate
 Date: December 11, 2025
 
-This is a test document for Agency Retainer Agreement upload functionality (Parent version).
+This is a test document for Agency Retainer Agreement upload functionality (Surrogate version).
 
 AGENCY RETAINER AGREEMENT
 
 This agreement is entered into between:
 - Agency: Baby Tree Surrogacy
-- Client: [Parent Name]
+- Client: [Surrogate Name]
 - Date: December 11, 2025
 
 TERMS AND CONDITIONS:
 
 1. Retainer Fee
-   The client (parent) agrees to pay a retainer fee as specified in the service agreement.
+   The client (surrogate) agrees to the retainer fee structure as specified in the service agreement.
 
 2. Services Provided
-   The agency will provide the following services to the parent:
+   The agency will provide the following services to the surrogate:
    - Surrogacy matching services
    - Legal coordination
    - Medical coordination
    - Case management
-   - Parent support and guidance
+   - Surrogate support and guidance
+   - Medical expense coverage
 
 3. Payment Terms
    Payment schedule and terms as outlined in the main service agreement.
@@ -36,21 +37,22 @@ TERMS AND CONDITIONS:
 5. Duration
    This agreement remains in effect for the duration of the surrogacy process.
 
-6. Parent Responsibilities
+6. Surrogate Responsibilities
    - Provide accurate medical and personal information
    - Attend required medical appointments
-   - Comply with legal requirements
+   - Comply with medical protocols
    - Maintain open communication with the agency
+   - Follow medical professional recommendations
 
 SIGNATURES:
 
 Agency Representative: _________________
 Date: _________________
 
-Client (Parent): _________________
+Client (Surrogate): _________________
 Date: _________________
 
 ---
 This file can be used to test the Agency Retainer Agreement upload feature 
-for parent users in the admin dashboard. The document will be visible to the 
-selected parent user in their User Center (Profile Screen).
+for surrogate users in the admin dashboard. The document will be visible to the 
+selected surrogate user in their User Center (Profile Screen).

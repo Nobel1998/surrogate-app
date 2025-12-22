@@ -247,6 +247,7 @@ export default function MatchesPage() {
   const [agencyRetainerUserId, setAgencyRetainerUserId] = useState<string>('');
   const [agencyRetainerFile, setAgencyRetainerFile] = useState<File | null>(null);
   const [uploadingAgencyRetainer, setUploadingAgencyRetainer] = useState(false);
+  const [agencyRetainerUserType, setAgencyRetainerUserType] = useState<'parent' | 'surrogate' | null>(null);
   
   // HIPAA Release upload state
   const [showHipaaReleaseModal, setShowHipaaReleaseModal] = useState(false);
@@ -1374,6 +1375,7 @@ export default function MatchesPage() {
       setShowAgencyRetainerModal(false);
       setAgencyRetainerFile(null);
       setAgencyRetainerUserId('');
+      setAgencyRetainerUserType(null);
       await loadData();
     } catch (err: any) {
       console.error('Error uploading agency retainer:', err);
@@ -3098,7 +3100,9 @@ export default function MatchesPage() {
                             </button>
                             <button
                               onClick={() => {
+                                setAgencyRetainerUserType('parent');
                                 setAgencyRetainerUserId(m.parent_id);
+                                setAgencyRetainerFile(null);
                                 setShowAgencyRetainerModal(true);
                               }}
                               className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
@@ -3107,7 +3111,9 @@ export default function MatchesPage() {
                             </button>
                             <button
                               onClick={() => {
+                                setAgencyRetainerUserType('surrogate');
                                 setAgencyRetainerUserId(m.surrogate_id);
+                                setAgencyRetainerFile(null);
                                 setShowAgencyRetainerModal(true);
                               }}
                               className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors"
@@ -3664,9 +3670,16 @@ export default function MatchesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Upload Agency Retainer Agreement</h3>
+              <h3 className="text-xl font-bold text-gray-900">
+                Upload Agency Retainer Agreement {agencyRetainerUserType === 'parent' ? '(Parent)' : agencyRetainerUserType === 'surrogate' ? '(Surrogate)' : ''}
+              </h3>
               <button
-                onClick={() => setShowAgencyRetainerModal(false)}
+                onClick={() => {
+                  setShowAgencyRetainerModal(false);
+                  setAgencyRetainerUserType(null);
+                  setAgencyRetainerUserId('');
+                  setAgencyRetainerFile(null);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
@@ -3676,25 +3689,47 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select User (Parent or Surrogate) *
+                  Select {agencyRetainerUserType === 'parent' ? 'Parent' : agencyRetainerUserType === 'surrogate' ? 'Surrogate' : 'User'} *
                 </label>
                 <select
                   value={agencyRetainerUserId}
                   onChange={(e) => setAgencyRetainerUserId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  disabled={!!agencyRetainerUserType}
                 >
-                  <option value="">-- Select a user --</option>
-                  {parents.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} (Parent)
-                    </option>
-                  ))}
-                  {surrogates.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name || profile.id} (Surrogate)
-                    </option>
-                  ))}
+                  <option value="">-- Select a {agencyRetainerUserType === 'parent' ? 'parent' : agencyRetainerUserType === 'surrogate' ? 'surrogate' : 'user'} --</option>
+                  {agencyRetainerUserType === 'parent' ? (
+                    parents.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name || profile.id} (Parent)
+                      </option>
+                    ))
+                  ) : agencyRetainerUserType === 'surrogate' ? (
+                    surrogates.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name || profile.id} (Surrogate)
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      {parents.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name || profile.id} (Parent)
+                        </option>
+                      ))}
+                      {surrogates.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name || profile.id} (Surrogate)
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
+                {agencyRetainerUserType && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Only {agencyRetainerUserType === 'parent' ? 'parent' : 'surrogate'} users are available for selection.
+                  </p>
+                )}
               </div>
 
               <div>
