@@ -2949,13 +2949,20 @@ export default function MatchesPage() {
                             
                             return (
                               <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
-                                  {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
-                                  {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
-                                  {renderFileList('pbo', ['parental_rights'], 'PBO')}
-                                  {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
+                                {/* Shared Documents - visible to both parties */}
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
+                                    {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
+                                    {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
+                                    {renderFileList('pbo', ['parental_rights'], 'PBO')}
+                                    {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
+                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims')}
+                                  </div>
                                 </div>
+                                
+                                {/* Single User Documents - visible to individual users only */}
                                 <div className="pt-2 border-t border-gray-300">
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
