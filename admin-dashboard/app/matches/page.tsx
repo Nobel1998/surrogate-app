@@ -2945,6 +2945,12 @@ export default function MatchesPage() {
                               c.document_type === 'trust_account'
                             );
                             
+                            // Filter contracts for surrogate only (for Online Claims)
+                            const surrogateOnlineClaimsContracts = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              c.document_type === 'online_claims'
+                            );
+                            
                             return (
                               <div className="space-y-3">
                                 {/* Shared Documents - visible to both parties */}
@@ -2970,7 +2976,7 @@ export default function MatchesPage() {
                                     {renderFileList('trust_account', ['trust_account'], 'Trust Account', true, parentTrustAccountContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlyContracts)}
+                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
                                   </div>
                                 </div>
                               </div>
