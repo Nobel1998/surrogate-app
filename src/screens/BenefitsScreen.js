@@ -3,11 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { useLanguage } from '../context/LanguageContext';
 
 export default function BenefitsScreen({ navigation }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [calculatorVisible, setCalculatorVisible] = useState(false);
   const [baseCompensation, setBaseCompensation] = useState('60000');
   const [additionalPayments, setAdditionalPayments] = useState('0');
   const [estimatedTotal, setEstimatedTotal] = useState(60000);
+  
+  // Debug: Log translation test
+  React.useEffect(() => {
+    console.log('[BenefitsScreen] Language:', language);
+    console.log('[BenefitsScreen] Test translation:', t('benefits.title'));
+  }, [language, t]);
 
   const calculateTotal = () => {
     const base = parseFloat(baseCompensation) || 0;

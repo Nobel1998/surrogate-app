@@ -238,7 +238,6 @@ export default function MatchesPage() {
   const [showClaimsModal, setShowClaimsModal] = useState(false);
   const [claimsMatchId, setClaimsMatchId] = useState<string | null>(null);
   const [claimsSurrogateId, setClaimsSurrogateId] = useState<string>('');
-  const [claimsParentId, setClaimsParentId] = useState<string>('');
   const [claimsFile, setClaimsFile] = useState<File | null>(null);
   const [uploadingClaims, setUploadingClaims] = useState(false);
   
@@ -1292,7 +1291,6 @@ export default function MatchesPage() {
   const openClaimsModal = (match: Match) => {
     setClaimsMatchId(match.id);
     setClaimsSurrogateId(match.surrogate_id);
-    setClaimsParentId(match.parent_id);
     setClaimsFile(null);
     setShowClaimsModal(true);
   };
@@ -1302,8 +1300,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!claimsSurrogateId || !claimsParentId) {
-      alert('Surrogate and Parent IDs are required');
+    if (!claimsSurrogateId) {
+      alert('Surrogate ID is required');
       return;
     }
 
@@ -1311,8 +1309,7 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', claimsFile);
-      formData.append('surrogate_id', claimsSurrogateId);
-      formData.append('parent_id', claimsParentId);
+      formData.append('user_id', claimsSurrogateId);
 
       const res = await fetch('/api/matches/online-claims', {
         method: 'POST',
@@ -1325,7 +1322,7 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Online Claims document uploaded successfully! Both users can now see it in their My Match section.');
+      alert('Online Claims document uploaded successfully! The surrogate can now see it in their My Match section.');
       setShowClaimsModal(false);
       setClaimsFile(null);
       await loadData();
@@ -2714,7 +2711,8 @@ export default function MatchesPage() {
                               c.user_id === m.surrogate_id &&
                               (c.document_type === 'agency_retainer' || 
                                c.document_type === 'hipaa_release' || 
-                               c.document_type === 'photo_release')
+                               c.document_type === 'photo_release' ||
+                               c.document_type === 'online_claims')
                             );
                             
                             // Filter contracts for parent only (for Agency Retainer Agreement)
@@ -2958,7 +2956,6 @@ export default function MatchesPage() {
                                     {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                     {renderFileList('pbo', ['parental_rights'], 'PBO')}
                                     {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
-                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims')}
                                   </div>
                                 </div>
                                 
@@ -2973,6 +2970,7 @@ export default function MatchesPage() {
                                     {renderFileList('trust_account', ['trust_account'], 'Trust Account', true, parentTrustAccountContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
+                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlyContracts)}
                                   </div>
                                 </div>
                               </div>
@@ -3092,7 +3090,7 @@ export default function MatchesPage() {
                         <div className="mb-4">
                           <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                           <div className="flex flex-wrap gap-2">
-                            <button
+                          <button
                               onClick={() => {
                                 setCustomerContractUserId(m.parent_id);
                                 setShowCustomerContractModal(true);
@@ -3100,7 +3098,7 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               📄 Upload Surrogacy Contract (Parent)
-                            </button>
+                          </button>
                             <button
                               onClick={() => {
                                 setSurrogacyContractUserId(m.surrogate_id);
@@ -3156,6 +3154,12 @@ export default function MatchesPage() {
                             >
                               💰 Upload Trust Account
                             </button>
+                            <button
+                              onClick={() => openClaimsModal(m)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ✅ Upload Online Claims
+                            </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500">
                             Upload documents for individual users. Each user will see their own document in User Center.
@@ -3183,12 +3187,6 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               📋 Upload PBO
-                            </button>
-                            <button
-                              onClick={() => openClaimsModal(m)}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              ✅ Upload Online Claims
                             </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500">
@@ -3620,15 +3618,6 @@ export default function MatchesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[claimsParentId]?.name || claimsParentId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Online Claims Document File
                 </label>
                 <input
@@ -3643,7 +3632,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The online claims document will be visible to both parties in their My Match section.
+                  Supported formats: PDF, DOC, DOCX, TXT. The online claims document will be visible only to the surrogate in their My Match section.
                 </p>
               </div>
 
@@ -4001,7 +3990,7 @@ export default function MatchesPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select User *
                 </label>
-                <select
+                        <select
                   value={photoReleaseUserId}
                   onChange={(e) => setPhotoReleaseUserId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -4010,9 +3999,9 @@ export default function MatchesPage() {
                   {[...surrogates, ...parents].map((profile) => (
                     <option key={profile.id} value={profile.id}>
                       {profile.name || profile.id} ({profile.role === 'surrogate' ? 'Surrogate' : 'Parent'})
-                    </option>
-                  ))}
-                </select>
+                            </option>
+                          ))}
+                        </select>
               </div>
 
               <div>
@@ -4033,7 +4022,7 @@ export default function MatchesPage() {
                 <p className="mt-2 text-xs text-gray-500">
                   Supported formats: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG (image files only). The photo release will be visible to the selected user in their User Center.
                 </p>
-              </div>
+          </div>
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -4053,8 +4042,8 @@ export default function MatchesPage() {
                 >
                   {uploadingPhotoRelease ? 'Uploading...' : 'Upload & Publish'}
                 </button>
-              </div>
-            </div>
+        </div>
+      </div>
           </div>
         </div>
       )}

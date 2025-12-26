@@ -679,6 +679,87 @@ export const translations = {
       submissionError: 'Submission Error',
       submissionErrorMessage: 'There was an error submitting your application. Please try again.',
     },
+    // Benefits Screen
+    benefits: {
+      title: '💎 Best Benefit Package',
+      subtitle: 'One of the highest compensation and benefits in the market',
+      applyNow: '📝 Apply Now - Start Your Surrogacy Journey',
+      whatMakesBest: '🌟 What Makes Our Package the Best',
+      highestCompensation: 'Highest Compensation',
+      highestCompensationDesc: 'One of the most competitive base compensations in the market',
+      customizablePackages: 'Customizable Packages',
+      customizablePackagesDesc: 'Tailored to your unique circumstances. We\'ll match benefits from other agencies',
+      comprehensiveCoverage: 'Comprehensive Coverage',
+      comprehensiveCoverageDesc: 'All-encompassing benefits providing security and peace of mind',
+      compensationStructure: '💰 Compensation Structure',
+      baseSurrogacyFee: 'Base Surrogacy Fee',
+      successfulTransferBonus: 'Successful Transfer Bonus',
+      pregnancyConfirmationBonus: 'Pregnancy Confirmation Bonus',
+      monthlyAllowance: 'Monthly Allowance (9 months)',
+      deliveryBonus: 'Delivery Bonus',
+      totalEstimatedIncome: 'Total Estimated Income',
+      comprehensiveBenefits: '🎁 Comprehensive Benefits Coverage',
+      healthcare: 'Healthcare',
+      fullMedicalInsurance: '• Full medical insurance coverage',
+      completePrenatalCare: '• Complete prenatal care expenses',
+      deliveryMedicalCosts: '• Delivery medical costs covered',
+      postpartumRecovery: '• Postpartum recovery care',
+      lifeSupport: 'Life Support',
+      nutritionalSupplement: '• Nutritional supplement allowance',
+      transportationReimbursement: '• Transportation expense reimbursement',
+      psychologicalCounseling: '• Psychological counseling services',
+      legalConsultation: '• Legal consultation support',
+      specialProtection: 'Special Protection',
+      accidentInsurance: '• Accident insurance coverage',
+      incomeLossCompensation: '• Income loss compensation',
+      familySupport: '• Family support services',
+      emergencyContact: '• 24/7 emergency contact',
+      incomeCalculator: '🧮 Income Calculator',
+      calculatorDescription: 'Use our calculator to estimate your surrogacy income',
+      openCalculator: 'Open Income Calculator',
+      calculatorTitle: 'Income Estimation Calculator',
+      baseSurrogacyFeeLabel: 'Base Surrogacy Fee ($)',
+      additionalBonuses: 'Additional Bonuses ($)',
+      calculateTotal: 'Calculate Total Income',
+      estimatedTotalIncome: 'Estimated Total Income',
+      incomeBreakdown: 'Income Breakdown',
+      baseFee: 'Base Fee',
+      additionalBonusesLabel: 'Additional Bonuses',
+      monthlyAllowanceBreakdown: 'Monthly Allowance',
+      medicalBenefitsCovered: 'Medical Benefits: Fully Covered',
+      paymentSchedule: '📅 Payment Schedule',
+      contractSigning: 'Contract Signing',
+      paidAfterSigning: 'Paid immediately after signing',
+      successfulTransfer: 'Successful Transfer',
+      paidAfterTransfer: 'Paid after transfer confirmation',
+      pregnancyConfirmation: 'Pregnancy Confirmation',
+      paidAfterPregnancy: 'Paid 6 weeks after pregnancy',
+      monthlyAllowancePayment: 'Monthly Allowance',
+      paidMonthly: 'Paid on the 1st of each month',
+      deliveryCompletion: 'Delivery Completion',
+      paidAfterDelivery: 'Paid within 30 days after delivery',
+      bestSupportSystem: '🤝 Best Support System',
+      supportDescription: 'Multi-faceted support providing guidance and care at every stage',
+      experiencedCoordinators: 'Experienced Case Coordinators',
+      experiencedCoordinatorsDesc: 'Your coordinator is an experienced surrogate herself, offering deep personal understanding of your journey',
+      oneOnOneSupport: '24/7 One-on-One Support',
+      oneOnOneSupportDesc: 'Dedicated case coordinator from screening through delivery and beyond. Immediate availability for emergencies',
+      psychologicalSupport: 'Professional Psychological Support',
+      psychologicalSupportDesc: 'Continuous one-on-one psychological support from legal clearance until 2-6 months after birth',
+      communityPampering: 'Community & Pampering',
+      communityPamperingDesc: 'Monthly group meetings and sponsored relaxation events for surrogates upon legal clearance',
+      flexibilityAssurance: 'Flexibility & Assurance',
+      flexibilityAssuranceDesc: 'Not satisfied with your coordinator? We\'ll provide a replacement. Don\'t qualify yet? We\'ll work with you to meet requirements',
+      faq: '❓ Frequently Asked Questions',
+      faqTaxes: 'Q: Are taxes included in the compensation?',
+      faqTaxesAnswer: 'A: Base compensation includes all taxes, no additional tax payment required.',
+      faqPregnancyFails: 'Q: What happens if the pregnancy fails?',
+      faqPregnancyFailsAnswer: 'A: We provide psychological support and additional compensation based on the situation.',
+      faqMedicalExpenses: 'Q: How are medical expenses reimbursed?',
+      faqMedicalExpensesAnswer: 'A: All related medical expenses are paid directly by us, no upfront payment required.',
+      faqContractTermination: 'Q: Can the contract be terminated early?',
+      faqContractTerminationAnswer: 'A: Yes, we will pay compensation proportionally based on completed stages.',
+    },
   },
   zh: {
     // Common
@@ -2303,18 +2384,55 @@ export const translations = {
 
 // Helper function to get translation with variable substitution
 export const translate = (key, language = 'en', variables = {}) => {
+  if (!key || typeof key !== 'string') {
+    return key || '';
+  }
+  
+  // Ensure language is valid, fallback to 'en' if not
+  if (!translations[language]) {
+    language = 'en';
+  }
+  
   const keys = key.split('.');
   let value = translations[language];
   
-  for (const k of keys) {
-    if (value && typeof value === 'object') {
-      value = value[k];
-    } else {
-      return key; // Return key if translation not found
+  // Try to get translation in current language
+  if (value && typeof value === 'object') {
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (value && typeof value === 'object' && value !== null && k in value) {
+        value = value[k];
+      } else {
+        value = undefined;
+        break;
+      }
+    }
+  } else {
+    value = undefined;
+  }
+  
+  // If translation not found in current language, try English as fallback
+  if (typeof value !== 'string' && language !== 'en') {
+    let fallbackValue = translations['en'];
+    if (fallbackValue && typeof fallbackValue === 'object') {
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (fallbackValue && typeof fallbackValue === 'object' && fallbackValue !== null && k in fallbackValue) {
+          fallbackValue = fallbackValue[k];
+        } else {
+          fallbackValue = undefined;
+          break;
+        }
+      }
+      if (typeof fallbackValue === 'string') {
+        value = fallbackValue;
+      }
     }
   }
   
+  // If still not found, return key
   if (typeof value !== 'string') {
+    console.warn(`[translate] Translation key not found: "${key}" (language: ${language})`);
     return key;
   }
   

@@ -26,6 +26,7 @@ export default function MyMatchScreen({ navigation }) {
   const { t } = useLanguage();
   const [matchData, setMatchData] = useState(null);
   const [partnerProfile, setPartnerProfile] = useState(null);
+  const [partnerApplication, setPartnerApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -120,6 +121,34 @@ export default function MyMatchScreen({ navigation }) {
             console.log('Loaded surrogate profile for match:', surrogateProfile);
             setPartnerProfile(surrogateProfile);
           }
+
+          // Load surrogate's complete application data
+          const { data: applicationData, error: applicationError } = await supabase
+            .from('applications')
+            .select('*')
+            .eq('user_id', match.surrogate_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (applicationError && applicationError.code !== 'PGRST116') {
+            console.error('Error loading surrogate application:', applicationError);
+          } else if (applicationData) {
+            console.log('Loaded surrogate application for match:', applicationData);
+            // Parse form_data JSON
+            let parsedFormData = {};
+            try {
+              if (applicationData.form_data) {
+                parsedFormData = JSON.parse(applicationData.form_data);
+              }
+            } catch (e) {
+              console.error('Error parsing form_data:', e);
+            }
+            setPartnerApplication({
+              ...applicationData,
+              parsedFormData,
+            });
+          }
         }
 
         setMatchData(match);
@@ -177,6 +206,7 @@ export default function MyMatchScreen({ navigation }) {
         console.log('[MyMatch] no active match, unmatched state');
         setMatchData(null);
         setPartnerProfile(null);
+        setPartnerApplication(null);
         setDocuments([]);
       }
     } catch (error) {
@@ -274,7 +304,7 @@ export default function MyMatchScreen({ navigation }) {
     const documentConfig = [
       {
         key: 'intended_parents_profile',
-        label: t('myMatch.intendedParentsProfile'),
+        label: isSurrogate ? t('myMatch.intendedParentsProfile') : 'Surrogate Profile',
         icon: 'user',
         iconColor: '#FF8EA4',
         documentType: isSurrogate ? 'parent_contract' : null,
@@ -315,13 +345,14 @@ export default function MyMatchScreen({ navigation }) {
         iconColor: '#A29BFE',
         documentType: 'parental_rights',
       },
-      {
+      // Online Claims - only visible to surrogates
+      ...(isSurrogate ? [{
         key: 'online_claims',
         label: t('myMatch.onlineClaims'),
         icon: 'check-circle',
         iconColor: '#6C5CE7',
         documentType: 'online_claims',
-      },
+      }] : []),
       // Trust Account - only visible to parents
       ...(isSurrogate ? [] : [{
         key: 'trust_account',
@@ -457,7 +488,10 @@ export default function MyMatchScreen({ navigation }) {
               // Special handling for Intended Parents Profile
               const handlePress = () => {
                 if (doc.key === 'intended_parents_profile' && partnerProfile) {
-                  navigation.navigate('IntendedParentsProfile', { profile: partnerProfile });
+                  navigation.navigate('IntendedParentsProfile', { 
+                    profile: partnerProfile,
+                    application: partnerApplication,
+                  });
                 } else if (isAvailable) {
                   handleDocumentPress(docData || {});
                 }

@@ -13,7 +13,17 @@ import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
 
 export default function IntendedParentsProfileScreen({ route, navigation }) {
-  const { profile } = route?.params || {};
+  const { profile, application } = route?.params || {};
+  
+  // Determine profile type based on role
+  const profileRole = (profile?.role || '').toLowerCase();
+  const isSurrogate = profileRole === 'surrogate';
+  const isParent = profileRole === 'parent';
+  const profileTitle = isSurrogate ? 'Surrogate Profile' : isParent ? 'Intended Parents Profile' : 'Partner Profile';
+  const profileRoleLabel = isSurrogate ? 'Surrogate' : isParent ? 'Intended Parent' : 'Partner';
+  
+  // Get parsed application data
+  const appData = application?.parsedFormData || {};
 
   if (!profile) {
     return (
@@ -23,7 +33,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevron-left" size={24} color="#1A1D1E" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Intended Parents Profile</Text>
+          <Text style={styles.headerTitle}>{profileTitle}</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.emptyContainer}>
@@ -68,7 +78,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevron-left" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitleWhite}>Intended Parents Profile</Text>
+          <Text style={styles.headerTitleWhite}>{profileTitle}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -78,10 +88,10 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
-              <Avatar name={profile.name || 'Parent'} size={100} />
+              <Avatar name={profile.name || (isSurrogate ? 'Surrogate' : 'Parent')} size={100} />
             </View>
-            <Text style={styles.profileName}>{profile.name || 'Parent'}</Text>
-            <Text style={styles.profileRole}>Intended Parent</Text>
+            <Text style={styles.profileName}>{profile.name || (isSurrogate ? 'Surrogate' : 'Parent')}</Text>
+            <Text style={styles.profileRole}>{profileRoleLabel}</Text>
           </View>
 
           {/* Contact Information */}
@@ -115,19 +125,222 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Personal Information</Text>
             
             {renderInfoRow(
+              'Full Legal Name',
+              appData.fullName || application?.full_name || profile.name,
+              'user',
+              null
+            )}
+            
+            {renderInfoRow(
+              'Age',
+              appData.age,
+              'calendar',
+              null
+            )}
+            
+            {renderInfoRow(
               'Date of Birth',
-              profile.date_of_birth,
+              appData.dateOfBirth || profile.date_of_birth,
               'calendar',
               null
             )}
             
             {renderInfoRow(
               'Race/Ethnicity',
-              profile.race,
+              appData.race || profile.race,
               'user',
               null
             )}
+            
+            {renderInfoRow(
+              'Location',
+              appData.location || profile.location || profile.address,
+              'map-pin',
+              null
+            )}
+            
+            {renderInfoRow(
+              'How did you hear about us?',
+              appData.hearAboutUs,
+              'info',
+              null
+            )}
           </View>
+
+          {/* Medical Information */}
+          {appData.previousPregnancies || appData.previousSurrogacy !== undefined || appData.pregnancyComplications || appData.currentMedications || appData.healthConditions || appData.bmi ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Medical Information</Text>
+              
+              {renderInfoRow(
+                'Previous Pregnancies',
+                appData.previousPregnancies,
+                'heart',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Previous Surrogacy Experience',
+                appData.previousSurrogacy === true ? 'Yes' : appData.previousSurrogacy === false ? 'No' : null,
+                'check-circle',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Pregnancy Complications',
+                appData.pregnancyComplications,
+                'alert-circle',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Current Medications',
+                appData.currentMedications,
+                'pill',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Health Conditions',
+                appData.healthConditions,
+                'activity',
+                null
+              )}
+              
+              {renderInfoRow(
+                'BMI',
+                appData.bmi,
+                'trending-up',
+                null
+              )}
+            </View>
+          ) : null}
+
+          {/* Lifestyle Information */}
+          {appData.smokingStatus || appData.alcoholUsage || appData.exerciseRoutine || appData.employmentStatus || appData.supportSystem ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Lifestyle Information</Text>
+              
+              {renderInfoRow(
+                'Smoking Status',
+                appData.smokingStatus,
+                'wind',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Alcohol Usage',
+                appData.alcoholUsage,
+                'droplet',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Exercise Routine',
+                appData.exerciseRoutine,
+                'activity',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Employment Status',
+                appData.employmentStatus,
+                'briefcase',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Support System',
+                appData.supportSystem,
+                'users',
+                null
+              )}
+            </View>
+          ) : null}
+
+          {/* Legal & Background Information */}
+          {appData.criminalBackground !== undefined || appData.legalIssues || appData.insuranceCoverage || appData.financialStability ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Legal & Background Information</Text>
+              
+              {renderInfoRow(
+                'Criminal Background',
+                appData.criminalBackground === true ? 'Yes' : appData.criminalBackground === false ? 'No' : null,
+                'shield',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Legal Issues',
+                appData.legalIssues,
+                'file-text',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Insurance Coverage',
+                appData.insuranceCoverage,
+                'shield',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Financial Stability',
+                appData.financialStability,
+                'dollar-sign',
+                null
+              )}
+            </View>
+          ) : null}
+
+          {/* Preferences & Additional Information */}
+          {appData.compensationExpectations || appData.timelineAvailability || appData.travelWillingness !== undefined || appData.specialPreferences || appData.additionalComments ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Preferences & Additional Information</Text>
+              
+              {renderInfoRow(
+                'Compensation Expectations',
+                appData.compensationExpectations,
+                'dollar-sign',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Timeline Availability',
+                appData.timelineAvailability,
+                'calendar',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Travel Willingness',
+                appData.travelWillingness === true ? 'Yes' : appData.travelWillingness === false ? 'No' : null,
+                'map',
+                null
+              )}
+              
+              {renderInfoRow(
+                'Special Preferences',
+                appData.specialPreferences,
+                'star',
+                null
+              )}
+              
+              {appData.additionalComments ? (
+                <View style={styles.notesContainer}>
+                  <View style={styles.infoRowLeft}>
+                    <View style={styles.infoIconContainer}>
+                      <Icon name="file-text" size={20} color="#FF8EA4" />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Additional Comments</Text>
+                      <Text style={styles.infoValue}>{appData.additionalComments}</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           {/* Additional Information */}
           {(profile.address || profile.notes) && (
@@ -363,5 +576,4 @@ const styles = StyleSheet.create({
     color: '#1A1D1E',
   },
 });
-
 

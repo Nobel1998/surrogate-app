@@ -602,8 +602,13 @@ export default function ProfileScreen({ navigation }) {
               loadingTrustAccountDoc
             )
           )}
-          {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
-          {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
+          {/* Only show Benefit Package and Injection Tutorial Videos for surrogates */}
+          {userRole === 'surrogate' && (
+            <>
+              {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
+              {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
+            </>
+          )}
         </View>
 
         {/* Section 2 */}

@@ -23,14 +23,13 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const surrogateId = formData.get('surrogate_id') as string | null;
-    const parentId = formData.get('parent_id') as string | null;
+    const userId = formData.get('user_id') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
-    if (!surrogateId || !parentId) {
-      return NextResponse.json({ error: 'surrogate_id and parent_id are required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
     }
 
     // Validate file extension
@@ -42,11 +41,9 @@ export async function POST(req: Request) {
 
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).slice(2);
-    
-    const results: any[] = [];
 
     // Upload file to storage
-    const path = `online-claims/${timestamp}-${randomStr}${ext}`;
+    const path = `online-claims/${userId}-${timestamp}-${randomStr}${ext}`;
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, {
@@ -58,30 +55,18 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Insert documents for both parties (same document, both can see it)
-    const { error: insertParentError } = await supabase
+    // Insert document for surrogate only
+    const { error: insertError } = await supabase
       .from('documents')
       .insert({
         document_type: 'online_claims',
         file_url: publicUrl,
         file_name: file.name,
-        user_id: parentId,
+        user_id: userId,
       });
-    if (insertParentError) throw insertParentError;
-    results.push({ user_id: parentId, document_type: 'online_claims' });
+    if (insertError) throw insertError;
 
-    const { error: insertSurrogateError } = await supabase
-      .from('documents')
-      .insert({
-        document_type: 'online_claims',
-        file_url: publicUrl,
-        file_name: file.name,
-        user_id: surrogateId,
-      });
-    if (insertSurrogateError) throw insertSurrogateError;
-    results.push({ user_id: surrogateId, document_type: 'online_claims' });
-
-    return NextResponse.json({ success: true, url: publicUrl, path, results });
+    return NextResponse.json({ success: true, url: publicUrl, path, user_id: userId });
   } catch (err: any) {
     console.error('[matches/online-claims] POST error', err);
     return NextResponse.json({ error: err.message || 'Failed to upload online claims document' }, { status: 500 });
