@@ -68,6 +68,7 @@ const VideoPlayer = ({ source, style }) => {
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useNotifications } from '../context/NotificationContext';
 import Avatar from '../components/Avatar';
 
 export default function HomeScreen() {
@@ -75,6 +76,7 @@ export default function HomeScreen() {
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
   const { user, isLoading: authLoading, updateProfile } = useAuth();
   const { t } = useLanguage();
+  const { sendSurrogateProgressUpdate } = useNotifications();
   const STAGE_OPTIONS = getStageOptions(t);
   const EMBRYO_DAY_OPTIONS = getEmbryoDayOptions(t);
   const [showModal, setShowModal] = useState(false);
@@ -657,6 +659,16 @@ export default function HomeScreen() {
       }
       try {
         setStageUpdateLoading(true);
+        
+        // Get current stage before updating
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('progress_stage')
+          .eq('id', user.id)
+          .single();
+        
+        const oldStage = currentProfile?.progress_stage || null;
+        
         const { error } = await supabase
           .from('profiles')
           .update({ progress_stage: normalized, stage_updated_by: 'surrogate' })
@@ -666,6 +678,13 @@ export default function HomeScreen() {
           Alert.alert('Update failed', 'Could not update stage. Please try again.');
           return;
         }
+        
+        // Send notification to matched parent if stage changed
+        // Note: The notification will be sent via Supabase Realtime listener
+        // The parent's app will detect the change and show a notification
+        // We don't need to call an API here since Realtime handles it
+        console.log('✅ Surrogate stage updated, parent will be notified via Realtime');
+        
         // Sync local state/refs immediately
         realStageRef.current = normalized;
         stageDataReadyRef.current = true;
@@ -881,6 +900,77 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
   }, [user, isLoading, forceCompleteLoading]);
+
+  // Listen for surrogate progress stage updates (for parent users)
+  useEffect(() => {
+    if (!isParentRole || !matchedSurrogateId) {
+      return;
+    }
+
+    console.log('[HomeScreen] Setting up Realtime listener for surrogate progress:', matchedSurrogateId);
+
+    // Stage labels mapping
+    const stageLabels = {
+      'pre': 'Pre-Transfer',
+      'pregnancy': 'Post-Transfer',
+      'ob_visit': 'OB Office Visit',
+      'delivery': 'Delivery',
+    };
+
+    // Track previous stage to detect changes
+    let previousStage = serverStage;
+
+    // Subscribe to changes in the matched surrogate's profile
+    const channel = supabase
+      .channel(`surrogate-progress-${matchedSurrogateId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${matchedSurrogateId}`,
+        },
+        (payload) => {
+          console.log('[HomeScreen] Surrogate profile updated:', payload);
+          
+          const newStage = payload.new.progress_stage;
+          const oldStage = previousStage;
+          
+          // Only notify if stage actually changed
+          if (newStage && newStage !== oldStage && oldStage) {
+            console.log('[HomeScreen] Stage changed detected:', { oldStage, newStage });
+            
+            // Update local state
+            previousStage = newStage;
+            realStageRef.current = newStage;
+            setServerStage(newStage);
+            setPostStage(newStage);
+            
+            // Send notification
+            const surrogateName = matchedProfile?.name || 'Your surrogate';
+            sendSurrogateProgressUpdate(
+              surrogateName,
+              oldStage,
+              newStage,
+              stageLabels
+            );
+          } else if (newStage && newStage !== oldStage) {
+            // First time setting stage (no old stage)
+            previousStage = newStage;
+            realStageRef.current = newStage;
+            setServerStage(newStage);
+            setPostStage(newStage);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[HomeScreen] Cleaning up Realtime listener');
+      supabase.removeChannel(channel);
+    };
+  }, [isParentRole, matchedSurrogateId, matchedProfile, serverStage, sendSurrogateProgressUpdate]);
 
   // Fetch matched surrogate id for parent users (surrogate can skip)
   const fetchMatchedSurrogate = useCallback(async () => {

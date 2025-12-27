@@ -228,45 +228,90 @@ export default function MyMatchScreen({ navigation }) {
     try {
       setLoadingSurrogates(true);
       
-      // First, get all surrogate_ids that have active matches
-      const { data: activeMatches, error: matchesError } = await supabase
-        .from('surrogate_matches')
-        .select('surrogate_id')
-        .eq('status', 'active');
-
-      if (matchesError) {
-        console.error('Error loading active matches:', matchesError);
-      }
-
-      // Extract unique surrogate IDs that are already matched
-      const matchedSurrogateIds = new Set(
-        (activeMatches || []).map(m => m.surrogate_id).filter(Boolean)
-      );
-
-      console.log('[MyMatch] matched surrogate IDs to exclude:', matchedSurrogateIds.size);
-
-      // Get all available surrogates
-      const { data: allSurrogates, error } = await supabase
+      // Get all available surrogates first
+      const { data: allSurrogates, error: surrogatesError } = await supabase
         .from('profiles')
         .select('id, name, phone, location, available')
         .eq('role', 'surrogate')
         .eq('available', true)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading available surrogates:', error);
+      if (surrogatesError) {
+        console.error('[MyMatch] Error loading available surrogates:', surrogatesError);
         setAvailableSurrogates([]);
-      } else {
-        // Filter out surrogates that are already matched
-        const availableSurrogates = (allSurrogates || []).filter(
-          surrogate => !matchedSurrogateIds.has(surrogate.id)
-        );
-        
-        setAvailableSurrogates(availableSurrogates);
-        console.log('[MyMatch] loaded available surrogates:', availableSurrogates.length, '(excluded', matchedSurrogateIds.size, 'matched)');
+        return;
       }
+
+      console.log('[MyMatch] Total available surrogates before filtering:', allSurrogates?.length || 0);
+
+      if (!allSurrogates || allSurrogates.length === 0) {
+        setAvailableSurrogates([]);
+        return;
+      }
+
+      // Try to query all active matches at once
+      // If RLS blocks this, we'll get an error and handle it
+      const { data: allActiveMatches, error: allMatchesError } = await supabase
+        .from('surrogate_matches')
+        .select('surrogate_id, status, parent_id, first_parent_id')
+        .eq('status', 'active');
+
+      let matchedSurrogateIds = new Set();
+
+      if (allMatchesError) {
+        console.log('[MyMatch] Cannot query all matches (RLS restriction):', allMatchesError.message);
+        console.log('[MyMatch] Checking each surrogate individually...');
+        
+        // RLS restriction - check each surrogate individually
+        // Even if we can't see other parent's matches, we can still check if a surrogate is matched
+        // by trying to query their matches (RLS might allow this)
+        for (const surrogate of allSurrogates) {
+          const { data: matches, error: matchError } = await supabase
+            .from('surrogate_matches')
+            .select('id, status, surrogate_id')
+            .eq('surrogate_id', surrogate.id)
+            .eq('status', 'active')
+            .limit(1);
+
+          if (matchError) {
+            // If we get an error, it might be RLS blocking us
+            // But if the surrogate is matched to us, we should see it
+            // If matched to someone else, we might not see it
+            // For safety, if we can't verify, we'll exclude the surrogate
+            console.log(`[MyMatch] Cannot verify match status for ${surrogate.id} (${surrogate.name}), excluding for safety`);
+            matchedSurrogateIds.add(surrogate.id);
+          } else if (matches && matches.length > 0) {
+            matchedSurrogateIds.add(surrogate.id);
+            console.log(`[MyMatch] Excluding matched surrogate: ${surrogate.id} (${surrogate.name})`);
+          } else {
+            // No matches found - surrogate is available
+            console.log(`[MyMatch] Surrogate ${surrogate.id} (${surrogate.name}) has no active matches`);
+          }
+        }
+      } else {
+        // Successfully got all matches
+        matchedSurrogateIds = new Set(
+          (allActiveMatches || [])
+            .map(m => m.surrogate_id)
+            .filter(id => id != null && id !== '')
+        );
+        console.log('[MyMatch] Found', matchedSurrogateIds.size, 'matched surrogates from bulk query');
+        console.log('[MyMatch] Matched surrogate IDs:', Array.from(matchedSurrogateIds));
+        console.log('[MyMatch] All active matches:', allActiveMatches);
+      }
+
+      // Filter out matched surrogates
+      const availableSurrogates = allSurrogates.filter(
+        surrogate => !matchedSurrogateIds.has(surrogate.id)
+      );
+      
+      console.log('[MyMatch] Final available surrogates after filtering:', availableSurrogates.length);
+      console.log('[MyMatch] Excluded', matchedSurrogateIds.size, 'matched surrogates');
+      console.log('[MyMatch] Matched surrogate IDs:', Array.from(matchedSurrogateIds));
+      
+      setAvailableSurrogates(availableSurrogates);
     } catch (error) {
-      console.error('Error in loadAvailableSurrogates:', error);
+      console.error('[MyMatch] Error in loadAvailableSurrogates:', error);
       setAvailableSurrogates([]);
     } finally {
       setLoadingSurrogates(false);

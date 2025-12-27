@@ -212,6 +212,29 @@ export const NotificationProvider = ({ children }) => {
     NotificationService.sendLocalNotification(title, message, { type: 'marketing' });
   };
 
+  const sendSurrogateProgressUpdate = (surrogateName, oldStage, newStage, stageLabels) => {
+    // Progress updates are important, always send regardless of settings
+    const oldStageLabel = stageLabels[oldStage] || oldStage;
+    const newStageLabel = stageLabels[newStage] || newStage;
+    
+    const notification = {
+      type: 'surrogate_progress_update',
+      title: 'Surrogate Progress Update',
+      message: `${surrogateName || 'Your surrogate'} has progressed from ${oldStageLabel} to ${newStageLabel}`,
+      data: {
+        surrogateName,
+        oldStage,
+        newStage,
+        oldStageLabel,
+        newStageLabel,
+        timestamp: new Date().toISOString(),
+      },
+    };
+    
+    addNotification(notification);
+    NotificationService.sendSurrogateProgressUpdate(surrogateName, oldStage, newStage, stageLabels);
+  };
+
   const getStatusMessage = (status) => {
     const statusMessages = {
       'submitted': 'Your application has been submitted and is under review.',
@@ -246,6 +269,7 @@ export const NotificationProvider = ({ children }) => {
     sendMedicalAppointmentReminder,
     sendWeeklyUpdate,
     sendMarketingMessage,
+    sendSurrogateProgressUpdate,
   };
 
   return (

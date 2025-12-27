@@ -245,6 +245,28 @@ class RealNotificationService {
     );
   }
 
+  // Send surrogate progress stage update notification
+  sendSurrogateProgressUpdate(surrogateName, oldStage, newStage, stageLabels) {
+    const oldStageLabel = stageLabels[oldStage] || oldStage;
+    const newStageLabel = stageLabels[newStage] || newStage;
+    
+    const message = `${surrogateName || 'Your surrogate'} has progressed from ${oldStageLabel} to ${newStageLabel}`;
+    
+    this.sendLocalNotification(
+      'Surrogate Progress Update',
+      message,
+      {
+        type: 'surrogate_progress_update',
+        surrogateName: surrogateName,
+        oldStage: oldStage,
+        newStage: newStage,
+        oldStageLabel: oldStageLabel,
+        newStageLabel: newStageLabel,
+        timestamp: new Date().toISOString(),
+      }
+    );
+  }
+
   // Schedule notification for later
   scheduleNotification(title, message, delay = 5000) {
     setTimeout(() => {

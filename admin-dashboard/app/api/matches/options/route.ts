@@ -618,12 +618,47 @@ export async function PATCH(req: Request) {
     // 1) Update match status (body.id + status)
     // 2) Update surrogate progress stage (body.surrogate_id + progress_stage)
     if (body.surrogate_id && body.progress_stage) {
+      // Get current stage before updating
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('progress_stage')
+        .eq('id', body.surrogate_id)
+        .single();
+
+      const oldStage = currentProfile?.progress_stage || null;
+
       const updater = body.stage_updated_by || 'admin';
       const { error } = await supabase
         .from('profiles')
         .update({ progress_stage: body.progress_stage, stage_updated_by: updater })
         .eq('id', body.surrogate_id);
       if (error) throw error;
+
+      // Send notification to matched parent if stage changed
+      if (oldStage !== body.progress_stage) {
+        try {
+          // Call notification API (fire and forget - don't wait for response)
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+          
+          fetch(`${baseUrl}/api/notifications/surrogate-progress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              surrogate_id: body.surrogate_id,
+              old_stage: oldStage,
+              new_stage: body.progress_stage,
+            }),
+          }).catch(err => {
+            console.error('[matches/options] Error sending notification:', err);
+            // Don't fail the request if notification fails
+          });
+        } catch (notifError) {
+          console.error('[matches/options] Error sending notification:', notifError);
+          // Don't fail the request if notification fails
+        }
+      }
     } else {
       if (!body.id) {
         return NextResponse.json(
