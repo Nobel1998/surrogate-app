@@ -15,6 +15,7 @@ type Profile = {
   branch_id?: string | null;
   transfer_date?: string | null;
   transfer_embryo_day?: string | null;
+  available?: boolean;
 };
 
 type Branch = {
@@ -873,6 +874,28 @@ export default function MatchesPage() {
     }
   };
 
+  const updateSurrogateAvailable = async (surrogateId: string, available: boolean) => {
+    try {
+      const res = await fetch(`/api/profiles/${surrogateId}/available`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ available }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update available status');
+      }
+
+      // Reload data to get updated available status
+      await loadData();
+      alert(`代母状态已更新为: ${available ? '可用' : '不可用'}`);
+    } catch (err: any) {
+      console.error('[matches] Error updating available status:', err);
+      alert(err.message || 'Failed to update available status');
+    }
+  };
+
   const updateStage = async (surrogateId: string, newStage: string) => {
     try {
       const res = await fetch('/api/matches/options', {
@@ -1572,6 +1595,62 @@ export default function MatchesPage() {
         </div>
 
 
+        {/* Surrogate Availability Management */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">代母可用状态管理 (Surrogate Availability)</h2>
+          <p className="text-sm text-gray-600 mb-4">设置代母是否可用于匹配。只有标记为"可用"的代母才会在匹配下拉列表中显示。</p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代母姓名</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">电话</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当前状态</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {surrogates.map((s: Profile) => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {s.name || s.id.substring(0, 8)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {s.phone || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
+                        s.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {s.available ? '可用 (Available)' : '不可用 (Not Available)'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => updateSurrogateAvailable(s.id, !s.available)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          s.available
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {s.available ? '设为不可用' : '设为可用'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {surrogates.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                      暂无代母数据
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1588,12 +1667,15 @@ export default function MatchesPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a surrogate</option>
-                {surrogates.map((s: Profile) => (
+                {surrogates.filter((s: Profile) => s.available).map((s: Profile) => (
                   <option key={s.id} value={s.id}>
                     {s.name || s.id} {s.phone ? `• ${s.phone}` : ''}
                   </option>
                 ))}
               </select>
+              {surrogates.filter((s: Profile) => s.available).length === 0 && (
+                <p className="text-xs text-gray-500 mt-1">没有可用的代母。请在上方设置代母为"可用"状态。</p>
+              )}
             </div>
 
             <div className="space-y-2">

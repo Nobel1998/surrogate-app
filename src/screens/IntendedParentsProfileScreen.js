@@ -11,19 +11,143 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function IntendedParentsProfileScreen({ route, navigation }) {
   const { profile, application } = route?.params || {};
+  const { t } = useLanguage();
   
   // Determine profile type based on role
   const profileRole = (profile?.role || '').toLowerCase();
   const isSurrogate = profileRole === 'surrogate';
   const isParent = profileRole === 'parent';
-  const profileTitle = isSurrogate ? 'Surrogate Profile' : isParent ? 'Intended Parents Profile' : 'Partner Profile';
-  const profileRoleLabel = isSurrogate ? 'Surrogate' : isParent ? 'Intended Parent' : 'Partner';
+  const profileTitle = isSurrogate ? t('profileDetail.surrogateProfile') : isParent ? t('profileDetail.intendedParentsProfile') : t('profileDetail.partnerProfile');
+  const profileRoleLabel = isSurrogate ? t('profileDetail.surrogate') : isParent ? t('profileDetail.intendedParent') : t('profileDetail.partner');
   
   // Get parsed application data
   const appData = application?.parsedFormData || {};
+
+  // Function to translate English option values to current language
+  const translateValue = (value, fieldType) => {
+    if (!value) return value;
+    
+    // If value is not a string, return as is
+    if (typeof value !== 'string') return value;
+    
+    // Trim the value
+    const trimmedValue = value.trim();
+    
+    // Map English values to translation keys (exact matches)
+    const valueMap = {
+      // Smoking status
+      'Non-smoker': t('application.nonSmoker'),
+      'Former smoker': t('application.formerSmoker'),
+      'Current smoker': t('application.currentSmoker'),
+      // Employment status
+      'Employed Full-time': t('application.employedFullTime'),
+      'Employed Part-time': t('application.employedPartTime'),
+      'Self-employed': t('application.selfEmployed'),
+      'Unemployed': t('application.unemployed'),
+      'Student': t('application.student'),
+      // Common phrases and words
+      'Pregnancy': t('profileDetail.previousPregnancies'),
+      'Current': t('application.currentSmoker'),
+      'Previous': t('profileDetail.previousPregnancies'),
+      'Previous Pregnancy': t('profileDetail.previousPregnancies'),
+      'Previous Pregnancies': t('profileDetail.previousPregnancies'),
+      'Current Medications': t('profileDetail.currentMedications'),
+      'Current Medication': t('profileDetail.currentMedications'),
+      // Common phrases for alcohol usage and exercise
+      'Every Week': t('profileDetail.everyWeek'),
+      'Every week': t('profileDetail.everyWeek'),
+      'every week': t('profileDetail.everyWeek'),
+      'Everyday': t('profileDetail.everyday'),
+      'Every day': t('profileDetail.everyday'),
+      'everyday': t('profileDetail.everyday'),
+      'every day': t('profileDetail.everyday'),
+      // Common single words
+      'Asia': t('profileDetail.asia'),
+      'Asian': t('profileDetail.asian'),
+      'Health': t('profileDetail.health'),
+      'Family': t('profileDetail.family'),
+      'Insurance': t('profileDetail.insurance'),
+      'Stable': t('profileDetail.stable'),
+      'Special': t('profileDetail.special'),
+      'Good': t('profileDetail.good'),
+      'Explain': t('profileDetail.explain'),
+    };
+    
+    // Check for exact match first (case-sensitive)
+    if (valueMap[trimmedValue]) {
+      return valueMap[trimmedValue];
+    }
+    
+    // Check for case-insensitive match
+    const lowerValue = trimmedValue.toLowerCase();
+    const caseInsensitiveMap = {
+      'non-smoker': t('application.nonSmoker'),
+      'former smoker': t('application.formerSmoker'),
+      'current smoker': t('application.currentSmoker'),
+      'employed full-time': t('application.employedFullTime'),
+      'employed part-time': t('application.employedPartTime'),
+      'self-employed': t('application.selfEmployed'),
+      'unemployed': t('application.unemployed'),
+      'student': t('application.student'),
+      'pregnancy': t('profileDetail.previousPregnancies'),
+      'current': t('application.currentSmoker'),
+      'previous': t('profileDetail.previousPregnancies'),
+      'previous pregnancy': t('profileDetail.previousPregnancies'),
+      'previous pregnancies': t('profileDetail.previousPregnancies'),
+      'current medications': t('profileDetail.currentMedications'),
+      'current medication': t('profileDetail.currentMedications'),
+      'every week': t('profileDetail.everyWeek'),
+      'everyday': t('profileDetail.everyday'),
+      'every day': t('profileDetail.everyday'),
+      // Common single words (lowercase)
+      'asia': t('profileDetail.asia'),
+      'asian': t('profileDetail.asian'),
+      'health': t('profileDetail.health'),
+      'family': t('profileDetail.family'),
+      'insurance': t('profileDetail.insurance'),
+      'stable': t('profileDetail.stable'),
+      'special': t('profileDetail.special'),
+      'good': t('profileDetail.good'),
+      'explain': t('profileDetail.explain'),
+    };
+    
+    if (caseInsensitiveMap[lowerValue]) {
+      return caseInsensitiveMap[lowerValue];
+    }
+    
+    // For values that might contain English words, try to translate common patterns
+    let translatedValue = trimmedValue;
+    
+    // Common word replacements (case-insensitive, whole word matching where possible)
+    const wordReplacements = [
+      { pattern: /\bPregnancy\b/gi, replacement: t('profileDetail.previousPregnancies') },
+      { pattern: /\bCurrent\b/gi, replacement: t('application.currentSmoker') },
+      { pattern: /\bPrevious\b/gi, replacement: t('profileDetail.previousPregnancies') },
+      { pattern: /\bEvery Week\b/gi, replacement: t('profileDetail.everyWeek') },
+      { pattern: /\bEveryday\b/gi, replacement: t('profileDetail.everyday') },
+      { pattern: /\bEvery day\b/gi, replacement: t('profileDetail.everyday') },
+      { pattern: /\bAsia\b/gi, replacement: t('profileDetail.asia') },
+      { pattern: /\bAsian\b/gi, replacement: t('profileDetail.asian') },
+      { pattern: /\bHealth\b/gi, replacement: t('profileDetail.health') },
+      { pattern: /\bFamily\b/gi, replacement: t('profileDetail.family') },
+      { pattern: /\bInsurance\b/gi, replacement: t('profileDetail.insurance') },
+      { pattern: /\bStable\b/gi, replacement: t('profileDetail.stable') },
+      { pattern: /\bSpecial\b/gi, replacement: t('profileDetail.special') },
+      { pattern: /\bGood\b/gi, replacement: t('profileDetail.good') },
+      { pattern: /\bExplain\b/gi, replacement: t('profileDetail.explain') },
+    ];
+    
+    // Apply replacements
+    wordReplacements.forEach(({ pattern, replacement }) => {
+      translatedValue = translatedValue.replace(pattern, replacement);
+    });
+    
+    return translatedValue;
+  };
 
   if (!profile) {
     return (
@@ -37,7 +161,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Profile information not available</Text>
+          <Text style={styles.emptyText}>{t('profileDetail.profileNotAvailable')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -88,32 +212,32 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
-              <Avatar name={profile.name || (isSurrogate ? 'Surrogate' : 'Parent')} size={100} />
+              <Avatar name={profile.name || (isSurrogate ? t('profileDetail.surrogate') : t('profileDetail.intendedParent'))} size={100} />
             </View>
-            <Text style={styles.profileName}>{profile.name || (isSurrogate ? 'Surrogate' : 'Parent')}</Text>
+            <Text style={styles.profileName}>{profile.name || (isSurrogate ? t('profileDetail.surrogate') : t('profileDetail.intendedParent'))}</Text>
             <Text style={styles.profileRole}>{profileRoleLabel}</Text>
           </View>
 
           {/* Contact Information */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <Text style={styles.sectionTitle}>{t('profileDetail.contactInformation')}</Text>
             
             {renderInfoRow(
-              'Email',
+              t('profileDetail.email'),
               profile.email,
               'mail',
               profile.email ? () => Linking.openURL(`mailto:${profile.email}`) : null
             )}
             
             {renderInfoRow(
-              'Phone',
+              t('profileDetail.phone'),
               profile.phone,
               'phone',
               profile.phone ? () => Linking.openURL(`tel:${profile.phone}`) : null
             )}
             
             {renderInfoRow(
-              'Location',
+              t('profileDetail.location'),
               profile.location,
               'map-pin',
               null
@@ -122,45 +246,45 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
 
           {/* Personal Information */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={styles.sectionTitle}>{t('profileDetail.personalInformation')}</Text>
             
             {renderInfoRow(
-              'Full Legal Name',
+              t('profileDetail.fullLegalName'),
               appData.fullName || application?.full_name || profile.name,
               'user',
               null
             )}
             
             {renderInfoRow(
-              'Age',
+              t('profileDetail.age'),
               appData.age,
               'calendar',
               null
             )}
             
             {renderInfoRow(
-              'Date of Birth',
+              t('profileDetail.dateOfBirth'),
               appData.dateOfBirth || profile.date_of_birth,
               'calendar',
               null
             )}
             
             {renderInfoRow(
-              'Race/Ethnicity',
-              appData.race || profile.race,
+              t('profileDetail.raceEthnicity'),
+              translateValue(appData.race || profile.race, 'race'),
               'user',
               null
             )}
             
             {renderInfoRow(
-              'Location',
+              t('profileDetail.location'),
               appData.location || profile.location || profile.address,
               'map-pin',
               null
             )}
             
             {renderInfoRow(
-              'How did you hear about us?',
+              t('profileDetail.howDidYouHearAboutUs'),
               appData.hearAboutUs,
               'info',
               null
@@ -170,46 +294,46 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           {/* Medical Information */}
           {appData.previousPregnancies || appData.previousSurrogacy !== undefined || appData.pregnancyComplications || appData.currentMedications || appData.healthConditions || appData.bmi ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Medical Information</Text>
+              <Text style={styles.sectionTitle}>{t('profileDetail.medicalInformation')}</Text>
               
               {renderInfoRow(
-                'Previous Pregnancies',
-                appData.previousPregnancies,
+                t('profileDetail.previousPregnancies'),
+                translateValue(appData.previousPregnancies, 'previousPregnancies'),
                 'heart',
                 null
               )}
               
               {renderInfoRow(
-                'Previous Surrogacy Experience',
-                appData.previousSurrogacy === true ? 'Yes' : appData.previousSurrogacy === false ? 'No' : null,
+                t('profileDetail.previousSurrogacyExperience'),
+                appData.previousSurrogacy === true ? t('profileDetail.yes') : appData.previousSurrogacy === false ? t('profileDetail.no') : null,
                 'check-circle',
                 null
               )}
               
               {renderInfoRow(
-                'Pregnancy Complications',
-                appData.pregnancyComplications,
+                t('profileDetail.pregnancyComplications'),
+                translateValue(appData.pregnancyComplications, 'pregnancyComplications'),
                 'alert-circle',
                 null
               )}
               
               {renderInfoRow(
-                'Current Medications',
-                appData.currentMedications,
+                t('profileDetail.currentMedications'),
+                translateValue(appData.currentMedications, 'currentMedications'),
                 'pill',
                 null
               )}
               
               {renderInfoRow(
-                'Health Conditions',
-                appData.healthConditions,
+                t('profileDetail.healthConditions'),
+                translateValue(appData.healthConditions, 'healthConditions'),
                 'activity',
                 null
               )}
               
               {renderInfoRow(
-                'BMI',
-                appData.bmi,
+                t('profileDetail.bmi'),
+                translateValue(appData.bmi, 'bmi'),
                 'trending-up',
                 null
               )}
@@ -219,39 +343,39 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           {/* Lifestyle Information */}
           {appData.smokingStatus || appData.alcoholUsage || appData.exerciseRoutine || appData.employmentStatus || appData.supportSystem ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Lifestyle Information</Text>
+              <Text style={styles.sectionTitle}>{t('profileDetail.lifestyleInformation')}</Text>
               
               {renderInfoRow(
-                'Smoking Status',
-                appData.smokingStatus,
+                t('profileDetail.smokingStatus'),
+                translateValue(appData.smokingStatus, 'smokingStatus'),
                 'wind',
                 null
               )}
               
               {renderInfoRow(
-                'Alcohol Usage',
-                appData.alcoholUsage,
+                t('profileDetail.alcoholUsage'),
+                translateValue(appData.alcoholUsage, 'alcoholUsage'),
                 'droplet',
                 null
               )}
               
               {renderInfoRow(
-                'Exercise Routine',
-                appData.exerciseRoutine,
+                t('profileDetail.exerciseRoutine'),
+                translateValue(appData.exerciseRoutine, 'exerciseRoutine'),
                 'activity',
                 null
               )}
               
               {renderInfoRow(
-                'Employment Status',
-                appData.employmentStatus,
+                t('profileDetail.employmentStatus'),
+                translateValue(appData.employmentStatus, 'employmentStatus'),
                 'briefcase',
                 null
               )}
               
               {renderInfoRow(
-                'Support System',
-                appData.supportSystem,
+                t('profileDetail.supportSystem'),
+                translateValue(appData.supportSystem, 'supportSystem'),
                 'users',
                 null
               )}
@@ -261,32 +385,32 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           {/* Legal & Background Information */}
           {appData.criminalBackground !== undefined || appData.legalIssues || appData.insuranceCoverage || appData.financialStability ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Legal & Background Information</Text>
+              <Text style={styles.sectionTitle}>{t('profileDetail.legalBackgroundInformation')}</Text>
               
               {renderInfoRow(
-                'Criminal Background',
-                appData.criminalBackground === true ? 'Yes' : appData.criminalBackground === false ? 'No' : null,
+                t('profileDetail.criminalBackground'),
+                appData.criminalBackground === true ? t('profileDetail.yes') : appData.criminalBackground === false ? t('profileDetail.no') : null,
                 'shield',
                 null
               )}
               
               {renderInfoRow(
-                'Legal Issues',
-                appData.legalIssues,
+                t('profileDetail.legalIssues'),
+                translateValue(appData.legalIssues, 'legalIssues'),
                 'file-text',
                 null
               )}
               
               {renderInfoRow(
-                'Insurance Coverage',
-                appData.insuranceCoverage,
+                t('profileDetail.insuranceCoverage'),
+                translateValue(appData.insuranceCoverage, 'insuranceCoverage'),
                 'shield',
                 null
               )}
               
               {renderInfoRow(
-                'Financial Stability',
-                appData.financialStability,
+                t('profileDetail.financialStability'),
+                translateValue(appData.financialStability, 'financialStability'),
                 'dollar-sign',
                 null
               )}
@@ -296,32 +420,32 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           {/* Preferences & Additional Information */}
           {appData.compensationExpectations || appData.timelineAvailability || appData.travelWillingness !== undefined || appData.specialPreferences || appData.additionalComments ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Preferences & Additional Information</Text>
+              <Text style={styles.sectionTitle}>{t('profileDetail.preferencesAdditionalInformation')}</Text>
               
               {renderInfoRow(
-                'Compensation Expectations',
-                appData.compensationExpectations,
+                t('profileDetail.compensationExpectations'),
+                translateValue(appData.compensationExpectations, 'compensationExpectations'),
                 'dollar-sign',
                 null
               )}
               
               {renderInfoRow(
-                'Timeline Availability',
-                appData.timelineAvailability,
+                t('profileDetail.timelineAvailability'),
+                translateValue(appData.timelineAvailability, 'timelineAvailability'),
                 'calendar',
                 null
               )}
               
               {renderInfoRow(
-                'Travel Willingness',
-                appData.travelWillingness === true ? 'Yes' : appData.travelWillingness === false ? 'No' : null,
+                t('profileDetail.travelWillingness'),
+                appData.travelWillingness === true ? t('profileDetail.yes') : appData.travelWillingness === false ? t('profileDetail.no') : null,
                 'map',
                 null
               )}
               
               {renderInfoRow(
-                'Special Preferences',
-                appData.specialPreferences,
+                t('profileDetail.specialPreferences'),
+                translateValue(appData.specialPreferences, 'specialPreferences'),
                 'star',
                 null
               )}
@@ -333,8 +457,8 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                       <Icon name="file-text" size={20} color="#FF8EA4" />
                     </View>
                     <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Additional Comments</Text>
-                      <Text style={styles.infoValue}>{appData.additionalComments}</Text>
+                      <Text style={styles.infoLabel}>{t('profileDetail.additionalComments')}</Text>
+                      <Text style={styles.infoValue}>{translateValue(appData.additionalComments, 'additionalComments')}</Text>
                     </View>
                   </View>
                 </View>
@@ -345,10 +469,10 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
           {/* Additional Information */}
           {(profile.address || profile.notes) && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Additional Information</Text>
+              <Text style={styles.sectionTitle}>{t('profileDetail.additionalInformation')}</Text>
               
               {renderInfoRow(
-                'Address',
+                t('profileDetail.address'),
                 profile.address,
                 'home',
                 null
@@ -361,7 +485,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                       <Icon name="file-text" size={20} color="#FF8EA4" />
                     </View>
                     <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Notes</Text>
+                      <Text style={styles.infoLabel}>{t('profileDetail.notes')}</Text>
                       <Text style={styles.infoValue}>{profile.notes}</Text>
                     </View>
                   </View>
@@ -372,7 +496,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
 
           {/* Quick Actions */}
           <View style={styles.quickActionsSection}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionTitle}>{t('profileDetail.quickActions')}</Text>
             <View style={styles.quickActionsGrid}>
               {profile.phone && (
                 <TouchableOpacity
@@ -382,7 +506,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                   <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
                     <Icon name="phone" size={24} color="#00B894" />
                   </View>
-                  <Text style={styles.quickActionLabel}>Call</Text>
+                  <Text style={styles.quickActionLabel}>{t('profileDetail.call')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -394,7 +518,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                   <View style={[styles.quickActionIcon, { backgroundColor: '#FFF3E0' }]}>
                     <Icon name="mail" size={24} color="#FF8EA4" />
                   </View>
-                  <Text style={styles.quickActionLabel}>Email</Text>
+                  <Text style={styles.quickActionLabel}>{t('profileDetail.email')}</Text>
                 </TouchableOpacity>
               )}
             </View>

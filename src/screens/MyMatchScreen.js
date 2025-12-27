@@ -296,15 +296,15 @@ export default function MyMatchScreen({ navigation }) {
   // Render Matched State with Premium Design
   const renderMatchedState = () => {
     const isSurrogate = userRole === 'surrogate';
-    const partnerName = partnerProfile?.name || 'Partner';
-    const userName = user?.name || 'You';
+    const partnerName = partnerProfile?.name || t('myMatch.partner');
+    const userName = user?.name || t('myMatch.you');
     const matchDate = formatMatchDate(matchData?.created_at);
     
     // Document configuration based on role
     const documentConfig = [
       {
         key: 'intended_parents_profile',
-        label: isSurrogate ? t('myMatch.intendedParentsProfile') : 'Surrogate Profile',
+        label: isSurrogate ? t('myMatch.intendedParentsProfile') : t('profileDetail.surrogateProfile'),
         icon: 'user',
         iconColor: '#FF8EA4',
         documentType: isSurrogate ? 'parent_contract' : null,
@@ -356,7 +356,7 @@ export default function MyMatchScreen({ navigation }) {
       // Trust Account - only visible to parents
       ...(isSurrogate ? [] : [{
         key: 'trust_account',
-        label: 'Trust Account',
+        label: t('myMatch.trustAccount'),
         icon: 'dollar-sign',
         iconColor: '#00B894',
         documentType: 'trust_account',
