@@ -889,7 +889,7 @@ export default function MatchesPage() {
 
       // Reload data to get updated available status
       await loadData();
-      alert(`代母状态已更新为: ${available ? '可用' : '不可用'}`);
+      alert(`Surrogate status updated to: ${available ? 'Available' : 'Not Available'}`);
     } catch (err: any) {
       console.error('[matches] Error updating available status:', err);
       alert(err.message || 'Failed to update available status');
@@ -1597,16 +1597,16 @@ export default function MatchesPage() {
 
         {/* Surrogate Availability Management */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">代母可用状态管理 (Surrogate Availability)</h2>
-          <p className="text-sm text-gray-600 mb-4">设置代母是否可用于匹配。只有标记为"可用"的代母才会在匹配下拉列表中显示。</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Surrogate Availability Management</h2>
+          <p className="text-sm text-gray-600 mb-4">Set whether surrogates are available for matching. Only surrogates marked as "Available" will appear in the match dropdown.</p>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代母姓名</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">电话</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当前状态</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -1622,7 +1622,7 @@ export default function MatchesPage() {
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
                         s.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {s.available ? '可用 (Available)' : '不可用 (Not Available)'}
+                        {s.available ? 'Available' : 'Not Available'}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -1634,7 +1634,7 @@ export default function MatchesPage() {
                             : 'bg-green-100 text-green-700 hover:bg-green-200'
                         }`}
                       >
-                        {s.available ? '设为不可用' : '设为可用'}
+                        {s.available ? 'Set Unavailable' : 'Set Available'}
                       </button>
                     </td>
                   </tr>
@@ -1642,7 +1642,7 @@ export default function MatchesPage() {
                 {surrogates.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
-                      暂无代母数据
+                      No surrogates found
                     </td>
                   </tr>
                 )}
@@ -1674,7 +1674,7 @@ export default function MatchesPage() {
                 ))}
               </select>
               {surrogates.filter((s: Profile) => s.available).length === 0 && (
-                <p className="text-xs text-gray-500 mt-1">没有可用的代母。请在上方设置代母为"可用"状态。</p>
+                <p className="text-xs text-gray-500 mt-1">No available surrogates. Please set surrogates as "Available" above.</p>
               )}
             </div>
 
