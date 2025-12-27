@@ -227,7 +227,26 @@ export default function MyMatchScreen({ navigation }) {
   const loadAvailableSurrogates = async () => {
     try {
       setLoadingSurrogates(true);
-      const { data, error } = await supabase
+      
+      // First, get all surrogate_ids that have active matches
+      const { data: activeMatches, error: matchesError } = await supabase
+        .from('surrogate_matches')
+        .select('surrogate_id')
+        .eq('status', 'active');
+
+      if (matchesError) {
+        console.error('Error loading active matches:', matchesError);
+      }
+
+      // Extract unique surrogate IDs that are already matched
+      const matchedSurrogateIds = new Set(
+        (activeMatches || []).map(m => m.surrogate_id).filter(Boolean)
+      );
+
+      console.log('[MyMatch] matched surrogate IDs to exclude:', matchedSurrogateIds.size);
+
+      // Get all available surrogates
+      const { data: allSurrogates, error } = await supabase
         .from('profiles')
         .select('id, name, phone, location, available')
         .eq('role', 'surrogate')
@@ -236,12 +255,19 @@ export default function MyMatchScreen({ navigation }) {
 
       if (error) {
         console.error('Error loading available surrogates:', error);
+        setAvailableSurrogates([]);
       } else {
-        setAvailableSurrogates(data || []);
-        console.log('[MyMatch] loaded available surrogates:', data?.length || 0);
+        // Filter out surrogates that are already matched
+        const availableSurrogates = (allSurrogates || []).filter(
+          surrogate => !matchedSurrogateIds.has(surrogate.id)
+        );
+        
+        setAvailableSurrogates(availableSurrogates);
+        console.log('[MyMatch] loaded available surrogates:', availableSurrogates.length, '(excluded', matchedSurrogateIds.size, 'matched)');
       }
     } catch (error) {
       console.error('Error in loadAvailableSurrogates:', error);
+      setAvailableSurrogates([]);
     } finally {
       setLoadingSurrogates(false);
     }
