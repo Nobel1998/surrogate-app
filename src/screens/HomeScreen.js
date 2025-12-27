@@ -907,7 +907,7 @@ export default function HomeScreen() {
       return;
     }
 
-    console.log('[HomeScreen] Setting up Realtime listener for surrogate progress:', matchedSurrogateId);
+    console.log('[HomeScreen] Setting up listener for surrogate progress:', matchedSurrogateId);
 
     // Stage labels mapping
     const stageLabels = {
@@ -919,8 +919,9 @@ export default function HomeScreen() {
 
     // Track previous stage to detect changes
     let previousStage = serverStage;
+    let realtimeSubscribed = false;
 
-    // Subscribe to changes in the matched surrogate's profile
+    // Method 1: Try Supabase Realtime first
     const channel = supabase
       .channel(`surrogate-progress-${matchedSurrogateId}`)
       .on(
@@ -932,31 +933,22 @@ export default function HomeScreen() {
           filter: `id=eq.${matchedSurrogateId}`,
         },
         (payload) => {
-          console.log('[HomeScreen] Surrogate profile updated:', payload);
+          console.log('[HomeScreen] ✅ Surrogate profile updated via Realtime:', payload);
           
-          const newStage = payload.new.progress_stage;
+          const newStage = payload.new?.progress_stage;
           const oldStage = previousStage;
           
-          // Only notify if stage actually changed
           if (newStage && newStage !== oldStage && oldStage) {
-            console.log('[HomeScreen] Stage changed detected:', { oldStage, newStage });
+            console.log('[HomeScreen] ✅ Stage changed detected! Sending notification:', { oldStage, newStage });
             
-            // Update local state
             previousStage = newStage;
             realStageRef.current = newStage;
             setServerStage(newStage);
             setPostStage(newStage);
             
-            // Send notification
             const surrogateName = matchedProfile?.name || 'Your surrogate';
-            sendSurrogateProgressUpdate(
-              surrogateName,
-              oldStage,
-              newStage,
-              stageLabels
-            );
+            sendSurrogateProgressUpdate(surrogateName, oldStage, newStage, stageLabels);
           } else if (newStage && newStage !== oldStage) {
-            // First time setting stage (no old stage)
             previousStage = newStage;
             realStageRef.current = newStage;
             setServerStage(newStage);
@@ -964,11 +956,63 @@ export default function HomeScreen() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[HomeScreen] Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          realtimeSubscribed = true;
+          console.log('[HomeScreen] ✅ Successfully subscribed to Realtime updates');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[HomeScreen] ⚠️ Realtime not available, falling back to polling');
+          realtimeSubscribed = false;
+        }
+      });
+
+    // Method 2: Fallback polling if Realtime doesn't work
+    // Poll every 10 seconds to check for stage changes
+    const pollInterval = setInterval(async () => {
+      if (realtimeSubscribed) {
+        // Realtime is working, skip polling
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('progress_stage, name')
+          .eq('id', matchedSurrogateId)
+          .single();
+
+        if (error) {
+          console.error('[HomeScreen] Error polling surrogate stage:', error);
+          return;
+        }
+
+        const newStage = data?.progress_stage;
+        const currentStage = previousStage || serverStage;
+
+        if (newStage && newStage !== currentStage && currentStage) {
+          console.log('[HomeScreen] ✅ Stage changed detected via polling! Sending notification:', {
+            oldStage: currentStage,
+            newStage,
+          });
+
+          previousStage = newStage;
+          realStageRef.current = newStage;
+          setServerStage(newStage);
+          setPostStage(newStage);
+
+          const surrogateName = data?.name || matchedProfile?.name || 'Your surrogate';
+          sendSurrogateProgressUpdate(surrogateName, currentStage, newStage, stageLabels);
+        }
+      } catch (error) {
+        console.error('[HomeScreen] Error in polling:', error);
+      }
+    }, 10000); // Poll every 10 seconds
 
     return () => {
-      console.log('[HomeScreen] Cleaning up Realtime listener');
+      console.log('[HomeScreen] Cleaning up listeners');
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [isParentRole, matchedSurrogateId, matchedProfile, serverStage, sendSurrogateProgressUpdate]);
 
