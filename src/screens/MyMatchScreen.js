@@ -31,6 +31,8 @@ export default function MyMatchScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState('surrogate');
+  const [availableSurrogates, setAvailableSurrogates] = useState([]);
+  const [loadingSurrogates, setLoadingSurrogates] = useState(false);
 
   useEffect(() => {
     loadMatchData();
@@ -208,6 +210,11 @@ export default function MyMatchScreen({ navigation }) {
         setPartnerProfile(null);
         setPartnerApplication(null);
         setDocuments([]);
+        
+        // If parent user and unmatched, load available surrogates
+        if (!isSurrogate) {
+          loadAvailableSurrogates();
+        }
       }
     } catch (error) {
       console.error('Error in loadMatchData:', error);
@@ -217,9 +224,36 @@ export default function MyMatchScreen({ navigation }) {
     }
   };
 
+  const loadAvailableSurrogates = async () => {
+    try {
+      setLoadingSurrogates(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, phone, location, available')
+        .eq('role', 'surrogate')
+        .eq('available', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading available surrogates:', error);
+      } else {
+        setAvailableSurrogates(data || []);
+        console.log('[MyMatch] loaded available surrogates:', data?.length || 0);
+      }
+    } catch (error) {
+      console.error('Error in loadAvailableSurrogates:', error);
+    } finally {
+      setLoadingSurrogates(false);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadMatchData();
+    // If parent and unmatched, also refresh surrogates list
+    if (userRole === 'parent' && !matchData) {
+      await loadAvailableSurrogates();
+    }
     setRefreshing(false);
   };
 
@@ -252,46 +286,86 @@ export default function MyMatchScreen({ navigation }) {
   };
 
   // Render Unmatched State
-  const renderUnmatchedState = () => (
-    <ScrollView 
-      contentContainerStyle={styles.unmatchedContainer}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.unmatchedContent}>
-        <View style={styles.unmatchedIconContainer}>
-          <Icon name="search" size={64} color="#FF8EA4" />
-        </View>
-        <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
-        <Text style={styles.unmatchedDescription}>
-          {t('myMatch.matchingDescription')}
-        </Text>
-        
-        <View style={styles.timelineSteps}>
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepActive]} />
-            <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
+  const renderUnmatchedState = () => {
+    const isParent = userRole === 'parent';
+    
+    return (
+      <ScrollView 
+        contentContainerStyle={styles.unmatchedContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.unmatchedContent}>
+          <View style={styles.unmatchedIconContainer}>
+            <Icon name="search" size={64} color="#FF8EA4" />
           </View>
-          <View style={styles.stepLine} />
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
+          <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
+          <Text style={styles.unmatchedDescription}>
+            {t('myMatch.matchingDescription')}
+          </Text>
+          
+          <View style={styles.timelineSteps}>
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepActive]} />
+              <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
+            </View>
+            <View style={styles.stepLine} />
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepPending]} />
+              <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
+            </View>
+            <View style={styles.stepLine} />
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepPending]} />
+              <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
+            </View>
           </View>
-          <View style={styles.stepLine} />
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
-          </View>
-        </View>
 
-        <TouchableOpacity 
-          style={styles.contactButton}
-          onPress={() => Linking.openURL('mailto:support@agency.com')}
-        >
-          <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
+          {/* Show available surrogates for parent users */}
+          {isParent && (
+            <View style={styles.availableSurrogatesSection}>
+              <Text style={styles.availableSurrogatesTitle}>Available Surrogates</Text>
+              {loadingSurrogates ? (
+                <ActivityIndicator size="small" color="#FF8EA4" style={styles.loadingIndicator} />
+              ) : availableSurrogates.length > 0 ? (
+                <View style={styles.surrogatesList}>
+                  {availableSurrogates.map((surrogate) => (
+                    <View key={surrogate.id} style={styles.surrogateCard}>
+                      <View style={styles.surrogateCardHeader}>
+                        <Avatar name={surrogate.name || 'S'} size={40} />
+                        <View style={styles.surrogateCardInfo}>
+                          <Text style={styles.surrogateName}>{surrogate.name || 'Surrogate'}</Text>
+                          {surrogate.phone && (
+                            <Text style={styles.surrogatePhone}>{surrogate.phone}</Text>
+                          )}
+                          {surrogate.location && (
+                            <Text style={styles.surrogateLocation}>
+                              <Icon name="map-pin" size={12} color="#6E7191" /> {surrogate.location}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.surrogateAvailableBadge}>
+                          <Text style={styles.surrogateAvailableBadgeText}>Available</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noSurrogatesText}>No available surrogates at the moment.</Text>
+              )}
+            </View>
+          )}
+
+          <TouchableOpacity 
+            style={styles.contactButton}
+            onPress={() => Linking.openURL('mailto:support@agency.com')}
+          >
+            <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
 
   // Render Matched State with Premium Design
   const renderMatchedState = () => {
@@ -707,6 +781,81 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E7EE',
     marginLeft: 7,
     marginVertical: 6,
+  },
+  // Available Surrogates Section
+  availableSurrogatesSection: {
+    width: '100%',
+    marginTop: 32,
+    marginBottom: 24,
+  },
+  availableSurrogatesTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  surrogatesList: {
+    gap: 12,
+    maxHeight: 400,
+  },
+  surrogateCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+  },
+  surrogateCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  surrogateCardInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  surrogateName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 4,
+  },
+  surrogatePhone: {
+    fontSize: 14,
+    color: '#6E7191',
+    marginBottom: 4,
+  },
+  surrogateLocation: {
+    fontSize: 12,
+    color: '#6E7191',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  surrogateAvailableBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  surrogateAvailableBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+  noSurrogatesText: {
+    fontSize: 14,
+    color: '#6E7191',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  loadingIndicator: {
+    marginVertical: 20,
   },
   // Premium Header with Gradient Effect
   gradientHeader: {
