@@ -907,7 +907,7 @@ export default function HomeScreen() {
       return;
     }
 
-    console.log('[HomeScreen] Setting up listener for surrogate progress:', matchedSurrogateId);
+    console.log('[HomeScreen] Setting up listener for surrogate progress (parent):', matchedSurrogateId);
 
     // Stage labels mapping
     const stageLabels = {
@@ -1015,6 +1015,131 @@ export default function HomeScreen() {
       clearInterval(pollInterval);
     };
   }, [isParentRole, matchedSurrogateId, matchedProfile, serverStage, sendSurrogateProgressUpdate]);
+
+  // Listen for own stage updates (for surrogate users)
+  useEffect(() => {
+    if (!isSurrogateRole || !user?.id) {
+      return;
+    }
+
+    console.log('[HomeScreen] Setting up listener for own stage updates (surrogate):', user.id);
+
+    // Stage labels mapping
+    const stageLabels = {
+      'pre': 'Pre-Transfer',
+      'pregnancy': 'Post-Transfer',
+      'ob_visit': 'OB Office Visit',
+      'delivery': 'Delivery',
+    };
+
+    // Track previous stage to detect changes
+    let previousStage = serverStage;
+    let realtimeSubscribed = false;
+
+    // Method 1: Try Supabase Realtime first
+    const channel = supabase
+      .channel(`surrogate-own-progress-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[HomeScreen] ✅ Own profile updated via Realtime:', payload);
+          
+          const newStage = payload.new?.progress_stage;
+          const oldStage = previousStage;
+          const updatedBy = payload.new?.stage_updated_by;
+          
+          // Only notify if stage changed and it was updated by admin (not by self)
+          if (newStage && newStage !== oldStage && oldStage && updatedBy === 'admin') {
+            console.log('[HomeScreen] ✅ Stage changed by admin! Sending notification:', { oldStage, newStage });
+            
+            previousStage = newStage;
+            realStageRef.current = newStage;
+            setServerStage(newStage);
+            setPostStage(newStage);
+            
+            const surrogateName = user?.name || 'You';
+            sendSurrogateProgressUpdate(surrogateName, oldStage, newStage, stageLabels);
+          } else if (newStage && newStage !== oldStage) {
+            // Stage changed but by self, just update state without notification
+            console.log('[HomeScreen] Stage changed by self, updating state only');
+            previousStage = newStage;
+            realStageRef.current = newStage;
+            setServerStage(newStage);
+            setPostStage(newStage);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[HomeScreen] Realtime subscription status (surrogate own):', status);
+        if (status === 'SUBSCRIBED') {
+          realtimeSubscribed = true;
+          console.log('[HomeScreen] ✅ Successfully subscribed to own stage updates');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[HomeScreen] ⚠️ Realtime not available, falling back to polling');
+          realtimeSubscribed = false;
+        }
+      });
+
+    // Method 2: Fallback polling if Realtime doesn't work
+    const pollInterval = setInterval(async () => {
+      if (realtimeSubscribed) {
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('progress_stage, stage_updated_by, name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('[HomeScreen] Error polling own stage:', error);
+          return;
+        }
+
+        const newStage = data?.progress_stage;
+        const currentStage = previousStage || serverStage;
+        const updatedBy = data?.stage_updated_by;
+
+        // Only notify if stage changed and it was updated by admin
+        if (newStage && newStage !== currentStage && currentStage && updatedBy === 'admin') {
+          console.log('[HomeScreen] ✅ Stage changed by admin via polling! Sending notification:', {
+            oldStage: currentStage,
+            newStage,
+          });
+
+          previousStage = newStage;
+          realStageRef.current = newStage;
+          setServerStage(newStage);
+          setPostStage(newStage);
+
+          const surrogateName = data?.name || user?.name || 'You';
+          sendSurrogateProgressUpdate(surrogateName, currentStage, newStage, stageLabels);
+        } else if (newStage && newStage !== currentStage) {
+          // Just update state
+          previousStage = newStage;
+          realStageRef.current = newStage;
+          setServerStage(newStage);
+          setPostStage(newStage);
+        }
+      } catch (error) {
+        console.error('[HomeScreen] Error in polling own stage:', error);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => {
+      console.log('[HomeScreen] Cleaning up own stage listeners');
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
+  }, [isSurrogateRole, user?.id, user?.name, serverStage, sendSurrogateProgressUpdate]);
 
   // Fetch matched surrogate id for parent users (surrogate can skip)
   const fetchMatchedSurrogate = useCallback(async () => {

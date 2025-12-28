@@ -12,6 +12,7 @@ import {
   Linking,
   ActivityIndicator,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -33,6 +34,10 @@ export default function MyMatchScreen({ navigation }) {
   const [userRole, setUserRole] = useState('surrogate');
   const [availableSurrogates, setAvailableSurrogates] = useState([]);
   const [loadingSurrogates, setLoadingSurrogates] = useState(false);
+  const [selectedSurrogate, setSelectedSurrogate] = useState(null);
+  const [surrogateDetails, setSurrogateDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showSurrogateModal, setShowSurrogateModal] = useState(false);
 
   useEffect(() => {
     loadMatchData();
@@ -187,7 +192,7 @@ export default function MyMatchScreen({ navigation }) {
           'medical_records',
           'parent_contract',
           'surrogate_contract',
-          'online_claims',
+          // 'online_claims', // Moved to User Center (ProfileScreen)
           'trust_account', // Add trust_account for parents to see in My Match
         ];
 
@@ -347,6 +352,110 @@ export default function MyMatchScreen({ navigation }) {
     }
   };
 
+  const handleViewSurrogateDetails = async (surrogate) => {
+    try {
+      setLoadingDetails(true);
+      setSelectedSurrogate(surrogate);
+      setShowSurrogateModal(true);
+
+      console.log('[MyMatch] Loading surrogate details for:', surrogate.id, surrogate.name);
+
+      // Load full profile from profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', surrogate.id)
+        .single();
+
+      if (profileError) {
+        console.error('[MyMatch] Error loading surrogate profile:', profileError);
+        // Even if profile load fails, we still have surrogate data from the list
+      } else {
+        console.log('[MyMatch] Profile loaded successfully:', {
+          name: profile?.name,
+          phone: profile?.phone,
+          email: profile?.email,
+          location: profile?.location,
+        });
+      }
+
+      // Load application data - try to get any application, not just approved
+      let applicationData = null;
+      let parsedFormData = {};
+      
+      // First try to get approved application
+      let { data: application, error: applicationError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', surrogate.id)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // If no approved application, try to get any application
+      if (!application) {
+        const { data: anyApplication, error: anyAppError } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', surrogate.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (anyApplication) {
+          application = anyApplication;
+          console.log('[MyMatch] Found non-approved application:', application.status);
+        } else if (anyAppError && anyAppError.code !== 'PGRST116') {
+          console.error('[MyMatch] Error loading any application:', anyAppError);
+        }
+      }
+
+      if (applicationError && applicationError.code !== 'PGRST116') {
+        console.error('[MyMatch] Error loading approved application:', applicationError);
+      }
+
+      if (application) {
+        applicationData = application;
+        try {
+          if (application.form_data) {
+            parsedFormData = JSON.parse(application.form_data);
+            console.log('[MyMatch] Parsed form data:', Object.keys(parsedFormData));
+          }
+        } catch (e) {
+          console.error('[MyMatch] Error parsing form_data:', e);
+        }
+      } else {
+        console.log('[MyMatch] No application found for surrogate:', surrogate.id);
+      }
+
+      // Always set details, even if profile load failed
+      // Use profile data if available, otherwise fall back to surrogate data from list
+      const details = {
+        profile: profile || surrogate,
+        application: applicationData,
+        parsedFormData: parsedFormData || {},
+      };
+
+      console.log('[MyMatch] Setting surrogate details:', {
+        hasProfile: !!details.profile,
+        profileName: details.profile?.name,
+        profilePhone: details.profile?.phone,
+        profileLocation: details.profile?.location,
+        hasApplication: !!details.application,
+        formDataKeys: Object.keys(details.parsedFormData),
+        surrogateFallback: !profile ? 'Using surrogate data from list' : 'Using profile data',
+      });
+
+      setSurrogateDetails(details);
+    } catch (error) {
+      console.error('Error loading surrogate details:', error);
+      Alert.alert(t('common.error'), 'Failed to load surrogate details');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   const formatMatchDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -400,7 +509,12 @@ export default function MyMatchScreen({ navigation }) {
               ) : availableSurrogates.length > 0 ? (
                 <View style={styles.surrogatesList}>
                   {availableSurrogates.map((surrogate) => (
-                    <View key={surrogate.id} style={styles.surrogateCard}>
+                    <TouchableOpacity
+                      key={surrogate.id}
+                      style={styles.surrogateCard}
+                      onPress={() => handleViewSurrogateDetails(surrogate)}
+                      activeOpacity={0.7}
+                    >
                       <View style={styles.surrogateCardHeader}>
                         <Avatar name={surrogate.name || 'S'} size={40} />
                         <View style={styles.surrogateCardInfo}>
@@ -414,11 +528,14 @@ export default function MyMatchScreen({ navigation }) {
                             </Text>
                           )}
                         </View>
-                        <View style={styles.surrogateAvailableBadge}>
-                          <Text style={styles.surrogateAvailableBadgeText}>Available</Text>
+                        <View style={styles.surrogateCardActions}>
+                          <View style={styles.surrogateAvailableBadge}>
+                            <Text style={styles.surrogateAvailableBadgeText}>Available</Text>
+                          </View>
+                          <Icon name="chevron-right" size={20} color="#6E7191" style={styles.viewDetailsIcon} />
                         </View>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               ) : (
@@ -490,14 +607,7 @@ export default function MyMatchScreen({ navigation }) {
         iconColor: '#A29BFE',
         documentType: 'parental_rights',
       },
-      // Online Claims - only visible to surrogates
-      ...(isSurrogate ? [{
-        key: 'online_claims',
-        label: t('myMatch.onlineClaims'),
-        icon: 'check-circle',
-        iconColor: '#6C5CE7',
-        documentType: 'online_claims',
-      }] : []),
+      // Online Claims moved to User Center (ProfileScreen)
       // Trust Account - only visible to parents
       ...(isSurrogate ? [] : [{
         key: 'trust_account',
@@ -743,10 +853,340 @@ export default function MyMatchScreen({ navigation }) {
     );
   }
 
+  const renderSurrogateDetailsModal = () => {
+    if (!selectedSurrogate) return null;
+
+    // Show loading state if details are still loading
+    if (!surrogateDetails) {
+      return (
+        <Modal
+          visible={showSurrogateModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => {
+            setShowSurrogateModal(false);
+            setSelectedSurrogate(null);
+            setSurrogateDetails(null);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Surrogate Profile</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowSurrogateModal(false);
+                    setSelectedSurrogate(null);
+                    setSurrogateDetails(null);
+                  }}
+                  style={styles.modalCloseButton}
+                >
+                  <Icon name="x" size={24} color="#1A1D1E" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalLoadingContainer}>
+                <ActivityIndicator size="large" color="#FF8EA4" />
+                <Text style={styles.modalLoadingText}>Loading details...</Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      );
+    }
+
+    const { profile, parsedFormData } = surrogateDetails;
+    // Use profile if available, otherwise use selectedSurrogate (from the list)
+    const surrogateProfile = profile || selectedSurrogate;
+    
+    // Check if user is matched - if not matched, mask sensitive information
+    const isMatched = !!matchData;
+    
+    console.log('[MyMatch] Rendering modal with data:', {
+      hasProfile: !!profile,
+      hasSelectedSurrogate: !!selectedSurrogate,
+      profileName: surrogateProfile?.name,
+      profilePhone: surrogateProfile?.phone,
+      profileEmail: surrogateProfile?.email,
+      profileLocation: surrogateProfile?.location,
+      formDataKeys: Object.keys(parsedFormData || {}),
+      allProfileKeys: profile ? Object.keys(profile) : 'No profile',
+      isMatched: isMatched,
+    });
+    
+    // Helper function to mask sensitive information
+    const maskPhone = (phone) => {
+      if (!phone) return 'N/A';
+      if (isMatched) return phone;
+      // Mask phone: show first 3 and last 4 digits
+      if (phone.length >= 7) {
+        return phone.substring(0, 3) + '***' + phone.substring(phone.length - 4);
+      }
+      return '***';
+    };
+    
+    const maskEmail = (email) => {
+      if (!email) return 'N/A';
+      if (isMatched) return email;
+      // Mask email: show first 2 characters and domain
+      const [localPart, domain] = email.split('@');
+      if (localPart && domain) {
+        const maskedLocal = localPart.substring(0, 2) + '***';
+        return `${maskedLocal}@${domain}`;
+      }
+      return '***@***';
+    };
+    
+    // Location doesn't need masking as it's already general information
+
+    return (
+      <Modal
+        visible={showSurrogateModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setShowSurrogateModal(false);
+          setSelectedSurrogate(null);
+          setSurrogateDetails(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Surrogate Profile</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSurrogateModal(false);
+                  setSelectedSurrogate(null);
+                  setSurrogateDetails(null);
+                }}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="x" size={24} color="#1A1D1E" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingDetails ? (
+              <View style={styles.modalLoadingContainer}>
+                <ActivityIndicator size="large" color="#FF8EA4" />
+                <Text style={styles.modalLoadingText}>Loading details...</Text>
+              </View>
+            ) : (
+              <ScrollView 
+                style={styles.modalScrollView} 
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Basic Information */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailSectionHeader}>
+                    <Icon name="user" size={20} color="#FF8EA4" />
+                    <Text style={styles.detailSectionTitle}>Basic Information</Text>
+                  </View>
+                  
+                  {/* Name - Always show */}
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailLabel}>Name</Text>
+                    <Text style={styles.detailValue}>
+                      {surrogateProfile?.name || selectedSurrogate?.name || 'N/A'}
+                    </Text>
+                  </View>
+
+                  {/* Phone - Mask if not matched */}
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailLabel}>Phone</Text>
+                    <Text style={styles.detailValue}>
+                      {maskPhone(surrogateProfile?.phone || selectedSurrogate?.phone)}
+                    </Text>
+                    {!isMatched && (
+                      <Text style={styles.maskedHint}>Contact information will be available after matching</Text>
+                    )}
+                  </View>
+
+                  {/* Email - Mask if not matched */}
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailLabel}>Email</Text>
+                    <Text style={styles.detailValue}>
+                      {maskEmail(surrogateProfile?.email)}
+                    </Text>
+                  </View>
+
+                  {/* Location - Always show (already general information) */}
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailLabel}>Location</Text>
+                    <Text style={styles.detailValue}>
+                      {surrogateProfile?.location || selectedSurrogate?.location || 'N/A'}
+                    </Text>
+                  </View>
+
+                  {parsedFormData.age && (
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailLabel}>Age</Text>
+                      <Text style={styles.detailValue}>{parsedFormData.age}</Text>
+                    </View>
+                  )}
+
+                  {parsedFormData.dateOfBirth && (
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailLabel}>Date of Birth</Text>
+                      <Text style={styles.detailValue}>{parsedFormData.dateOfBirth}</Text>
+                    </View>
+                  )}
+
+                  {parsedFormData.race && (
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailLabel}>Race</Text>
+                      <Text style={styles.detailValue}>{parsedFormData.race}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Medical Information */}
+                {(parsedFormData.previousPregnancies || parsedFormData.previousSurrogacy !== undefined || parsedFormData.bmi) && (
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailSectionHeader}>
+                      <Icon name="heart" size={20} color="#FF8EA4" />
+                      <Text style={styles.detailSectionTitle}>Medical Information</Text>
+                    </View>
+
+                    {parsedFormData.previousPregnancies && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Previous Pregnancies</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.previousPregnancies}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.previousSurrogacy !== undefined && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Previous Surrogacy Experience</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.previousSurrogacy ? 'Yes' : 'No'}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.bmi && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>BMI</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.bmi}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.pregnancyComplications && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Pregnancy Complications</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.pregnancyComplications}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.currentMedications && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Current Medications</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.currentMedications}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.healthConditions && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Health Conditions</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.healthConditions}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Lifestyle Information */}
+                {(parsedFormData.smokingStatus || parsedFormData.employmentStatus || parsedFormData.exerciseRoutine) && (
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailSectionHeader}>
+                      <Icon name="activity" size={20} color="#FF8EA4" />
+                      <Text style={styles.detailSectionTitle}>Lifestyle Information</Text>
+                    </View>
+
+                    {parsedFormData.smokingStatus && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Smoking Status</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.smokingStatus}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.alcoholUsage && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Alcohol Usage</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.alcoholUsage}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.exerciseRoutine && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Exercise Routine</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.exerciseRoutine}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.employmentStatus && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Employment Status</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.employmentStatus}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.supportSystem && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Support System</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.supportSystem}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Additional Information */}
+                {(parsedFormData.timelineAvailability || parsedFormData.travelWillingness !== undefined || parsedFormData.additionalComments) && (
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailSectionHeader}>
+                      <Icon name="info" size={20} color="#FF8EA4" />
+                      <Text style={styles.detailSectionTitle}>Additional Information</Text>
+                    </View>
+
+                    {parsedFormData.timelineAvailability && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Timeline Availability</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.timelineAvailability}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.travelWillingness !== undefined && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Travel Willingness</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.travelWillingness ? 'Yes' : 'No'}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.specialPreferences && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Special Preferences</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.specialPreferences}</Text>
+                      </View>
+                    )}
+
+                    {parsedFormData.additionalComments && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailLabel}>Additional Comments</Text>
+                        <Text style={styles.detailValue}>{parsedFormData.additionalComments}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.mainContainer} edges={['top']}>
       <StatusBar barStyle="light-content" />
       {matchData ? renderMatchedState() : renderUnmatchedState()}
+      {renderSurrogateDetailsModal()}
     </SafeAreaView>
   );
 }
@@ -1172,5 +1612,100 @@ const styles = StyleSheet.create({
     color: '#A0A3BD',
     fontSize: 16,
     fontWeight: '500',
+  },
+  // Surrogate Details Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F4F8',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1D1E',
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0F4F8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalLoadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalLoadingText: {
+    marginTop: 16,
+    color: '#6E7191',
+    fontSize: 14,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: 20,
+  },
+  detailSection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F4F8',
+  },
+  detailSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  detailSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginLeft: 8,
+  },
+  detailInfoRow: {
+    marginBottom: 12,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6E7191',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1A1D1E',
+  },
+  maskedHint: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#6E7191',
+    marginTop: 4,
+  },
+  viewDetailsIcon: {
+    marginLeft: 8,
+  },
+  surrogateCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
