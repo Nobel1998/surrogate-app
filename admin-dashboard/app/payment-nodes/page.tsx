@@ -151,7 +151,17 @@ export default function PaymentNodesPage() {
       }
 
       const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to load payment nodes: ${res.statusText}`);
+      }
       const data = await res.json();
+      
+      console.log('[payment-nodes] Loaded payment nodes:', {
+        response: data,
+        nodesCount: data.data?.length || 0,
+        nodes: data.data?.slice(0, 3) || [],
+      });
+      
       setPaymentNodes(data.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -214,11 +224,20 @@ export default function PaymentNodesPage() {
         throw new Error(err);
       }
 
+      const result = await res.json();
+      console.log('[payment-nodes] Save result:', {
+        method,
+        result,
+        success: result.success,
+      });
+
       alert(showEditModal ? 'Payment node updated successfully' : 'Payment node created successfully');
       setShowAddModal(false);
       setShowEditModal(false);
       setSelectedNode(null);
-      loadData();
+      
+      // Reload data to get the latest payment nodes with match information
+      await loadData();
     } catch (error: any) {
       console.error('Error saving payment node:', error);
       alert(error.message || 'Failed to save payment node');

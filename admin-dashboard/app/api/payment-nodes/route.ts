@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data: insertedData, error } = await supabase
       .from('payment_nodes')
       .insert({
         match_id,
@@ -119,7 +119,39 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ data, success: true });
+    // Fetch the created payment node with match and profile information
+    // This ensures the response includes all necessary data for display
+    const { data: fullData, error: fetchError } = await supabase
+      .from('payment_nodes')
+      .select(`
+        *,
+        match:surrogate_matches!match_id (
+          id,
+          surrogate_id,
+          parent_id,
+          status,
+          surrogate:profiles!surrogate_id (
+            id,
+            name,
+            phone
+          ),
+          parent:profiles!parent_id (
+            id,
+            name,
+            phone
+          )
+        )
+      `)
+      .eq('id', insertedData.id)
+      .single();
+
+    if (fetchError) {
+      console.error('[payment-nodes] Error fetching full data:', fetchError);
+      // Return the basic data if we can't fetch the full data
+      return NextResponse.json({ data: insertedData, success: true });
+    }
+
+    return NextResponse.json({ data: fullData, success: true });
   } catch (error: any) {
     console.error('[payment-nodes] POST error:', error);
     return NextResponse.json(
