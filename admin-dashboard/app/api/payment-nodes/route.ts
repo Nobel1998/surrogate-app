@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     const matchId = searchParams.get('match_id');
     const status = searchParams.get('status');
 
+    // First, get payment nodes with match information
     let query = supabase
       .from('payment_nodes')
       .select(`
@@ -32,17 +33,7 @@ export async function GET(req: NextRequest) {
           id,
           surrogate_id,
           parent_id,
-          status,
-          surrogate:profiles!surrogate_id (
-            id,
-            name,
-            phone
-          ),
-          parent:profiles!parent_id (
-            id,
-            name,
-            phone
-          )
+          status
         )
       `)
       .order('due_date', { ascending: true, nullsFirst: false })
@@ -56,11 +47,63 @@ export async function GET(req: NextRequest) {
       query = query.eq('status', status);
     }
 
-    const { data, error } = await query;
+    const { data: paymentNodes, error } = await query;
 
     if (error) throw error;
 
-    return NextResponse.json({ data: data || [] });
+    // If no payment nodes, return empty array
+    if (!paymentNodes || paymentNodes.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+
+    // Collect all unique surrogate and parent IDs
+    const surrogateIds = new Set<string>();
+    const parentIds = new Set<string>();
+    
+    paymentNodes.forEach((node: any) => {
+      if (node.match?.surrogate_id) {
+        surrogateIds.add(node.match.surrogate_id);
+      }
+      if (node.match?.parent_id) {
+        parentIds.add(node.match.parent_id);
+      }
+    });
+
+    // Fetch all profiles in one query
+    const allProfileIds = [...surrogateIds, ...parentIds];
+    let profilesMap: Record<string, any> = {};
+    
+    if (allProfileIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, phone')
+        .in('id', allProfileIds);
+
+      if (profilesError) {
+        console.error('[payment-nodes] Error fetching profiles:', profilesError);
+        // Continue without profiles - they'll just be null
+      } else if (profiles) {
+        profiles.forEach((profile: any) => {
+          profilesMap[profile.id] = profile;
+        });
+      }
+    }
+
+    // Enrich payment nodes with profile information
+    const enrichedNodes = paymentNodes.map((node: any) => {
+      const enrichedMatch = node.match ? {
+        ...node.match,
+        surrogate: node.match.surrogate_id ? profilesMap[node.match.surrogate_id] : null,
+        parent: node.match.parent_id ? profilesMap[node.match.parent_id] : null,
+      } : null;
+
+      return {
+        ...node,
+        match: enrichedMatch,
+      };
+    });
+
+    return NextResponse.json({ data: enrichedNodes });
   } catch (error: any) {
     console.error('[payment-nodes] GET error:', error);
     return NextResponse.json(
@@ -119,9 +162,8 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    // Fetch the created payment node with match and profile information
-    // This ensures the response includes all necessary data for display
-    const { data: fullData, error: fetchError } = await supabase
+    // Fetch the created payment node with match information
+    const { data: nodeWithMatch, error: fetchError } = await supabase
       .from('payment_nodes')
       .select(`
         *,
@@ -129,29 +171,51 @@ export async function POST(req: NextRequest) {
           id,
           surrogate_id,
           parent_id,
-          status,
-          surrogate:profiles!surrogate_id (
-            id,
-            name,
-            phone
-          ),
-          parent:profiles!parent_id (
-            id,
-            name,
-            phone
-          )
+          status
         )
       `)
       .eq('id', insertedData.id)
       .single();
 
     if (fetchError) {
-      console.error('[payment-nodes] Error fetching full data:', fetchError);
-      // Return the basic data if we can't fetch the full data
+      console.error('[payment-nodes] Error fetching match data:', fetchError);
+      // Return the basic data if we can't fetch the match data
       return NextResponse.json({ data: insertedData, success: true });
     }
 
-    return NextResponse.json({ data: fullData, success: true });
+    // Fetch profile information if match exists
+    let enrichedData = nodeWithMatch;
+    if (nodeWithMatch?.match) {
+      const profileIds = [
+        nodeWithMatch.match.surrogate_id,
+        nodeWithMatch.match.parent_id,
+      ].filter(Boolean);
+
+      if (profileIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, phone')
+          .in('id', profileIds);
+
+        if (!profilesError && profiles) {
+          const profilesMap: Record<string, any> = {};
+          profiles.forEach((profile: any) => {
+            profilesMap[profile.id] = profile;
+          });
+
+          enrichedData = {
+            ...nodeWithMatch,
+            match: {
+              ...nodeWithMatch.match,
+              surrogate: nodeWithMatch.match.surrogate_id ? profilesMap[nodeWithMatch.match.surrogate_id] : null,
+              parent: nodeWithMatch.match.parent_id ? profilesMap[nodeWithMatch.match.parent_id] : null,
+            },
+          };
+        }
+      }
+    }
+
+    return NextResponse.json({ data: enrichedData, success: true });
   } catch (error: any) {
     console.error('[payment-nodes] POST error:', error);
     return NextResponse.json(
