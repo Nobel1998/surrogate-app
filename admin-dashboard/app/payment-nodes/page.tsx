@@ -229,7 +229,12 @@ export default function PaymentNodesPage() {
         method,
         result,
         success: result.success,
+        data: result.data,
       });
+
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
 
       alert(showEditModal ? 'Payment node updated successfully' : 'Payment node created successfully');
       setShowAddModal(false);
@@ -237,7 +242,16 @@ export default function PaymentNodesPage() {
       setSelectedNode(null);
       
       // Reload data to get the latest payment nodes with match information
-      await loadData();
+      // Use setTimeout to ensure modal is fully closed before reloading
+      setTimeout(async () => {
+        try {
+          await loadData();
+          console.log('[payment-nodes] Data reloaded after save');
+        } catch (err) {
+          console.error('[payment-nodes] Error reloading data after save:', err);
+          // Don't show error to user, just log it - the data will refresh on next page load
+        }
+      }, 200);
     } catch (error: any) {
       console.error('Error saving payment node:', error);
       alert(error.message || 'Failed to save payment node');
