@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .order('due_date', { ascending: true, nullsLast: true })
+      .order('due_date', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });
 
     if (matchId) {
