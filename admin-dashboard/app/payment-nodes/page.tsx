@@ -86,7 +86,18 @@ export default function PaymentNodesPage() {
 
       // Load matches
       const matchesRes = await fetch('/api/matches/options');
+      if (!matchesRes.ok) {
+        throw new Error(`Failed to load matches: ${matchesRes.statusText}`);
+      }
       const matchesData = await matchesRes.json();
+      
+      console.log('[payment-nodes] API response:', {
+        hasMatches: !!matchesData.matches,
+        matchesCount: matchesData.matches?.length || 0,
+        hasProfiles: !!matchesData.profiles,
+        profilesCount: matchesData.profiles?.length || 0,
+        keys: Object.keys(matchesData),
+      });
       
       // The API returns { matches: [...], profiles: [...] }
       // We need to enrich matches with surrogate and parent info from profiles
@@ -97,20 +108,32 @@ export default function PaymentNodesPage() {
       const profilesMap = new Map(profiles.map((p: any) => [p.id, p]));
       
       // Enrich matches with surrogate and parent information
-      const enrichedMatches = matches.map((match: any) => ({
-        ...match,
-        surrogate: profilesMap.get(match.surrogate_id) || null,
-        parent: profilesMap.get(match.parent_id) || null,
-      }));
+      const enrichedMatches = matches.map((match: any) => {
+        const surrogate = profilesMap.get(match.surrogate_id) || null;
+        const parent = profilesMap.get(match.parent_id) || null;
+        
+        return {
+          ...match,
+          surrogate,
+          parent,
+        };
+      });
       
       console.log('[payment-nodes] Loaded matches:', {
         total: enrichedMatches.length,
         sample: enrichedMatches.slice(0, 3).map((m: any) => ({
           id: m.id,
-          surrogate: m.surrogate?.name,
-          parent: m.parent?.name,
+          surrogate_id: m.surrogate_id,
+          parent_id: m.parent_id,
+          surrogate: m.surrogate?.name || 'N/A',
+          parent: m.parent?.name || 'N/A',
+          status: m.status,
         })),
       });
+      
+      if (enrichedMatches.length === 0) {
+        console.warn('[payment-nodes] No matches found!');
+      }
       
       setMatches(enrichedMatches);
 
