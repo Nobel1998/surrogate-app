@@ -372,11 +372,19 @@ export default function PaymentNodesPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="all">All Matches</option>
-                {matches.map((match) => (
-                  <option key={match.id} value={match.id}>
-                    {match.surrogate?.name || 'Surrogate'} - {match.parent?.name || 'Parent'}
-                  </option>
-                ))}
+                {matches.length === 0 ? (
+                  <option value="all" disabled>No matches available</option>
+                ) : (
+                  matches.map((match: any) => {
+                    const surrogateName = match.surrogate?.name || match.surrogate_id?.substring(0, 8) || 'Surrogate';
+                    const parentName = match.parent?.name || match.parent_id?.substring(0, 8) || 'Parent';
+                    return (
+                      <option key={match.id} value={match.id}>
+                        {surrogateName} - {parentName} {match.status ? `(${match.status})` : ''}
+                      </option>
+                    );
+                  })
+                )}
               </select>
             </div>
           </div>
@@ -511,11 +519,19 @@ export default function PaymentNodesPage() {
                     disabled={showEditModal}
                   >
                     <option value="">Select a match</option>
-                    {matches.map((match) => (
-                      <option key={match.id} value={match.id}>
-                        {match.surrogate?.name || 'Surrogate'} - {match.parent?.name || 'Parent'}
-                      </option>
-                    ))}
+                    {matches.length === 0 ? (
+                      <option value="" disabled>No matches available</option>
+                    ) : (
+                      matches.map((match: any) => {
+                        const surrogateName = match.surrogate?.name || match.surrogate_id?.substring(0, 8) || 'Surrogate';
+                        const parentName = match.parent?.name || match.parent_id?.substring(0, 8) || 'Parent';
+                        return (
+                          <option key={match.id} value={match.id}>
+                            {surrogateName} - {parentName} {match.status ? `(${match.status})` : ''}
+                          </option>
+                        );
+                      })
+                    )}
                   </select>
                 </div>
 
