@@ -87,7 +87,32 @@ export default function PaymentNodesPage() {
       // Load matches
       const matchesRes = await fetch('/api/matches/options');
       const matchesData = await matchesRes.json();
-      setMatches(matchesData.data || []);
+      
+      // The API returns { matches: [...], profiles: [...] }
+      // We need to enrich matches with surrogate and parent info from profiles
+      const matches = matchesData.matches || [];
+      const profiles = matchesData.profiles || [];
+      
+      // Create a map of profiles by id for quick lookup
+      const profilesMap = new Map(profiles.map((p: any) => [p.id, p]));
+      
+      // Enrich matches with surrogate and parent information
+      const enrichedMatches = matches.map((match: any) => ({
+        ...match,
+        surrogate: profilesMap.get(match.surrogate_id) || null,
+        parent: profilesMap.get(match.parent_id) || null,
+      }));
+      
+      console.log('[payment-nodes] Loaded matches:', {
+        total: enrichedMatches.length,
+        sample: enrichedMatches.slice(0, 3).map((m: any) => ({
+          id: m.id,
+          surrogate: m.surrogate?.name,
+          parent: m.parent?.name,
+        })),
+      });
+      
+      setMatches(enrichedMatches);
 
       // Load payment nodes
       let url = '/api/payment-nodes';
