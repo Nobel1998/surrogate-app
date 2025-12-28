@@ -189,14 +189,23 @@ export default function PaymentNodesPage() {
 
   const handleEdit = (node: PaymentNode) => {
     setSelectedNode(node);
+    
+    // Extract date part (YYYY-MM-DD) for date inputs
+    // This ensures the date input shows the correct date without timezone issues
+    const formatDateForInput = (dateStr: string | null) => {
+      if (!dateStr) return '';
+      // Extract date part if it's a full ISO string, otherwise use as-is
+      return dateStr.split('T')[0];
+    };
+    
     setFormData({
       match_id: node.match_id,
       node_name: node.node_name,
       node_type: node.node_type,
       amount: node.amount.toString(),
-      due_date: node.due_date || '',
+      due_date: formatDateForInput(node.due_date),
       status: node.status,
-      payment_date: node.payment_date || '',
+      payment_date: formatDateForInput(node.payment_date),
       payment_method: node.payment_method || '',
       payment_reference: node.payment_reference || '',
       notes: node.notes || '',
@@ -317,7 +326,16 @@ export default function PaymentNodesPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    
+    // For DATE type (YYYY-MM-DD), parse directly without timezone conversion
+    // Extract date part if it's a full ISO string
+    const dateOnly = dateString.split('T')[0];
+    const [year, month, day] = dateOnly.split('-').map(Number);
+    
+    // Create date in local timezone to avoid UTC conversion issues
+    const date = new Date(year, month - 1, day);
+    
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
