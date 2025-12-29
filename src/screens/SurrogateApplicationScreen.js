@@ -897,7 +897,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           style={styles.input}
           value={applicationData.height || ''}
           onChangeText={(value) => updateField('height', value)}
-          placeholder="e.g., 5'6\" or 168 cm"
+          placeholder="e.g., 5'6 or 168 cm"
         />
       </View>
 
