@@ -100,7 +100,7 @@ export default function PaymentNodesPage() {
   const [filterMatchId, setFilterMatchId] = useState<string>('all');
   const [filterInstallment, setFilterInstallment] = useState<string>('all');
 
-  // Form state
+  // Form state for payment nodes
   const [formData, setFormData] = useState({
     match_id: '',
     node_name: '',
@@ -108,6 +108,17 @@ export default function PaymentNodesPage() {
     amount: '',
     due_date: '',
     status: 'pending' as 'pending' | 'paid' | 'overdue' | 'cancelled',
+    payment_date: '',
+    payment_method: '',
+    payment_reference: '',
+    notes: '',
+  });
+
+  // Form state for client payments
+  const [paymentFormData, setPaymentFormData] = useState({
+    match_id: '',
+    payment_installment: 'Installment 1' as 'Installment 1' | 'Installment 2' | 'Installment 3' | 'Installment 4',
+    amount: '',
     payment_date: '',
     payment_method: '',
     payment_reference: '',
