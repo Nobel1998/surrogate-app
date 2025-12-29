@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import ApproveButton from '../components/ApproveButton';
 import DashboardStats from '../components/DashboardStats';
+import { generateApplicationPDF } from '../lib/generateApplicationPDF';
 
 export default function Home() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -295,7 +296,13 @@ export default function Home() {
                           onClick={() => setSelectedApp(app)}
                           className="text-blue-600 hover:text-blue-900 text-xs font-medium"
                         >
-                          📋 View Details
+                          📋 View
+                        </button>
+                        <button
+                          onClick={() => generateApplicationPDF(app)}
+                          className="text-green-600 hover:text-green-900 text-xs font-medium"
+                        >
+                          📄 PDF
                         </button>
                         <ApproveButton 
                           id={app.id} 
@@ -731,6 +738,15 @@ export default function Home() {
                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                   >
                     Close
+                  </button>
+                  <button
+                    onClick={() => generateApplicationPDF(selectedApp)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download PDF
                   </button>
                   <ApproveButton 
                     id={selectedApp.id} 
