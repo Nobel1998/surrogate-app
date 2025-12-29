@@ -819,7 +819,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           style={[styles.input, { marginTop: 10 }]}
           value={applicationData.dateOfBirth || ''}
           onChangeText={(value) => updateField('dateOfBirth', value)}
-          placeholder="Or enter as MM-DD-YYYY"
+          placeholder="Or enter as MM/DD/YYYY"
         />
       </View>
 
