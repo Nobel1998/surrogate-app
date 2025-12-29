@@ -1098,6 +1098,150 @@ export default function PaymentNodesPage() {
             </div>
           </div>
         )}
+
+        {/* Add/Edit Modal for Client Payments */}
+        {(showAddPaymentModal || showEditPaymentModal) && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  {showEditPaymentModal ? 'Edit Payment Record' : 'Add Payment Record'}
+                </h2>
+                <form onSubmit={handleSubmitPayment} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Match *
+                    </label>
+                    <select
+                      required
+                      value={paymentFormData.match_id}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, match_id: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      disabled={showEditPaymentModal}
+                    >
+                      <option value="">Select a match</option>
+                      {matches.map((match: any) => {
+                        const surrogateName = match.surrogate?.name || match.surrogate_id?.substring(0, 8) || 'Surrogate';
+                        const parentName = match.parent?.name || match.parent_id?.substring(0, 8) || 'Parent';
+                        return (
+                          <option key={match.id} value={match.id}>
+                            {surrogateName} - {parentName} {match.status ? `(${match.status})` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Installment *
+                    </label>
+                    <select
+                      required
+                      value={paymentFormData.payment_installment}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_installment: e.target.value as any })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      {INSTALLMENT_OPTIONS.map((inst) => (
+                        <option key={inst} value={inst}>
+                          {inst}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      min="0"
+                      value={paymentFormData.amount}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={paymentFormData.payment_date}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_date: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentFormData.payment_method}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_method: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="e.g., Bank Transfer, Credit Card, Check"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Reference
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentFormData.payment_reference}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_reference: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="Transaction ID, Check Number, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      value={paymentFormData.notes}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, notes: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      rows={3}
+                      placeholder="Additional notes..."
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddPaymentModal(false);
+                        setShowEditPaymentModal(false);
+                        setSelectedPayment(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                    >
+                      {showEditPaymentModal ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
