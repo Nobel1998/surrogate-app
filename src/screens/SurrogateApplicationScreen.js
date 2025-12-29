@@ -1277,16 +1277,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       )}
     </ScrollView>
   );
-        <TextInput
-          style={styles.input}
-          value={applicationData.bmi}
-          onChangeText={(value) => updateField('bmi', value)}
-          placeholder={t('application.bmiPlaceholder')}
-          keyboardType="decimal-pad"
-        />
-      </View>
-    </View>
-  );
 
   const renderStep3 = () => (
     <View>
