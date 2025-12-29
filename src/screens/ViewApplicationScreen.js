@@ -1,0 +1,428 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  SafeAreaView,
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../lib/supabase';
+import { Feather as Icon } from '@expo/vector-icons';
+
+export default function ViewApplicationScreen({ navigation }) {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const [loading, setLoading] = useState(true);
+  const [application, setApplication] = useState(null);
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    loadApplication();
+  }, [user]);
+
+  const loadApplication = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading application:', error);
+      } else if (data) {
+        setApplication(data);
+        // Parse form_data JSON
+        try {
+          const parsed = data.form_data ? JSON.parse(data.form_data) : {};
+          setFormData(parsed);
+        } catch (e) {
+          console.error('Error parsing form_data:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load application:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatBoolean = (value) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    return 'N/A';
+  };
+
+  const formatValue = (value) => {
+    if (value === null || value === undefined || value === '') return 'N/A';
+    return String(value);
+  };
+
+  const renderField = (label, value) => (
+    <View style={styles.fieldContainer}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldValue}>{formatValue(value)}</Text>
+    </View>
+  );
+
+  const renderBooleanField = (label, value) => (
+    <View style={styles.fieldContainer}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldValue, value === true ? styles.yesValue : value === false ? styles.noValue : null]}>
+        {formatBoolean(value)}
+      </Text>
+    </View>
+  );
+
+  const renderSection = (title, icon, color, children) => (
+    <View style={[styles.section, { borderLeftColor: color }]}>
+      <View style={styles.sectionHeader}>
+        <Icon name={icon} size={20} color={color} />
+        <Text style={[styles.sectionTitle, { color }]}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2A7BF6" />
+          <Text style={styles.loadingText}>Loading application...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!application) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <Icon name="file-text" size={60} color="#ccc" />
+          <Text style={styles.emptyText}>No application found</Text>
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => navigation.navigate('SurrogateApplication')}
+          >
+            <Text style={styles.submitButtonText}>Submit Application</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Status Banner */}
+        <View style={[styles.statusBanner, 
+          application.status === 'approved' ? styles.statusApproved :
+          application.status === 'rejected' ? styles.statusRejected :
+          styles.statusPending
+        ]}>
+          <Icon 
+            name={application.status === 'approved' ? 'check-circle' : application.status === 'rejected' ? 'x-circle' : 'clock'} 
+            size={24} 
+            color="#fff" 
+          />
+          <View style={styles.statusTextContainer}>
+            <Text style={styles.statusTitle}>
+              {application.status === 'approved' ? 'Application Approved' :
+               application.status === 'rejected' ? 'Application Rejected' :
+               'Application Under Review'}
+            </Text>
+            <Text style={styles.statusDate}>
+              Submitted: {new Date(application.created_at).toLocaleDateString('en-US')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Step 1: Personal Information */}
+        {renderSection('Personal Information', 'user', '#2196F3',
+          <>
+            {renderField('Full Name', application.full_name || formData.fullName)}
+            {renderField('First Name', formData.firstName)}
+            {renderField('Last Name', formData.lastName)}
+            {renderField('Date of Birth', formData.dateOfBirth)}
+            {renderField('Age', formData.age)}
+            {renderField('Blood Type', formData.bloodType)}
+            {renderField('Height', formData.height)}
+            {renderField('Weight', formData.weight)}
+            {renderField('Race/Ethnicity', formData.race)}
+            {renderField('Phone', application.phone || formData.phoneNumber)}
+            {renderField('Email', formData.email)}
+            {renderField('Address', formData.address)}
+            {renderBooleanField('US Citizen', formData.usCitizen)}
+            {renderBooleanField('Previous Surrogacy', formData.previousSurrogacy)}
+          </>
+        )}
+
+        {/* Step 2: Pregnancy History */}
+        {renderSection('Pregnancy & Delivery History', 'heart', '#E91E63',
+          <>
+            {renderField('Total Deliveries', formData.totalDeliveries)}
+            {formData.deliveries && formData.deliveries.length > 0 && (
+              <View style={styles.deliveriesContainer}>
+                {formData.deliveries.map((delivery, index) => (
+                  delivery && (delivery.year || delivery.gender) && (
+                    <View key={index} style={styles.deliveryCard}>
+                      <Text style={styles.deliveryTitle}>Delivery #{index + 1}</Text>
+                      <View style={styles.deliveryGrid}>
+                        <Text style={styles.deliveryItem}>Year: {delivery.year || 'N/A'}</Text>
+                        <Text style={styles.deliveryItem}>Gender: {delivery.gender || 'N/A'}</Text>
+                        <Text style={styles.deliveryItem}>Weight: {delivery.birthWeight || 'N/A'}</Text>
+                        <Text style={styles.deliveryItem}>Method: {delivery.deliveryMethod || 'N/A'}</Text>
+                      </View>
+                    </View>
+                  )
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Step 3: Health Information */}
+        {renderSection('Health Information', 'activity', '#4CAF50',
+          <>
+            {renderBooleanField('Health Insurance', formData.healthInsurance)}
+            {renderField('Delivery Hospital', formData.deliveryHospital)}
+            {renderField('Smoking Status', formData.smokingStatus)}
+            {renderField('Alcohol Usage', formData.alcoholUsage)}
+            {renderBooleanField('Illegal Drugs', formData.illegalDrugs)}
+            {renderBooleanField('Mental Health Treatment', formData.mentalHealthTreatment)}
+            {renderBooleanField('Postpartum Depression', formData.postpartumDepression)}
+            {renderBooleanField('Hepatitis B Vaccinated', formData.hepatitisBVaccinated)}
+            {renderField('Children List', formData.childrenList)}
+            {renderField('Current Medications', formData.currentMedications)}
+          </>
+        )}
+
+        {/* Step 4: Sexual History */}
+        {renderSection('Sexual History', 'shield', '#9C27B0',
+          <>
+            {renderBooleanField('Current Birth Control', formData.currentBirthControl)}
+            {renderField('Birth Control Method', formData.birthControlMethod)}
+            {renderBooleanField('Sexual Partner', formData.sexualPartner)}
+            {renderField('Partners (Last 3 Years)', formData.partnersLastThreeYears)}
+            {renderBooleanField('STD History', formData.stdHistory)}
+          </>
+        )}
+
+        {/* Step 5: Employment */}
+        {renderSection('Employment Information', 'briefcase', '#FF9800',
+          <>
+            {renderField('Current Employment', formData.currentEmployment)}
+            {renderField('Monthly Income', formData.monthlyIncome ? `$${formData.monthlyIncome}` : 'N/A')}
+            {renderField('Spouse Employment', formData.spouseEmployment)}
+            {renderField('Spouse Monthly Income', formData.spouseMonthlyIncome ? `$${formData.spouseMonthlyIncome}` : 'N/A')}
+            {renderField('Persons Supported', formData.personsSupported)}
+            {renderBooleanField('Public Assistance', formData.publicAssistance)}
+          </>
+        )}
+
+        {/* Step 6: Education */}
+        {renderSection('Education', 'book', '#3F51B5',
+          <>
+            {renderField('Education Level', 
+              formData.educationLevel === 'highSchool' ? 'High School' :
+              formData.educationLevel === 'college' ? 'College' :
+              formData.educationLevel === 'tradeSchool' ? 'Trade School' :
+              formData.educationLevel || 'N/A'
+            )}
+            {renderField('Referral Code', formData.referralCode)}
+          </>
+        )}
+
+        {/* Step 7: Preferences */}
+        {renderSection('Preferences', 'settings', '#607D8B',
+          <>
+            {renderField('Surrogacy Understanding', formData.surrogacyUnderstanding)}
+            {renderField('Self Introduction', formData.selfIntroduction)}
+            {renderBooleanField('Work with Same Sex Couple', formData.sameSexCouple)}
+            {renderBooleanField('Work with Single Male', formData.singleMale)}
+            {renderBooleanField('Work with Single Female', formData.singleFemale)}
+            {renderBooleanField('Work with International Couple', formData.internationalCouple)}
+            {renderBooleanField('Carry Twins', formData.carryTwins)}
+            {renderBooleanField('Parents in Delivery Room', formData.parentsInDeliveryRoom)}
+          </>
+        )}
+
+        {/* Step 8: Authorization */}
+        {renderSection('Authorization', 'check-square', '#F44336',
+          <>
+            {renderBooleanField('Authorization Agreed', formData.authorizationAgreed)}
+            {renderField('Emergency Contact', formData.emergencyContact)}
+          </>
+        )}
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    marginTop: 15,
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: '#E91E63',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
+  },
+  statusPending: {
+    backgroundColor: '#FF9800',
+  },
+  statusApproved: {
+    backgroundColor: '#4CAF50',
+  },
+  statusRejected: {
+    backgroundColor: '#F44336',
+  },
+  statusTextContainer: {
+    marginLeft: 12,
+  },
+  statusTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  statusDate: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  section: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  fieldContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  fieldLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+  },
+  fieldValue: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'right',
+  },
+  yesValue: {
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  noValue: {
+    color: '#F44336',
+    fontWeight: '500',
+  },
+  deliveriesContainer: {
+    marginTop: 8,
+  },
+  deliveryCard: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  deliveryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E91E63',
+    marginBottom: 8,
+  },
+  deliveryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  deliveryItem: {
+    width: '50%',
+    fontSize: 12,
+    color: '#666',
+    paddingVertical: 2,
+  },
+  bottomPadding: {
+    height: 30,
+  },
+});
+

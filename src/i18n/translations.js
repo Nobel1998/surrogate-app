@@ -42,6 +42,10 @@ export const translations = {
       customerService: 'Customer Service',
       aboutUs: 'About Us',
       medicalInfo: 'Medical Information',
+      submitApplication: 'Submit Application',
+      viewApplication: 'View Application',
+      submitted: 'Submitted',
+      notSubmitted: 'Not Submitted',
     },
     // Medical Info Screen
     medicalInfo: {
@@ -891,6 +895,10 @@ export const translations = {
       customerService: '客户服务',
       aboutUs: '关于我们',
       medicalInfo: '医疗信息',
+      submitApplication: '提交申请',
+      viewApplication: '查看申请',
+      submitted: '已提交',
+      notSubmitted: '未提交',
     },
     // Medical Info Screen
     medicalInfo: {

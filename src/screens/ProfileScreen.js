@@ -21,6 +21,8 @@ export default function ProfileScreen({ navigation }) {
   const [loadingTrustAccountDoc, setLoadingTrustAccountDoc] = useState(false);
   const [loadingOnlineClaimsDoc, setLoadingOnlineClaimsDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
+  const [loadingApplication, setLoadingApplication] = useState(false);
 
   useEffect(() => {
     loadUserRole();
@@ -29,11 +31,12 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     if (userRole !== null) {
       loadAgencyRetainerDoc();
-      // Only load HIPAA Release, Photo Release, and Online Claims for surrogates
+      // Only load HIPAA Release, Photo Release, Online Claims, and Application for surrogates
       if (userRole === 'surrogate') {
         loadHipaaReleaseDoc();
         loadPhotoReleaseDoc();
         loadOnlineClaimsDoc();
+        loadApplicationStatus();
       }
       // Only load Trust Account for parents
       if (userRole === 'parent') {
@@ -192,6 +195,46 @@ export default function ProfileScreen({ navigation }) {
       console.error('Failed to load online claims doc:', error);
     } finally {
       setLoadingOnlineClaimsDoc(false);
+    }
+  };
+
+  const loadApplicationStatus = async () => {
+    if (!user?.id) {
+      setApplicationStatus('none');
+      return;
+    }
+    
+    setLoadingApplication(true);
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('id, status, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading application status:', error);
+        setApplicationStatus('none');
+      } else {
+        setApplicationStatus(data ? 'submitted' : 'none');
+      }
+    } catch (error) {
+      console.error('Failed to load application status:', error);
+      setApplicationStatus('none');
+    } finally {
+      setLoadingApplication(false);
+    }
+  };
+
+  const handleApplicationPress = () => {
+    if (applicationStatus === 'submitted') {
+      // Navigate to view application
+      navigation.navigate('ViewApplication');
+    } else {
+      // Navigate to submit application
+      navigation.navigate('SurrogateApplication');
     }
   };
 
@@ -664,9 +707,17 @@ export default function ProfileScreen({ navigation }) {
               loadingTrustAccountDoc
             )
           )}
-          {/* Only show Benefit Package, Injection Tutorial Videos, and Medical Info for surrogates */}
+          {/* Only show Application, Benefit Package, Injection Tutorial Videos, and Medical Info for surrogates */}
           {userRole === 'surrogate' && (
             <>
+              {renderMenuItem(
+                applicationStatus === 'submitted' ? t('profile.viewApplication') : t('profile.submitApplication'),
+                applicationStatus === 'submitted' ? 'file-text' : 'edit-3',
+                handleApplicationPress,
+                applicationStatus === 'submitted' ? '#4CAF50' : '#E91E63',
+                applicationStatus === 'submitted' ? t('profile.submitted') : t('profile.notSubmitted'),
+                loadingApplication
+              )}
               {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
               {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
               {renderMenuItem(t('profile.medicalInfo'), 'activity', () => navigation.navigate('SurrogateMedicalInfo'), '#2A7BF6')}
