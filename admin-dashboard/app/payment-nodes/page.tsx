@@ -1153,11 +1153,11 @@ export default function PaymentNodesPage() {
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_installment: e.target.value as any })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
-                      {INSTALLMENT_OPTIONS.map((inst) => (
-                        <option key={inst} value={inst}>
-                          {inst}
-                        </option>
-                      ))}
+                      <option value="">Select an installment</option>
+                      <option value="Installment 1">Installment 1</option>
+                      <option value="Installment 2">Installment 2</option>
+                      <option value="Installment 3">Installment 3</option>
+                      <option value="Installment 4">Installment 4</option>
                     </select>
                   </div>
 
