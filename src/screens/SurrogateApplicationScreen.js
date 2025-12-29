@@ -219,7 +219,17 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   });
 
   const updateField = (field, value) => {
-    setApplicationData(prev => ({ ...prev, [field]: value }));
+    setApplicationData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-sync fullName when firstName, middleName, or lastName changes
+      if (field === 'firstName' || field === 'middleName' || field === 'lastName') {
+        const firstName = field === 'firstName' ? value : prev.firstName || '';
+        const middleName = field === 'middleName' ? value : prev.middleName || '';
+        const lastName = field === 'lastName' ? value : prev.lastName || '';
+        updated.fullName = `${firstName} ${middleName} ${lastName}`.trim().replace(/\s+/g, ' ');
+      }
+      return updated;
+    });
   };
 
   const generateInviteCode = () => {
