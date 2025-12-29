@@ -42,6 +42,7 @@ export default function Navigation() {
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰' },
+    { href: '/client-payments', label: 'Client Payments', icon: '💳' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
   ];
