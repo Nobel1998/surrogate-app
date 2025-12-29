@@ -228,6 +228,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         const lastName = field === 'lastName' ? value : prev.lastName || '';
         updated.fullName = `${firstName} ${middleName} ${lastName}`.trim().replace(/\s+/g, ' ');
       }
+      // Auto-sync dateOfBirth when month, day, or year changes
+      if (field === 'dateOfBirthMonth' || field === 'dateOfBirthDay' || field === 'dateOfBirthYear') {
+        const month = field === 'dateOfBirthMonth' ? value : prev.dateOfBirthMonth || '';
+        const day = field === 'dateOfBirthDay' ? value : prev.dateOfBirthDay || '';
+        const year = field === 'dateOfBirthYear' ? value : prev.dateOfBirthYear || '';
+        if (month && day && year) {
+          updated.dateOfBirth = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+        }
+      }
       return updated;
     });
   };
