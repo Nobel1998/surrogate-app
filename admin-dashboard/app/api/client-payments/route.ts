@@ -145,9 +145,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!['一期款', '二期款', '三期款', '四期款'].includes(payment_installment)) {
+    if (!['Installment 1', 'Installment 2', 'Installment 3', 'Installment 4'].includes(payment_installment)) {
       return NextResponse.json(
-        { error: 'Invalid payment_installment. Must be one of: 一期款, 二期款, 三期款, 四期款' },
+        { error: 'Invalid payment_installment. Must be one of: Installment 1, Installment 2, Installment 3, Installment 4' },
         { status: 400 }
       );
     }

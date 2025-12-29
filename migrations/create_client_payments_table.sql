@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS client_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   match_id UUID NOT NULL REFERENCES surrogate_matches(id) ON DELETE CASCADE,
-  payment_installment TEXT NOT NULL CHECK (payment_installment IN ('一期款', '二期款', '三期款', '四期款')),
+  payment_installment TEXT NOT NULL CHECK (payment_installment IN ('Installment 1', 'Installment 2', 'Installment 3', 'Installment 4')),
   amount DECIMAL(10, 2) NOT NULL,
   payment_date DATE NOT NULL,
   payment_method TEXT,
@@ -68,8 +68,8 @@ CREATE TRIGGER trigger_update_client_payments_updated_at
   EXECUTE FUNCTION update_client_payments_updated_at();
 
 -- Add comments for documentation
-COMMENT ON TABLE client_payments IS 'Client payment records for surrogacy matches (4 installments)';
-COMMENT ON COLUMN client_payments.payment_installment IS 'Payment installment: 一期款, 二期款, 三期款, 四期款';
+COMMENT ON TABLE client_payments IS 'Client payment records for surrogacy matches (4 installments: Installment 1, Installment 2, Installment 3, Installment 4)';
+COMMENT ON COLUMN client_payments.payment_installment IS 'Payment installment: Installment 1, Installment 2, Installment 3, Installment 4';
 COMMENT ON COLUMN client_payments.amount IS 'Payment amount in USD';
 COMMENT ON COLUMN client_payments.payment_date IS 'Date when payment was received';
 

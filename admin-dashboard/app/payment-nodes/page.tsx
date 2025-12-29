@@ -52,15 +52,53 @@ type Match = {
   };
 };
 
+type ClientPayment = {
+  id: string;
+  match_id: string;
+  payment_installment: 'Installment 1' | 'Installment 2' | 'Installment 3' | 'Installment 4';
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  match?: {
+    id: string;
+    surrogate_id: string;
+    parent_id: string;
+    status: string;
+    surrogate?: {
+      id: string;
+      name: string;
+      phone: string;
+    };
+    parent?: {
+      id: string;
+      name: string;
+      phone: string;
+    };
+  };
+};
+
+const INSTALLMENT_OPTIONS: Array<'Installment 1' | 'Installment 2' | 'Installment 3' | 'Installment 4'> = 
+  ['Installment 1', 'Installment 2', 'Installment 3', 'Installment 4'];
+
 export default function PaymentNodesPage() {
+  const [activeTab, setActiveTab] = useState<'nodes' | 'payments'>('nodes');
   const [paymentNodes, setPaymentNodes] = useState<PaymentNode[]>([]);
+  const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [selectedNode, setSelectedNode] = useState<PaymentNode | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<ClientPayment | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterMatchId, setFilterMatchId] = useState<string>('all');
+  const [filterInstallment, setFilterInstallment] = useState<string>('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -78,7 +116,7 @@ export default function PaymentNodesPage() {
 
   useEffect(() => {
     loadData();
-  }, [filterStatus, filterMatchId]);
+  }, [filterStatus, filterMatchId, filterInstallment, activeTab]);
 
   const loadData = async () => {
     try {
@@ -163,9 +201,30 @@ export default function PaymentNodesPage() {
       });
       
       setPaymentNodes(data.data || []);
+
+      // Load client payments if on payments tab
+      if (activeTab === 'payments') {
+        let paymentsUrl = '/api/client-payments';
+        const paymentParams = new URLSearchParams();
+        if (filterMatchId !== 'all') {
+          paymentParams.append('match_id', filterMatchId);
+        }
+        if (filterInstallment !== 'all') {
+          paymentParams.append('installment', filterInstallment);
+        }
+        if (paymentParams.toString()) {
+          paymentsUrl += '?' + paymentParams.toString();
+        }
+
+        const paymentsRes = await fetch(paymentsUrl);
+        if (paymentsRes.ok) {
+          const paymentsData = await paymentsRes.json();
+          setClientPayments(paymentsData.data || []);
+        }
+      }
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Failed to load payment nodes');
+      alert('Failed to load payment data');
     } finally {
       setLoading(false);
     }
@@ -289,6 +348,122 @@ export default function PaymentNodesPage() {
     }
   };
 
+  // Client Payment handlers
+  const handleAddPayment = () => {
+    setPaymentFormData({
+      match_id: '',
+      payment_installment: 'Installment 1',
+      amount: '',
+      payment_date: '',
+      payment_method: '',
+      payment_reference: '',
+      notes: '',
+    });
+    setShowAddPaymentModal(true);
+  };
+
+  const handleEditPayment = (payment: ClientPayment) => {
+    setSelectedPayment(payment);
+    setPaymentFormData({
+      match_id: payment.match_id,
+      payment_installment: payment.payment_installment,
+      amount: payment.amount.toString(),
+      payment_date: payment.payment_date.split('T')[0],
+      payment_method: payment.payment_method || '',
+      payment_reference: payment.payment_reference || '',
+      notes: payment.notes || '',
+    });
+    setShowEditPaymentModal(true);
+  };
+
+  const handleSubmitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = '/api/client-payments';
+      const method = showEditPaymentModal ? 'PATCH' : 'POST';
+      const body = showEditPaymentModal
+        ? { id: selectedPayment?.id, ...paymentFormData }
+        : paymentFormData;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+
+      const result = await res.json();
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
+
+      alert(showEditPaymentModal ? 'Payment record updated successfully' : 'Payment record created successfully');
+      setShowAddPaymentModal(false);
+      setShowEditPaymentModal(false);
+      setSelectedPayment(null);
+      
+      setTimeout(async () => {
+        try {
+          await loadData();
+        } catch (err) {
+          console.error('Error reloading data:', err);
+        }
+      }, 200);
+    } catch (error: any) {
+      console.error('Error saving payment:', error);
+      alert(error.message || 'Failed to save payment record');
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this payment record?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/client-payments?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete payment record');
+      }
+
+      alert('Payment record deleted successfully');
+      loadData();
+    } catch (error: any) {
+      console.error('Error deleting payment:', error);
+      alert(error.message || 'Failed to delete payment record');
+    }
+  };
+
+  const getInstallmentColor = (installment: string) => {
+    switch (installment) {
+      case 'Installment 1':
+        return 'bg-blue-100 text-blue-800';
+      case 'Installment 2':
+        return 'bg-green-100 text-green-800';
+      case 'Installment 3':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Installment 4':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const filteredPayments = clientPayments.filter((payment) => {
+    if (filterMatchId !== 'all' && payment.match_id !== filterMatchId) return false;
+    if (filterInstallment !== 'all' && payment.payment_installment !== filterInstallment) return false;
+    return true;
+  });
+
+  const totalPaymentAmount = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
@@ -362,16 +537,42 @@ export default function PaymentNodesPage() {
         {/* Header */}
         <div className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Payment Nodes</h1>
-            <p className="text-gray-600 mt-1">Manage payment milestones and scheduled payments</p>
+            <h1 className="text-3xl font-bold text-gray-900">Payment Management</h1>
+            <p className="text-gray-600 mt-1">Manage payment nodes and client payment records</p>
           </div>
           <button
-            onClick={handleAdd}
+            onClick={activeTab === 'nodes' ? handleAdd : handleAddPayment}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
             <span>+</span>
-            <span>Add Payment Node</span>
+            <span>{activeTab === 'nodes' ? 'Add Payment Node' : 'Add Payment Record'}</span>
           </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('nodes')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'nodes'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Payment Nodes
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'payments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Client Payment Records
+            </button>
+          </nav>
         </div>
 
         {/* Statistics */}
@@ -442,15 +643,17 @@ export default function PaymentNodesPage() {
         </div>
 
         {/* Payment Nodes Table */}
-        {loading ? (
-          <div className="bg-white p-8 rounded-lg shadow text-center">
-            <div className="text-gray-600">Loading payment nodes...</div>
-          </div>
-        ) : filteredNodes.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg shadow text-center">
-            <div className="text-gray-600">No payment nodes found</div>
-          </div>
-        ) : (
+        {activeTab === 'nodes' && (
+          <>
+            {loading ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <div className="text-gray-600">Loading payment nodes...</div>
+              </div>
+            ) : filteredNodes.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <div className="text-gray-600">No payment nodes found</div>
+              </div>
+            ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -535,9 +738,159 @@ export default function PaymentNodesPage() {
               </tbody>
             </table>
           </div>
+            )}
+          </>
         )}
 
-        {/* Add/Edit Modal */}
+        {/* Client Payment Records Table */}
+        {activeTab === 'payments' && (
+          <>
+            {/* Filters for payments */}
+            <div className="bg-white p-4 rounded-lg shadow mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Match
+                  </label>
+                  <select
+                    value={filterMatchId}
+                    onChange={(e) => setFilterMatchId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="all">All Matches</option>
+                    {matches.map((match: any) => {
+                      const surrogateName = match.surrogate?.name || match.surrogate_id?.substring(0, 8) || 'Surrogate';
+                      const parentName = match.parent?.name || match.parent_id?.substring(0, 8) || 'Parent';
+                      return (
+                        <option key={match.id} value={match.id}>
+                          {surrogateName} - {parentName} {match.status ? `(${match.status})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Installment
+                  </label>
+                  <select
+                    value={filterInstallment}
+                    onChange={(e) => setFilterInstallment(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="all">All Installments</option>
+                    {INSTALLMENT_OPTIONS.map((inst) => (
+                      <option key={inst} value={inst}>
+                        {inst}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary for payments */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white p-4 rounded-lg shadow">
+                <div className="text-sm text-gray-600">Total Records</div>
+                <div className="text-2xl font-bold text-gray-900">{filteredPayments.length}</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow">
+                <div className="text-sm text-gray-600">Total Amount</div>
+                <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalPaymentAmount)}</div>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <div className="text-gray-600">Loading payment records...</div>
+              </div>
+            ) : filteredPayments.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <div className="text-gray-600">No payment records found</div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Match
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Installment
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment Method
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reference
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredPayments.map((payment) => (
+                      <tr key={payment.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {payment.match?.surrogate?.name || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {payment.match?.parent?.name || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getInstallmentColor(payment.payment_installment)}`}>
+                            {payment.payment_installment}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatCurrency(payment.amount)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatDate(payment.payment_date)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{payment.payment_method || '—'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{payment.payment_reference || '—'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleEditPayment(payment)}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(payment.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Add/Edit Modal for Payment Nodes */}
         {(showAddModal || showEditModal) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
