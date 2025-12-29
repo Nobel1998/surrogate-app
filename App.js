@@ -27,6 +27,7 @@ import CustomerServiceScreen from './src/screens/CustomerServiceScreen';
 import FAQScreen from './src/screens/FAQScreen';
 import MyInfoScreen from './src/screens/MyInfoScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
+import SurrogateMedicalInfoScreen from './src/screens/SurrogateMedicalInfoScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -210,6 +211,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="MyInfo" component={MyInfoScreen} />
       <Stack.Screen name="Language" component={LanguageScreen} />
+      <Stack.Screen name="SurrogateMedicalInfo" component={SurrogateMedicalInfoScreen} />
     </Stack.Navigator>
   );
 }

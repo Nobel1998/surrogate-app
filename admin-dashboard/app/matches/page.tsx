@@ -279,6 +279,10 @@ export default function MatchesPage() {
   const [surrogacyContractUserId, setSurrogacyContractUserId] = useState<string>('');
   const [surrogacyContractFile, setSurrogacyContractFile] = useState<File | null>(null);
   const [uploadingSurrogacyContract, setUploadingSurrogacyContract] = useState(false);
+  
+  // Medical info state
+  const [medicalInfoMap, setMedicalInfoMap] = useState<Record<string, any>>({});
+  const [loadingMedicalInfo, setLoadingMedicalInfo] = useState<Record<string, boolean>>({});
 
   const profileLookup = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -832,6 +836,26 @@ export default function MatchesPage() {
       return `${month}/${day}/${year}`;
     } catch {
       return dateStr;
+    }
+  };
+
+  // Load medical info for a surrogate
+  const loadMedicalInfo = async (surrogateId: string) => {
+    if (!surrogateId || medicalInfoMap[surrogateId] || loadingMedicalInfo[surrogateId]) {
+      return;
+    }
+
+    setLoadingMedicalInfo(prev => ({ ...prev, [surrogateId]: true }));
+    try {
+      const res = await fetch(`/api/surrogate-medical-info?user_id=${surrogateId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMedicalInfoMap(prev => ({ ...prev, [surrogateId]: data.data }));
+      }
+    } catch (error) {
+      console.error('Error loading medical info:', error);
+    } finally {
+      setLoadingMedicalInfo(prev => ({ ...prev, [surrogateId]: false }));
     }
   };
 
@@ -2338,6 +2362,97 @@ export default function MatchesPage() {
                               </div>
                             )}
                           </div>
+                        </div>
+
+                        {/* Surrogate Medical Information */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Surrogate Medical Info</h4>
+                          {(() => {
+                            const medicalInfo = medicalInfoMap[m.surrogate_id];
+                            const isLoading = loadingMedicalInfo[m.surrogate_id];
+                            
+                            // Load medical info on first render
+                            if (!medicalInfo && !isLoading && m.surrogate_id) {
+                              loadMedicalInfo(m.surrogate_id);
+                            }
+
+                            if (isLoading) {
+                              return <div className="text-xs text-gray-500">Loading...</div>;
+                            }
+
+                            if (!medicalInfo) {
+                              return <div className="text-xs text-gray-500">No medical information available</div>;
+                            }
+
+                            return (
+                              <div className="space-y-4">
+                                {/* IVF Clinic */}
+                                {(medicalInfo.ivf_clinic_name || medicalInfo.ivf_clinic_doctor_name) && (
+                                  <div className="border-l-2 border-blue-500 pl-3">
+                                    <div className="text-xs font-semibold text-blue-700 mb-1">IVF Clinic</div>
+                                    {medicalInfo.ivf_clinic_name && (
+                                      <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.ivf_clinic_name}</div>
+                                    )}
+                                    {medicalInfo.ivf_clinic_doctor_name && (
+                                      <div className="text-xs text-gray-600 mb-0.5">Doctor: {medicalInfo.ivf_clinic_doctor_name}</div>
+                                    )}
+                                    {medicalInfo.ivf_clinic_address && (
+                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.ivf_clinic_address}</div>
+                                    )}
+                                    {medicalInfo.ivf_clinic_phone && (
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.ivf_clinic_phone}</div>
+                                    )}
+                                    {medicalInfo.ivf_clinic_email && (
+                                      <div className="text-xs text-gray-600">Email: {medicalInfo.ivf_clinic_email}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* OB/GYN Doctor */}
+                                {(medicalInfo.obgyn_doctor_name || medicalInfo.obgyn_clinic_name) && (
+                                  <div className="border-l-2 border-green-500 pl-3">
+                                    <div className="text-xs font-semibold text-green-700 mb-1">OB/GYN Doctor</div>
+                                    {medicalInfo.obgyn_doctor_name && (
+                                      <div className="text-xs text-gray-900 mb-0.5">Dr. {medicalInfo.obgyn_doctor_name}</div>
+                                    )}
+                                    {medicalInfo.obgyn_clinic_name && (
+                                      <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.obgyn_clinic_name}</div>
+                                    )}
+                                    {medicalInfo.obgyn_clinic_address && (
+                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.obgyn_clinic_address}</div>
+                                    )}
+                                    {medicalInfo.obgyn_clinic_phone && (
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.obgyn_clinic_phone}</div>
+                                    )}
+                                    {medicalInfo.obgyn_clinic_email && (
+                                      <div className="text-xs text-gray-600">Email: {medicalInfo.obgyn_clinic_email}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Delivery Hospital */}
+                                {medicalInfo.delivery_hospital_name && (
+                                  <div className="border-l-2 border-purple-500 pl-3">
+                                    <div className="text-xs font-semibold text-purple-700 mb-1">Delivery Hospital</div>
+                                    <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.delivery_hospital_name}</div>
+                                    {medicalInfo.delivery_hospital_address && (
+                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.delivery_hospital_address}</div>
+                                    )}
+                                    {medicalInfo.delivery_hospital_phone && (
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.delivery_hospital_phone}</div>
+                                    )}
+                                    {medicalInfo.delivery_hospital_email && (
+                                      <div className="text-xs text-gray-600">Email: {medicalInfo.delivery_hospital_email}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {!medicalInfo.ivf_clinic_name && !medicalInfo.obgyn_doctor_name && !medicalInfo.delivery_hospital_name && (
+                                  <div className="text-xs text-gray-500">No medical information provided</div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Important Dates */}
