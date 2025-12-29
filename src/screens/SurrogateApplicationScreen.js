@@ -10,7 +10,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 8; // Updated to 8 steps based on PDF
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
@@ -19,44 +19,203 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const [applicationData, setApplicationData] = useState({
-    // Step 1: Personal Information
+    // Step 1: Personal Information (Extended)
+    firstName: '',
+    middleName: '',
+    lastName: '',
     fullName: user?.name || '',
     age: user?.user_metadata?.age || '',
     dateOfBirth: user?.user_metadata?.date_of_birth || user?.dateOfBirth || '',
+    dateOfBirthMonth: '',
+    dateOfBirthDay: '',
+    dateOfBirthYear: '',
     phoneNumber: user?.phone || '',
     email: user?.email || '',
     location: user?.address || '',
     hearAboutUs: user?.user_metadata?.hear_about_us || '',
     race: user?.user_metadata?.race || user?.race || '',
     referralCode: user?.user_metadata?.referred_by || '',
+    bloodType: '',
+    height: '',
+    weight: '',
+    significantWeightChange: false,
+    religiousBackground: '',
+    practicingReligion: false,
+    usCitizen: false,
+    citizenshipStatus: '',
+    maritalStatus: '', // single, married, widowed, divorced, separated, lifePartner, engaged
+    spouseName: '',
+    spouseDateOfBirth: '',
+    marriageDate: '',
+    widowedDate: '',
+    maritalProblems: '',
+    divorced: false,
+    divorceDate: '',
+    divorceCause: '',
+    remarried: false,
+    remarriedDate: '',
+    legallySeparated: false,
+    separationDetails: '',
+    lifePartner: false,
+    partnerName: '',
+    partnerDateOfBirth: '',
+    engaged: false,
+    engagementDate: '',
+    weddingDate: '',
+    wantMoreChildren: false,
+    legalProblems: '',
+    jailTime: '',
+    nearestAirport: '',
+    airportDistance: '',
+    pets: '',
+    livingSituation: '', // own, family, rent
+    ownCar: false,
+    driverLicense: false,
+    carInsured: false,
+    transportationMethod: '',
+    siblingsCount: '',
+    motherSiblingsCount: '',
     
-    // Step 2: Medical Information
-    previousPregnancies: '',
+    // Step 2: Pregnancy & Delivery History
+    totalDeliveries: '',
+    deliveries: [], // Array of delivery objects (up to 5)
     previousSurrogacy: false,
-    pregnancyComplications: '',
-    currentMedications: '',
-    healthConditions: '',
-    bmi: '',
+    previousSurrogacyCount: '',
     
-    // Step 3: Lifestyle Information
+    // Step 3: Health Information (Extended)
+    healthInsurance: false,
+    maternityCoverage: false,
+    insuranceDetails: '',
+    stateAgencyInsurance: false,
+    stateAgencyName: '',
+    insurancePaymentMethod: '', // privately, employer
+    deliveryHospital: '',
+    deliveredAtHospitalBefore: false,
+    abnormalPapSmear: false,
+    monthlyCycles: false,
+    cycleDays: '',
+    periodDays: '',
+    lastMenstrualPeriod: '',
+    infertilityDoctor: false,
+    infertilityDetails: '',
     smokingStatus: '',
+    smokedDuringPregnancy: false,
+    householdSmoking: false,
+    householdSmokingDetails: '',
+    householdMarijuana: false,
     alcoholUsage: '',
-    exerciseRoutine: '',
-    employmentStatus: '',
-    supportSystem: '',
+    alcoholFrequency: '',
+    illegalDrugs: false,
+    partnerIllegalDrugs: false,
+    childrenList: '',
+    pregnancyProblems: false,
+    pregnancyProblemsDetails: '',
+    childrenHealthProblems: false,
+    childrenHealthDetails: '',
+    breastfeeding: false,
+    breastfeedingStopDate: '',
+    surgeries: false,
+    surgeryDetails: '',
+    seriousIllnesses: '',
+    hospitalizations: '',
+    currentMedications: '',
+    tattoosPiercings: false,
+    tattoosPiercingsDate: '',
+    mentalHealthTreatment: false,
+    mentalHealthDetails: '',
+    postpartumDepression: false,
+    postpartumDepressionDetails: '',
+    depressionMedication: false,
+    depressionMedicationDetails: '',
+    drugAlcoholAbuse: false,
+    excessHeat: false,
+    allergies: false,
+    allergiesDetails: '',
+    hepatitisBVaccinated: false,
+    alcoholLimitAdvised: false,
     
-    // Step 4: Legal & Background
-    criminalBackground: false,
-    legalIssues: '',
-    insuranceCoverage: '',
-    financialStability: '',
+    // Step 4: Sexual History
+    pastContraceptives: '',
+    currentBirthControl: false,
+    birthControlMethod: '',
+    birthControlDuration: '',
+    sexualPartner: false,
+    multiplePartners: false,
+    partnersLastThreeYears: '',
+    highRiskHIVContact: false,
+    hivRisk: false,
+    bloodTransfusion: false,
+    stdHistory: false,
+    stdDetails: '',
     
-    // Step 5: Preferences & Additional
+    // Step 5: Employment Information
+    currentEmployment: '',
+    monthlyIncome: '',
+    spouseEmployment: '',
+    spouseMonthlyIncome: '',
+    personsSupported: '',
+    publicAssistance: false,
+    householdMembers: '',
+    
+    // Step 6: Education History
+    educationLevel: '', // highSchool, college, tradeSchool
+    tradeSchoolDetails: '',
+    
+    // Step 7: General Questions & Preferences
+    surrogacyUnderstanding: '',
+    selfIntroduction: '',
+    mainConcerns: [], // Array of concerns
+    parentQualities: '',
+    religiousPreference: false,
+    unmarriedCouple: false,
+    heterosexualCouple: false,
+    sameSexCouple: false,
+    singleMale: false,
+    singleFemale: false,
+    eggDonor: false,
+    spermDonor: false,
+    olderCouple: false,
+    coupleWithChildren: false,
+    internationalCouple: false,
+    nonEnglishSpeaking: false,
+    carryTwins: false,
+    reductionWilling: false,
+    amniocentesis: false,
+    abortionWilling: false,
+    contactDuringProcess: '',
+    contactAfterBirth: '',
+    concernsPlacingBaby: false,
+    parentsInDeliveryRoom: false,
+    parentsAtAppointments: false,
+    notifyHospital: false,
+    parentsOnBirthCertificate: false,
+    applyingElsewhere: false,
+    rejectedElsewhere: false,
+    attendCheckups: false,
+    receiveInjections: false,
+    medicalExaminations: false,
+    followGuidelines: false,
+    avoidLongTravel: false,
+    avoidHighRiskWork: false,
+    placedChildAdoption: false,
+    expectedSupport: '',
+    unsupportivePeople: false,
+    partnerFeelings: '',
+    childcareSupport: false,
     compensationExpectations: '',
     timelineAvailability: '',
     travelWillingness: false,
     specialPreferences: '',
     additionalComments: '',
+    
+    // Step 8: Authorization
+    authorizationAgreed: false,
+    applicantName: '',
+    applicationDate: '',
+    applicantEmail: '',
+    applicantAddress: '',
+    applicantPhone: '',
+    emergencyContact: '',
   });
 
   const updateField = (field, value) => {
@@ -582,177 +741,542 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   };
 
   const renderStep1 = () => (
-    <View>
-      <Text style={styles.stepTitle}>{t('application.step1Title')}</Text>
-      <Text style={styles.stepDescription}>{t('application.step1Description')}</Text>
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Personal Information</Text>
+      <Text style={styles.stepDescription}>Please answer all questions. If something does not apply to you, please write N/A</Text>
       
+      {/* Full Legal Name */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.fullLegalName')}</Text>
-        <Text style={styles.subLabel}>{t('application.fullLegalNameSubLabel')}</Text>
+        <Text style={styles.label}>What is your full legal name? *</Text>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.firstName}
+              onChangeText={(value) => updateField('firstName', value)}
+              placeholder="First Name"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.middleName}
+              onChangeText={(value) => updateField('middleName', value)}
+              placeholder="Middle Name"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.lastName}
+              onChangeText={(value) => updateField('lastName', value)}
+              placeholder="Last Name"
+            />
+          </View>
+        </View>
+        {/* Also keep fullName for backward compatibility */}
         <TextInput
-          style={styles.input}
-          value={applicationData.fullName}
+          style={[styles.input, { marginTop: 10 }]}
+          value={applicationData.fullName || `${applicationData.firstName} ${applicationData.middleName} ${applicationData.lastName}`.trim()}
           onChangeText={(value) => updateField('fullName', value)}
-          placeholder={t('application.fullLegalNamePlaceholder')}
+          placeholder="Full Name (or auto-filled from above)"
         />
       </View>
 
+      {/* Date of Birth */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.age')}</Text>
+        <Text style={styles.label}>What is your date of birth? *</Text>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.dateOfBirthMonth || ''}
+              onChangeText={(value) => updateField('dateOfBirthMonth', value)}
+              placeholder="Month"
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.dateOfBirthDay || ''}
+              onChangeText={(value) => updateField('dateOfBirthDay', value)}
+              placeholder="Day"
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={styles.input}
+              value={applicationData.dateOfBirthYear || ''}
+              onChangeText={(value) => updateField('dateOfBirthYear', value)}
+              placeholder="Year"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+        <TextInput
+          style={[styles.input, { marginTop: 10 }]}
+          value={applicationData.dateOfBirth || ''}
+          onChangeText={(value) => updateField('dateOfBirth', value)}
+          placeholder="Or enter as MM-DD-YYYY"
+        />
+      </View>
+
+      {/* Age (calculated or entered) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Age *</Text>
         <TextInput
           key={`age-${formVersion}`}
           style={styles.input}
           value={applicationData.age || ''}
           onChangeText={(value) => updateField('age', value)}
-          placeholder={t('application.agePlaceholder')}
+          placeholder="Age (21-40)"
           keyboardType="numeric"
         />
       </View>
 
+      {/* How did you hear about us */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.dateOfBirth')}</Text>
-        <Text style={styles.subLabel}>{t('application.dateOfBirthSubLabel')}</Text>
+        <Text style={styles.label}>How did you hear about us? *</Text>
         <TextInput
-          key={`dob-${formVersion}`}
           style={styles.input}
-          value={applicationData.dateOfBirth || ''}
-          onChangeText={(value) => updateField('dateOfBirth', value)}
-          placeholder={t('application.dateOfBirthPlaceholder')}
+          value={applicationData.hearAboutUs || ''}
+          onChangeText={(value) => updateField('hearAboutUs', value)}
+          placeholder="How did you hear about us?"
         />
       </View>
 
+      {/* Previous Surrogacy */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.phoneNumber')}</Text>
+        <Text style={styles.label}>Have you been a surrogate before? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.previousSurrogacy === true && styles.radioButtonSelected]}
+            onPress={() => updateField('previousSurrogacy', true)}
+          >
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.previousSurrogacy === false && styles.radioButtonSelected]}
+            onPress={() => updateField('previousSurrogacy', false)}
+          >
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.previousSurrogacy && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>How many times have you been a surrogate before? *</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.previousSurrogacyCount || ''}
+            onChangeText={(value) => updateField('previousSurrogacyCount', value)}
+            placeholder="Number of times"
+            keyboardType="numeric"
+          />
+        </View>
+      )}
+
+      {/* Blood Type */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your blood type? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.bloodType || ''}
+          onChangeText={(value) => updateField('bloodType', value)}
+          placeholder="e.g., A+, B-, O+, AB+"
+        />
+      </View>
+
+      {/* Height */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your height? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.height || ''}
+          onChangeText={(value) => updateField('height', value)}
+          placeholder="e.g., 5'6\" or 168 cm"
+        />
+      </View>
+
+      {/* Weight */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your weight? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.weight || ''}
+          onChangeText={(value) => updateField('weight', value)}
+          placeholder="Weight in lbs or kg"
+          keyboardType="numeric"
+        />
+      </View>
+
+      {/* Significant Weight Change */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you gained/lost a significant amount of weight in the last year? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.significantWeightChange === true && styles.radioButtonSelected]}
+            onPress={() => updateField('significantWeightChange', true)}
+          >
+            <Text style={[styles.radioText, applicationData.significantWeightChange === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.significantWeightChange === false && styles.radioButtonSelected]}
+            onPress={() => updateField('significantWeightChange', false)}
+          >
+            <Text style={[styles.radioText, applicationData.significantWeightChange === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Race/Ethnic Background */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your race/ethnic background? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.race || ''}
+          onChangeText={(value) => updateField('race', value)}
+          placeholder="Race/Ethnic background"
+        />
+      </View>
+
+      {/* Religious Background */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your religious background? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.religiousBackground || ''}
+          onChangeText={(value) => updateField('religiousBackground', value)}
+          placeholder="Religious background"
+        />
+      </View>
+
+      {/* Practicing Religion */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you currently practicing in your religion? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.practicingReligion === true && styles.radioButtonSelected]}
+            onPress={() => updateField('practicingReligion', true)}
+          >
+            <Text style={[styles.radioText, applicationData.practicingReligion === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.practicingReligion === false && styles.radioButtonSelected]}
+            onPress={() => updateField('practicingReligion', false)}
+          >
+            <Text style={[styles.radioText, applicationData.practicingReligion === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* US Citizen */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you a US Citizen? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.usCitizen === true && styles.radioButtonSelected]}
+            onPress={() => updateField('usCitizen', true)}
+          >
+            <Text style={[styles.radioText, applicationData.usCitizen === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.usCitizen === false && styles.radioButtonSelected]}
+            onPress={() => updateField('usCitizen', false)}
+          >
+            <Text style={[styles.radioText, applicationData.usCitizen === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {!applicationData.usCitizen && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If you are not a US Citizen, please specify your citizenship and current legal status in United States *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.citizenshipStatus || ''}
+            onChangeText={(value) => updateField('citizenshipStatus', value)}
+            placeholder="Citizenship and legal status"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      {/* Contact Information */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Phone Number *</Text>
         <TextInput
           style={styles.input}
           value={applicationData.phoneNumber}
           onChangeText={(value) => updateField('phoneNumber', value)}
-          placeholder={t('application.phoneNumberPlaceholder')}
+          placeholder="Phone Number"
           keyboardType="phone-pad"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.emailAddress')}</Text>
+        <Text style={styles.label}>Email Address *</Text>
         <TextInput
           style={styles.input}
           value={applicationData.email}
           onChangeText={(value) => updateField('email', value)}
-          placeholder={t('application.emailAddressPlaceholder')}
+          placeholder="Email Address"
           keyboardType="email-address"
           autoCapitalize="none"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.race')}</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.race}
-          onChangeText={(value) => updateField('race', value)}
-          placeholder={t('application.racePlaceholder')}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.location')}</Text>
+        <Text style={styles.label}>Address *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.location}
+          value={applicationData.location || ''}
           onChangeText={(value) => updateField('location', value)}
-          placeholder={t('application.locationPlaceholder')}
+          placeholder="Street Address, City, State, Zip Code"
           multiline
           numberOfLines={3}
         />
       </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.hearAboutUs')}</Text>
-        <Text style={styles.subLabel}>{t('application.hearAboutUsSubLabel')}</Text>
-        <TextInput
-          key={`hear-${formVersion}`}
-          style={styles.input}
-          value={applicationData.hearAboutUs || ''}
-          onChangeText={(value) => updateField('hearAboutUs', value)}
-          placeholder={t('application.hearAboutUsPlaceholder')}
-        />
-      </View>
-    </View>
+    </ScrollView>
   );
 
+  // Helper function to render delivery form
+  const renderDeliveryForm = (deliveryIndex) => {
+    const delivery = applicationData.deliveries[deliveryIndex] || {};
+    const updateDeliveryField = (field, value) => {
+      const newDeliveries = [...(applicationData.deliveries || [])];
+      if (!newDeliveries[deliveryIndex]) {
+        newDeliveries[deliveryIndex] = {};
+      }
+      newDeliveries[deliveryIndex][field] = value;
+      updateField('deliveries', newDeliveries);
+    };
+
+    return (
+      <View key={deliveryIndex} style={{ marginBottom: 30, padding: 15, backgroundColor: '#F8F9FB', borderRadius: 12 }}>
+        <Text style={[styles.label, { fontSize: 18, marginBottom: 15 }]}>Delivery #{deliveryIndex + 1}</Text>
+        
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Year *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.year || ''}
+            onChangeText={(value) => updateDeliveryField('year', value)}
+            placeholder="Year"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>How Did You Conceive? *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.conceptionMethod || ''}
+            onChangeText={(value) => updateDeliveryField('conceptionMethod', value)}
+            placeholder="e.g., Natural, IVF, IUI"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Date Of Delivery *</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={delivery.deliveryMonth || ''}
+                onChangeText={(value) => updateDeliveryField('deliveryMonth', value)}
+                placeholder="Month"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={delivery.deliveryDay || ''}
+                onChangeText={(value) => updateDeliveryField('deliveryDay', value)}
+                placeholder="Day"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={delivery.deliveryYear || ''}
+                onChangeText={(value) => updateDeliveryField('deliveryYear', value)}
+                placeholder="Year"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Birth Weight *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.birthWeight || ''}
+            onChangeText={(value) => updateDeliveryField('birthWeight', value)}
+            placeholder="Weight in lbs or kg"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Gender *</Text>
+          <View style={styles.radioContainer}>
+            <TouchableOpacity
+              style={[styles.radioButton, delivery.gender === 'boy' && styles.radioButtonSelected]}
+              onPress={() => updateDeliveryField('gender', 'boy')}
+            >
+              <Text style={[styles.radioText, delivery.gender === 'boy' && styles.radioTextSelected]}>Boy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.radioButton, delivery.gender === 'girl' && styles.radioButtonSelected]}
+              onPress={() => updateDeliveryField('gender', 'girl')}
+            >
+              <Text style={[styles.radioText, delivery.gender === 'girl' && styles.radioTextSelected]}>Girl</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Weeks Of Gestation To Delivery *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.gestationWeeks || ''}
+            onChangeText={(value) => updateDeliveryField('gestationWeeks', value)}
+            placeholder="Weeks"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>No Of Fetuses *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.fetusesCount || ''}
+            onChangeText={(value) => updateDeliveryField('fetusesCount', value)}
+            placeholder="Number of fetuses"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Pregnancy Resulted In *</Text>
+          <TextInput
+            style={styles.input}
+            value={delivery.pregnancyResult || ''}
+            onChangeText={(value) => updateDeliveryField('pregnancyResult', value)}
+            placeholder="e.g., Live birth, Stillbirth"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Delivery Method *</Text>
+          <View style={styles.radioContainer}>
+            <TouchableOpacity
+              style={[styles.radioButton, delivery.deliveryMethod === 'vaginally' && styles.radioButtonSelected]}
+              onPress={() => updateDeliveryField('deliveryMethod', 'vaginally')}
+            >
+              <Text style={[styles.radioText, delivery.deliveryMethod === 'vaginally' && styles.radioTextSelected]}>Vaginally</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.radioButton, delivery.deliveryMethod === 'c-section' && styles.radioButtonSelected]}
+              onPress={() => updateDeliveryField('deliveryMethod', 'c-section')}
+            >
+              <Text style={[styles.radioText, delivery.deliveryMethod === 'c-section' && styles.radioTextSelected]}>C-Section</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Complications</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={delivery.complications || ''}
+            onChangeText={(value) => updateDeliveryField('complications', value)}
+            placeholder="Any complications during pregnancy or delivery"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      </View>
+    );
+  };
+
   const renderStep2 = () => (
-    <View>
-      <Text style={styles.stepTitle}>{t('application.step2Title')}</Text>
-      <Text style={styles.stepDescription}>{t('application.step2Description')}</Text>
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Pregnancy & Delivery History</Text>
+      <Text style={styles.stepDescription}>Total Delivery Times (Count ONLY births at 20+ weeks)</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.previousPregnancies')}</Text>
-        <Text style={styles.subLabel}>{t('application.previousPregnanciesSubLabel')}</Text>
+        <Text style={styles.label}>Total Delivery Times *</Text>
         <TextInput
           style={styles.input}
-          value={applicationData.previousPregnancies}
-          onChangeText={(value) => updateField('previousPregnancies', value)}
-          placeholder={t('application.previousPregnanciesPlaceholder')}
+          value={applicationData.totalDeliveries || ''}
+          onChangeText={(value) => {
+            updateField('totalDeliveries', value);
+            const count = parseInt(value) || 0;
+            const maxDeliveries = Math.min(count, 5); // Max 5 deliveries
+            const currentDeliveries = applicationData.deliveries || [];
+            // Ensure we have enough delivery objects
+            while (currentDeliveries.length < maxDeliveries) {
+              currentDeliveries.push({});
+            }
+            // Trim if needed
+            if (currentDeliveries.length > maxDeliveries) {
+              currentDeliveries.splice(maxDeliveries);
+            }
+            updateField('deliveries', currentDeliveries);
+          }}
+          placeholder="Number of deliveries (20+ weeks)"
           keyboardType="numeric"
         />
       </View>
 
+      {/* Render delivery forms based on totalDeliveries */}
+      {applicationData.deliveries && applicationData.deliveries.length > 0 && (
+        <View>
+          {applicationData.deliveries.map((_, index) => renderDeliveryForm(index))}
+        </View>
+      )}
+
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.previousSurrogacyExperience')}</Text>
+        <Text style={styles.label}>Have you been a surrogate before? *</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.previousSurrogacy === true && styles.radioButtonSelected]}
             onPress={() => updateField('previousSurrogacy', true)}
           >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>{t('application.yes')}</Text>
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>YES</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.previousSurrogacy === false && styles.radioButtonSelected]}
             onPress={() => updateField('previousSurrogacy', false)}
           >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>{t('application.no')}</Text>
+            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.pregnancyComplications')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.pregnancyComplications}
-          onChangeText={(value) => updateField('pregnancyComplications', value)}
-          placeholder={t('application.pregnancyComplicationsPlaceholder')}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.currentMedications')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.currentMedications}
-          onChangeText={(value) => updateField('currentMedications', value)}
-          placeholder={t('application.currentMedicationsPlaceholder')}
-          multiline
-          numberOfLines={2}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.healthConditions')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.healthConditions}
-          onChangeText={(value) => updateField('healthConditions', value)}
-          placeholder={t('application.healthConditionsPlaceholder')}
-          multiline
-          numberOfLines={2}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.bmi')}</Text>
+      {applicationData.previousSurrogacy && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>How many times have you been a surrogate before? *</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.previousSurrogacyCount || ''}
+            onChangeText={(value) => updateField('previousSurrogacyCount', value)}
+            placeholder="Number of times"
+            keyboardType="numeric"
+          />
+        </View>
+      )}
+    </ScrollView>
+  );
         <TextInput
           style={styles.input}
           value={applicationData.bmi}
@@ -984,6 +1508,71 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     </View>
   );
 
+  // Placeholder functions for additional steps - to be implemented
+  const renderStep6 = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Employment Information</Text>
+      <Text style={styles.stepDescription}>Please provide your employment details</Text>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Current Employment</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.currentEmployment || ''}
+          onChangeText={(value) => updateField('currentEmployment', value)}
+          placeholder="Position, date of employment, location"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Monthly Income</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.monthlyIncome || ''}
+          onChangeText={(value) => updateField('monthlyIncome', value)}
+          placeholder="Monthly income"
+          keyboardType="numeric"
+        />
+      </View>
+    </ScrollView>
+  );
+
+  const renderStep7 = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>General Questions & Preferences</Text>
+      <Text style={styles.stepDescription}>Please answer the following questions</Text>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.surrogacyUnderstanding || ''}
+          onChangeText={(value) => updateField('surrogacyUnderstanding', value)}
+          placeholder="Your understanding and motivation"
+          multiline
+          numberOfLines={5}
+        />
+      </View>
+    </ScrollView>
+  );
+
+  const renderStep8 = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Authorization</Text>
+      <Text style={styles.stepDescription}>Please review and confirm</Text>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs.</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.authorizationAgreed === true && styles.radioButtonSelected]}
+            onPress={() => updateField('authorizationAgreed', true)}
+          >
+            <Text style={[styles.radioText, applicationData.authorizationAgreed === true && styles.radioTextSelected]}>I Agree</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -1022,6 +1611,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
           {currentStep === 5 && renderStep5()}
+          {currentStep === 6 && renderStep6()}
+          {currentStep === 7 && renderStep7()}
+          {currentStep === 8 && renderStep8()}
 
           <View style={styles.buttonContainer}>
             {currentStep > 1 && (
