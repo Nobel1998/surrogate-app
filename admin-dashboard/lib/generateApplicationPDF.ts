@@ -85,7 +85,7 @@ export const generateApplicationPDF = (app: ApplicationData) => {
     ['Citizenship Status', formatValue(app.citizenshipStatus)],
     ['Phone', formatValue(app.phone || app.phoneNumber)],
     ['Email', formatValue(app.email)],
-    ['Location/Address', formatValue(app.location)],
+    ['Full Address', formatValue(app.address || app.location)],
     ['How Heard About Us', formatValue(app.hearAboutUs)],
     ['Previous Surrogacy', app.previousSurrogacy === true ? `Yes (${app.previousSurrogacyCount || '?'} times)` : 'No'],
   ], [0, 102, 204]);

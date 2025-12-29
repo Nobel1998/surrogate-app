@@ -31,7 +31,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     dateOfBirthYear: '',
     phoneNumber: user?.phone || '',
     email: user?.email || '',
-    location: user?.address || '',
+    address: user?.address || '',
     hearAboutUs: user?.user_metadata?.hear_about_us || '',
     race: user?.user_metadata?.race || user?.race || '',
     referralCode: user?.user_metadata?.referred_by || '',
@@ -272,7 +272,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             phoneNumber: latest.phone || parsed.phoneNumber || applicationData.phoneNumber,
             age: parsed.age || applicationData.age || '',
             dateOfBirth: parsed.dateOfBirth || applicationData.dateOfBirth || '',
-            location: parsed.location || applicationData.location,
+            address: parsed.address || applicationData.address,
             hearAboutUs: parsed.hearAboutUs || applicationData.hearAboutUs,
           race: parsed.race || applicationData.race || '',
           referralCode: parsed.referralCode || applicationData.referralCode || '',
@@ -320,7 +320,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         hearAboutUs: prev.hearAboutUs || meta.hear_about_us || '',
         fullName: prev.fullName || meta.name || user?.name || '',
         phoneNumber: prev.phoneNumber || meta.phone || user?.phone || '',
-        location: prev.location || meta.location || user?.address || '',
+        address: prev.address || meta.address || user?.address || '',
         race: prev.race || meta.race || user?.race || '',
         referralCode: prev.referralCode || meta.referred_by || '',
       }));
@@ -535,7 +535,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             role,
             name: applicationData.fullName,
             phone: applicationData.phoneNumber,
-            location: applicationData.location || '',
+            address: applicationData.address || '',
             age: applicationData.age || '',
             date_of_birth: applicationData.dateOfBirth || '',
             hear_about_us: applicationData.hearAboutUs || '',
@@ -560,7 +560,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             phone: applicationData.phoneNumber,
             date_of_birth: applicationData.dateOfBirth || null,
             email: authEmail.trim(),
-            location: applicationData.location || '',
+            address: applicationData.address || '',
             invite_code: inviteCode,
             race: applicationData.race || '',
             referred_by: applicationData.referralCode?.trim() || null,
@@ -643,7 +643,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         phone: applicationData.phoneNumber,
         date_of_birth: applicationData.dateOfBirth || null,
         email: applicationData.email || authUser.email,
-        location: applicationData.location || '',
+        address: applicationData.address || '',
         race: applicationData.race || '',
         referred_by: applicationData.referralCode?.trim() || null,
         invite_code: ensuredInviteCode,
@@ -1034,8 +1034,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <Text style={styles.label}>Address *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.location || ''}
-          onChangeText={(value) => updateField('location', value)}
+          value={applicationData.address || ''}
+          onChangeText={(value) => updateField('address', value)}
           placeholder="Street Address, City, State, Zip Code"
           multiline
           numberOfLines={3}

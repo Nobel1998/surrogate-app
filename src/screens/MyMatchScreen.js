@@ -470,35 +470,35 @@ export default function MyMatchScreen({ navigation }) {
     const isParent = userRole === 'parent';
     
     return (
-      <ScrollView 
-        contentContainerStyle={styles.unmatchedContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <View style={styles.unmatchedContent}>
-          <View style={styles.unmatchedIconContainer}>
-            <Icon name="search" size={64} color="#FF8EA4" />
+    <ScrollView 
+      contentContainerStyle={styles.unmatchedContainer}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
+      <View style={styles.unmatchedContent}>
+        <View style={styles.unmatchedIconContainer}>
+          <Icon name="search" size={64} color="#FF8EA4" />
+        </View>
+        <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
+        <Text style={styles.unmatchedDescription}>
+          {t('myMatch.matchingDescription')}
+        </Text>
+        
+        <View style={styles.timelineSteps}>
+          <View style={styles.timelineStep}>
+            <View style={[styles.stepDot, styles.stepActive]} />
+            <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
           </View>
-          <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
-          <Text style={styles.unmatchedDescription}>
-            {t('myMatch.matchingDescription')}
-          </Text>
-          
-          <View style={styles.timelineSteps}>
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepDot, styles.stepActive]} />
-              <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
-            </View>
-            <View style={styles.stepLine} />
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepDot, styles.stepPending]} />
-              <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
-            </View>
-            <View style={styles.stepLine} />
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepDot, styles.stepPending]} />
-              <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
-            </View>
+          <View style={styles.stepLine} />
+          <View style={styles.timelineStep}>
+            <View style={[styles.stepDot, styles.stepPending]} />
+            <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
           </View>
+          <View style={styles.stepLine} />
+          <View style={styles.timelineStep}>
+            <View style={[styles.stepDot, styles.stepPending]} />
+            <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
+          </View>
+        </View>
 
           {/* Show available surrogates for parent users */}
           {isParent && (
@@ -544,15 +544,15 @@ export default function MyMatchScreen({ navigation }) {
             </View>
           )}
 
-          <TouchableOpacity 
-            style={styles.contactButton}
-            onPress={() => Linking.openURL('mailto:support@agency.com')}
-          >
-            <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    );
+        <TouchableOpacity 
+          style={styles.contactButton}
+          onPress={() => Linking.openURL('mailto:support@agency.com')}
+        >
+          <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
   };
 
   // Render Matched State with Premium Design
