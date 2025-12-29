@@ -1279,114 +1279,369 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   );
 
   const renderStep3 = () => (
-    <View>
-      <Text style={styles.stepTitle}>{t('application.step3Title')}</Text>
-      <Text style={styles.stepDescription}>{t('application.step3Description')}</Text>
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Health Information</Text>
+      <Text style={styles.stepDescription}>Please provide your health and medical details</Text>
       
+      {/* Health Insurance */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.smokingStatus')}</Text>
+        <Text style={styles.label}>Do you have health insurance? *</Text>
         <View style={styles.radioContainer}>
-          {['Non-smoker', 'Former smoker', 'Current smoker'].map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[styles.radioButton, applicationData.smokingStatus === option && styles.radioButtonSelected]}
-              onPress={() => updateField('smokingStatus', option)}
-            >
-              <Text style={[styles.radioText, applicationData.smokingStatus === option && styles.radioTextSelected]}>
-                {option === 'Non-smoker' ? t('application.nonSmoker') : option === 'Former smoker' ? t('application.formerSmoker') : t('application.currentSmoker')}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.healthInsurance === true && styles.radioButtonSelected]}
+            onPress={() => updateField('healthInsurance', true)}
+          >
+            <Text style={[styles.radioText, applicationData.healthInsurance === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.healthInsurance === false && styles.radioButtonSelected]}
+            onPress={() => updateField('healthInsurance', false)}
+          >
+            <Text style={[styles.radioText, applicationData.healthInsurance === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
+      {applicationData.healthInsurance && (
+        <>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Does it have maternity coverage? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maternityCoverage === true && styles.radioButtonSelected]}
+                onPress={() => updateField('maternityCoverage', true)}
+              >
+                <Text style={[styles.radioText, applicationData.maternityCoverage === true && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maternityCoverage === 'not_sure' && styles.radioButtonSelected]}
+                onPress={() => updateField('maternityCoverage', 'not_sure')}
+              >
+                <Text style={[styles.radioText, applicationData.maternityCoverage === 'not_sure' && styles.radioTextSelected]}>Not Sure</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Insurance Details</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={applicationData.insuranceDetails || ''}
+              onChangeText={(value) => updateField('insuranceDetails', value)}
+              placeholder="Provider name, policy number, etc."
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Is your health insurance provided through a state agency or program?</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.stateAgencyInsurance === true && styles.radioButtonSelected]}
+                onPress={() => updateField('stateAgencyInsurance', true)}
+              >
+                <Text style={[styles.radioText, applicationData.stateAgencyInsurance === true && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.stateAgencyInsurance === false && styles.radioButtonSelected]}
+                onPress={() => updateField('stateAgencyInsurance', false)}
+              >
+                <Text style={[styles.radioText, applicationData.stateAgencyInsurance === false && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {applicationData.stateAgencyInsurance && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>What state agency or program?</Text>
+              <TextInput
+                style={styles.input}
+                value={applicationData.stateAgencyName || ''}
+                onChangeText={(value) => updateField('stateAgencyName', value)}
+                placeholder="State agency or program name"
+              />
+            </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Do you pay for your health insurance privately or is it provided by an employer?</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.insurancePaymentMethod === 'privately' && styles.radioButtonSelected]}
+                onPress={() => updateField('insurancePaymentMethod', 'privately')}
+              >
+                <Text style={[styles.radioText, applicationData.insurancePaymentMethod === 'privately' && styles.radioTextSelected]}>Privately</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.insurancePaymentMethod === 'employer' && styles.radioButtonSelected]}
+                onPress={() => updateField('insurancePaymentMethod', 'employer')}
+              >
+                <Text style={[styles.radioText, applicationData.insurancePaymentMethod === 'employer' && styles.radioTextSelected]}>Employer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* Delivery Hospital */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.alcoholUsage')}</Text>
+        <Text style={styles.label}>What hospital do you intend to deliver your surrogate pregnancy? *</Text>
         <TextInput
           style={styles.input}
-          value={applicationData.alcoholUsage}
-          onChangeText={(value) => updateField('alcoholUsage', value)}
-          placeholder={t('application.alcoholUsagePlaceholder')}
+          value={applicationData.deliveryHospital || ''}
+          onChangeText={(value) => updateField('deliveryHospital', value)}
+          placeholder="Hospital name"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.exerciseRoutine')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.exerciseRoutine}
-          onChangeText={(value) => updateField('exerciseRoutine', value)}
-          placeholder={t('application.exerciseRoutinePlaceholder')}
-          multiline
-          numberOfLines={2}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.employmentStatus')}</Text>
+        <Text style={styles.label}>Have you delivered at the previously listed hospital before? *</Text>
         <View style={styles.radioContainer}>
-          {['Employed Full-time', 'Employed Part-time', 'Self-employed', 'Unemployed', 'Student'].map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[styles.radioButton, applicationData.employmentStatus === option && styles.radioButtonSelected]}
-              onPress={() => updateField('employmentStatus', option)}
-            >
-              <Text style={[styles.radioText, applicationData.employmentStatus === option && styles.radioTextSelected]}>
-                {option === 'Employed Full-time' ? t('application.employedFullTime') : 
-                 option === 'Employed Part-time' ? t('application.employedPartTime') :
-                 option === 'Self-employed' ? t('application.selfEmployed') :
-                 option === 'Unemployed' ? t('application.unemployed') : t('application.student')}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.deliveredAtHospitalBefore === true && styles.radioButtonSelected]}
+            onPress={() => updateField('deliveredAtHospitalBefore', true)}
+          >
+            <Text style={[styles.radioText, applicationData.deliveredAtHospitalBefore === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.deliveredAtHospitalBefore === false && styles.radioButtonSelected]}
+            onPress={() => updateField('deliveredAtHospitalBefore', false)}
+          >
+            <Text style={[styles.radioText, applicationData.deliveredAtHospitalBefore === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Menstrual Information */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do your menstrual cycles occur monthly? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.monthlyCycles === true && styles.radioButtonSelected]}
+            onPress={() => updateField('monthlyCycles', true)}
+          >
+            <Text style={[styles.radioText, applicationData.monthlyCycles === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.monthlyCycles === false && styles.radioButtonSelected]}
+            onPress={() => updateField('monthlyCycles', false)}
+          >
+            <Text style={[styles.radioText, applicationData.monthlyCycles === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.supportSystem')}</Text>
+        <Text style={styles.label}>How many days from the beginning of your period to the next month's first day of cycle?</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.cycleDays || ''}
+          onChangeText={(value) => updateField('cycleDays', value)}
+          placeholder="Number of days"
+          keyboardType="numeric"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many days does your period last?</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.periodDays || ''}
+          onChangeText={(value) => updateField('periodDays', value)}
+          placeholder="Number of days"
+          keyboardType="numeric"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Date of Last Menstrual Period</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.lastMenstrualPeriod || ''}
+          onChangeText={(value) => updateField('lastMenstrualPeriod', value)}
+          placeholder="MM/DD/YYYY"
+        />
+      </View>
+
+      {/* Smoking & Alcohol */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you currently or have you ever smoked cigarettes or ANY form of nicotine? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.smokingStatus === 'yes' && styles.radioButtonSelected]}
+            onPress={() => updateField('smokingStatus', 'yes')}
+          >
+            <Text style={[styles.radioText, applicationData.smokingStatus === 'yes' && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.smokingStatus === 'no' && styles.radioButtonSelected]}
+            onPress={() => updateField('smokingStatus', 'no')}
+          >
+            <Text style={[styles.radioText, applicationData.smokingStatus === 'no' && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.smokingStatus === 'yes' && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Did you ever smoke during pregnancy?</Text>
+          <View style={styles.radioContainer}>
+            <TouchableOpacity
+              style={[styles.radioButton, applicationData.smokedDuringPregnancy === true && styles.radioButtonSelected]}
+              onPress={() => updateField('smokedDuringPregnancy', true)}
+            >
+              <Text style={[styles.radioText, applicationData.smokedDuringPregnancy === true && styles.radioTextSelected]}>YES</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.radioButton, applicationData.smokedDuringPregnancy === false && styles.radioButtonSelected]}
+              onPress={() => updateField('smokedDuringPregnancy', false)}
+            >
+              <Text style={[styles.radioText, applicationData.smokedDuringPregnancy === false && styles.radioTextSelected]}>NO</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do any members of your household smoke cigarettes or ANY form of nicotine? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.householdSmoking === true && styles.radioButtonSelected]}
+            onPress={() => updateField('householdSmoking', true)}
+          >
+            <Text style={[styles.radioText, applicationData.householdSmoking === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.householdSmoking === false && styles.radioButtonSelected]}
+            onPress={() => updateField('householdSmoking', false)}
+          >
+            <Text style={[styles.radioText, applicationData.householdSmoking === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.householdSmoking && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Where and how often?</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.householdSmokingDetails || ''}
+            onChangeText={(value) => updateField('householdSmokingDetails', value)}
+            placeholder="Details about household smoking"
+            multiline
+            numberOfLines={2}
+          />
+        </View>
+      )}
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you drink alcohol? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.alcoholUsage === 'yes' && styles.radioButtonSelected]}
+            onPress={() => updateField('alcoholUsage', 'yes')}
+          >
+            <Text style={[styles.radioText, applicationData.alcoholUsage === 'yes' && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.alcoholUsage === 'no' && styles.radioButtonSelected]}
+            onPress={() => updateField('alcoholUsage', 'no')}
+          >
+            <Text style={[styles.radioText, applicationData.alcoholUsage === 'no' && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.alcoholUsage === 'yes' && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>How much and how often?</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.alcoholFrequency || ''}
+            onChangeText={(value) => updateField('alcoholFrequency', value)}
+            placeholder="Frequency and amount"
+          />
+        </View>
+      )}
+
+      {/* Drug Use */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever used illegal drugs or unprescribed drugs? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.illegalDrugs === true && styles.radioButtonSelected]}
+            onPress={() => updateField('illegalDrugs', true)}
+          >
+            <Text style={[styles.radioText, applicationData.illegalDrugs === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.illegalDrugs === false && styles.radioButtonSelected]}
+            onPress={() => updateField('illegalDrugs', false)}
+          >
+            <Text style={[styles.radioText, applicationData.illegalDrugs === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Has your partner/husband used illegal drugs or unprescribed drugs? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.partnerIllegalDrugs === true && styles.radioButtonSelected]}
+            onPress={() => updateField('partnerIllegalDrugs', true)}
+          >
+            <Text style={[styles.radioText, applicationData.partnerIllegalDrugs === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.partnerIllegalDrugs === false && styles.radioButtonSelected]}
+            onPress={() => updateField('partnerIllegalDrugs', false)}
+          >
+            <Text style={[styles.radioText, applicationData.partnerIllegalDrugs === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Children Info */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Please list the Name(s), Age(s), and Gender(s) of your children *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.supportSystem}
-          onChangeText={(value) => updateField('supportSystem', value)}
-          placeholder={t('application.supportSystemPlaceholder')}
+          value={applicationData.childrenList || ''}
+          onChangeText={(value) => updateField('childrenList', value)}
+          placeholder="Name, Age, Gender for each child"
           multiline
           numberOfLines={3}
         />
       </View>
-    </View>
-  );
 
-  const renderStep4 = () => (
-    <View>
-      <Text style={styles.stepTitle}>{t('application.step4Title')}</Text>
-      <Text style={styles.stepDescription}>{t('application.step4Description')}</Text>
-      
+      {/* Surgeries & Illnesses */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.criminalBackground')}</Text>
+        <Text style={styles.label}>Have you ever had any surgery? *</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.criminalBackground === false && styles.radioButtonSelected]}
-            onPress={() => updateField('criminalBackground', false)}
+            style={[styles.radioButton, applicationData.surgeries === true && styles.radioButtonSelected]}
+            onPress={() => updateField('surgeries', true)}
           >
-            <Text style={[styles.radioText, applicationData.criminalBackground === false && styles.radioTextSelected]}>{t('application.noCriminalRecord')}</Text>
+            <Text style={[styles.radioText, applicationData.surgeries === true && styles.radioTextSelected]}>YES</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.criminalBackground === true && styles.radioButtonSelected]}
-            onPress={() => updateField('criminalBackground', true)}
+            style={[styles.radioButton, applicationData.surgeries === false && styles.radioButtonSelected]}
+            onPress={() => updateField('surgeries', false)}
           >
-            <Text style={[styles.radioText, applicationData.criminalBackground === true && styles.radioTextSelected]}>{t('application.hasCriminalRecord')}</Text>
+            <Text style={[styles.radioText, applicationData.surgeries === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {applicationData.criminalBackground && (
+      {applicationData.surgeries && (
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t('application.pleaseExplain')}</Text>
+          <Text style={styles.label}>Reason and results?</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            value={applicationData.legalIssues}
-            onChangeText={(value) => updateField('legalIssues', value)}
-            placeholder={t('application.pleaseExplainPlaceholder')}
+            value={applicationData.surgeryDetails || ''}
+            onChangeText={(value) => updateField('surgeryDetails', value)}
+            placeholder="Surgery details"
             multiline
             numberOfLines={3}
           />
@@ -1394,134 +1649,507 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       )}
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.insuranceCoverage')}</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.insuranceCoverage}
-          onChangeText={(value) => updateField('insuranceCoverage', value)}
-          placeholder={t('application.insuranceCoveragePlaceholder')}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.financialStability')}</Text>
+        <Text style={styles.label}>List any serious illnesses you have</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.financialStability}
-          onChangeText={(value) => updateField('financialStability', value)}
-          placeholder={t('application.financialStabilityPlaceholder')}
+          value={applicationData.seriousIllnesses || ''}
+          onChangeText={(value) => updateField('seriousIllnesses', value)}
+          placeholder="Serious illnesses (or N/A)"
           multiline
           numberOfLines={2}
         />
       </View>
-    </View>
-  );
 
-  const renderStep5 = () => (
-    <View>
-      <Text style={styles.stepTitle}>{t('application.step5Title')}</Text>
-      <Text style={styles.stepDescription}>{t('application.step5Description')}</Text>
-      
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.compensationExpectations')}</Text>
+        <Text style={styles.label}>List all hospitalizations (except for childbirth)</Text>
         <TextInput
-          style={styles.input}
-          value={applicationData.compensationExpectations}
-          onChangeText={(value) => updateField('compensationExpectations', value)}
-          placeholder={t('application.compensationExpectationsPlaceholder')}
+          style={[styles.input, styles.textArea]}
+          value={applicationData.hospitalizations || ''}
+          onChangeText={(value) => updateField('hospitalizations', value)}
+          placeholder="Hospitalizations (or N/A)"
+          multiline
+          numberOfLines={2}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.timelineAvailability')}</Text>
+        <Text style={styles.label}>List all medications that you are presently taking and for what reason</Text>
         <TextInput
-          style={styles.input}
-          value={applicationData.timelineAvailability}
-          onChangeText={(value) => updateField('timelineAvailability', value)}
-          placeholder={t('application.timelineAvailabilityPlaceholder')}
+          style={[styles.input, styles.textArea]}
+          value={applicationData.currentMedications || ''}
+          onChangeText={(value) => updateField('currentMedications', value)}
+          placeholder="Medications and reasons (or N/A)"
+          multiline
+          numberOfLines={2}
         />
       </View>
 
+      {/* Mental Health */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.willingnessToTravel')}</Text>
+        <Text style={styles.label}>Have you ever been seen by a professional for mental health issues? *</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.travelWillingness === true && styles.radioButtonSelected]}
-            onPress={() => updateField('travelWillingness', true)}
+            style={[styles.radioButton, applicationData.mentalHealthTreatment === true && styles.radioButtonSelected]}
+            onPress={() => updateField('mentalHealthTreatment', true)}
           >
-            <Text style={[styles.radioText, applicationData.travelWillingness === true && styles.radioTextSelected]}>{t('application.yes')}</Text>
+            <Text style={[styles.radioText, applicationData.mentalHealthTreatment === true && styles.radioTextSelected]}>YES</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.travelWillingness === false && styles.radioButtonSelected]}
-            onPress={() => updateField('travelWillingness', false)}
+            style={[styles.radioButton, applicationData.mentalHealthTreatment === false && styles.radioButtonSelected]}
+            onPress={() => updateField('mentalHealthTreatment', false)}
           >
-            <Text style={[styles.radioText, applicationData.travelWillingness === false && styles.radioTextSelected]}>{t('application.no')}</Text>
+            <Text style={[styles.radioText, applicationData.mentalHealthTreatment === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.mentalHealthTreatment && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Please explain and list time periods</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.mentalHealthDetails || ''}
+            onChangeText={(value) => updateField('mentalHealthDetails', value)}
+            placeholder="Details and time periods"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever experienced any postpartum depression? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.postpartumDepression === true && styles.radioButtonSelected]}
+            onPress={() => updateField('postpartumDepression', true)}
+          >
+            <Text style={[styles.radioText, applicationData.postpartumDepression === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.postpartumDepression === false && styles.radioButtonSelected]}
+            onPress={() => updateField('postpartumDepression', false)}
+          >
+            <Text style={[styles.radioText, applicationData.postpartumDepression === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.postpartumDepression && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Please give the details and time periods</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.postpartumDepressionDetails || ''}
+            onChangeText={(value) => updateField('postpartumDepressionDetails', value)}
+            placeholder="Details and time periods"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      {/* Vaccinations */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you been vaccinated for Hepatitis B? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.hepatitisBVaccinated === true && styles.radioButtonSelected]}
+            onPress={() => updateField('hepatitisBVaccinated', true)}
+          >
+            <Text style={[styles.radioText, applicationData.hepatitisBVaccinated === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.hepatitisBVaccinated === false && styles.radioButtonSelected]}
+            onPress={() => updateField('hepatitisBVaccinated', false)}
+          >
+            <Text style={[styles.radioText, applicationData.hepatitisBVaccinated === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.specialPreferences')}</Text>
+        <Text style={styles.label}>Do you have any allergies? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.allergies === true && styles.radioButtonSelected]}
+            onPress={() => updateField('allergies', true)}
+          >
+            <Text style={[styles.radioText, applicationData.allergies === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.allergies === false && styles.radioButtonSelected]}
+            onPress={() => updateField('allergies', false)}
+          >
+            <Text style={[styles.radioText, applicationData.allergies === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.allergies && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Please explain in detail</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.allergiesDetails || ''}
+            onChangeText={(value) => updateField('allergiesDetails', value)}
+            placeholder="Allergy details"
+            multiline
+            numberOfLines={2}
+          />
+        </View>
+      )}
+    </ScrollView>
+  );
+
+  const renderStep4 = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Sexual History</Text>
+      <Text style={styles.stepDescription}>Please provide your sexual health information</Text>
+      
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>List any contraceptives you have used in the past and any reaction you have had</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={applicationData.specialPreferences}
-          onChangeText={(value) => updateField('specialPreferences', value)}
-          placeholder={t('application.specialPreferencesPlaceholder')}
+          value={applicationData.pastContraceptives || ''}
+          onChangeText={(value) => updateField('pastContraceptives', value)}
+          placeholder="Include Tubal Ligation if applicable"
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.additionalComments')}</Text>
+        <Text style={styles.label}>Are you currently using birth control? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.currentBirthControl === true && styles.radioButtonSelected]}
+            onPress={() => updateField('currentBirthControl', true)}
+          >
+            <Text style={[styles.radioText, applicationData.currentBirthControl === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.currentBirthControl === false && styles.radioButtonSelected]}
+            onPress={() => updateField('currentBirthControl', false)}
+          >
+            <Text style={[styles.radioText, applicationData.currentBirthControl === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.currentBirthControl && (
+        <>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Which method do you use?</Text>
+            <TextInput
+              style={styles.input}
+              value={applicationData.birthControlMethod || ''}
+              onChangeText={(value) => updateField('birthControlMethod', value)}
+              placeholder="Birth control method"
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>How long have you been using this method?</Text>
+            <TextInput
+              style={styles.input}
+              value={applicationData.birthControlDuration || ''}
+              onChangeText={(value) => updateField('birthControlDuration', value)}
+              placeholder="Duration"
+            />
+          </View>
+        </>
+      )}
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you with a sexual partner now? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.sexualPartner === true && styles.radioButtonSelected]}
+            onPress={() => updateField('sexualPartner', true)}
+          >
+            <Text style={[styles.radioText, applicationData.sexualPartner === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.sexualPartner === false && styles.radioButtonSelected]}
+            onPress={() => updateField('sexualPartner', false)}
+          >
+            <Text style={[styles.radioText, applicationData.sexualPartner === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you currently have more than one sexual partner? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.multiplePartners === true && styles.radioButtonSelected]}
+            onPress={() => updateField('multiplePartners', true)}
+          >
+            <Text style={[styles.radioText, applicationData.multiplePartners === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.multiplePartners === false && styles.radioButtonSelected]}
+            onPress={() => updateField('multiplePartners', false)}
+          >
+            <Text style={[styles.radioText, applicationData.multiplePartners === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many sexual partners have you had in the last three years? *</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.additionalComments}
-          onChangeText={(value) => updateField('additionalComments', value)}
-          placeholder={t('application.additionalCommentsPlaceholder')}
-          multiline
-          numberOfLines={4}
+          style={styles.input}
+          value={applicationData.partnersLastThreeYears || ''}
+          onChangeText={(value) => updateField('partnersLastThreeYears', value)}
+          placeholder="Number of partners"
+          keyboardType="numeric"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{t('application.inviteCode')}</Text>
-        <Text style={styles.subLabel}>{t('application.inviteCodeSubLabel')}</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.referralCode}
-          onChangeText={(value) => updateField('referralCode', value)}
-          placeholder={t('application.inviteCodePlaceholder')}
-          autoCapitalize="none"
-        />
+        <Text style={styles.label}>In the past 10 years have you had sexual contact with anyone in a high-risk group for HIV or AIDS? *</Text>
+        <Text style={styles.subLabel}>Including sexually active partners with multiple partners and partners who have used illegal drugs</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.highRiskHIVContact === true && styles.radioButtonSelected]}
+            onPress={() => updateField('highRiskHIVContact', true)}
+          >
+            <Text style={[styles.radioText, applicationData.highRiskHIVContact === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.highRiskHIVContact === false && styles.radioButtonSelected]}
+            onPress={() => updateField('highRiskHIVContact', false)}
+          >
+            <Text style={[styles.radioText, applicationData.highRiskHIVContact === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you at risk for HIV or AIDS? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.hivRisk === true && styles.radioButtonSelected]}
+            onPress={() => updateField('hivRisk', true)}
+          >
+            <Text style={[styles.radioText, applicationData.hivRisk === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.hivRisk === false && styles.radioButtonSelected]}
+            onPress={() => updateField('hivRisk', false)}
+          >
+            <Text style={[styles.radioText, applicationData.hivRisk === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever received a blood transfusion? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.bloodTransfusion === true && styles.radioButtonSelected]}
+            onPress={() => updateField('bloodTransfusion', true)}
+          >
+            <Text style={[styles.radioText, applicationData.bloodTransfusion === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.bloodTransfusion === false && styles.radioButtonSelected]}
+            onPress={() => updateField('bloodTransfusion', false)}
+          >
+            <Text style={[styles.radioText, applicationData.bloodTransfusion === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever had or have a sexually transmitted infection or disease? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.stdHistory === true && styles.radioButtonSelected]}
+            onPress={() => updateField('stdHistory', true)}
+          >
+            <Text style={[styles.radioText, applicationData.stdHistory === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.stdHistory === false && styles.radioButtonSelected]}
+            onPress={() => updateField('stdHistory', false)}
+          >
+            <Text style={[styles.radioText, applicationData.stdHistory === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.stdHistory && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Please explain</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.stdDetails || ''}
+            onChangeText={(value) => updateField('stdDetails', value)}
+            placeholder="STD/STI details"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+    </ScrollView>
   );
 
-  // Placeholder functions for additional steps - to be implemented
-  const renderStep6 = () => (
+  const renderStep5 = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>Employment Information</Text>
       <Text style={styles.stepDescription}>Please provide your employment details</Text>
+      
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Current Employment</Text>
+        <Text style={styles.label}>Please list your current place of employment *</Text>
+        <Text style={styles.subLabel}>Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state N/A</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.currentEmployment || ''}
           onChangeText={(value) => updateField('currentEmployment', value)}
-          placeholder="Position, date of employment, location"
+          placeholder="Position, start date, employer location"
           multiline
           numberOfLines={3}
         />
       </View>
+
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Monthly Income</Text>
+        <Text style={styles.label}>What is your current monthly income? *</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, marginRight: 5, color: '#333' }}>$</Text>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={applicationData.monthlyIncome || ''}
+            onChangeText={(value) => updateField('monthlyIncome', value)}
+            placeholder="Monthly income (USD)"
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Please list your husband/partner's current place of employment *</Text>
+        <Text style={styles.subLabel}>Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state N/A</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.spouseEmployment || ''}
+          onChangeText={(value) => updateField('spouseEmployment', value)}
+          placeholder="Position, start date, employer location (or N/A)"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is your Spouse's/Partner's current monthly income?</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, marginRight: 5, color: '#333' }}>$</Text>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={applicationData.spouseMonthlyIncome || ''}
+            onChangeText={(value) => updateField('spouseMonthlyIncome', value)}
+            placeholder="Monthly income (USD) or N/A"
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many persons do you support including yourself? *</Text>
         <TextInput
           style={styles.input}
-          value={applicationData.monthlyIncome || ''}
-          onChangeText={(value) => updateField('monthlyIncome', value)}
-          placeholder="Monthly income"
+          value={applicationData.personsSupported || ''}
+          onChangeText={(value) => updateField('personsSupported', value)}
+          placeholder="Number of persons"
           keyboardType="numeric"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you receiving food stamps or any other public assistance? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.publicAssistance === true && styles.radioButtonSelected]}
+            onPress={() => updateField('publicAssistance', true)}
+          >
+            <Text style={[styles.radioText, applicationData.publicAssistance === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.publicAssistance === false && styles.radioButtonSelected]}
+            onPress={() => updateField('publicAssistance', false)}
+          >
+            <Text style={[styles.radioText, applicationData.publicAssistance === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many people are currently living in your home? *</Text>
+        <Text style={styles.subLabel}>If other than your children, husband/spouse, who are they?</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.householdMembers || ''}
+          onChangeText={(value) => updateField('householdMembers', value)}
+          placeholder="Number and description of household members"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+    </ScrollView>
+  );
+
+  const renderStep6 = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>Education History</Text>
+      <Text style={styles.stepDescription}>Please provide your education background</Text>
+      
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What was your highest level of education obtained? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.educationLevel === 'highSchool' && styles.radioButtonSelected]}
+            onPress={() => updateField('educationLevel', 'highSchool')}
+          >
+            <Text style={[styles.radioText, applicationData.educationLevel === 'highSchool' && styles.radioTextSelected]}>High School</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.educationLevel === 'college' && styles.radioButtonSelected]}
+            onPress={() => updateField('educationLevel', 'college')}
+          >
+            <Text style={[styles.radioText, applicationData.educationLevel === 'college' && styles.radioTextSelected]}>College</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.educationLevel === 'tradeSchool' && styles.radioButtonSelected]}
+            onPress={() => updateField('educationLevel', 'tradeSchool')}
+          >
+            <Text style={[styles.radioText, applicationData.educationLevel === 'tradeSchool' && styles.radioTextSelected]}>Trade School</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.educationLevel === 'tradeSchool' && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If you completed your education through a trade school, please specify</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.tradeSchoolDetails || ''}
+            onChangeText={(value) => updateField('tradeSchoolDetails', value)}
+            placeholder="Trade school details"
+          />
+        </View>
+      )}
+
+      {/* Referral Code */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Referral Code (Optional)</Text>
+        <Text style={styles.subLabel}>If you were referred by someone, enter their invite code</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.referralCode || ''}
+          onChangeText={(value) => updateField('referralCode', value)}
+          placeholder="Enter referral code (optional)"
+          autoCapitalize="none"
         />
       </View>
     </ScrollView>
@@ -1529,10 +2157,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const renderStep7 = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>General Questions & Preferences</Text>
+      <Text style={styles.stepTitle}>General Questions</Text>
       <Text style={styles.stepDescription}>Please answer the following questions</Text>
+      
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation</Text>
+        <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation for becoming a surrogate mother *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.surrogacyUnderstanding || ''}
@@ -1542,23 +2171,335 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           numberOfLines={5}
         />
       </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Generally please introduce yourself: personality, hobbies, interests, family support *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.selfIntroduction || ''}
+          onChangeText={(value) => updateField('selfIntroduction', value)}
+          placeholder="Tell us about yourself"
+          multiline
+          numberOfLines={5}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What kind of support do you expect to have while being a gestational carrier from intended parents and our agency? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.expectedSupport || ''}
+          onChangeText={(value) => updateField('expectedSupport', value)}
+          placeholder="Please be specific"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How does your husband/partner feel about your participating in the surrogacy process? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.partnerFeelings || ''}
+          onChangeText={(value) => updateField('partnerFeelings', value)}
+          placeholder="Partner's feelings about surrogacy"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* Working Preferences */}
+      <Text style={[styles.label, { marginTop: 20, marginBottom: 10, fontSize: 16, fontWeight: 'bold' }]}>Working Preferences</Text>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a same sex couple? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.sameSexCouple === true && styles.radioButtonSelected]}
+            onPress={() => updateField('sameSexCouple', true)}
+          >
+            <Text style={[styles.radioText, applicationData.sameSexCouple === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.sameSexCouple === false && styles.radioButtonSelected]}
+            onPress={() => updateField('sameSexCouple', false)}
+          >
+            <Text style={[styles.radioText, applicationData.sameSexCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a single male? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.singleMale === true && styles.radioButtonSelected]}
+            onPress={() => updateField('singleMale', true)}
+          >
+            <Text style={[styles.radioText, applicationData.singleMale === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.singleMale === false && styles.radioButtonSelected]}
+            onPress={() => updateField('singleMale', false)}
+          >
+            <Text style={[styles.radioText, applicationData.singleMale === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a single female? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.singleFemale === true && styles.radioButtonSelected]}
+            onPress={() => updateField('singleFemale', true)}
+          >
+            <Text style={[styles.radioText, applicationData.singleFemale === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.singleFemale === false && styles.radioButtonSelected]}
+            onPress={() => updateField('singleFemale', false)}
+          >
+            <Text style={[styles.radioText, applicationData.singleFemale === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with an international couple? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.internationalCouple === true && styles.radioButtonSelected]}
+            onPress={() => updateField('internationalCouple', true)}
+          >
+            <Text style={[styles.radioText, applicationData.internationalCouple === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.internationalCouple === false && styles.radioButtonSelected]}
+            onPress={() => updateField('internationalCouple', false)}
+          >
+            <Text style={[styles.radioText, applicationData.internationalCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you willing to carry twins? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.carryTwins === true && styles.radioButtonSelected]}
+            onPress={() => updateField('carryTwins', true)}
+          >
+            <Text style={[styles.radioText, applicationData.carryTwins === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.carryTwins === false && styles.radioButtonSelected]}
+            onPress={() => updateField('carryTwins', false)}
+          >
+            <Text style={[styles.radioText, applicationData.carryTwins === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you willing to receive injections, medications, and ultrasounds as required? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.receiveInjections === true && styles.radioButtonSelected]}
+            onPress={() => updateField('receiveInjections', true)}
+          >
+            <Text style={[styles.radioText, applicationData.receiveInjections === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.receiveInjections === false && styles.radioButtonSelected]}
+            onPress={() => updateField('receiveInjections', false)}
+          >
+            <Text style={[styles.radioText, applicationData.receiveInjections === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you able to attend all prenatal check-ups on time? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.attendCheckups === true && styles.radioButtonSelected]}
+            onPress={() => updateField('attendCheckups', true)}
+          >
+            <Text style={[styles.radioText, applicationData.attendCheckups === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.attendCheckups === false && styles.radioButtonSelected]}
+            onPress={() => updateField('attendCheckups', false)}
+          >
+            <Text style={[styles.radioText, applicationData.attendCheckups === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you willing to avoid long-distance travel during pregnancy? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.avoidLongTravel === true && styles.radioButtonSelected]}
+            onPress={() => updateField('avoidLongTravel', true)}
+          >
+            <Text style={[styles.radioText, applicationData.avoidLongTravel === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.avoidLongTravel === false && styles.radioButtonSelected]}
+            onPress={() => updateField('avoidLongTravel', false)}
+          >
+            <Text style={[styles.radioText, applicationData.avoidLongTravel === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents in the delivery room? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsInDeliveryRoom === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsInDeliveryRoom', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsInDeliveryRoom === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsInDeliveryRoom === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsInDeliveryRoom', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsInDeliveryRoom === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents to attend doctor appointments if they want to attend? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsAtAppointments === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsAtAppointments', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsAtAppointments === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsAtAppointments === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsAtAppointments', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsAtAppointments === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How much contact would you like to have with the parents throughout the process?</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.contactDuringProcess || ''}
+          onChangeText={(value) => updateField('contactDuringProcess', value)}
+          placeholder="Describe your preferred level of contact"
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How much contact would you like to have with the parents after the birth?</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.contactAfterBirth || ''}
+          onChangeText={(value) => updateField('contactAfterBirth', value)}
+          placeholder="Describe your preferred level of contact after birth"
+          multiline
+          numberOfLines={2}
+        />
+      </View>
     </ScrollView>
   );
 
   const renderStep8 = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Authorization</Text>
+      <Text style={styles.stepTitle}>Authorization for Release of Information</Text>
       <Text style={styles.stepDescription}>Please review and confirm</Text>
+      
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs.</Text>
-        <View style={styles.radioContainer}>
+        <Text style={[styles.label, { lineHeight: 22 }]}>
+          I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs. I understand, and expressly condition this authorization upon such understanding.
+        </Text>
+        <View style={[styles.radioContainer, { marginTop: 15 }]}>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.authorizationAgreed === true && styles.radioButtonSelected]}
+            style={[styles.radioButton, applicationData.authorizationAgreed === true && styles.radioButtonSelected, { paddingVertical: 15, paddingHorizontal: 25 }]}
             onPress={() => updateField('authorizationAgreed', true)}
           >
             <Text style={[styles.radioText, applicationData.authorizationAgreed === true && styles.radioTextSelected]}>I Agree</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Applicant Information */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Applicant Name *</Text>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={applicationData.firstName || ''}
+            placeholder="First Name"
+            editable={false}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={applicationData.lastName || ''}
+            placeholder="Last Name"
+            editable={false}
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Application Date</Text>
+        <TextInput
+          style={styles.input}
+          value={new Date().toLocaleDateString('en-US')}
+          editable={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Applicant Email *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.email || ''}
+          placeholder="Email"
+          editable={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Applicant Phone Number *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.phoneNumber || ''}
+          placeholder="Phone"
+          editable={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Emergency Contact person's name, relationship and Phone Number *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.emergencyContact || ''}
+          onChangeText={(value) => updateField('emergencyContact', value)}
+          placeholder="Name, Relationship, Phone Number"
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      <View style={[styles.inputGroup, { marginTop: 20, padding: 15, backgroundColor: '#FFF3CD', borderRadius: 12 }]}>
+        <Text style={{ color: '#856404', fontSize: 14, lineHeight: 20 }}>
+          By submitting this application, you confirm that all information provided is true and accurate to the best of your knowledge.
+        </Text>
       </View>
     </ScrollView>
   );
@@ -1944,3 +2885,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

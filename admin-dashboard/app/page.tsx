@@ -329,11 +329,11 @@ export default function Home() {
       {/* Application Details Modal */}
       {selectedApp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Application Details
+                  Application Details - {selectedApp.full_name}
                 </h2>
                 <button
                   onClick={() => setSelectedApp(null)}
@@ -346,165 +346,371 @@ export default function Home() {
               </div>
 
               <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">👤 Personal Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Step 1: Personal Information */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-blue-900 mb-4">👤 Step 1: Personal Information</h3>
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Full Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.full_name}</p>
+                      <p className="text-sm text-gray-900">{selectedApp.full_name || selectedApp.fullName || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Age</label>
-                      <p className="text-sm text-gray-900">{selectedApp.age || 'Not provided'}</p>
+                      <label className="block text-sm font-medium text-gray-500">First Name</label>
+                      <p className="text-sm text-gray-900">{selectedApp.firstName || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Phone</label>
-                      <p className="text-sm text-gray-900">{selectedApp.phone}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-sm text-gray-900">{selectedApp.email}</p>
+                      <label className="block text-sm font-medium text-gray-500">Last Name</label>
+                      <p className="text-sm text-gray-900">{selectedApp.lastName || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Date of Birth</label>
-                      <p className="text-sm text-gray-900">{selectedApp.dateOfBirth || 'Not provided'}</p>
+                      <p className="text-sm text-gray-900">{selectedApp.dateOfBirth || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">How did you hear about us?</label>
-                      <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'Not specified'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Age</label>
+                      <p className="text-sm text-gray-900">{selectedApp.age || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Blood Type</label>
+                      <p className="text-sm text-gray-900">{selectedApp.bloodType || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Height</label>
+                      <p className="text-sm text-gray-900">{selectedApp.height || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Weight</label>
+                      <p className="text-sm text-gray-900">{selectedApp.weight || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Race/Ethnicity</label>
+                      <p className="text-sm text-gray-900">{selectedApp.race || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Religious Background</label>
+                      <p className="text-sm text-gray-900">{selectedApp.religiousBackground || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">US Citizen</label>
+                      <p className="text-sm text-gray-900">{selectedApp.usCitizen === true ? 'Yes' : selectedApp.usCitizen === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Phone</label>
+                      <p className="text-sm text-gray-900">{selectedApp.phone || selectedApp.phoneNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Email</label>
+                      <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>
+                      <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Previous Surrogacy</label>
+                      <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : selectedApp.previousSurrogacy === false ? 'No' : 'N/A'}</p>
                     </div>
                   </div>
-                  
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-500">Location</label>
-                    <p className="text-sm text-gray-900">{selectedApp.location || 'Not provided'}</p>
+                    <label className="block text-sm font-medium text-gray-500">Location/Address</label>
+                    <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
                   </div>
-                </div>
-
-                {/* Medical Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">🏥 Medical Information</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Previous Pregnancies</label>
-                      <p className="text-sm text-gray-900">{selectedApp.previousPregnancies || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Previous Surrogacy Experience</label>
-                      <p className="text-sm text-gray-900">
-                        {selectedApp.previousSurrogacy ? 'Yes' : selectedApp.previousSurrogacy === false ? 'No' : 'Not specified'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Pregnancy Complications</label>
-                      <p className="text-sm text-gray-900">{selectedApp.pregnancyComplications || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Current Medications</label>
-                      <p className="text-sm text-gray-900">{selectedApp.currentMedications || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Health Conditions</label>
-                      <p className="text-sm text-gray-900">{selectedApp.healthConditions || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">BMI</label>
-                      <p className="text-sm text-gray-900">{selectedApp.bmi || 'Not provided'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lifestyle Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">🏃 Lifestyle Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Smoking Status</label>
-                      <p className="text-sm text-gray-900">{selectedApp.smokingStatus || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Alcohol Usage</label>
-                      <p className="text-sm text-gray-900">{selectedApp.alcoholUsage || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Exercise Routine</label>
-                      <p className="text-sm text-gray-900">{selectedApp.exerciseRoutine || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Employment Status</label>
-                      <p className="text-sm text-gray-900">{selectedApp.employmentStatus || 'Not specified'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-500">Support System</label>
-                    <p className="text-sm text-gray-900">{selectedApp.supportSystem || 'Not specified'}</p>
-                  </div>
-                </div>
-
-                {/* Legal & Background */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">⚖️ Legal & Background</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Criminal Background</label>
-                      <p className="text-sm text-gray-900">
-                        {selectedApp.criminalBackground ? 'Yes' : selectedApp.criminalBackground === false ? 'No' : 'Not specified'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Insurance Coverage</label>
-                      <p className="text-sm text-gray-900">{selectedApp.insuranceCoverage || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Financial Stability</label>
-                      <p className="text-sm text-gray-900">{selectedApp.financialStability || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Travel Willingness</label>
-                      <p className="text-sm text-gray-900">
-                        {selectedApp.travelWillingness ? 'Yes' : selectedApp.travelWillingness === false ? 'No' : 'Not specified'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {selectedApp.legalIssues && (
+                  {selectedApp.citizenshipStatus && (
                     <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-500">Legal Issues</label>
-                      <p className="text-sm text-gray-900">{selectedApp.legalIssues}</p>
+                      <label className="block text-sm font-medium text-gray-500">Citizenship Status</label>
+                      <p className="text-sm text-gray-900">{selectedApp.citizenshipStatus}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Preferences & Additional */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">💭 Preferences & Additional Information</h3>
-                  <div className="grid grid-cols-1 gap-4">
+                {/* Step 2: Pregnancy & Delivery History */}
+                <div className="bg-pink-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-pink-900 mb-4">🤰 Step 2: Pregnancy & Delivery History</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Compensation Expectations</label>
-                      <p className="text-sm text-gray-900">{selectedApp.compensationExpectations || 'Not specified'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Total Deliveries (20+ weeks)</label>
+                      <p className="text-sm text-gray-900">{selectedApp.totalDeliveries || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Timeline Availability</label>
-                      <p className="text-sm text-gray-900">{selectedApp.timelineAvailability || 'Not specified'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Previous Surrogacy</label>
+                      <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : 'No'}</p>
+                    </div>
+                  </div>
+                  {selectedApp.deliveries && selectedApp.deliveries.length > 0 && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Delivery History</label>
+                      <div className="space-y-3">
+                        {selectedApp.deliveries.map((delivery: any, index: number) => (
+                          <div key={index} className="bg-white p-3 rounded border">
+                            <p className="text-sm font-medium text-gray-700">Delivery #{index + 1}</p>
+                            <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
+                              <div><span className="text-gray-500">Year:</span> {delivery.year || 'N/A'}</div>
+                              <div><span className="text-gray-500">Gender:</span> {delivery.gender || 'N/A'}</div>
+                              <div><span className="text-gray-500">Weight:</span> {delivery.birthWeight || 'N/A'}</div>
+                              <div><span className="text-gray-500">Method:</span> {delivery.deliveryMethod || 'N/A'}</div>
+                              <div><span className="text-gray-500">Weeks:</span> {delivery.gestationWeeks || 'N/A'}</div>
+                              <div><span className="text-gray-500">Conception:</span> {delivery.conceptionMethod || 'N/A'}</div>
+                              <div><span className="text-gray-500">Result:</span> {delivery.pregnancyResult || 'N/A'}</div>
+                              <div><span className="text-gray-500">Complications:</span> {delivery.complications || 'None'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 3: Health Information */}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-green-900 mb-4">🏥 Step 3: Health Information</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Health Insurance</label>
+                      <p className="text-sm text-gray-900">{selectedApp.healthInsurance === true ? 'Yes' : selectedApp.healthInsurance === false ? 'No' : 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Special Preferences</label>
-                      <p className="text-sm text-gray-900">{selectedApp.specialPreferences || 'Not specified'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Maternity Coverage</label>
+                      <p className="text-sm text-gray-900">{selectedApp.maternityCoverage === true ? 'Yes' : selectedApp.maternityCoverage === 'not_sure' ? 'Not Sure' : selectedApp.maternityCoverage === false ? 'No' : 'N/A'}</p>
                     </div>
-                    {selectedApp.additionalComments && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Delivery Hospital</label>
+                      <p className="text-sm text-gray-900">{selectedApp.deliveryHospital || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Monthly Cycles</label>
+                      <p className="text-sm text-gray-900">{selectedApp.monthlyCycles === true ? 'Yes' : selectedApp.monthlyCycles === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Cycle Days</label>
+                      <p className="text-sm text-gray-900">{selectedApp.cycleDays || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Period Days</label>
+                      <p className="text-sm text-gray-900">{selectedApp.periodDays || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Smoking</label>
+                      <p className="text-sm text-gray-900">{selectedApp.smokingStatus || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Alcohol</label>
+                      <p className="text-sm text-gray-900">{selectedApp.alcoholUsage || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Illegal Drugs</label>
+                      <p className="text-sm text-gray-900">{selectedApp.illegalDrugs === true ? 'Yes' : selectedApp.illegalDrugs === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Mental Health Treatment</label>
+                      <p className="text-sm text-gray-900">{selectedApp.mentalHealthTreatment === true ? 'Yes' : selectedApp.mentalHealthTreatment === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Postpartum Depression</label>
+                      <p className="text-sm text-gray-900">{selectedApp.postpartumDepression === true ? 'Yes' : selectedApp.postpartumDepression === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Hepatitis B Vaccinated</label>
+                      <p className="text-sm text-gray-900">{selectedApp.hepatitisBVaccinated === true ? 'Yes' : selectedApp.hepatitisBVaccinated === false ? 'No' : 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Children List</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.childrenList || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Current Medications</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.currentMedications || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Surgeries</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.surgeries === true ? selectedApp.surgeryDetails || 'Yes' : 'No'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Allergies</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.allergies === true ? selectedApp.allergiesDetails || 'Yes' : 'No'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4: Sexual History */}
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-purple-900 mb-4">💕 Step 4: Sexual History</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Current Birth Control</label>
+                      <p className="text-sm text-gray-900">{selectedApp.currentBirthControl === true ? `Yes (${selectedApp.birthControlMethod || 'N/A'})` : selectedApp.currentBirthControl === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Sexual Partner</label>
+                      <p className="text-sm text-gray-900">{selectedApp.sexualPartner === true ? 'Yes' : selectedApp.sexualPartner === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Partners (Last 3 Years)</label>
+                      <p className="text-sm text-gray-900">{selectedApp.partnersLastThreeYears || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">High Risk HIV Contact</label>
+                      <p className="text-sm text-gray-900">{selectedApp.highRiskHIVContact === true ? 'Yes' : selectedApp.highRiskHIVContact === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">HIV Risk</label>
+                      <p className="text-sm text-gray-900">{selectedApp.hivRisk === true ? 'Yes' : selectedApp.hivRisk === false ? 'No' : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">STD History</label>
+                      <p className="text-sm text-gray-900">{selectedApp.stdHistory === true ? `Yes - ${selectedApp.stdDetails || 'N/A'}` : selectedApp.stdHistory === false ? 'No' : 'N/A'}</p>
+                    </div>
+                  </div>
+                  {selectedApp.pastContraceptives && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-500">Past Contraceptives</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.pastContraceptives}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 5: Employment Information */}
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-yellow-900 mb-4">💼 Step 5: Employment Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Current Employment</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.currentEmployment || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Monthly Income</label>
+                      <p className="text-sm text-gray-900">{selectedApp.monthlyIncome ? `$${selectedApp.monthlyIncome}` : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Spouse Employment</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.spouseEmployment || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Spouse Monthly Income</label>
+                      <p className="text-sm text-gray-900">{selectedApp.spouseMonthlyIncome ? `$${selectedApp.spouseMonthlyIncome}` : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Persons Supported</label>
+                      <p className="text-sm text-gray-900">{selectedApp.personsSupported || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Public Assistance</label>
+                      <p className="text-sm text-gray-900">{selectedApp.publicAssistance === true ? 'Yes' : selectedApp.publicAssistance === false ? 'No' : 'N/A'}</p>
+                    </div>
+                  </div>
+                  {selectedApp.householdMembers && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-500">Household Members</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.householdMembers}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 6: Education */}
+                <div className="bg-indigo-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-indigo-900 mb-4">🎓 Step 6: Education</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Education Level</label>
+                      <p className="text-sm text-gray-900">{selectedApp.educationLevel === 'highSchool' ? 'High School' : selectedApp.educationLevel === 'college' ? 'College' : selectedApp.educationLevel === 'tradeSchool' ? 'Trade School' : selectedApp.educationLevel || 'N/A'}</p>
+                    </div>
+                    {selectedApp.tradeSchoolDetails && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-500">Additional Comments</label>
-                        <p className="text-sm text-gray-900">{selectedApp.additionalComments}</p>
+                        <label className="block text-sm font-medium text-gray-500">Trade School Details</label>
+                        <p className="text-sm text-gray-900">{selectedApp.tradeSchoolDetails}</p>
                       </div>
                     )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Referral Code</label>
+                      <p className="text-sm text-gray-900">{selectedApp.referralCode || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 7: General Questions & Preferences */}
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-orange-900 mb-4">💭 Step 7: General Questions & Preferences</h3>
+                  <div className="space-y-4">
+                    {selectedApp.surrogacyUnderstanding && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Surrogacy Understanding & Motivation</label>
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.surrogacyUnderstanding}</p>
+                      </div>
+                    )}
+                    {selectedApp.selfIntroduction && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Self Introduction</label>
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.selfIntroduction}</p>
+                      </div>
+                    )}
+                    {selectedApp.expectedSupport && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Expected Support</label>
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.expectedSupport}</p>
+                      </div>
+                    )}
+                    {selectedApp.partnerFeelings && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Partner Feelings About Surrogacy</label>
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.partnerFeelings}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-3 mt-4">
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Same Sex Couple</p>
+                      <p className="text-sm font-medium">{selectedApp.sameSexCouple === true ? '✓ Yes' : selectedApp.sameSexCouple === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Single Male</p>
+                      <p className="text-sm font-medium">{selectedApp.singleMale === true ? '✓ Yes' : selectedApp.singleMale === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Single Female</p>
+                      <p className="text-sm font-medium">{selectedApp.singleFemale === true ? '✓ Yes' : selectedApp.singleFemale === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">International</p>
+                      <p className="text-sm font-medium">{selectedApp.internationalCouple === true ? '✓ Yes' : selectedApp.internationalCouple === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Carry Twins</p>
+                      <p className="text-sm font-medium">{selectedApp.carryTwins === true ? '✓ Yes' : selectedApp.carryTwins === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Attend Checkups</p>
+                      <p className="text-sm font-medium">{selectedApp.attendCheckups === true ? '✓ Yes' : selectedApp.attendCheckups === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Parents in Delivery</p>
+                      <p className="text-sm font-medium">{selectedApp.parentsInDeliveryRoom === true ? '✓ Yes' : selectedApp.parentsInDeliveryRoom === false ? '✗ No' : '—'}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <p className="text-xs text-gray-500">Avoid Long Travel</p>
+                      <p className="text-sm font-medium">{selectedApp.avoidLongTravel === true ? '✓ Yes' : selectedApp.avoidLongTravel === false ? '✗ No' : '—'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 8: Authorization */}
+                <div className="bg-red-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-red-900 mb-4">✍️ Step 8: Authorization</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Authorization Agreed</label>
+                      <p className="text-sm text-gray-900">{selectedApp.authorizationAgreed === true ? '✓ Agreed' : 'Not Agreed'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Emergency Contact</label>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.emergencyContact || 'N/A'}</p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Application Status */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Status</h3>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">📋 Application Status</h3>
                   <div className="flex items-center space-x-4">
                     <span className={`px-3 py-1 inline-flex text-sm leading-5 font-medium rounded-full 
                       ${selectedApp.status === 'approved' ? 'bg-green-100 text-green-800' : 
@@ -519,7 +725,7 @@ export default function Home() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-4 border-t">
+                <div className="flex justify-end space-x-3 pt-4 border-t sticky bottom-0 bg-white py-4">
                   <button
                     onClick={() => setSelectedApp(null)}
                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
@@ -543,3 +749,4 @@ export default function Home() {
     </div>
   );
 }
+
