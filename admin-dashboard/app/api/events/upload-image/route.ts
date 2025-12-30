@@ -6,7 +6,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
 
-const STORAGE_BUCKET = 'blog-images';
+const STORAGE_BUCKET = 'documents';
 
 // Helper function to get public URL
 function getPublicUrl(path: string): string {
