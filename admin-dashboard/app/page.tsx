@@ -36,8 +36,9 @@ export default function Home() {
       email: formData.email || 'N/A',
       age: formData.age || 'N/A',
       dateOfBirth: formData.dateOfBirth || 'N/A',
-      // Use address for full address
-      address: formData.address || formData.location || 'N/A',
+      // Use location for display (city/state), address for full address
+      location: formData.location || app.location || 'N/A',
+      address: formData.address || 'N/A',
     };
   };
 
@@ -72,7 +73,7 @@ export default function Home() {
       app.full_name?.toLowerCase().includes(searchLower) ||
       app.email?.toLowerCase().includes(searchLower) ||
       app.phone?.includes(searchTerm) ||
-      app.address?.toLowerCase().includes(searchLower) ||
+      app.location?.toLowerCase().includes(searchLower) ||
       app.age?.toString().includes(searchTerm) ||
       app.employmentStatus?.toLowerCase().includes(searchLower) ||
       app.previousPregnancies?.toLowerCase().includes(searchLower);
@@ -161,7 +162,7 @@ export default function Home() {
             <div className="flex-1">
               <input
                 type="text"
-                        placeholder="Search by name, email, phone, address, age, or employment status..."
+                        placeholder="Search by name, email, phone, location, age, or employment status..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -275,9 +276,9 @@ export default function Home() {
                       <div>
                         <div className="text-sm text-gray-900">{app.phone}</div>
                         <div className="text-sm text-gray-500">{app.email}</div>
-                        {app.address && app.address !== 'N/A' && (
+                        {app.location && app.location !== 'N/A' && (
                           <div className="text-xs text-gray-400 mt-1 truncate max-w-xs">
-                            📍 {app.address}
+                            📍 {app.location}
                           </div>
                         )}
                       </div>
@@ -417,6 +418,10 @@ export default function Home() {
                       <label className="block text-sm font-medium text-gray-500">Previous Surrogacy</label>
                       <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : selectedApp.previousSurrogacy === false ? 'No' : 'N/A'}</p>
                     </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-500">Location</label>
+                    <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
                   </div>
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-500">Full Address</label>
