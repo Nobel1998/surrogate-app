@@ -20,7 +20,52 @@ type CaseStep = {
 type CaseDetail = {
   id: string;
   claim_id: string;
+  surrogate_id?: string;
+  first_parent_id?: string;
+  second_parent_id?: string;
+  case_type?: string;
+  current_step?: string;
+  weeks_pregnant?: number;
+  estimated_due_date?: string;
+  number_of_fetuses?: number;
+  fetal_beat_confirm?: string;
+  sign_date?: string;
+  transfer_date?: string;
+  beta_confirm_date?: string;
+  due_date?: string;
+  clinic?: string;
+  embryos?: string;
+  lawyer?: string;
+  company?: string;
+  egg_donation?: string;
+  sperm_donation?: string;
+  status?: string;
   surrogate?: any;
+  first_parent?: any;
+  second_parent?: any;
+  managers?: Array<{ id: string; name: string }>;
+};
+
+type SurrogateApplication = {
+  full_name?: string;
+  phone?: string;
+  form_data?: string;
+  status?: string;
+  created_at?: string;
+};
+
+type MedicalInfo = {
+  ivf_clinic_name?: string;
+  ivf_clinic_doctor_name?: string;
+  ivf_clinic_address?: string;
+  ivf_clinic_phone?: string;
+  obgyn_doctor_name?: string;
+  obgyn_clinic_name?: string;
+  obgyn_clinic_address?: string;
+  obgyn_clinic_phone?: string;
+  delivery_hospital_name?: string;
+  delivery_hospital_address?: string;
+  delivery_hospital_phone?: string;
 };
 
 const DEFAULT_STAGES = [
@@ -60,6 +105,10 @@ export default function StepStatusPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [surrogateApp, setSurrogateApp] = useState<SurrogateApplication | null>(null);
+  const [formData, setFormData] = useState<any>({});
+  const [medicalInfo, setMedicalInfo] = useState<MedicalInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'steps'>('overview');
 
   useEffect(() => {
     if (caseId) {
@@ -79,17 +128,70 @@ export default function StepStatusPage() {
       if (!caseRes.ok) throw new Error('Failed to load case');
       if (!stepsRes.ok) throw new Error('Failed to load steps');
 
-      const caseData = await caseRes.json();
+      const caseDataRes = await caseRes.json();
       const stepsData = await stepsRes.json();
 
-      setCaseData(caseData.case);
+      setCaseData(caseDataRes.case);
       setSteps(stepsData.steps || []);
+
+      // Load surrogate application if surrogate exists
+      if (caseDataRes.case?.surrogate_id) {
+        try {
+          const appRes = await fetch(`/api/applications?user_id=${caseDataRes.case.surrogate_id}`);
+          if (appRes.ok) {
+            const appData = await appRes.json();
+            if (appData.data && appData.data.length > 0) {
+              setSurrogateApp(appData.data[0]);
+              if (appData.data[0].form_data) {
+                try {
+                  setFormData(JSON.parse(appData.data[0].form_data));
+                } catch (e) {
+                  console.error('Error parsing form_data:', e);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error loading surrogate application:', e);
+        }
+
+        // Load medical info
+        try {
+          const medRes = await fetch(`/api/surrogate-medical-info?user_id=${caseDataRes.case.surrogate_id}`);
+          if (medRes.ok) {
+            const medData = await medRes.json();
+            setMedicalInfo(medData.data);
+          }
+        } catch (e) {
+          console.error('Error loading medical info:', e);
+        }
+      }
     } catch (err: any) {
       console.error('Error loading data:', err);
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    try {
+      const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        return `${month}/${day}/${year}`;
+      }
+      return new Date(dateStr).toLocaleDateString('en-US');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatValue = (value: any) => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
   };
 
   const updateStepStatus = async (stageNumber: number, stepNumber: number, status: string) => {
@@ -194,104 +296,334 @@ export default function StepStatusPage() {
     );
   }
 
+  const renderDocumentSection = (title: string, icon: string, children: React.ReactNode) => (
+    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <span>{icon}</span> {title}
+        </h2>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  );
+
+  const renderField = (label: string, value: any, highlight?: boolean) => (
+    <div className={`flex justify-between py-2 border-b border-gray-100 ${highlight ? 'bg-yellow-50 -mx-2 px-2' : ''}`}>
+      <span className="text-sm text-gray-600">{label}</span>
+      <span className={`text-sm ${highlight ? 'font-semibold text-purple-700' : 'text-gray-900'}`}>
+        {formatValue(value)}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-8 bg-gray-100 min-h-screen">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="bg-blue-600 text-white p-6 rounded-lg">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Update Status</h1>
-            <Link
-              href={`/cases/${caseId}`}
-              className="text-white hover:text-gray-200"
-            >
-              ← Back
+        <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-8 rounded-lg mb-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <Link href={`/cases/${caseId}`} className="text-purple-200 hover:text-white text-sm">
+              ← Back to Case
             </Link>
+            <span className="bg-white/20 px-3 py-1 rounded text-sm">
+              Case ID: {caseData?.claim_id || caseId.slice(0, 8)}
+            </span>
           </div>
-        </div>
-
-        {/* Step Status Section */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Step Status</h2>
+          <h1 className="text-3xl font-bold mb-2">📋 Case Document</h1>
+          <p className="text-purple-200">Complete case overview and status tracking</p>
           
-          {DEFAULT_STAGES.map((stage) => (
-            <div key={stage.stage_number} className="mb-6 last:mb-0">
-              <div className="bg-gray-100 px-4 py-3 mb-3 rounded">
-                <h3 className="font-semibold text-gray-900">{stage.stage_name}</h3>
-              </div>
-              <div className="border-t border-gray-200 pt-3">
-                {stage.steps.map((step) => {
-                  const currentStatus = getStepStatus(stage.stage_number, step.step_number);
-                  return (
-                    <div key={step.step_number} className="mb-3 last:mb-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-gray-700">
-                            Step {step.step_number} {step.step_name}
-                          </span>
-                          <span className={`px-2 py-1 rounded text-xs border ${getStepStatusColor(currentStatus)}`}>
-                            {currentStatus.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'in_progress')}
-                            className={`px-3 py-1 text-xs rounded ${
-                              currentStatus === 'in_progress'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            In Progress
-                          </button>
-                          <button
-                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'completed')}
-                            className={`px-3 py-1 text-xs rounded ${
-                              currentStatus === 'completed'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200'
-                            }`}
-                          >
-                            Complete
-                          </button>
-                          <button
-                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'skipped')}
-                            className={`px-3 py-1 text-xs rounded ${
-                              currentStatus === 'skipped'
-                                ? 'bg-gray-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            Skip
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Admin Updates Section */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
-          <textarea
-            value={adminUpdate}
-            onChange={(e) => setAdminUpdate(e.target.value)}
-            placeholder="Enter admin update notes..."
-            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <div className="mt-4">
+          {/* Tab Buttons */}
+          <div className="flex gap-4 mt-6">
             <button
-              onClick={saveAdminUpdate}
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition ${
+                activeTab === 'overview' 
+                  ? 'bg-white text-purple-700' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
             >
-              {saving ? 'Saving...' : 'Save Update'}
+              📄 Case Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('steps')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition ${
+                activeTab === 'steps' 
+                  ? 'bg-white text-purple-700' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              ✅ Step Status
             </button>
           </div>
+        </div>
+
+        {activeTab === 'overview' ? (
+          <>
+            {/* Case Summary */}
+            {renderDocumentSection('Case Summary', '📊',
+              <div className="grid grid-cols-2 gap-x-8">
+                {renderField('Case Status', caseData?.status?.toUpperCase() || 'ACTIVE', true)}
+                {renderField('Current Step', caseData?.current_step)}
+                {renderField('Case Type', caseData?.case_type)}
+                {renderField('Weeks Pregnant', caseData?.weeks_pregnant)}
+                {renderField('Number of Fetuses', caseData?.number_of_fetuses)}
+                {renderField('Fetal Beat Confirm', caseData?.fetal_beat_confirm)}
+              </div>
+            )}
+
+            {/* Important Dates */}
+            {renderDocumentSection('Important Dates', '📅',
+              <div className="grid grid-cols-2 gap-x-8">
+                {renderField('Sign Date', formatDate(caseData?.sign_date))}
+                {renderField('Transfer Date', formatDate(caseData?.transfer_date))}
+                {renderField('Beta Confirm Date', formatDate(caseData?.beta_confirm_date))}
+                {renderField('Estimated Due Date', formatDate(caseData?.estimated_due_date || caseData?.due_date), true)}
+              </div>
+            )}
+
+            {/* Surrogate Information */}
+            {renderDocumentSection('Surrogate Information', '👩',
+              <>
+                <div className="grid grid-cols-2 gap-x-8">
+                  {renderField('Name', caseData?.surrogate?.name || formData.fullName)}
+                  {renderField('Phone', caseData?.surrogate?.phone || formData.phoneNumber)}
+                  {renderField('Email', caseData?.surrogate?.email || formData.email)}
+                  {renderField('Location', caseData?.surrogate?.location)}
+                  {renderField('Address', formData.address)}
+                  {renderField('Date of Birth', formData.dateOfBirth)}
+                  {renderField('Age', formData.age)}
+                  {renderField('Blood Type', formData.bloodType)}
+                  {renderField('Height', formData.height)}
+                  {renderField('Weight', formData.weight)}
+                  {renderField('Race/Ethnicity', formData.race)}
+                </div>
+                {surrogateApp && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-gray-500">
+                      Application Status: <span className="font-medium text-green-600">{surrogateApp.status?.toUpperCase()}</span>
+                      {surrogateApp.created_at && ` • Submitted: ${formatDate(surrogateApp.created_at)}`}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Surrogate Health & Pregnancy History */}
+            {renderDocumentSection('Surrogate Health & History', '🏥',
+              <div className="grid grid-cols-2 gap-x-8">
+                {renderField('Total Deliveries', formData.totalDeliveries)}
+                {renderField('Previous Surrogacy', formData.previousSurrogacy)}
+                {renderField('Health Insurance', formData.healthInsurance)}
+                {renderField('Maternity Coverage', formData.maternityCoverage)}
+                {renderField('Smoking Status', formData.smokingStatus)}
+                {renderField('Alcohol Usage', formData.alcoholUsage)}
+                {renderField('Mental Health Treatment', formData.mentalHealthTreatment)}
+                {renderField('Postpartum Depression', formData.postpartumDepression)}
+              </div>
+            )}
+
+            {/* Medical Providers */}
+            {medicalInfo && (
+              renderDocumentSection('Medical Providers', '⚕️',
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">IVF Clinic</h4>
+                    <div className="grid grid-cols-2 gap-x-8 bg-gray-50 p-4 rounded">
+                      {renderField('Clinic Name', medicalInfo.ivf_clinic_name)}
+                      {renderField('Doctor', medicalInfo.ivf_clinic_doctor_name)}
+                      {renderField('Address', medicalInfo.ivf_clinic_address)}
+                      {renderField('Phone', medicalInfo.ivf_clinic_phone)}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">OB/GYN</h4>
+                    <div className="grid grid-cols-2 gap-x-8 bg-gray-50 p-4 rounded">
+                      {renderField('Doctor', medicalInfo.obgyn_doctor_name)}
+                      {renderField('Clinic', medicalInfo.obgyn_clinic_name)}
+                      {renderField('Address', medicalInfo.obgyn_clinic_address)}
+                      {renderField('Phone', medicalInfo.obgyn_clinic_phone)}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">Delivery Hospital</h4>
+                    <div className="grid grid-cols-2 gap-x-8 bg-gray-50 p-4 rounded">
+                      {renderField('Hospital', medicalInfo.delivery_hospital_name)}
+                      {renderField('Address', medicalInfo.delivery_hospital_address)}
+                      {renderField('Phone', medicalInfo.delivery_hospital_phone)}
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* Parent Information */}
+            {renderDocumentSection('Intended Parents', '👨‍👩‍👧',
+              <div className="grid grid-cols-2 gap-8">
+                <div className="bg-blue-50 p-4 rounded">
+                  <h4 className="font-medium text-blue-800 mb-3">Parent 1</h4>
+                  {renderField('Name', caseData?.first_parent?.name)}
+                  {renderField('Phone', caseData?.first_parent?.phone)}
+                  {renderField('Email', caseData?.first_parent?.email)}
+                  {renderField('Location', caseData?.first_parent?.location)}
+                </div>
+                <div className="bg-pink-50 p-4 rounded">
+                  <h4 className="font-medium text-pink-800 mb-3">Parent 2</h4>
+                  {renderField('Name', caseData?.second_parent?.name)}
+                  {renderField('Phone', caseData?.second_parent?.phone)}
+                  {renderField('Email', caseData?.second_parent?.email)}
+                  {renderField('Location', caseData?.second_parent?.location)}
+                </div>
+              </div>
+            )}
+
+            {/* Case Details */}
+            {renderDocumentSection('Case Details', '📝',
+              <div className="grid grid-cols-2 gap-x-8">
+                {renderField('Clinic', caseData?.clinic)}
+                {renderField('Lawyer', caseData?.lawyer)}
+                {renderField('Company', caseData?.company)}
+                {renderField('Embryos', caseData?.embryos)}
+                {renderField('Egg Donation', caseData?.egg_donation)}
+                {renderField('Sperm Donation', caseData?.sperm_donation)}
+              </div>
+            )}
+
+            {/* Case Managers */}
+            {caseData?.managers && caseData.managers.length > 0 && (
+              renderDocumentSection('Case Managers', '👥',
+                <div className="flex flex-wrap gap-2">
+                  {caseData.managers.map((manager) => (
+                    <span key={manager.id} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">
+                      {manager.name}
+                    </span>
+                  ))}
+                </div>
+              )
+            )}
+
+            {/* Surrogate Preferences */}
+            {(formData.sameSexCouple !== undefined || formData.carryTwins !== undefined) && (
+              renderDocumentSection('Surrogate Preferences', '💭',
+                <div className="grid grid-cols-3 gap-4">
+                  <div className={`p-3 rounded text-center ${formData.sameSexCouple ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.sameSexCouple ? '✓' : '✗'}</div>
+                    <div className="text-xs">Same Sex Couple</div>
+                  </div>
+                  <div className={`p-3 rounded text-center ${formData.singleMale ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.singleMale ? '✓' : '✗'}</div>
+                    <div className="text-xs">Single Male</div>
+                  </div>
+                  <div className={`p-3 rounded text-center ${formData.singleFemale ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.singleFemale ? '✓' : '✗'}</div>
+                    <div className="text-xs">Single Female</div>
+                  </div>
+                  <div className={`p-3 rounded text-center ${formData.internationalCouple ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.internationalCouple ? '✓' : '✗'}</div>
+                    <div className="text-xs">International</div>
+                  </div>
+                  <div className={`p-3 rounded text-center ${formData.carryTwins ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.carryTwins ? '✓' : '✗'}</div>
+                    <div className="text-xs">Carry Twins</div>
+                  </div>
+                  <div className={`p-3 rounded text-center ${formData.parentsInDeliveryRoom ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    <div className="text-lg mb-1">{formData.parentsInDeliveryRoom ? '✓' : '✗'}</div>
+                    <div className="text-xs">Parents in Delivery</div>
+                  </div>
+                </div>
+              )
+            )}
+          </>
+        ) : (
+          <>
+            {/* Step Status Section */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Step Status</h2>
+              
+              {DEFAULT_STAGES.map((stage) => (
+                <div key={stage.stage_number} className="mb-6 last:mb-0">
+                  <div className="bg-gray-100 px-4 py-3 mb-3 rounded">
+                    <h3 className="font-semibold text-gray-900">{stage.stage_name}</h3>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    {stage.steps.map((step) => {
+                      const currentStatus = getStepStatus(stage.stage_number, step.step_number);
+                      return (
+                        <div key={step.step_number} className="mb-3 last:mb-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-gray-700">
+                                Step {step.step_number} {step.step_name}
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs border ${getStepStatusColor(currentStatus)}`}>
+                                {currentStatus.replace('_', ' ').toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'in_progress')}
+                                className={`px-3 py-1 text-xs rounded ${
+                                  currentStatus === 'in_progress'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                }`}
+                              >
+                                In Progress
+                              </button>
+                              <button
+                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'completed')}
+                                className={`px-3 py-1 text-xs rounded ${
+                                  currentStatus === 'completed'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                              >
+                                Complete
+                              </button>
+                              <button
+                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'skipped')}
+                                className={`px-3 py-1 text-xs rounded ${
+                                  currentStatus === 'skipped'
+                                    ? 'bg-gray-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                              >
+                                Skip
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Admin Updates Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
+              <textarea
+                value={adminUpdate}
+                onChange={(e) => setAdminUpdate(e.target.value)}
+                placeholder="Enter admin update notes..."
+                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="mt-4">
+                <button
+                  onClick={saveAdminUpdate}
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Update'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Footer */}
+        <div className="text-center text-gray-400 text-sm py-6">
+          Generated on {new Date().toLocaleString('en-US')} • Babytree Surrogacy
         </div>
       </div>
     </div>
