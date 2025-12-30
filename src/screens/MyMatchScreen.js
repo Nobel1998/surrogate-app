@@ -936,18 +936,18 @@ export default function MyMatchScreen({ navigation }) {
       return '***@***';
     };
     
-    // Mask address - show only city/state, hide street address
+    // Mask address - hide street address with ***
     const maskAddress = (address) => {
       if (!address) return 'N/A';
       if (isMatched) return address;
-      // Try to extract only the last part (city/state/zip)
+      // Replace street address with ***, keep city/state
       const parts = address.split(',').map(p => p.trim());
       if (parts.length >= 2) {
-        // Show only the last part (city or state)
-        return parts[parts.length - 1] + ' (Full address available after matching)';
+        // Mask the first part (street address), keep the rest
+        return '*****, ' + parts.slice(1).join(', ');
       }
-      // If no comma, just mask everything
-      return '*** (Full address available after matching)';
+      // If no comma, mask the whole thing
+      return '*****';
     };
     
     // Location doesn't need masking as it's already general information
