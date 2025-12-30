@@ -1954,9 +1954,6 @@ export default function MatchesPage() {
                             }`}>
                             {m.status?.toUpperCase() || 'UNKNOWN'}
                           </span>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                              {m.case_type || '—'}
-                            </span>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <Link
