@@ -201,6 +201,41 @@ export default function StepStatusPage() {
     }
   };
 
+  // Calculate estimated due date from transfer date if not available
+  const calculateEstimatedDueDate = () => {
+    // First check if estimated_due_date or due_date is already set
+    if (caseData?.estimated_due_date) return formatDate(caseData.estimated_due_date);
+    if (caseData?.due_date) return formatDate(caseData.due_date);
+    
+    // Otherwise, calculate from transfer_date
+    const transferDate = caseData?.transfer_date;
+    if (!transferDate) return '—';
+    
+    try {
+      const dateMatch = transferDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      let transfer: Date;
+      
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        transfer = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        transfer = new Date(transferDate);
+        transfer.setHours(0, 0, 0, 0);
+      }
+      
+      // Day 5 embryo = 19 days gestational at transfer (14+5)
+      // Normal pregnancy is 280 days (40 weeks)
+      // So from transfer date, we need 280 - 19 = 261 days to reach full term
+      const daysToAdd = 261;
+      const dueDate = new Date(transfer);
+      dueDate.setDate(dueDate.getDate() + daysToAdd);
+      
+      return `${(dueDate.getMonth() + 1).toString().padStart(2, '0')}/${dueDate.getDate().toString().padStart(2, '0')}/${dueDate.getFullYear()}`;
+    } catch {
+      return '—';
+    }
+  };
+
   const formatValue = (value: any) => {
     if (value === null || value === undefined || value === '') return '—';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -390,7 +425,7 @@ export default function StepStatusPage() {
                 {renderField('Sign Date', formatDate(caseData?.sign_date))}
                 {renderField('Transfer Date', formatDate(caseData?.transfer_date))}
                 {renderField('Beta Confirm Date', formatDate(caseData?.beta_confirm_date))}
-                {renderField('Estimated Due Date', formatDate(caseData?.estimated_due_date || caseData?.due_date), true)}
+                {renderField('Estimated Due Date', calculateEstimatedDueDate(), true)}
               </div>
             )}
 
