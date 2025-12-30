@@ -130,6 +130,55 @@ export default function Home() {
     }
   };
 
+  const handleDeleteApplication = async (id: number, name: string) => {
+    if (!confirm(`Are you sure you want to delete the application from "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('applications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      loadApplications();
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Error deleting application');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to DELETE ${selectedIds.length} applications? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      for (const id of selectedIds) {
+        await supabase
+          .from('applications')
+          .delete()
+          .eq('id', id);
+      }
+      
+      setSelectedIds([]);
+      loadApplications();
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      alert('Error deleting applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -208,6 +257,12 @@ export default function Home() {
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm font-medium"
                 >
                   ⏳ Mark Pending
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1 rounded text-sm font-medium"
+                >
+                  🗑️ Delete Selected
                 </button>
               </div>
             </div>
@@ -310,6 +365,12 @@ export default function Home() {
                           currentStatus={app.status} 
                           onUpdate={loadApplications}
                         />
+                        <button
+                          onClick={() => handleDeleteApplication(app.id, app.full_name)}
+                          className="text-gray-500 hover:text-red-600 text-xs font-medium"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </td>
                   </tr>
