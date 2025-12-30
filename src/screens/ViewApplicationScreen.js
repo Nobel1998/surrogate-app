@@ -123,6 +123,18 @@ export default function ViewApplicationScreen({ navigation }) {
     );
   }
 
+  const handleEditApplication = () => {
+    navigation.navigate('SurrogateApplication', {
+      editMode: true,
+      applicationId: application.id,
+      existingData: {
+        ...formData,
+        fullName: application.full_name,
+        phoneNumber: application.phone,
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -148,6 +160,12 @@ export default function ViewApplicationScreen({ navigation }) {
             </Text>
           </View>
         </View>
+
+        {/* Edit Button */}
+        <TouchableOpacity style={styles.editButton} onPress={handleEditApplication}>
+          <Icon name="edit-2" size={18} color="#fff" />
+          <Text style={styles.editButtonText}>Edit Application</Text>
+        </TouchableOpacity>
 
         {/* Step 1: Personal Information */}
         {renderSection('Personal Information', 'user', '#2196F3',
@@ -342,6 +360,27 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
     marginTop: 2,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2A7BF6',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#2A7BF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   section: {
     backgroundColor: '#fff',

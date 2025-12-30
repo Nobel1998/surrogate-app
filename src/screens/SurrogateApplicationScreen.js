@@ -9,6 +9,12 @@ import { useLanguage } from '../context/LanguageContext';
 export default function SurrogateApplicationScreen({ navigation, route }) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  
+  // Edit mode parameters
+  const editMode = route?.params?.editMode || false;
+  const applicationId = route?.params?.applicationId || null;
+  const existingData = route?.params?.existingData || null;
+  
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 8; // Updated to 8 steps based on PDF
   const [isLoading, setIsLoading] = useState(false);
@@ -348,10 +354,29 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (user?.id) {
+      if (editMode && existingData) {
+        // Load existing data for editing
+        console.log('📝 Loading existing application data for editing');
+        setApplicationData(prev => ({
+          ...prev,
+          ...existingData,
+        }));
+        // Parse dateOfBirth into components if available
+        if (existingData.dateOfBirth && existingData.dateOfBirth.includes('/')) {
+          const parts = existingData.dateOfBirth.split('/');
+          if (parts.length === 3) {
+            setApplicationData(prev => ({
+              ...prev,
+              dateOfBirthMonth: parts[0],
+              dateOfBirthDay: parts[1],
+              dateOfBirthYear: parts[2],
+            }));
+          }
+        }
+      } else if (user?.id) {
         loadDraft(user.id);
       }
-    }, [user?.id])
+    }, [user?.id, editMode, existingData])
   );
 
   const validateEmail = (email) => {
@@ -683,32 +708,54 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         user_id: authUser.id  // 添加用户ID
       };
 
-      console.log('📝 Submitting application for user:', authUser.id);
+      let resultData;
+      
+      if (editMode && applicationId) {
+        // Update existing application
+        console.log('📝 Updating application:', applicationId);
+        const { data, error } = await supabase
+          .from('applications')
+          .update({
+            full_name: payload.full_name,
+            phone: payload.phone,
+            form_data: payload.form_data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', applicationId)
+          .select();
 
-      // Insert into Supabase
-      const { data, error } = await supabase
-        .from('applications')
-        .insert([payload])
-        .select();
+        if (error) {
+          throw new Error(error.message);
+        }
+        resultData = data;
+      } else {
+        // Insert new application
+        console.log('📝 Submitting new application for user:', authUser.id);
+        const { data, error } = await supabase
+          .from('applications')
+          .insert([payload])
+          .select();
 
-      if (error) {
-        throw new Error(error.message);
+        if (error) {
+          throw new Error(error.message);
+        }
+        resultData = data;
       }
 
-      // Application submitted successfully; clear resume flag
+      // Application submitted/updated successfully; clear resume flag
       await AsyncStorageLib.removeItem('resume_application_flow');
 
       // Create local application object for history
       const application = {
-        id: data && data[0] ? data[0].id : `APP-${Date.now()}`,
+        id: resultData && resultData[0] ? resultData[0].id : `APP-${Date.now()}`,
         type: 'Surrogacy Application',
-        status: 'pending',
+        status: editMode ? 'updated' : 'pending',
         submittedDate: new Date().toISOString().split('T')[0],
         lastUpdated: new Date().toISOString().split('T')[0],
         description: `Surrogacy Application - ${applicationData.fullName}`,
         nextStep: 'Wait for initial review and medical screening',
         documents: ['Application Form', 'Medical History', 'Background Check'],
-        notes: 'Application submitted successfully. Our team will review and contact you within 5-7 business days.',
+        notes: editMode ? 'Application updated successfully.' : 'Application submitted successfully. Our team will review and contact you within 5-7 business days.',
         data: applicationData,
       };
 
@@ -732,13 +779,16 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       }
 
       Alert.alert(
-        t('application.submissionSuccess'),
-        t('application.submissionSuccessMessage'),
+        editMode ? t('application.updateSuccess') : t('application.submissionSuccess'),
+        editMode ? t('application.updateSuccessMessage') : t('application.submissionSuccessMessage'),
         [
           {
             text: t('common.confirm'),
             onPress: () => {
-              if (navigation.canGoBack()) {
+              if (editMode) {
+                // Go back to ViewApplication screen
+                navigation.goBack();
+              } else if (navigation.canGoBack()) {
                 navigation.goBack();
               } else if (navigation.navigate) {
                 if (user) {
@@ -2544,8 +2594,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             >
               <Text style={styles.backHomeText}>{t('application.backToHome')}</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>{t('application.title')}</Text>
-            <Text style={styles.subtitle}>{t('application.subtitle')}</Text>
+            <Text style={styles.title}>{editMode ? t('application.editTitle') : t('application.title')}</Text>
+            <Text style={styles.subtitle}>{editMode ? t('application.editSubtitle') : t('application.subtitle')}</Text>
           
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
