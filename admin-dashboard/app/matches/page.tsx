@@ -1957,7 +1957,7 @@ export default function MatchesPage() {
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <Link
-                              href={`/cases/${m.id}`}
+                              href={`/cases/${m.id}/step-status`}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               <span>📄</span>
