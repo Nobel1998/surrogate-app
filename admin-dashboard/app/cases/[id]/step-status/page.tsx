@@ -529,7 +529,7 @@ export default function StepStatusPage() {
               <div className="grid grid-cols-2 gap-x-8">
                 {renderField('Clinic', caseData?.clinic)}
                 {renderField('Lawyer', caseData?.lawyer)}
-                {renderField('Company', caseData?.company)}
+                {renderField('Escrow', caseData?.company)}
                 {renderField('Embryos', caseData?.embryos)}
                 {renderField('Egg Donation', caseData?.egg_donation)}
                 {renderField('Sperm Donation', caseData?.sperm_donation)}
