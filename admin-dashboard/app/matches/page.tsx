@@ -841,7 +841,8 @@ export default function MatchesPage() {
 
   // Load medical info for a surrogate
   const loadMedicalInfo = async (surrogateId: string) => {
-    if (!surrogateId || medicalInfoMap[surrogateId] || loadingMedicalInfo[surrogateId]) {
+    // Check if already loaded (including null/empty) or currently loading
+    if (!surrogateId || surrogateId in medicalInfoMap || loadingMedicalInfo[surrogateId]) {
       return;
     }
 
@@ -850,10 +851,16 @@ export default function MatchesPage() {
       const res = await fetch(`/api/surrogate-medical-info?user_id=${surrogateId}`);
       if (res.ok) {
         const data = await res.json();
-        setMedicalInfoMap(prev => ({ ...prev, [surrogateId]: data.data }));
+        // Store the result even if it's null (to prevent re-fetching)
+        setMedicalInfoMap(prev => ({ ...prev, [surrogateId]: data.data || 'empty' }));
+      } else {
+        // Mark as loaded with empty to prevent re-fetching
+        setMedicalInfoMap(prev => ({ ...prev, [surrogateId]: 'empty' }));
       }
     } catch (error) {
       console.error('Error loading medical info:', error);
+      // Mark as loaded with empty to prevent re-fetching
+      setMedicalInfoMap(prev => ({ ...prev, [surrogateId]: 'empty' }));
     } finally {
       setLoadingMedicalInfo(prev => ({ ...prev, [surrogateId]: false }));
     }
@@ -2368,11 +2375,13 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Surrogate Medical Info</h4>
                           {(() => {
-                            const medicalInfo = medicalInfoMap[m.surrogate_id];
+                            const medicalInfoRaw = medicalInfoMap[m.surrogate_id];
+                            const medicalInfo = medicalInfoRaw === 'empty' ? null : medicalInfoRaw;
                             const isLoading = loadingMedicalInfo[m.surrogate_id];
+                            const hasLoaded = m.surrogate_id in medicalInfoMap;
                             
                             // Load medical info on first render
-                            if (!medicalInfo && !isLoading && m.surrogate_id) {
+                            if (!hasLoaded && !isLoading && m.surrogate_id) {
                               loadMedicalInfo(m.surrogate_id);
                             }
 
