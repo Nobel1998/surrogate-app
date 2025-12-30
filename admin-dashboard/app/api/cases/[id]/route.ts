@@ -40,7 +40,7 @@ export async function GET(
       );
     }
 
-    // Fetch related profiles (including progress_stage for surrogate)
+    // Fetch related profiles (including progress_stage and transfer_date for surrogate)
     const profileIds = [
       matchData.surrogate_id,
       matchData.first_parent_id,
@@ -52,7 +52,7 @@ export async function GET(
     if (profileIds.length > 0) {
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, name, phone, email, date_of_birth, location, progress_stage')
+        .select('id, name, phone, email, date_of_birth, location, progress_stage, transfer_date')
         .in('id', profileIds);
 
       if (profilesData) {
@@ -62,9 +62,10 @@ export async function GET(
       }
     }
 
-    // Get surrogate's progress_stage as current_step
+    // Get surrogate's progress_stage as current_step and transfer_date
     const surrogateProfile = matchData.surrogate_id ? profiles[matchData.surrogate_id] : null;
     const currentStep = matchData.current_step || surrogateProfile?.progress_stage || null;
+    const transferDate = matchData.transfer_date || surrogateProfile?.transfer_date || null;
 
     // Fetch all managers assigned to this match (from match_managers table)
     const { data: matchManagersData } = await supabase
@@ -131,6 +132,7 @@ export async function GET(
       case: {
         ...matchData,
         current_step: currentStep, // Use surrogate's progress_stage if current_step not set
+        transfer_date: transferDate, // Use surrogate's transfer_date if not set in match
         surrogate: matchData.surrogate_id ? profiles[matchData.surrogate_id] : null,
         first_parent: firstParent ? {
           ...firstParent,
