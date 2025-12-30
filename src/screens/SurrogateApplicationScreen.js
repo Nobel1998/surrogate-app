@@ -261,6 +261,34 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     return code;
   };
 
+  // Extract city/state from full address for location field
+  // Examples:
+  // "123 Main St, San Francisco, CA 94102" -> "San Francisco, CA"
+  // "456 Oak Ave, Los Angeles" -> "Los Angeles"
+  // "789 Pine Rd, New York, NY" -> "New York, NY"
+  const extractLocationFromAddress = (address) => {
+    if (!address || typeof address !== 'string') return '';
+    
+    const parts = address.split(',').map(p => p.trim());
+    
+    if (parts.length >= 3) {
+      // Format: Street, City, State/Zip -> return "City, State"
+      // Remove zip code if present in the last part
+      const lastPart = parts[parts.length - 1].replace(/\d{5}(-\d{4})?/, '').trim();
+      const cityPart = parts[parts.length - 2];
+      if (lastPart) {
+        return `${cityPart}, ${lastPart}`;
+      }
+      return cityPart;
+    } else if (parts.length === 2) {
+      // Format: Street, City -> return "City"
+      return parts[1];
+    }
+    
+    // If no comma, return empty (can't reliably extract city)
+    return '';
+  };
+
   // Draft storage helpers
   const getDraftKey = () => (user?.id ? `application_draft_${user.id}` : 'application_draft_guest');
 
@@ -597,6 +625,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         let inviteCode = generateInviteCode();
         let attempts = 0;
         while (attempts < 3) {
+          // Extract location from address if not already set
+          const extractedLocation = extractLocationFromAddress(applicationData.address);
+          
           const profilePayload = {
             id: userId,
             role,
@@ -605,6 +636,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             date_of_birth: applicationData.dateOfBirth || null,
             email: authEmail.trim(),
             address: applicationData.address || '',
+            location: extractedLocation || '', // Auto-extract city from address
             invite_code: inviteCode,
             race: applicationData.race || '',
             referred_by: applicationData.referralCode?.trim() || null,
@@ -681,6 +713,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         existingInviteCode = null;
       }
       const ensuredInviteCode = existingInviteCode || generateInviteCode();
+      
+      // Extract location from address if address is provided
+      const extractedLocation = extractLocationFromAddress(applicationData.address);
+      
       const profileUpdate = {
         id: authUser.id,
         name: applicationData.fullName,
@@ -692,6 +728,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         referred_by: applicationData.referralCode?.trim() || null,
         invite_code: ensuredInviteCode,
       };
+      
+      // Only update location if we extracted one from address
+      if (extractedLocation) {
+        profileUpdate.location = extractedLocation;
+      }
       const { error: profileUpsertError } = await supabase
         .from('profiles')
         .upsert(profileUpdate, { onConflict: 'id' });
@@ -730,13 +771,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       } else {
         // Insert new application
         console.log('📝 Submitting new application for user:', authUser.id);
-        const { data, error } = await supabase
-          .from('applications')
-          .insert([payload])
-          .select();
+      const { data, error } = await supabase
+        .from('applications')
+        .insert([payload])
+        .select();
 
-        if (error) {
-          throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
         }
         resultData = data;
       }
@@ -818,8 +859,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <Text style={styles.label}>What is your full legal name? *</Text>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <TextInput
-              style={styles.input}
+        <TextInput
+          style={styles.input}
               value={applicationData.firstName}
               onChangeText={(value) => updateField('firstName', value)}
               placeholder="First Name"
@@ -1130,31 +1171,31 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Year *</Text>
-          <TextInput
-            style={styles.input}
+        <TextInput
+          style={styles.input}
             value={delivery.year || ''}
             onChangeText={(value) => updateDeliveryField('year', value)}
             placeholder="Year"
             keyboardType="numeric"
-          />
-        </View>
+        />
+      </View>
 
-        <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
           <Text style={styles.label}>How Did You Conceive? *</Text>
-          <TextInput
+        <TextInput
             style={styles.input}
             value={delivery.conceptionMethod || ''}
             onChangeText={(value) => updateDeliveryField('conceptionMethod', value)}
             placeholder="e.g., Natural, IVF, IUI"
-          />
-        </View>
+        />
+      </View>
 
-        <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
           <Text style={styles.label}>Date Of Delivery *</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <TextInput
-                style={styles.input}
+        <TextInput
+          style={styles.input}
                 value={delivery.deliveryMonth || ''}
                 onChangeText={(value) => updateDeliveryField('deliveryMonth', value)}
                 placeholder="Month"
@@ -1270,10 +1311,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             placeholder="Any complications during pregnancy or delivery"
             multiline
             numberOfLines={3}
-          />
-        </View>
+        />
       </View>
-    );
+    </View>
+  );
   };
 
   const renderStep2 = () => (
@@ -1332,16 +1373,16 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       </View>
 
       {applicationData.previousSurrogacy && (
-        <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
           <Text style={styles.label}>How many times have you been a surrogate before? *</Text>
-          <TextInput
+        <TextInput
             style={styles.input}
             value={applicationData.previousSurrogacyCount || ''}
             onChangeText={(value) => updateField('previousSurrogacyCount', value)}
             placeholder="Number of times"
             keyboardType="numeric"
-          />
-        </View>
+        />
+      </View>
       )}
     </ScrollView>
   );
@@ -1392,17 +1433,17 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Insurance Details</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
               value={applicationData.insuranceDetails || ''}
               onChangeText={(value) => updateField('insuranceDetails', value)}
               placeholder="Provider name, policy number, etc."
-              multiline
-              numberOfLines={2}
-            />
-          </View>
+          multiline
+          numberOfLines={2}
+        />
+      </View>
 
-          <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
             <Text style={styles.label}>Is your health insurance provided through a state agency or program?</Text>
             <View style={styles.radioContainer}>
               <TouchableOpacity
@@ -1592,15 +1633,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.householdSmoking && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Where and how often?</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
             value={applicationData.householdSmokingDetails || ''}
             onChangeText={(value) => updateField('householdSmokingDetails', value)}
             placeholder="Details about household smoking"
-            multiline
-            numberOfLines={2}
-          />
-        </View>
+          multiline
+          numberOfLines={2}
+        />
+      </View>
       )}
 
       <View style={styles.inputGroup}>
@@ -1624,13 +1665,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.alcoholUsage === 'yes' && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>How much and how often?</Text>
-          <TextInput
-            style={styles.input}
+        <TextInput
+          style={styles.input}
             value={applicationData.alcoholFrequency || ''}
             onChangeText={(value) => updateField('alcoholFrequency', value)}
             placeholder="Frequency and amount"
-          />
-        </View>
+        />
+      </View>
       )}
 
       {/* Drug Use */}
@@ -1649,7 +1690,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           >
             <Text style={[styles.radioText, applicationData.illegalDrugs === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
-        </View>
+    </View>
       </View>
 
       <View style={styles.inputGroup}>
@@ -1687,12 +1728,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever had any surgery? *</Text>
         <View style={styles.radioContainer}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.radioButton, applicationData.surgeries === true && styles.radioButtonSelected]}
             onPress={() => updateField('surgeries', true)}
-          >
+            >
             <Text style={[styles.radioText, applicationData.surgeries === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.surgeries === false && styles.radioButtonSelected]}
             onPress={() => updateField('surgeries', false)}
@@ -1703,17 +1744,17 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       </View>
 
       {applicationData.surgeries && (
-        <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
           <Text style={styles.label}>Reason and results?</Text>
-          <TextInput
+        <TextInput
             style={[styles.input, styles.textArea]}
             value={applicationData.surgeryDetails || ''}
             onChangeText={(value) => updateField('surgeryDetails', value)}
             placeholder="Surgery details"
             multiline
             numberOfLines={3}
-          />
-        </View>
+        />
+      </View>
       )}
 
       <View style={styles.inputGroup}>
@@ -1756,12 +1797,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever been seen by a professional for mental health issues? *</Text>
         <View style={styles.radioContainer}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.radioButton, applicationData.mentalHealthTreatment === true && styles.radioButtonSelected]}
             onPress={() => updateField('mentalHealthTreatment', true)}
           >
             <Text style={[styles.radioText, applicationData.mentalHealthTreatment === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.mentalHealthTreatment === false && styles.radioButtonSelected]}
             onPress={() => updateField('mentalHealthTreatment', false)}
@@ -1772,17 +1813,17 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       </View>
 
       {applicationData.mentalHealthTreatment && (
-        <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
           <Text style={styles.label}>Please explain and list time periods</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
             value={applicationData.mentalHealthDetails || ''}
             onChangeText={(value) => updateField('mentalHealthDetails', value)}
             placeholder="Details and time periods"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+          multiline
+          numberOfLines={3}
+        />
+      </View>
       )}
 
       <View style={styles.inputGroup}>
@@ -1800,7 +1841,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           >
             <Text style={[styles.radioText, applicationData.postpartumDepression === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
-        </View>
+    </View>
       </View>
 
       {applicationData.postpartumDepression && (
@@ -1907,7 +1948,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {applicationData.currentBirthControl && (
         <>
-          <View style={styles.inputGroup}>
+        <View style={styles.inputGroup}>
             <Text style={styles.label}>Which method do you use?</Text>
             <TextInput
               style={styles.input}
@@ -2068,7 +2109,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>Employment Information</Text>
       <Text style={styles.stepDescription}>Please provide your employment details</Text>
-      
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Please list your current place of employment *</Text>
         <Text style={styles.subLabel}>Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state N/A</Text>
@@ -2120,7 +2161,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             placeholder="Monthly income (USD) or N/A"
             keyboardType="numeric"
           />
-        </View>
+    </View>
       </View>
 
       <View style={styles.inputGroup}>
@@ -2199,13 +2240,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.educationLevel === 'tradeSchool' && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>If you completed your education through a trade school, please specify</Text>
-          <TextInput
-            style={styles.input}
+        <TextInput
+          style={styles.input}
             value={applicationData.tradeSchoolDetails || ''}
             onChangeText={(value) => updateField('tradeSchoolDetails', value)}
             placeholder="Trade school details"
-          />
-        </View>
+        />
+      </View>
       )}
 
       {/* Referral Code */}
@@ -2227,7 +2268,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>General Questions</Text>
       <Text style={styles.stepDescription}>Please answer the following questions</Text>
-      
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation for becoming a surrogate mother *</Text>
         <TextInput
@@ -2489,7 +2530,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>Authorization for Release of Information</Text>
       <Text style={styles.stepDescription}>Please review and confirm</Text>
-      
+
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { lineHeight: 22 }]}>
           I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs. I understand, and expressly condition this authorization upon such understanding.
@@ -2540,7 +2581,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           placeholder="Email"
           editable={false}
         />
-      </View>
+    </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Applicant Phone Number *</Text>
