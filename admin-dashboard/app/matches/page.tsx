@@ -274,11 +274,17 @@ export default function MatchesPage() {
   const [customerContractFile, setCustomerContractFile] = useState<File | null>(null);
   const [uploadingCustomerContract, setUploadingCustomerContract] = useState(false);
   
-  // Surrogacy Contract upload state (for surrogate)
+  // Surrogacy Contract upload state (for surrogate) - kept for backward compatibility
   const [showSurrogacyContractModal, setShowSurrogacyContractModal] = useState(false);
   const [surrogacyContractUserId, setSurrogacyContractUserId] = useState<string>('');
   const [surrogacyContractFile, setSurrogacyContractFile] = useState<File | null>(null);
   const [uploadingSurrogacyContract, setUploadingSurrogacyContract] = useState(false);
+  
+  // Surrogacy Contract Shared upload state (for both parties)
+  const [showSurrogacyContractSharedModal, setShowSurrogacyContractSharedModal] = useState(false);
+  const [surrogacyContractSharedMatchId, setSurrogacyContractSharedMatchId] = useState<string | null>(null);
+  const [surrogacyContractSharedFile, setSurrogacyContractSharedFile] = useState<File | null>(null);
+  const [uploadingSurrogacyContractShared, setUploadingSurrogacyContractShared] = useState(false);
   
   // Medical info state
   const [medicalInfoMap, setMedicalInfoMap] = useState<Record<string, any>>({});
@@ -1065,6 +1071,53 @@ export default function MatchesPage() {
       alert(err.message || 'Failed to upload surrogacy contract');
     } finally {
       setUploadingSurrogacyContract(false);
+    }
+  };
+
+  const uploadSurrogacyContractShared = async () => {
+    if (!surrogacyContractSharedFile) {
+      alert('Please select a file');
+      return;
+    }
+    if (!surrogacyContractSharedMatchId) {
+      alert('Match ID is required');
+      return;
+    }
+
+    const match = matches.find(m => m.id === surrogacyContractSharedMatchId);
+    if (!match) {
+      alert('Match not found');
+      return;
+    }
+
+    setUploadingSurrogacyContractShared(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', surrogacyContractSharedFile);
+      formData.append('parent_id', match.parent_id || match.first_parent_id || '');
+      formData.append('surrogate_id', match.surrogate_id);
+
+      const res = await fetch('/api/matches/surrogacy-contract-shared', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errText}`);
+      }
+
+      const result = await res.json();
+      alert('Surrogacy Contract uploaded successfully! Both parent and surrogate can now see it in their My Match section.');
+      setShowSurrogacyContractSharedModal(false);
+      setSurrogacyContractSharedFile(null);
+      setSurrogacyContractSharedMatchId(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error uploading shared surrogacy contract:', err);
+      alert(err.message || 'Failed to upload surrogacy contract');
+    } finally {
+      setUploadingSurrogacyContractShared(false);
     }
   };
 
@@ -3198,6 +3251,12 @@ export default function MatchesPage() {
                               c.document_type === 'surrogate_contract'
                             );
                             
+                            // Filter contracts for Surrogacy Contract (Shared - includes both parent and surrogate contracts)
+                            const surrogacyContractShared = contracts.filter(c => 
+                              (c.user_id === m.parent_id || c.user_id === m.first_parent_id || c.user_id === m.surrogate_id) &&
+                              (c.document_type === 'parent_contract' || c.document_type === 'surrogate_contract')
+                            );
+                            
                             // Filter contracts for parent only (for Trust Account)
                             const parentTrustAccountContracts = contracts.filter(c => 
                               c.user_id === m.parent_id &&
@@ -3216,6 +3275,7 @@ export default function MatchesPage() {
                                 <div>
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {renderFileList('surrogacy_contract', ['parent_contract', 'surrogate_contract'], 'Surrogacy Contract', false, surrogacyContractShared)}
                                     {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                     {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                     {renderFileList('pbo', ['parental_rights'], 'PBO')}
@@ -3226,8 +3286,6 @@ export default function MatchesPage() {
                                 <div className="pt-2 border-t border-gray-300">
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
-                                    {renderFileList('customer_contract', ['parent_contract'], 'Surrogacy Contract (Parent)', true, parentOnlyContracts)}
-                                    {renderFileList('surrogacy_contract', ['surrogate_contract'], 'Surrogacy Contract (Surrogate)', true, surrogateOnlyContractsForContract)}
                                     {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
                                     {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
                                     {renderFileList('trust_account', ['trust_account'], 'Trust Account', true, parentTrustAccountContracts)}
@@ -3351,28 +3409,30 @@ export default function MatchesPage() {
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
                         
+                        {/* Shared Documents */}
+                        <div className="mb-4">
+                          <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => {
+                                setSurrogacyContractSharedMatchId(m.id);
+                                setSurrogacyContractSharedFile(null);
+                                setShowSurrogacyContractSharedModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Surrogacy Contract
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-500">
+                            Upload documents visible to both parties. The same contract will be available to both parent and surrogate.
+                          </p>
+                        </div>
+                        
                         {/* Single User Documents */}
                         <div className="mb-4">
                           <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
                           <div className="flex flex-wrap gap-2">
-                          <button
-                              onClick={() => {
-                                setCustomerContractUserId(m.parent_id);
-                                setShowCustomerContractModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📄 Upload Surrogacy Contract (Parent)
-                          </button>
-                            <button
-                              onClick={() => {
-                                setSurrogacyContractUserId(m.surrogate_id);
-                                setShowSurrogacyContractModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📄 Upload Surrogacy Contract (Surrogate)
-                            </button>
                             <button
                               onClick={() => {
                                 setAgencyRetainerUserType('parent');
@@ -4161,6 +4221,89 @@ export default function MatchesPage() {
           </div>
         </div>
       )}
+
+      {/* Surrogacy Contract Shared Upload Modal */}
+      {showSurrogacyContractSharedModal && surrogacyContractSharedMatchId && (() => {
+        const match = matches.find(m => m.id === surrogacyContractSharedMatchId);
+        if (!match) return null;
+        const parentProfile = profileLookup[match.parent_id || match.first_parent_id || ''];
+        const surrogateProfile = profileLookup[match.surrogate_id];
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Upload Surrogacy Contract (Shared)</h3>
+                <button
+                  onClick={() => setShowSurrogacyContractSharedModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Parent
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                    {parentProfile?.name || match.parent_id || match.first_parent_id || 'N/A'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Surrogate
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                    {surrogateProfile?.name || match.surrogate_id || 'N/A'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Surrogacy Contract File *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    onChange={(e) => setSurrogacyContractSharedFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                  />
+                  {surrogacyContractSharedFile && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Selected: {surrogacyContractSharedFile.name}
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Supported formats: PDF, DOC, DOCX, TXT. The same contract will be visible to both parent and surrogate in their My Match section.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowSurrogacyContractSharedModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={uploadSurrogacyContractShared}
+                    disabled={uploadingSurrogacyContractShared || !surrogacyContractSharedFile}
+                    className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                      uploadingSurrogacyContractShared || !surrogacyContractSharedFile
+                        ? 'bg-gray-400'
+                        : 'bg-green-600 hover:bg-green-700'
+                    } transition-colors`}
+                  >
+                    {uploadingSurrogacyContractShared ? 'Uploading...' : 'Upload & Publish'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* HIPAA Release Upload Modal */}
       {showHipaaReleaseModal && (
