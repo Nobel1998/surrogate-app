@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ViewApplicationScreen({ navigation }) {
   const { user } = useAuth();
@@ -20,9 +21,12 @@ export default function ViewApplicationScreen({ navigation }) {
   const [application, setApplication] = useState(null);
   const [formData, setFormData] = useState({});
 
-  useEffect(() => {
-    loadApplication();
-  }, [user]);
+  // Reload data when screen comes into focus (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      loadApplication();
+    }, [user])
+  );
 
   const loadApplication = async () => {
     if (!user?.id) {
