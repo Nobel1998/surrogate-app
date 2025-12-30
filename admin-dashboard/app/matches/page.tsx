@@ -3409,26 +3409,6 @@ export default function MatchesPage() {
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
                         
-                        {/* Shared Documents */}
-                        <div className="mb-4">
-                          <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => {
-                                setSurrogacyContractSharedMatchId(m.id);
-                                setSurrogacyContractSharedFile(null);
-                                setShowSurrogacyContractSharedModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📄 Upload Surrogacy Contract
-                            </button>
-                          </div>
-                          <p className="mt-2 text-xs text-gray-500">
-                            Upload documents visible to both parties. The same contract will be available to both parent and surrogate.
-                          </p>
-                        </div>
-                        
                         {/* Single User Documents */}
                         <div className="mb-4">
                           <div className="text-xs font-semibold text-gray-600 mb-2">Single User Documents</div>
@@ -3503,10 +3483,20 @@ export default function MatchesPage() {
                           </p>
                         </div>
 
-                        {/* Match Documents */}
+                        {/* Shared Documents */}
                         <div>
-                          <div className="text-xs font-semibold text-gray-600 mb-2">Match Documents</div>
+                          <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
                           <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => {
+                                setSurrogacyContractSharedMatchId(m.id);
+                                setSurrogacyContractSharedFile(null);
+                                setShowSurrogacyContractSharedModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              📄 Upload Surrogacy Contract
+                            </button>
                             <button
                               onClick={() => openInsuranceModal(m)}
                               className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
