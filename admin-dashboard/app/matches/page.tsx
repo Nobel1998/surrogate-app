@@ -396,6 +396,11 @@ export default function MatchesPage() {
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
       
+      // #region agent log
+      const attorneyRetainerContracts = contractsData.filter((c: any) => c.document_type === 'attorney_retainer');
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadData:afterSetContracts',message:'After loading contracts',data:{totalContracts:contractsData.length,attorneyRetainerCount:attorneyRetainerContracts.length,attorneyRetainerContracts:attorneyRetainerContracts.map((c:any)=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name,fileUrl:c.file_url}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
+      // #endregion
+      
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
         const found = surList.find((s: Profile) => s.id === selectedSurrogate);
@@ -1172,6 +1177,10 @@ export default function MatchesPage() {
       return;
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:start',message:'Starting attorney retainer upload',data:{userId:attorneyUserId,userType:attorneyUserType,fileName:attorneyFile.name,fileSize:attorneyFile.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     setUploadingAttorney(true);
     try {
       const formData = new FormData();
@@ -1184,18 +1193,37 @@ export default function MatchesPage() {
         body: formData,
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:afterFetch',message:'After fetch response',data:{resOk:res.ok,status:res.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+      // #endregion
+
       if (!res.ok) {
         const errText = await res.text();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:error',message:'Upload failed',data:{status:res.status,error:errText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'all'})}).catch(()=>{});
+        // #endregion
         throw new Error(`Upload failed: ${res.status} ${errText}`);
       }
 
       const result = await res.json();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:success',message:'Upload successful',data:{result:result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+      // #endregion
+      
       alert(`Attorney Retainer Agreement uploaded successfully! The ${attorneyUserType} can now see it in their My Match section.`);
       setShowAttorneyModal(false);
       setAttorneyFile(null);
       await loadData();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:afterLoadData',message:'After loadData call',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
     } catch (err: any) {
       console.error('Error uploading attorney retainer:', err);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:exception',message:'Exception in upload',data:{error:err?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'all'})}).catch(()=>{});
+      // #endregion
       alert(err.message || 'Failed to upload attorney retainer agreement');
     } finally {
       setUploadingAttorney(false);
@@ -2951,6 +2979,12 @@ export default function MatchesPage() {
                               c.user_id === m.surrogate_id &&
                               c.document_type === 'attorney_retainer'
                             );
+                            
+                            // #region agent log
+                            if (parentAttorneyRetainerContracts.length > 0 || surrogateAttorneyRetainerContracts.length > 0) {
+                              fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:attorneyRetainerFilter',message:'Attorney retainer contracts found',data:{matchId:m.id,parentContracts:parentAttorneyRetainerContracts.length,parentContractsData:parentAttorneyRetainerContracts.map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name})),surrogateContracts:surrogateAttorneyRetainerContracts.length,surrogateContractsData:surrogateAttorneyRetainerContracts.map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name})),allContractsCount:contracts.length,allAttorneyRetainerContracts:contracts.filter(c=>c.document_type==='attorney_retainer').map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+                            }
+                            // #endregion
                             
                             // Helper function to get files for a document type
                             const getFilesForDocType = (docTypes: string[], isSingleUser: boolean = false) => {

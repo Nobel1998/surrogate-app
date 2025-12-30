@@ -184,7 +184,7 @@ export default function MyMatchScreen({ navigation }) {
         // Parents see: trust_account (but not in My Match, only in Profile)
         const documentTypes = [
           'surrogacy_contract',
-          'legal_contract',
+          'attorney_retainer',
           'agency_contract',
           'insurance_policy',
           'health_insurance_bill',
@@ -577,7 +577,7 @@ export default function MyMatchScreen({ navigation }) {
         label: t('myMatch.attorneyRetainer'),
         icon: 'briefcase',
         iconColor: '#6C5CE7',
-        documentType: 'legal_contract',
+        documentType: 'attorney_retainer',
       },
       {
         key: 'surrogacy_contract',
@@ -674,10 +674,10 @@ export default function MyMatchScreen({ navigation }) {
                       availableCount++;
                     } else if (doc.documentType) {
                       let docData = null;
-                      if (doc.documentType === 'legal_contract') {
+                      if (doc.documentType === 'attorney_retainer') {
                         docData = documents.find(d => 
-                          d.document_type === 'legal_contract' && 
-                          (d.user_id === user.id || d.user_id === (isSurrogate ? matchData?.parent_id : matchData?.surrogate_id))
+                          d.document_type === 'attorney_retainer' && 
+                          d.user_id === user.id
                         );
                       } else {
                         docData = documents.find(d => {
@@ -707,12 +707,12 @@ export default function MyMatchScreen({ navigation }) {
             {documentConfig.map((doc) => {
               let docData = null;
               if (doc.documentType) {
-                if (doc.documentType === 'legal_contract') {
-                  // For Attorney Retainer Agreement, only look for legal_contract type
-                  // Check both current user and partner user (for match-uploaded files)
+                if (doc.documentType === 'attorney_retainer') {
+                  // For Attorney Retainer Agreement, only look for attorney_retainer type
+                  // Check if document belongs to current user
                   docData = documents.find(d => 
-                    d.document_type === 'legal_contract' && 
-                    (d.user_id === user.id || d.user_id === (isSurrogate ? matchData?.parent_id : matchData?.surrogate_id))
+                    d.document_type === 'attorney_retainer' && 
+                    d.user_id === user.id
                   );
               } else {
                   // For other documents, find by document_type and ensure it's for the current user

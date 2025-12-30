@@ -1,0 +1,49 @@
+ATTORNEY RETAINER AGREEMENT
+(Parent Version)
+
+Date: January 1, 2025
+
+This Attorney Retainer Agreement ("Agreement") is entered into between:
+
+INTENDED PARENT(S): [Parent Name(s)]
+Address: [Parent Address]
+Phone: [Parent Phone]
+Email: [Parent Email]
+
+ATTORNEY: [Attorney Name]
+Law Firm: [Law Firm Name]
+Address: [Law Firm Address]
+Phone: [Law Firm Phone]
+Email: [Law Firm Email]
+
+SCOPE OF REPRESENTATION:
+The Attorney agrees to provide legal representation to the Intended Parent(s) in matters related to the surrogacy arrangement, including but not limited to:
+- Review and negotiation of surrogacy contracts
+- Legal advice regarding parental rights and obligations
+- Representation in any legal proceedings related to the surrogacy
+- Assistance with establishing legal parentage
+- Preparation of pre-birth orders and post-birth adoption documents
+
+RETAINER FEE:
+The Intended Parent(s) agree to pay a retainer fee of $[Amount] to the Attorney. This retainer will be held in the Attorney's trust account and will be applied to fees and costs as they are incurred.
+
+TERM:
+This Agreement shall remain in effect until the completion of the surrogacy arrangement and all related legal matters are resolved, including the establishment of legal parentage, or until terminated by either party in writing.
+
+ACKNOWLEDGMENT:
+By signing below, the Intended Parent(s) acknowledge that they have read, understood, and agree to the terms of this Agreement.
+
+_________________________
+Intended Parent Signature
+
+Date: _______________
+
+_________________________
+Attorney Signature
+
+Date: _______________
+
+---
+This is a TEST DOCUMENT for Attorney Retainer (Parent Version)
+Created for testing purposes only.
+

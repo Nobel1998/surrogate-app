@@ -62,18 +62,30 @@ export async function POST(req: Request) {
     const publicUrl = buildPublicUrl(path);
 
     // Insert document for the selected user only
-    const { error: insertError } = await supabase
+    const insertData = {
+      document_type: 'attorney_retainer',
+      file_url: publicUrl,
+      file_name: file.name,
+      user_id: userId,
+    };
+    
+    console.log('[matches/attorney-retainer] Inserting document:', insertData);
+    
+    const { data: insertedDoc, error: insertError } = await supabase
       .from('documents')
-      .insert({
-        document_type: 'attorney_retainer',
-        file_url: publicUrl,
-        file_name: file.name,
-        user_id: userId,
-      });
-    if (insertError) throw insertError;
+      .insert(insertData)
+      .select()
+      .single();
+      
+    if (insertError) {
+      console.error('[matches/attorney-retainer] Insert error:', insertError);
+      throw insertError;
+    }
+    
+    console.log('[matches/attorney-retainer] Document inserted successfully:', insertedDoc);
     results.push({ user_id: userId, document_type: 'attorney_retainer', user_type: userType });
 
-    return NextResponse.json({ success: true, url: publicUrl, path, results });
+    return NextResponse.json({ success: true, url: publicUrl, path, results, inserted_document: insertedDoc });
   } catch (err: any) {
     console.error('[matches/attorney-retainer] POST error', err);
     return NextResponse.json({ error: err.message || 'Failed to upload attorney retainer agreement' }, { status: 500 });

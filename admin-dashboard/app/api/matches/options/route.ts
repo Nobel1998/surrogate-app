@@ -424,13 +424,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fetch all contracts and documents (parent_contract, surrogate_contract, legal_contract, insurance_policy, health_insurance_bill, parental_rights, online_claims, trust_account)
+    // Fetch all contracts and documents (parent_contract, surrogate_contract, legal_contract, insurance_policy, health_insurance_bill, parental_rights, online_claims, trust_account, attorney_retainer)
     console.log('[matches/options] fetching contracts and documents...');
     let contractsData: any[] = [];
     const { data: contractsDataResult, error: contractsError } = await supabase
       .from('documents')
       .select('id, user_id, document_type, file_url, file_name, created_at')
-      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims', 'agency_retainer', 'hipaa_release', 'photo_release', 'trust_account'])
+      .in('document_type', ['parent_contract', 'surrogate_contract', 'legal_contract', 'insurance_policy', 'health_insurance_bill', 'parental_rights', 'online_claims', 'agency_retainer', 'hipaa_release', 'photo_release', 'trust_account', 'attorney_retainer'])
       .order('created_at', { ascending: false })
       .limit(1000);
     if (contractsError) {
