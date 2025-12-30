@@ -206,8 +206,8 @@ export default function MatchesPage() {
   // Attorney Retainer Agreement upload state
   const [showAttorneyModal, setShowAttorneyModal] = useState(false);
   const [attorneyMatchId, setAttorneyMatchId] = useState<string | null>(null);
-  const [attorneySurrogateId, setAttorneySurrogateId] = useState<string>('');
-  const [attorneyParentId, setAttorneyParentId] = useState<string>('');
+  const [attorneyUserId, setAttorneyUserId] = useState<string>('');
+  const [attorneyUserType, setAttorneyUserType] = useState<'parent' | 'surrogate'>('parent');
   const [attorneyFile, setAttorneyFile] = useState<File | null>(null);
   const [uploadingAttorney, setUploadingAttorney] = useState(false);
   
@@ -1150,10 +1150,14 @@ export default function MatchesPage() {
     }
   };
 
-  const openAttorneyModal = (match: Match) => {
+  const openAttorneyModal = (match: Match, userType: 'parent' | 'surrogate' = 'parent') => {
     setAttorneyMatchId(match.id);
-    setAttorneySurrogateId(match.surrogate_id);
-    setAttorneyParentId(match.parent_id);
+    setAttorneyUserType(userType);
+    if (userType === 'parent') {
+      setAttorneyUserId(match.parent_id || match.first_parent_id || '');
+    } else {
+      setAttorneyUserId(match.surrogate_id);
+    }
     setAttorneyFile(null);
     setShowAttorneyModal(true);
   };
@@ -1163,8 +1167,8 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!attorneySurrogateId || !attorneyParentId) {
-      alert('Surrogate and Parent IDs are required');
+    if (!attorneyUserId) {
+      alert('User ID is required');
       return;
     }
 
@@ -1172,8 +1176,8 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', attorneyFile);
-      formData.append('surrogate_id', attorneySurrogateId);
-      formData.append('parent_id', attorneyParentId);
+      formData.append('user_id', attorneyUserId);
+      formData.append('user_type', attorneyUserType);
 
       const res = await fetch('/api/matches/attorney-retainer', {
         method: 'POST',
@@ -1186,7 +1190,7 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Attorney Retainer Agreement uploaded successfully! Both users can now see it in their My Match section.');
+      alert(`Attorney Retainer Agreement uploaded successfully! The ${attorneyUserType} can now see it in their My Match section.`);
       setShowAttorneyModal(false);
       setAttorneyFile(null);
       await loadData();
@@ -1953,7 +1957,7 @@ export default function MatchesPage() {
                                     : 'bg-yellow-100 text-yellow-800'
                             }`}>
                             {m.status?.toUpperCase() || 'UNKNOWN'}
-                          </span>
+                            </span>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <Link
@@ -2936,6 +2940,18 @@ export default function MatchesPage() {
                               c.document_type === 'agency_retainer'
                             );
                             
+                            // Filter contracts for parent only (for Attorney Retainer)
+                            const parentAttorneyRetainerContracts = contracts.filter(c => 
+                              (c.user_id === m.parent_id || c.user_id === m.first_parent_id) &&
+                              c.document_type === 'attorney_retainer'
+                            );
+                            
+                            // Filter contracts for surrogate only (for Attorney Retainer)
+                            const surrogateAttorneyRetainerContracts = contracts.filter(c => 
+                              c.user_id === m.surrogate_id &&
+                              c.document_type === 'attorney_retainer'
+                            );
+                            
                             // Helper function to get files for a document type
                             const getFilesForDocType = (docTypes: string[], isSingleUser: boolean = false) => {
                               if (docTypes.length === 0) {
@@ -3166,11 +3182,9 @@ export default function MatchesPage() {
                                 <div>
                                   <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
-                                    {renderFileList('attorney_contract', ['legal_contract'], 'Attorney Contract')}
                                     {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                     {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                     {renderFileList('pbo', ['parental_rights'], 'PBO')}
-                                    {renderFileList('attorney_retainer', ['legal_contract'], 'Attorney Retainer')}
                                   </div>
                                 </div>
                                 
@@ -3183,6 +3197,8 @@ export default function MatchesPage() {
                                     {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
                                     {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
                                     {renderFileList('trust_account', ['trust_account'], 'Trust Account', true, parentTrustAccountContracts)}
+                                    {renderFileList('attorney_retainer_parent', ['attorney_retainer'], 'Attorney Retainer (Parent)', true, parentAttorneyRetainerContracts)}
+                                    {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
                                     {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
@@ -3364,6 +3380,18 @@ export default function MatchesPage() {
                               📷 Upload Photo Release
                             </button>
                             <button
+                              onClick={() => openAttorneyModal(m, 'parent')}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ⚖️ Upload Attorney Retainer (Parent)
+                            </button>
+                            <button
+                              onClick={() => openAttorneyModal(m, 'surrogate')}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ⚖️ Upload Attorney Retainer (Surrogate)
+                            </button>
+                            <button
                               onClick={() => openTrustAccountModal(m)}
                               className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                             >
@@ -3516,19 +3544,10 @@ export default function MatchesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Surrogate
+                  {attorneyUserType === 'parent' ? 'Parent' : 'Surrogate'}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[attorneySurrogateId]?.name || attorneySurrogateId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[attorneyParentId]?.name || attorneyParentId}
+                  {profileLookup[attorneyUserId]?.name || attorneyUserId}
                 </div>
               </div>
 
@@ -3548,7 +3567,7 @@ export default function MatchesPage() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT. The agreement will be visible to both parties in their My Match section.
+                  Supported formats: PDF, DOC, DOCX, TXT. The agreement will be visible to the {attorneyUserType} in their My Match section.
                 </p>
               </div>
 

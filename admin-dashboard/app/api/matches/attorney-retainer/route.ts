@@ -23,14 +23,17 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const surrogateId = formData.get('surrogate_id') as string | null;
-    const parentId = formData.get('parent_id') as string | null;
+    const userId = formData.get('user_id') as string | null;
+    const userType = formData.get('user_type') as string | null; // 'parent' or 'surrogate'
 
     if (!file) {
       return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
-    if (!surrogateId || !parentId) {
-      return NextResponse.json({ error: 'surrogate_id and parent_id are required' }, { status: 400 });
+    if (!userId || !userType) {
+      return NextResponse.json({ error: 'user_id and user_type are required' }, { status: 400 });
+    }
+    if (userType !== 'parent' && userType !== 'surrogate') {
+      return NextResponse.json({ error: 'user_type must be "parent" or "surrogate"' }, { status: 400 });
     }
 
     // Validate file extension
@@ -58,28 +61,17 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Insert documents for both parties (same agreement, both can see it)
-    const { error: insertParentError } = await supabase
+    // Insert document for the selected user only
+    const { error: insertError } = await supabase
       .from('documents')
       .insert({
-        document_type: 'legal_contract',
+        document_type: 'attorney_retainer',
         file_url: publicUrl,
         file_name: file.name,
-        user_id: parentId,
+        user_id: userId,
       });
-    if (insertParentError) throw insertParentError;
-    results.push({ user_id: parentId, document_type: 'legal_contract' });
-
-    const { error: insertSurrogateError } = await supabase
-      .from('documents')
-      .insert({
-        document_type: 'legal_contract',
-        file_url: publicUrl,
-        file_name: file.name,
-        user_id: surrogateId,
-      });
-    if (insertSurrogateError) throw insertSurrogateError;
-    results.push({ user_id: surrogateId, document_type: 'legal_contract' });
+    if (insertError) throw insertError;
+    results.push({ user_id: userId, document_type: 'attorney_retainer', user_type: userType });
 
     return NextResponse.json({ success: true, url: publicUrl, path, results });
   } catch (err: any) {

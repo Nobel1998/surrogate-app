@@ -1800,7 +1800,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <TouchableOpacity
             style={[styles.radioButton, applicationData.mentalHealthTreatment === true && styles.radioButtonSelected]}
             onPress={() => updateField('mentalHealthTreatment', true)}
-          >
+            >
             <Text style={[styles.radioText, applicationData.mentalHealthTreatment === true && styles.radioTextSelected]}>YES</Text>
             </TouchableOpacity>
           <TouchableOpacity
