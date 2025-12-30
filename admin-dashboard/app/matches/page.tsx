@@ -1988,6 +1988,12 @@ export default function MatchesPage() {
                             <div className="text-sm font-medium text-gray-900">{m.first_parent_name || parent?.name || m.parent_id}</div>
                             <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                           </div>
+                          {m.notes && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Notes</div>
+                              <div className="text-sm text-gray-700 bg-yellow-50 p-2 rounded border border-yellow-200">{m.notes}</div>
+                            </div>
+                          )}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Parent 2</div>
                             {editingParent2 === m.id ? (
