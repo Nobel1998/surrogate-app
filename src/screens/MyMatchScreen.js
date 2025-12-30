@@ -936,6 +936,19 @@ export default function MyMatchScreen({ navigation }) {
       return '***@***';
     };
     
+    // Mask address - show only state/general area
+    const maskAddress = (address) => {
+      if (!address) return 'N/A';
+      if (isMatched) return address;
+      // Try to extract state or last part of address
+      const parts = address.split(',').map(p => p.trim());
+      if (parts.length >= 2) {
+        // Show only city and state (last two parts)
+        return parts.slice(-2).join(', ') + ' (Full address available after matching)';
+      }
+      return '*** (Full address available after matching)';
+    };
+    
     // Location doesn't need masking as it's already general information
 
     return (
@@ -1017,6 +1030,16 @@ export default function MyMatchScreen({ navigation }) {
                       {surrogateProfile?.location || selectedSurrogate?.location || 'N/A'}
                     </Text>
                   </View>
+
+                  {/* Address - Masked if not matched */}
+                  {(parsedFormData.address || surrogateProfile?.address) && (
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailLabel}>Address</Text>
+                      <Text style={styles.detailValue}>
+                        {maskAddress(parsedFormData.address || surrogateProfile?.address)}
+                      </Text>
+                    </View>
+                  )}
 
                   {parsedFormData.age && (
                     <View style={styles.detailInfoRow}>
