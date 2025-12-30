@@ -242,8 +242,8 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedImageFile);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', selectedImageFile);
 
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:start',message:'Starting image upload',data:{fileName:selectedImageFile.name,fileSize:selectedImageFile.size,fileType:selectedImageFile.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
@@ -251,7 +251,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
       const res = await fetch('/api/events/upload-image', {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
       });
 
       const data = await res.json();
