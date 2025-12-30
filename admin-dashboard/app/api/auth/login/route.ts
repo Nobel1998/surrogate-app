@@ -24,39 +24,54 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { username, password } = body;
 
-    console.log('[auth/login] Login attempt for username:', username);
+    console.log('[auth/login] Login attempt for username/email:', username);
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: 'Username and password are required' },
+        { error: 'Username/Email and password are required' },
         { status: 400 }
       );
     }
 
-    // Find admin user by username
-    const { data: adminUser, error: adminError } = await supabase
+    // Try to find admin user by username first
+    let { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
-      .select('id, name, role, branch_id, username, password_hash')
+      .select('id, name, role, branch_id, username, email, password_hash')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
-    console.log('[auth/login] Query result:', { 
+    console.log('[auth/login] Username query result:', { 
       hasUser: !!adminUser, 
       error: adminError?.message,
       errorCode: adminError?.code 
     });
 
-    if (adminError) {
-      console.error('[auth/login] Database error:', adminError);
-      // Check if it's a "not found" error (PGRST116) or actual database error
-      if (adminError.code === 'PGRST116') {
-        // No user found with this username
-        return NextResponse.json(
-          { error: 'Invalid username or password' },
-          { status: 401 }
-        );
+    // If not found by username, try email
+    if (!adminUser && !adminError) {
+      // Check if input looks like an email
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
+      
+      if (isEmail) {
+        console.log('[auth/login] Trying email lookup for:', username);
+        const emailResult = await supabase
+          .from('admin_users')
+          .select('id, name, role, branch_id, username, email, password_hash')
+          .eq('email', username)
+          .maybeSingle();
+        
+        adminUser = emailResult.data;
+        adminError = emailResult.error;
+        
+        console.log('[auth/login] Email query result:', { 
+          hasUser: !!adminUser, 
+          error: adminError?.message,
+          errorCode: adminError?.code 
+        });
       }
-      // Other database error
+    }
+
+    if (adminError && adminError.code !== 'PGRST116') {
+      console.error('[auth/login] Database error:', adminError);
       return NextResponse.json(
         { error: `Database error: ${adminError.message}` },
         { status: 500 }
@@ -64,9 +79,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!adminUser) {
-      console.log('[auth/login] No admin user found for username:', username);
+      console.log('[auth/login] No admin user found for username/email:', username);
       return NextResponse.json(
-        { error: 'Invalid username or password' },
+        { error: 'Invalid username/email or password' },
         { status: 401 }
       );
     }
@@ -84,7 +99,7 @@ export async function POST(req: NextRequest) {
     
     if (!passwordMatch) {
       return NextResponse.json(
-        { error: 'Invalid username or password' },
+        { error: 'Invalid username/email or password' },
         { status: 401 }
       );
     }
