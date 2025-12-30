@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, username, password, role, branch_id } = body;
+    const { name, username, email, password, role, branch_id } = body;
 
     // Validation
     if (!name || !username || !password) {
@@ -34,6 +34,14 @@ export async function POST(req: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       );
     }
@@ -110,11 +118,12 @@ export async function POST(req: NextRequest) {
       .insert({
         name: name,
         username: username,
+        email: email || null,
         password_hash: passwordHash,
         role: role,
         branch_id: role === 'branch_manager' ? branch_id : null,
       })
-      .select('id, name, role, branch_id, username')
+      .select('id, name, role, branch_id, username, email')
       .single();
 
     if (insertError) {
@@ -133,6 +142,7 @@ export async function POST(req: NextRequest) {
         name: newAdminUser.name,
         role: newAdminUser.role,
         username: newAdminUser.username,
+        email: newAdminUser.email,
       },
     });
   } catch (error: any) {

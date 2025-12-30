@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     username: '',
+    email: '',
     password: '',
     confirmPassword: '',
     role: 'branch_manager', // Default to branch_manager
@@ -73,6 +74,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: formData.name,
           username: formData.username,
+          email: formData.email || null,
           password: formData.password,
           role: formData.role,
           branch_id: formData.role === 'branch_manager' ? formData.branch_id : null,
@@ -137,6 +139,21 @@ export default function RegisterPage() {
                 placeholder="Choose a username"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter email address (optional)"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
