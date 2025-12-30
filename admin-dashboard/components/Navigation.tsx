@@ -8,6 +8,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [userName, setUserName] = useState<string>('');
+  const [userRole, setUserRole] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function Navigation() {
         if (res.ok) {
           const data = await res.json();
           setUserName(data.user?.name || 'Admin');
+          setUserRole(data.user?.role || '');
         }
       } catch (err) {
         // Not logged in
@@ -37,14 +39,23 @@ export default function Navigation() {
     }
   };
 
-  const navItems = [
+  const allNavItems = [
     { href: '/', label: 'Applications', icon: '📋' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
+    { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
   ];
+
+  // Filter nav items based on user role
+  const navItems = allNavItems.filter(item => {
+    if (item.adminOnly && userRole !== 'admin') {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">

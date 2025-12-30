@@ -64,13 +64,13 @@ export async function POST(req: Request) {
     // Insert document for the selected user only
     const insertData = {
       document_type: 'attorney_retainer',
-      file_url: publicUrl,
-      file_name: file.name,
+        file_url: publicUrl,
+        file_name: file.name,
       user_id: userId,
     };
     
     console.log('[matches/attorney-retainer] Inserting document:', insertData);
-    
+
     const { data: insertedDoc, error: insertError } = await supabase
       .from('documents')
       .insert(insertData)

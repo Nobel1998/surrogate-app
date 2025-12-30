@@ -583,88 +583,88 @@ export default function StepStatusPage() {
           </>
         ) : (
           <>
-            {/* Step Status Section */}
+        {/* Step Status Section */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Step Status</h2>
-              
-              {DEFAULT_STAGES.map((stage) => (
-                <div key={stage.stage_number} className="mb-6 last:mb-0">
-                  <div className="bg-gray-100 px-4 py-3 mb-3 rounded">
-                    <h3 className="font-semibold text-gray-900">{stage.stage_name}</h3>
-                  </div>
-                  <div className="border-t border-gray-200 pt-3">
-                    {stage.steps.map((step) => {
-                      const currentStatus = getStepStatus(stage.stage_number, step.step_number);
-                      return (
-                        <div key={step.step_number} className="mb-3 last:mb-0">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-medium text-gray-700">
-                                Step {step.step_number} {step.step_name}
-                              </span>
-                              <span className={`px-2 py-1 rounded text-xs border ${getStepStatusColor(currentStatus)}`}>
-                                {currentStatus.replace('_', ' ').toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'in_progress')}
-                                className={`px-3 py-1 text-xs rounded ${
-                                  currentStatus === 'in_progress'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                }`}
-                              >
-                                In Progress
-                              </button>
-                              <button
-                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'completed')}
-                                className={`px-3 py-1 text-xs rounded ${
-                                  currentStatus === 'completed'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
-                                }`}
-                              >
-                                Complete
-                              </button>
-                              <button
-                                onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'skipped')}
-                                className={`px-3 py-1 text-xs rounded ${
-                                  currentStatus === 'skipped'
-                                    ? 'bg-gray-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                              >
-                                Skip
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Admin Updates Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
-              <textarea
-                value={adminUpdate}
-                onChange={(e) => setAdminUpdate(e.target.value)}
-                placeholder="Enter admin update notes..."
-                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="mt-4">
-                <button
-                  onClick={saveAdminUpdate}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Update'}
-                </button>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Step Status</h2>
+          
+          {DEFAULT_STAGES.map((stage) => (
+            <div key={stage.stage_number} className="mb-6 last:mb-0">
+              <div className="bg-gray-100 px-4 py-3 mb-3 rounded">
+                <h3 className="font-semibold text-gray-900">{stage.stage_name}</h3>
               </div>
+              <div className="border-t border-gray-200 pt-3">
+                {stage.steps.map((step) => {
+                  const currentStatus = getStepStatus(stage.stage_number, step.step_number);
+                  return (
+                    <div key={step.step_number} className="mb-3 last:mb-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-gray-700">
+                            Step {step.step_number} {step.step_name}
+                          </span>
+                          <span className={`px-2 py-1 rounded text-xs border ${getStepStatusColor(currentStatus)}`}>
+                            {currentStatus.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'in_progress')}
+                            className={`px-3 py-1 text-xs rounded ${
+                              currentStatus === 'in_progress'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                            }`}
+                          >
+                            In Progress
+                          </button>
+                          <button
+                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'completed')}
+                            className={`px-3 py-1 text-xs rounded ${
+                              currentStatus === 'completed'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            Complete
+                          </button>
+                          <button
+                            onClick={() => updateStepStatus(stage.stage_number, step.step_number, 'skipped')}
+                            className={`px-3 py-1 text-xs rounded ${
+                              currentStatus === 'skipped'
+                                ? 'bg-gray-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Admin Updates Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
+          <textarea
+            value={adminUpdate}
+            onChange={(e) => setAdminUpdate(e.target.value)}
+            placeholder="Enter admin update notes..."
+            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="mt-4">
+            <button
+              onClick={saveAdminUpdate}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Update'}
+            </button>
+          </div>
             </div>
           </>
         )}
