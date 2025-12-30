@@ -33,7 +33,7 @@ async function checkAdminAccess(sessionCookie: string | undefined) {
 // PUT - Update branch manager
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -55,7 +55,7 @@ export async function PUT(
   const supabase = authCheck.supabase!;
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { name, username, email, password, branch_id } = body;
 
@@ -188,7 +188,7 @@ export async function PUT(
 // DELETE - Delete branch manager
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -210,7 +210,7 @@ export async function DELETE(
   const supabase = authCheck.supabase!;
 
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Check if branch manager exists
     const { data: existingManager, error: fetchError } = await supabase
