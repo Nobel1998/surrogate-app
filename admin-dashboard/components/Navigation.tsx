@@ -84,7 +84,7 @@ export default function Navigation() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ml-8">
             {!loading && userName && (
               <div className="text-sm text-gray-700">
                 Welcome, <span className="font-medium">{userName}</span>
