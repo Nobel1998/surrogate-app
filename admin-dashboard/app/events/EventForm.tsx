@@ -40,6 +40,9 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (event) {
@@ -56,7 +59,24 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         is_featured: event.is_featured,
         max_participants: event.max_participants,
       });
+    } else {
+      // Reset form when creating new event
+      setFormData({
+        title: '',
+        description: '',
+        content: '',
+        event_date: '',
+        location: '',
+        category: 'General',
+        image_url: '',
+        status: 'active',
+        is_featured: false,
+        max_participants: null,
+      });
     }
+    // Reset image upload state
+    setSelectedImageFile(null);
+    setImagePreview(null);
   }, [event]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -159,6 +179,67 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setError('File size too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setSelectedImageFile(file);
+    setError(null);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedImageFile) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedImageFile);
+
+      const res = await fetch('/api/events/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload image');
+      }
+
+      // Set the uploaded image URL
+      handleInputChange('image_url', data.url);
+      setSelectedImageFile(null);
+      setImagePreview(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   return (
@@ -287,25 +368,81 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Image URL
+                Image
               </label>
-              <input
-                type="url"
-                value={formData.image_url}
-                onChange={(e) => handleInputChange('image_url', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/image.jpg"
-              />
-              {formData.image_url && (
-                <img
-                  src={formData.image_url}
-                  alt="Preview"
-                  className="mt-2 w-32 h-20 object-cover rounded border"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
+              
+              {/* File Upload Section */}
+              <div className="mb-3">
+                <label className="block text-xs text-gray-600 mb-1">
+                  Upload Image (JPEG, PNG, GIF, WebP - Max 5MB)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageFileSelect}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    disabled={uploadingImage}
+                  />
+                  {selectedImageFile && (
+                    <button
+                      type="button"
+                      onClick={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingImage ? 'Uploading...' : 'Upload'}
+                    </button>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="mt-2">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-32 h-20 object-cover rounded border"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Preview - Click Upload to save</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Or URL Input */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">OR</span>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-xs text-gray-600 mb-1">
+                  Enter Image URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => handleInputChange('image_url', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/image.jpg"
                 />
+              </div>
+
+              {/* Image Preview */}
+              {formData.image_url && !imagePreview && (
+                <div className="mt-2">
+                  <img
+                    src={formData.image_url}
+                    alt="Preview"
+                    className="w-32 h-20 object-cover rounded border"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                </div>
               )}
             </div>
 
