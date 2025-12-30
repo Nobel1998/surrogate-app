@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
+// Stage labels for displaying friendly names
+const STAGE_LABELS: Record<string, string> = {
+  'pre': 'Pre-Screening',
+  'match': 'Matching',
+  'medical': 'Medical Screening',
+  'legal': 'Legal Process',
+  'transfer': 'Embryo Transfer',
+  'pregnancy': 'Pregnancy',
+  'delivery': 'Delivery',
+  'postpartum': 'Postpartum',
+  'complete': 'Complete',
+};
+
 type CaseStep = {
   id: string;
   case_id: string;
@@ -363,7 +376,7 @@ export default function StepStatusPage() {
             {renderDocumentSection('Case Summary', '📊',
               <div className="grid grid-cols-2 gap-x-8">
                 {renderField('Case Status', caseData?.status?.toUpperCase() || 'ACTIVE', true)}
-                {renderField('Current Step', caseData?.current_step)}
+                {renderField('Current Step', caseData?.current_step ? (STAGE_LABELS[caseData.current_step] || caseData.current_step) : undefined)}
                 {renderField('Case Type', caseData?.case_type)}
                 {renderField('Weeks Pregnant', caseData?.weeks_pregnant)}
                 {renderField('Number of Fetuses', caseData?.number_of_fetuses)}
