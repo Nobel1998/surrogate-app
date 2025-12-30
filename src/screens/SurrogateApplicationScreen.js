@@ -719,7 +719,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             full_name: payload.full_name,
             phone: payload.phone,
             form_data: payload.form_data,
-            updated_at: new Date().toISOString(),
           })
           .eq('id', applicationId)
           .select();
