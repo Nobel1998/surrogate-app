@@ -8,8 +8,8 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const dynamic = 'force-dynamic';
 
 // Helper function to check if user is admin
-async function checkAdminAccess(sessionCookie: string | undefined) {
-  if (!sessionCookie) {
+async function checkAdminAccess(adminUserId: string | undefined) {
+  if (!adminUserId) {
     return { authorized: false, error: 'Unauthorized' };
   }
 
@@ -20,7 +20,7 @@ async function checkAdminAccess(sessionCookie: string | undefined) {
   const { data: sessionData, error: sessionError } = await supabase
     .from('admin_users')
     .select('id, role')
-    .eq('id', sessionCookie)
+    .eq('id', adminUserId)
     .single();
 
   if (sessionError || !sessionData || sessionData.role !== 'admin') {
@@ -42,8 +42,8 @@ export async function PUT(
     );
   }
 
-  const sessionCookie = req.cookies.get('admin_session')?.value;
-  const authCheck = await checkAdminAccess(sessionCookie);
+  const adminUserId = req.cookies.get('admin_user_id')?.value;
+  const authCheck = await checkAdminAccess(adminUserId);
   
   if (!authCheck.authorized) {
     return NextResponse.json(
@@ -197,8 +197,8 @@ export async function DELETE(
     );
   }
 
-  const sessionCookie = req.cookies.get('admin_session')?.value;
-  const authCheck = await checkAdminAccess(sessionCookie);
+  const adminUserId = req.cookies.get('admin_user_id')?.value;
+  const authCheck = await checkAdminAccess(adminUserId);
   
   if (!authCheck.authorized) {
     return NextResponse.json(

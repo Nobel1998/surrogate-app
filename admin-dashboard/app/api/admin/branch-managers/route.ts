@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Check if user is admin
-  const sessionCookie = req.cookies.get('admin_session');
-  if (!sessionCookie) {
+  const adminUserId = req.cookies.get('admin_user_id')?.value;
+  if (!adminUserId) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const { data: sessionData, error: sessionError } = await supabase
       .from('admin_users')
       .select('id, role')
-      .eq('id', sessionCookie.value)
+      .eq('id', adminUserId)
       .single();
 
     if (sessionError || !sessionData || sessionData.role !== 'admin') {
@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Check if user is admin
-  const sessionCookie = req.cookies.get('admin_session');
-  if (!sessionCookie) {
+  const adminUserId = req.cookies.get('admin_user_id')?.value;
+  if (!adminUserId) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     const { data: sessionData, error: sessionError } = await supabase
       .from('admin_users')
       .select('id, role')
-      .eq('id', sessionCookie.value)
+      .eq('id', adminUserId)
       .single();
 
     if (sessionError || !sessionData || sessionData.role !== 'admin') {
