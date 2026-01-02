@@ -3436,9 +3436,6 @@ export default function MatchesPage() {
                                               {appointment.clinic_name && ` · ${appointment.clinic_name}`}
                                             </div>
                                             <div className="text-xs text-gray-600 mt-1">
-                                              {appointment.appointment_type && (
-                                                <span className="capitalize">{appointment.appointment_type.replace('_', ' ')}</span>
-                                              )}
                                               {appointment.status && (
                                                 <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
                                                   appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :

@@ -23,14 +23,6 @@ import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const APPOINTMENT_TYPES = [
-  { value: 'routine', label: 'Routine Check-up' },
-  { value: 'ultrasound', label: 'Ultrasound' },
-  { value: 'lab_work', label: 'Lab Work' },
-  { value: 'consultation', label: 'Consultation' },
-  { value: 'other', label: 'Other' },
-];
-
 const STATUS_COLORS = {
   scheduled: '#3B82F6',
   completed: '#10B981',
@@ -55,7 +47,6 @@ export default function OBAppointmentsScreen({ navigation }) {
     clinic_name: '',
     clinic_address: '',
     clinic_phone: '',
-    appointment_type: 'routine',
     notes: '',
   });
 
@@ -120,7 +111,6 @@ export default function OBAppointmentsScreen({ navigation }) {
       clinic_name: '',
       clinic_address: '',
       clinic_phone: '',
-      appointment_type: 'routine',
       notes: '',
     });
     setShowAddModal(true);
@@ -173,7 +163,6 @@ export default function OBAppointmentsScreen({ navigation }) {
           clinic_name: formData.clinic_name.trim(),
           clinic_address: formData.clinic_address.trim() || null,
           clinic_phone: formData.clinic_phone.trim() || null,
-          appointment_type: formData.appointment_type,
           notes: formData.notes.trim() || null,
           status: 'scheduled',
         });
@@ -316,13 +305,6 @@ export default function OBAppointmentsScreen({ navigation }) {
                     <Text style={styles.infoText}>{appointment.clinic_phone}</Text>
                   </View>
                 )}
-                <View style={styles.infoRow}>
-                  <Icon name="tag" size={16} color="#666" />
-                  <Text style={styles.infoText}>
-                    {APPOINTMENT_TYPES.find((t) => t.value === appointment.appointment_type)?.label ||
-                      appointment.appointment_type}
-                  </Text>
-                </View>
                 {appointment.notes && (
                   <View style={styles.notesContainer}>
                     <Text style={styles.notesText}>{appointment.notes}</Text>
@@ -461,31 +443,6 @@ export default function OBAppointmentsScreen({ navigation }) {
                   placeholder="(555) 123-4567"
                   keyboardType="phone-pad"
                 />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Appointment Type *</Text>
-                <View style={styles.typeContainer}>
-                  {APPOINTMENT_TYPES.map((type) => (
-                    <TouchableOpacity
-                      key={type.value}
-                      style={[
-                        styles.typeButton,
-                        formData.appointment_type === type.value && styles.typeButtonActive,
-                      ]}
-                      onPress={() => setFormData({ ...formData, appointment_type: type.value })}
-                    >
-                      <Text
-                        style={[
-                          styles.typeButtonText,
-                          formData.appointment_type === type.value && styles.typeButtonTextActive,
-                        ]}
-                      >
-                        {type.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </View>
 
               <View style={styles.formGroup}>
@@ -730,31 +687,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     backgroundColor: '#FFF',
-  },
-  typeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFF',
-  },
-  typeButtonActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
-  },
-  typeButtonText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  typeButtonTextActive: {
-    color: '#FFF',
-    fontWeight: '600',
   },
   modalFooter: {
     flexDirection: 'row',
