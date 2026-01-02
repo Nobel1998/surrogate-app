@@ -352,12 +352,14 @@ export default function OBAppointmentsScreen({ navigation }) {
             >
               <TouchableWithoutFeedback>
                 <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Schedule OB Appointment</Text>
-                    <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                      <Icon name="x" size={24} color="#333" />
-                    </TouchableOpacity>
-                  </View>
+                  <SafeAreaView edges={['top']} style={styles.modalSafeArea}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Schedule OB Appointment</Text>
+                      <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                        <Icon name="x" size={24} color="#333" />
+                      </TouchableOpacity>
+                    </View>
+                  </SafeAreaView>
 
                   <ScrollView
                     style={styles.modalBody}
@@ -635,6 +637,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '90%',
     flexGrow: 1,
+  },
+  modalSafeArea: {
+    backgroundColor: '#FFF',
   },
   modalHeader: {
     flexDirection: 'row',
