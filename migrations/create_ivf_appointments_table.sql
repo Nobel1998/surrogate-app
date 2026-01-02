@@ -27,6 +27,13 @@ CREATE INDEX IF NOT EXISTS idx_ivf_appointments_status ON ivf_appointments(statu
 -- Enable Row Level Security
 ALTER TABLE ivf_appointments ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (for idempotency)
+DROP POLICY IF EXISTS "Surrogates can view their own IVF appointments" ON ivf_appointments;
+DROP POLICY IF EXISTS "Surrogates can insert their own IVF appointments" ON ivf_appointments;
+DROP POLICY IF EXISTS "Surrogates can update their own IVF appointments" ON ivf_appointments;
+DROP POLICY IF EXISTS "Surrogates can delete their own IVF appointments" ON ivf_appointments;
+DROP POLICY IF EXISTS "Parents can view matched surrogate's IVF appointments" ON ivf_appointments;
+
 -- Policy: Surrogates can view and manage their own appointments
 CREATE POLICY "Surrogates can view their own IVF appointments"
   ON ivf_appointments
