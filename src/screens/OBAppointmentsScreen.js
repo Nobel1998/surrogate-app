@@ -13,6 +13,9 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -358,16 +361,28 @@ export default function OBAppointmentsScreen({ navigation }) {
 
       {/* Add Appointment Modal */}
       <Modal visible={showAddModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Schedule OB Appointment</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Icon name="x" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Schedule OB Appointment</Text>
+                    <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                      <Icon name="x" size={24} color="#333" />
+                    </TouchableOpacity>
+                  </View>
 
-            <ScrollView style={styles.modalBody}>
+                  <ScrollView
+                    style={styles.modalBody}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={true}
+                    contentContainerStyle={styles.modalBodyContent}
+                  >
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Date *</Text>
                 <TouchableOpacity
@@ -484,24 +499,27 @@ export default function OBAppointmentsScreen({ navigation }) {
                   numberOfLines={4}
                 />
               </View>
-            </ScrollView>
+                  </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelModalButton]}
-                onPress={() => setShowAddModal(false)}
-              >
-                <Text style={styles.cancelModalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitModalButton]}
-                onPress={handleSubmit}
-              >
-                <Text style={styles.submitModalButtonText}>Schedule</Text>
-              </TouchableOpacity>
-            </View>
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.cancelModalButton]}
+                      onPress={() => setShowAddModal(false)}
+                    >
+                      <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.submitModalButton]}
+                      onPress={handleSubmit}
+                    >
+                      <Text style={styles.submitModalButtonText}>Schedule</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -659,6 +677,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
+    flexGrow: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -674,7 +693,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   modalBody: {
+    flex: 1,
+  },
+  modalBodyContent: {
     padding: 16,
+    paddingBottom: 20,
   },
   formGroup: {
     marginBottom: 16,
@@ -694,7 +717,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
+    maxHeight: 150,
     textAlignVertical: 'top',
   },
   dateInput: {
