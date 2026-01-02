@@ -440,6 +440,25 @@ export async function GET(req: NextRequest) {
       console.log('[matches/options] loaded contracts', contractsData.length);
     }
 
+    // Fetch OB appointments for all surrogates
+    console.log('[matches/options] fetching OB appointments...');
+    let obAppointments: any[] = [];
+    if (allSurrogateIds.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('ob_appointments')
+        .select('*')
+        .in('user_id', allSurrogateIds)
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true })
+        .limit(1000);
+      if (appointmentsError) {
+        console.error('[matches/options] load OB appointments error', appointmentsError);
+      } else {
+        obAppointments = appointmentsData || [];
+        console.log('[matches/options] loaded OB appointments', obAppointments.length);
+      }
+    }
+
     console.log('[matches/options] returning payload', {
       profiles: profiles?.length || 0,
       matches: enrichedMatches?.length || 0,
@@ -468,6 +487,7 @@ export async function GET(req: NextRequest) {
       postLikes,
       medicalReports,
       contracts: contractsData || [],
+      obAppointments: obAppointments || [],
       branches: branches || [],
       currentBranchFilter: branchFilter,
       canViewAllBranches,

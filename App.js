@@ -29,6 +29,7 @@ import MyInfoScreen from './src/screens/MyInfoScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 import SurrogateMedicalInfoScreen from './src/screens/SurrogateMedicalInfoScreen';
 import ViewApplicationScreen from './src/screens/ViewApplicationScreen';
+import OBAppointmentsScreen from './src/screens/OBAppointmentsScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -214,6 +215,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="SurrogateMedicalInfo" component={SurrogateMedicalInfoScreen} />
       <Stack.Screen name="ViewApplication" component={ViewApplicationScreen} options={{ title: 'My Application' }} />
+      <Stack.Screen name="OBAppointments" component={OBAppointmentsScreen} />
     </Stack.Navigator>
   );
 }
