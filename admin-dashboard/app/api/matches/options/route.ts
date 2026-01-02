@@ -459,6 +459,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Fetch IVF appointments for all surrogates
+    console.log('[matches/options] fetching IVF appointments...');
+    let ivfAppointments: any[] = [];
+    if (allSurrogateIds.length > 0) {
+      const { data: ivfAppointmentsData, error: ivfAppointmentsError } = await supabase
+        .from('ivf_appointments')
+        .select('*')
+        .in('user_id', allSurrogateIds)
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true })
+        .limit(1000);
+      if (ivfAppointmentsError) {
+        console.error('[matches/options] load IVF appointments error', ivfAppointmentsError);
+      } else {
+        ivfAppointments = ivfAppointmentsData || [];
+        console.log('[matches/options] loaded IVF appointments', ivfAppointments.length);
+      }
+    }
+
     console.log('[matches/options] returning payload', {
       profiles: profiles?.length || 0,
       matches: enrichedMatches?.length || 0,
@@ -488,6 +507,7 @@ export async function GET(req: NextRequest) {
       medicalReports,
       contracts: contractsData || [],
       obAppointments: obAppointments || [],
+      ivfAppointments: ivfAppointments || [],
       branches: branches || [],
       currentBranchFilter: branchFilter,
       canViewAllBranches,

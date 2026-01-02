@@ -722,6 +722,7 @@ export default function ProfileScreen({ navigation }) {
               {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
               {renderMenuItem(t('profile.medicalInfo'), 'activity', () => navigation.navigate('SurrogateMedicalInfo'), '#2A7BF6')}
               {renderMenuItem('OB Appointments', 'calendar', () => navigation.navigate('OBAppointments'), '#10B981')}
+              {renderMenuItem('IVF Appointments', 'calendar', () => navigation.navigate('IVFAppointments'), '#3B82F6')}
             </>
           )}
         </View>

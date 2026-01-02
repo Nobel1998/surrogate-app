@@ -147,6 +147,7 @@ export default function MatchesPage() {
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [obAppointments, setObAppointments] = useState<any[]>([]);
+  const [ivfAppointments, setIvfAppointments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -356,6 +357,7 @@ export default function MatchesPage() {
         medicalReports: reportsData = [],
         contracts: contractsData = [],
         obAppointments: appointmentsData = [],
+        ivfAppointments: ivfAppointmentsData = [],
         branches: branchesData = [],
         currentBranchFilter: branchFilter,
         canViewAllBranches: canViewAll,
@@ -401,6 +403,7 @@ export default function MatchesPage() {
       setMedicalReports(reportsData || []);
       setContracts(contractsData || []);
       setObAppointments(appointmentsData || []);
+      setIvfAppointments(ivfAppointmentsData || []);
       setBranches(branchesData || []);
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
@@ -3407,21 +3410,25 @@ export default function MatchesPage() {
                           </div>
                           <div className="mt-2 pt-2 border-t border-gray-300">
                             {(() => {
-                              const surrogateAppointments = obAppointments.filter((a) => a.user_id === m.surrogate_id);
-                              const upcomingAppointments = surrogateAppointments
+                              const surrogateOBAppointments = obAppointments.filter((a) => a.user_id === m.surrogate_id);
+                              const surrogateIVFAppointments = ivfAppointments.filter((a) => a.user_id === m.surrogate_id);
+                              const upcomingOBAppointments = surrogateOBAppointments
+                                .filter((a) => a.status === 'scheduled')
+                                .slice(0, 5);
+                              const upcomingIVFAppointments = surrogateIVFAppointments
                                 .filter((a) => a.status === 'scheduled')
                                 .slice(0, 5);
                               
                               return (
                                 <>
                                   <div className="font-semibold text-sm text-blue-700 mb-2">
-                                    OB Appointments: {surrogateAppointments.length} total ({surrogateAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                                    OB Appointments: {surrogateOBAppointments.length} total ({surrogateOBAppointments.filter(a => a.status === 'scheduled').length} scheduled)
                                   </div>
-                                  {upcomingAppointments.length === 0 ? (
-                                    <div className="text-gray-500 text-xs">No upcoming appointments</div>
+                                  {upcomingOBAppointments.length === 0 ? (
+                                    <div className="text-gray-500 text-xs">No upcoming OB appointments</div>
                                   ) : (
                                     <div className="space-y-2">
-                                      {upcomingAppointments.map((appointment) => {
+                                      {upcomingOBAppointments.map((appointment) => {
                                         const appointmentDate = formatDateOnly(appointment.appointment_date);
                                         const appointmentTime = appointment.appointment_time ? 
                                           new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
@@ -3439,6 +3446,44 @@ export default function MatchesPage() {
                                               {appointment.status && (
                                                 <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
                                                   appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                                                  appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                  appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                  'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                  {appointment.status}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  <div className="font-semibold text-sm text-purple-700 mb-2 mt-3">
+                                    IVF Appointments: {surrogateIVFAppointments.length} total ({surrogateIVFAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                                  </div>
+                                  {upcomingIVFAppointments.length === 0 ? (
+                                    <div className="text-gray-500 text-xs">No upcoming IVF appointments</div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {upcomingIVFAppointments.map((appointment) => {
+                                        const appointmentDate = formatDateOnly(appointment.appointment_date);
+                                        const appointmentTime = appointment.appointment_time ? 
+                                          new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                                        
+                                        return (
+                                          <div key={appointment.id} className="p-2 rounded border border-purple-200 bg-purple-50">
+                                            <div className="text-[11px] text-gray-600 font-semibold">
+                                              {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
+                                            </div>
+                                            <div className="text-xs text-gray-700 mt-1">
+                                              {appointment.provider_name && `Dr. ${appointment.provider_name}`}
+                                              {appointment.clinic_name && ` · ${appointment.clinic_name}`}
+                                            </div>
+                                            <div className="text-xs text-gray-600 mt-1">
+                                              {appointment.status && (
+                                                <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
+                                                  appointment.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
                                                   appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
                                                   appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                                                   'bg-yellow-100 text-yellow-700'
