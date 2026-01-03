@@ -37,11 +37,29 @@ type Profile = {
   role: string;
 };
 
+type Match = {
+  id: string;
+  surrogate_id: string;
+  parent_id: string;
+  status: string;
+  surrogate?: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+  parent?: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+};
+
 const PURCHASED_BY_OPTIONS: Array<'agency' | 'own' | 'employer'> = ['agency', 'own', 'employer'];
 
 export default function SurrogateInsurancePage() {
   const [insuranceRecords, setInsuranceRecords] = useState<Insurance[]>([]);
   const [surrogates, setSurrogates] = useState<Profile[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -81,6 +99,12 @@ export default function SurrogateInsurancePage() {
         (p: Profile) => (p.role || '').toLowerCase() === 'surrogate'
       );
       setSurrogates(surList);
+
+      // Load matches
+      const matchesList = (matchesData.matches || []).filter(
+        (m: Match) => m.status === 'active'
+      );
+      setMatches(matchesList);
 
       // Load insurance records
       const insuranceRes = await fetch('/api/surrogate-insurance');
@@ -372,14 +396,32 @@ export default function SurrogateInsurancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Match ID</label>
-                  <input
-                    type="text"
+                  <label className="block text-sm font-medium mb-1">Match (Optional)</label>
+                  <select
                     value={formData.match_id}
-                    onChange={(e) => setFormData({ ...formData, match_id: e.target.value })}
+                    onChange={(e) => {
+                      const selectedMatchId = e.target.value;
+                      const selectedMatch = matches.find((m) => m.id === selectedMatchId);
+                      setFormData({
+                        ...formData,
+                        match_id: selectedMatchId,
+                        user_id: selectedMatch?.surrogate_id || formData.user_id,
+                      });
+                    }}
                     className="w-full border rounded px-3 py-2"
-                    placeholder="Optional"
-                  />
+                  >
+                    <option value="">No Match</option>
+                    {matches.map((match) => (
+                      <option key={match.id} value={match.id}>
+                        {match.surrogate?.name || 'Surrogate'} ↔ {match.parent?.name || 'Parent'} ({match.id.substring(0, 8)}...)
+                      </option>
+                    ))}
+                  </select>
+                  {formData.match_id && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Surrogate will be auto-filled from selected match
+                    </p>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-1">Insurance Company & Plan *</label>
@@ -522,14 +564,32 @@ export default function SurrogateInsurancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Match ID</label>
-                  <input
-                    type="text"
+                  <label className="block text-sm font-medium mb-1">Match (Optional)</label>
+                  <select
                     value={formData.match_id}
-                    onChange={(e) => setFormData({ ...formData, match_id: e.target.value })}
+                    onChange={(e) => {
+                      const selectedMatchId = e.target.value;
+                      const selectedMatch = matches.find((m) => m.id === selectedMatchId);
+                      setFormData({
+                        ...formData,
+                        match_id: selectedMatchId,
+                        user_id: selectedMatch?.surrogate_id || formData.user_id,
+                      });
+                    }}
                     className="w-full border rounded px-3 py-2"
-                    placeholder="Optional"
-                  />
+                  >
+                    <option value="">No Match</option>
+                    {matches.map((match) => (
+                      <option key={match.id} value={match.id}>
+                        {match.surrogate?.name || 'Surrogate'} ↔ {match.parent?.name || 'Parent'} ({match.id.substring(0, 8)}...)
+                      </option>
+                    ))}
+                  </select>
+                  {formData.match_id && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Surrogate will be auto-filled from selected match
+                    </p>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-1">Insurance Company & Plan *</label>
