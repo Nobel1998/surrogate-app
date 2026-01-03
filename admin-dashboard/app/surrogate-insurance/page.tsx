@@ -100,11 +100,36 @@ export default function SurrogateInsurancePage() {
       );
       setSurrogates(surList);
 
-      // Load matches
-      const matchesList = (matchesData.matches || []).filter(
-        (m: Match) => m.status === 'active'
-      );
-      setMatches(matchesList);
+      // Load matches and enrich with surrogate and parent names
+      const matches = matchesData.matches || [];
+      const profiles = matchesData.profiles || [];
+      
+      // Create a map of profiles by id for quick lookup
+      const profilesMap = new Map(profiles.map((p: any) => [p.id, p]));
+      
+      // Enrich matches with surrogate and parent information
+      const enrichedMatches = matches
+        .filter((m: Match) => m.status === 'active')
+        .map((match: any) => {
+          const surrogate = profilesMap.get(match.surrogate_id) || null;
+          const parent = profilesMap.get(match.parent_id) || null;
+          
+          return {
+            ...match,
+            surrogate: surrogate ? {
+              id: surrogate.id,
+              name: surrogate.name,
+              phone: surrogate.phone,
+            } : undefined,
+            parent: parent ? {
+              id: parent.id,
+              name: parent.name,
+              phone: parent.phone,
+            } : undefined,
+          };
+        });
+      
+      setMatches(enrichedMatches);
 
       // Load insurance records
       const insuranceRes = await fetch('/api/surrogate-insurance');
