@@ -105,14 +105,14 @@ export default function SurrogateInsurancePage() {
       const profiles = matchesData.profiles || [];
       
       // Create a map of profiles by id for quick lookup
-      const profilesMap = new Map(profiles.map((p: any) => [p.id, p]));
+      const profilesMap = new Map<string, Profile>(profiles.map((p: Profile) => [p.id, p]));
       
       // Enrich matches with surrogate and parent information
       const enrichedMatches = matches
         .filter((m: Match) => m.status === 'active')
         .map((match: any) => {
-          const surrogate = profilesMap.get(match.surrogate_id) || null;
-          const parent = profilesMap.get(match.parent_id) || null;
+          const surrogate: Profile | undefined = profilesMap.get(match.surrogate_id);
+          const parent: Profile | undefined = profilesMap.get(match.parent_id);
           
           return {
             ...match,
