@@ -358,7 +358,7 @@ export default function SurrogateInsurancePage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchased By</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Policy Number</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Insurance Agent</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -481,7 +481,7 @@ export default function SurrogateInsurancePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Agent</label>
+                  <label className="block text-sm font-medium mb-1">Insurance Agent</label>
                   <input
                     type="text"
                     value={formData.agent}
@@ -649,7 +649,7 @@ export default function SurrogateInsurancePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Agent</label>
+                  <label className="block text-sm font-medium mb-1">Insurance Agent</label>
                   <input
                     type="text"
                     value={formData.agent}
