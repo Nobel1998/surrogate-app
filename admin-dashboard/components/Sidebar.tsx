@@ -16,6 +16,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/matches', label: 'Matches', icon: '🤝' },
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰' },
     { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️' },
+    { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
     { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
