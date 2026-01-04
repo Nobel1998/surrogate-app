@@ -162,6 +162,7 @@ export default function MatchesPage() {
   // Branch management state
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
+  const [selectedStageFilter, setSelectedStageFilter] = useState<string>('all');
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
@@ -1893,6 +1894,22 @@ export default function MatchesPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              {/* Progress Stage Filter */}
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Filter by Stage</label>
+                <select
+                  value={selectedStageFilter}
+                  onChange={(e) => setSelectedStageFilter(e.target.value)}
+                  className="border rounded px-3 py-1.5 text-sm"
+                >
+                  <option value="all">All Stages</option>
+                  {STAGE_OPTIONS.map((stage) => (
+                    <option key={stage} value={stage}>
+                      {STAGE_LABELS[stage]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             <button
                 onClick={() => {
                   loadData();
@@ -1905,7 +1922,14 @@ export default function MatchesPage() {
           </div>
 
           <div className="space-y-4">
-                {matches.map((m) => {
+                {matches
+                  .filter((m) => {
+                    if (selectedStageFilter === 'all') return true;
+                    const surrogate = profileLookup[m.surrogate_id];
+                    const surrogateStage = surrogate?.progress_stage || 'pre';
+                    return surrogateStage === selectedStageFilter;
+                  })
+                  .map((m) => {
                   const surrogate = profileLookup[m.surrogate_id];
                   const parent = profileLookup[m.parent_id];
                   const surrogateStageKey = surrogate?.progress_stage || 'pre';
