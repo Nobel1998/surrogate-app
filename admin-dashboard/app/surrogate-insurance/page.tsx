@@ -146,7 +146,7 @@ export default function SurrogateInsurancePage() {
       // Enrich with user names and match info
       records = records.map((record: Insurance) => {
         const user = surList.find((s: Profile) => s.id === record.user_id);
-        const match = record.match_id ? matchesMap.get(record.match_id) : undefined;
+        const match: Match | undefined = record.match_id ? matchesMap.get(record.match_id) : undefined;
         return {
           ...record,
           user: user ? { id: user.id, name: user.name, phone: user.phone } : undefined,
