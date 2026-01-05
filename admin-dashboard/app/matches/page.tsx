@@ -1902,7 +1902,7 @@ export default function MatchesPage() {
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
                   className="border rounded px-3 py-1.5 text-sm"
                 >
-                  <option value="all">All Statuses</option>
+                  <option value="all">All Status</option>
                   {STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
                       {status.charAt(0).toUpperCase() + status.slice(1)}
