@@ -162,7 +162,7 @@ export default function MatchesPage() {
   // Branch management state
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
-  const [selectedStageFilter, setSelectedStageFilter] = useState<string>('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
@@ -1894,18 +1894,18 @@ export default function MatchesPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {/* Progress Stage Filter */}
+              {/* Status Filter */}
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Filter by Stage</label>
+                <label className="block text-xs text-gray-600 mb-1">Filter by Status</label>
                 <select
-                  value={selectedStageFilter}
-                  onChange={(e) => setSelectedStageFilter(e.target.value)}
+                  value={selectedStatusFilter}
+                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
                   className="border rounded px-3 py-1.5 text-sm"
                 >
-                  <option value="all">All Stages</option>
-                  {STAGE_OPTIONS.map((stage) => (
-                    <option key={stage} value={stage}>
-                      {STAGE_LABELS[stage]}
+                  <option value="all">All Statuses</option>
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -1924,10 +1924,8 @@ export default function MatchesPage() {
           <div className="space-y-4">
                 {matches
                   .filter((m) => {
-                    if (selectedStageFilter === 'all') return true;
-                    const surrogate = profileLookup[m.surrogate_id];
-                    const surrogateStage = surrogate?.progress_stage || 'pre';
-                    return surrogateStage === selectedStageFilter;
+                    if (selectedStatusFilter === 'all') return true;
+                    return m.status === selectedStatusFilter;
                   })
                   .map((m) => {
                   const surrogate = profileLookup[m.surrogate_id];
