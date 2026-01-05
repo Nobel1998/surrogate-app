@@ -141,7 +141,7 @@ export default function SurrogateInsurancePage() {
       let records = insuranceData.insurance || [];
       
       // Create a map of matches by id for quick lookup
-      const matchesMap = new Map(enrichedMatches.map((m: Match) => [m.id, m]));
+      const matchesMap = new Map<string, Match>(enrichedMatches.map((m: Match) => [m.id, m]));
 
       // Enrich with user names and match info
       records = records.map((record: Insurance) => {
