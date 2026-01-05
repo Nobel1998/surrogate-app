@@ -98,6 +98,7 @@ export default function PaymentNodesPage() {
   const [selectedPayment, setSelectedPayment] = useState<ClientPayment | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterMatchId, setFilterMatchId] = useState<string>('all');
+  const [filterMatchStatus, setFilterMatchStatus] = useState<string>('all');
   const [filterInstallment, setFilterInstallment] = useState<string>('all');
 
   // Form state for payment nodes
@@ -127,7 +128,7 @@ export default function PaymentNodesPage() {
 
   useEffect(() => {
     loadData();
-  }, [filterStatus, filterMatchId, filterInstallment, activeTab]);
+  }, [filterStatus, filterMatchId, filterMatchStatus, filterInstallment, activeTab]);
 
   const loadData = async () => {
     try {
@@ -470,6 +471,10 @@ export default function PaymentNodesPage() {
   const filteredPayments = clientPayments.filter((payment) => {
     if (filterMatchId !== 'all' && payment.match_id !== filterMatchId) return false;
     if (filterInstallment !== 'all' && payment.payment_installment !== filterInstallment) return false;
+    if (filterMatchStatus !== 'all') {
+      const match = matches.find((m) => m.id === payment.match_id);
+      if (!match || match.status !== filterMatchStatus) return false;
+    }
     return true;
   });
 
@@ -531,6 +536,10 @@ export default function PaymentNodesPage() {
   const filteredNodes = paymentNodes.filter((node) => {
     if (filterStatus !== 'all' && node.status !== filterStatus) return false;
     if (filterMatchId !== 'all' && node.match_id !== filterMatchId) return false;
+    if (filterMatchStatus !== 'all') {
+      const match = matches.find((m) => m.id === node.match_id);
+      if (!match || match.status !== filterMatchStatus) return false;
+    }
     return true;
   });
 
@@ -608,7 +617,7 @@ export default function PaymentNodesPage() {
 
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Filter by Status
@@ -623,6 +632,22 @@ export default function PaymentNodesPage() {
                 <option value="paid">Paid</option>
                 <option value="overdue">Overdue</option>
                 <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Match Status
+              </label>
+              <select
+                value={filterMatchStatus}
+                onChange={(e) => setFilterMatchStatus(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="pending">Pending</option>
               </select>
             </div>
             <div>

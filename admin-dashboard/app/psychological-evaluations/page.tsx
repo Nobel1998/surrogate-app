@@ -59,6 +59,7 @@ export default function PsychologicalEvaluationsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [filterMatchStatus, setFilterMatchStatus] = useState<string>('all');
   const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -72,7 +73,7 @@ export default function PsychologicalEvaluationsPage() {
 
   useEffect(() => {
     loadData();
-  }, [filterUserId]);
+  }, [filterUserId, filterMatchStatus]);
 
   const loadData = async () => {
     try {
@@ -97,7 +98,6 @@ export default function PsychologicalEvaluationsPage() {
       const profilesMap = new Map<string, Profile>(profiles.map((p: Profile) => [p.id, p]));
       
       const enrichedMatches = matchesList
-        .filter((m: Match) => m.status === 'active')
         .map((match: any) => {
           const surrogate: Profile | undefined = profilesMap.get(match.surrogate_id);
           const parent: Profile | undefined = profilesMap.get(match.parent_id);
@@ -128,18 +128,30 @@ export default function PsychologicalEvaluationsPage() {
       
       let records = evaluationsData.evaluations || [];
       
-      // Enrich with user names
+      // Create a map of matches by id for quick lookup
+      const matchesMap = new Map(enrichedMatches.map((m: Match) => [m.id, m]));
+
+      // Enrich with user names and match info
       records = records.map((record: Evaluation) => {
         const user = surList.find((s: Profile) => s.id === record.user_id);
+        const match = record.match_id ? matchesMap.get(record.match_id) : undefined;
         return {
           ...record,
           user: user ? { id: user.id, name: user.name, phone: user.phone } : undefined,
+          match: match ? { id: match.id, status: match.status } : undefined,
         };
       });
 
-      // Apply filter
+      // Apply filters
       if (filterUserId !== 'all') {
         records = records.filter((r: Evaluation) => r.user_id === filterUserId);
+      }
+      if (filterMatchStatus !== 'all') {
+        records = records.filter((r: Evaluation) => {
+          if (!r.match_id) return false; // No match = don't show when filtering by status
+          const match = matchesMap.get(r.match_id);
+          return match && match.status === filterMatchStatus;
+        });
       }
 
       setEvaluations(records);
@@ -312,6 +324,20 @@ export default function PsychologicalEvaluationsPage() {
                 {sur.name}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Filter by Match Status</label>
+          <select
+            value={filterMatchStatus}
+            onChange={(e) => setFilterMatchStatus(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="pending">Pending</option>
           </select>
         </div>
       </div>
