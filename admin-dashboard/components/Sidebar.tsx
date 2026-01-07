@@ -18,6 +18,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️' },
     { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠' },
     { href: '/monthly-assessments', label: 'Monthly Assessments', icon: '📊' },
+    { href: '/journey-pics', label: 'Journey Pics', icon: '📸' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
     { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
