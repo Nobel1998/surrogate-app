@@ -450,6 +450,7 @@ export const translations = {
       you: 'You',
       pregnancyInformation: 'Pregnancy Information',
       fetalBeatConfirm: 'Fetal Beat Confirm',
+      betaConfirmDate: 'Beta Confirm Date',
     },
     // Profile Detail Screen
     profileDetail: {
@@ -1363,6 +1364,7 @@ export const translations = {
       you: '您',
       pregnancyInformation: '怀孕信息',
       fetalBeatConfirm: '胎心确认',
+      betaConfirmDate: 'Beta确认日期',
     },
     // Profile Detail Screen
     profileDetail: {

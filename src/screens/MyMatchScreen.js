@@ -806,21 +806,36 @@ export default function MyMatchScreen({ navigation }) {
         </View>
 
         {/* Pregnancy Information */}
-        {matchData?.fetal_beat_confirm && (
+        {(matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && (
           <View style={styles.pregnancyInfoSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('myMatch.pregnancyInformation')}</Text>
             </View>
             <View style={styles.pregnancyInfoCard}>
-              <View style={styles.pregnancyInfoItem}>
-                <View style={styles.pregnancyInfoIconContainer}>
-                  <Icon name="heart" size={24} color="#FF8EA4" />
+              {matchData?.fetal_beat_confirm && (
+                <View style={styles.pregnancyInfoItem}>
+                  <View style={styles.pregnancyInfoIconContainer}>
+                    <Icon name="heart" size={24} color="#FF8EA4" />
+                  </View>
+                  <View style={styles.pregnancyInfoContent}>
+                    <Text style={styles.pregnancyInfoLabel}>{t('myMatch.fetalBeatConfirm')}</Text>
+                    <Text style={styles.pregnancyInfoValue}>{matchData.fetal_beat_confirm}</Text>
+                  </View>
                 </View>
-                <View style={styles.pregnancyInfoContent}>
-                  <Text style={styles.pregnancyInfoLabel}>{t('myMatch.fetalBeatConfirm')}</Text>
-                  <Text style={styles.pregnancyInfoValue}>{matchData.fetal_beat_confirm}</Text>
+              )}
+              {matchData?.beta_confirm_date && (
+                <View style={[styles.pregnancyInfoItem, matchData?.fetal_beat_confirm && styles.pregnancyInfoItemWithMargin]}>
+                  <View style={styles.pregnancyInfoIconContainer}>
+                    <Icon name="calendar" size={24} color="#2A7BF6" />
+                  </View>
+                  <View style={styles.pregnancyInfoContent}>
+                    <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaConfirmDate')}</Text>
+                    <Text style={styles.pregnancyInfoValue}>
+                      {formatMatchDate(matchData.beta_confirm_date)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           </View>
         )}
@@ -1627,6 +1642,9 @@ const styles = StyleSheet.create({
   pregnancyInfoItem: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  pregnancyInfoItemWithMargin: {
+    marginTop: 16,
   },
   pregnancyInfoIconContainer: {
     width: 56,
