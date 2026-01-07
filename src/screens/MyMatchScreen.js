@@ -805,6 +805,26 @@ export default function MyMatchScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Pregnancy Information */}
+        {matchData?.fetal_beat_confirm && (
+          <View style={styles.pregnancyInfoSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t('myMatch.pregnancyInformation')}</Text>
+            </View>
+            <View style={styles.pregnancyInfoCard}>
+              <View style={styles.pregnancyInfoItem}>
+                <View style={styles.pregnancyInfoIconContainer}>
+                  <Icon name="heart" size={24} color="#FF8EA4" />
+                </View>
+                <View style={styles.pregnancyInfoContent}>
+                  <Text style={styles.pregnancyInfoLabel}>{t('myMatch.fetalBeatConfirm')}</Text>
+                  <Text style={styles.pregnancyInfoValue}>{matchData.fetal_beat_confirm}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>{t('myMatch.quickActions')}</Text>
@@ -1585,6 +1605,51 @@ const styles = StyleSheet.create({
   },
   documentArrow: {
     marginLeft: 8,
+  },
+  // Pregnancy Information
+  pregnancyInfoSection: {
+    padding: 20,
+    paddingTop: 8,
+  },
+  pregnancyInfoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+  },
+  pregnancyInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pregnancyInfoIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#FFF0F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  pregnancyInfoContent: {
+    flex: 1,
+  },
+  pregnancyInfoLabel: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  pregnancyInfoValue: {
+    fontSize: 18,
+    color: '#1A1D1E',
+    fontWeight: '700',
   },
   // Quick Actions
   quickActionsSection: {

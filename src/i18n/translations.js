@@ -448,6 +448,8 @@ export const translations = {
       loadingMatchInfo: 'Loading match info...',
       partner: 'Partner',
       you: 'You',
+      pregnancyInformation: 'Pregnancy Information',
+      fetalBeatConfirm: 'Fetal Beat Confirm',
     },
     // Profile Detail Screen
     profileDetail: {
@@ -1359,6 +1361,8 @@ export const translations = {
       loadingMatchInfo: '加载匹配信息...',
       partner: '合作伙伴',
       you: '您',
+      pregnancyInformation: '怀孕信息',
+      fetalBeatConfirm: '胎心确认',
     },
     // Profile Detail Screen
     profileDetail: {
