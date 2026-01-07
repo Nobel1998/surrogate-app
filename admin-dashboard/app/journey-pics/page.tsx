@@ -13,12 +13,7 @@ type JourneyPic = {
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;
-  match?: {
-    id: string;
-    surrogate_id: string;
-    parent_id: string;
-    status: string;
-  };
+  match?: Match;
 };
 
 type Match = {
