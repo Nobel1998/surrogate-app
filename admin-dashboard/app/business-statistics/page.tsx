@@ -47,8 +47,13 @@ export default function BusinessStatisticsPage() {
       const data = await res.json();
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:47',message:'Statistics data received',data:{hasStatistics:!!data.statistics,statistics:data.statistics},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:47',message:'Statistics data received',data:{hasStatistics:!!data.statistics,statistics:data.statistics,debugInfo:data._debug},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'F'})}).catch(()=>{});
       // #endregion
+      
+      // Log debug info to console
+      if (data._debug) {
+        console.log('[business-statistics] Debug info from API:', data._debug);
+      }
       
       setStatistics(data.statistics);
     } catch (error: any) {

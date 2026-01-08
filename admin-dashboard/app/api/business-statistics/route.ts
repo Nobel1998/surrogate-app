@@ -215,11 +215,23 @@ export async function GET(req: NextRequest) {
           breakdown: transferCounts,
         },
       },
+      // Add debug info to help identify the issue
+      _debug: {
+        allMatchesCount: allMatches?.length || 0,
+        matchesWithTransferDate: matches.length,
+        matchesWithBetaConfirm: matches.filter(m => m.beta_confirm_date).length,
+        matchesWithEmbryos: matches.filter(m => m.embryos).length,
+        parentProfilesCount: parentProfiles?.length || 0,
+        parentIdsCollected: parentIds.size,
+      },
     };
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:150',message:'Final statistics result',data:result,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:210',message:'Final statistics result with debug info',data:result,timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'E'})}).catch(()=>{});
     // #endregion
+
+    // Also log to console for Vercel logs
+    console.log('[business-statistics] Final result:', JSON.stringify(result._debug, null, 2));
 
     return NextResponse.json(result);
   } catch (error: any) {
