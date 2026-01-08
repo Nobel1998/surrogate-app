@@ -73,15 +73,11 @@ export default function BusinessStatisticsPage() {
     }
   };
 
-  const handleFilterChange = () => {
-    loadStatistics();
-  };
-
   const clearFilters = () => {
     setSelectedSurrogateAgeRange('');
     setSelectedEmbryoGrade('');
     setSelectedSurrogateLocation('');
-    // Load statistics after clearing (will be triggered by useEffect or manual call)
+    // Statistics will reload automatically via useEffect
   };
 
   const formatPercentage = (value: number) => {
@@ -93,13 +89,12 @@ export default function BusinessStatisticsPage() {
   };
 
   useEffect(() => {
-    if (selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation) {
-      // Debounce filter changes
-      const timer = setTimeout(() => {
-        loadStatistics();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
+    // Debounce filter changes
+    const timer = setTimeout(() => {
+      loadStatistics();
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation]);
 
   const exportToCSV = () => {
