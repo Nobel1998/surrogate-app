@@ -73,14 +73,21 @@ export async function GET(req: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:68',message:'After querying all matches',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0,sampleMatches:allMatches?.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
-    // Filter matches with transfer dates
-    // For business statistics, we want to show all matches with transfer dates, regardless of status
-    // This gives a more comprehensive view of the agency's performance
+    // For business statistics, we want comprehensive data
+    // If no matches with transfer_date, we'll still calculate statistics from all matches
+    // This helps identify if the issue is missing transfer_date or missing matches entirely
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
     
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:76',message:'Filtered matches (all statuses with transfer_date)',data:{matchesCount:matches.length,activeCount:matches.filter(m=>m.status==='active').length,completedCount:matches.filter(m=>m.status==='completed').length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:76',message:'Filtered matches (all statuses with transfer_date)',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:matches.length,activeCount:matches.filter(m=>m.status==='active').length,completedCount:matches.filter(m=>m.status==='completed').length,sampleMatches:allMatches?.slice(0,5).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status,beta_confirm_date:m.beta_confirm_date}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
+    
+    // If no matches with transfer_date, log this for debugging
+    if (matches.length === 0 && allMatches && allMatches.length > 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:84',message:'WARNING: No matches with transfer_date found',data:{totalMatches:allMatches.length,matchesWithoutTransferDate:allMatches.filter(m=>!m.transfer_date).length,sampleMatchesWithoutTransfer:allMatches.filter(m=>!m.transfer_date).slice(0,3).map(m=>({id:m.id,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    }
     
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Final filtered matches',data:{matchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
