@@ -56,18 +56,23 @@ export async function GET(req: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:58',message:'Starting statistics calculation',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
-    // Get all matches with transfer dates
-    const { data: matches, error: matchesError } = await supabase
+    // First, get all matches to see what we have
+    const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status')
-      .not('transfer_date', 'is', null)
-      .eq('status', 'active');
+      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status');
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:66',message:'Matches query result',data:{matchesCount:matches?.length||0,error:matchesError?.message||null,firstMatch:matches?.[0]||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:59',message:'All matches query result',data:{allMatchesCount:allMatches?.length||0,error:allMatchesError?.message||null,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
-    if (matchesError) throw matchesError;
+    if (allMatchesError) throw allMatchesError;
+
+    // Filter matches with transfer dates and active status
+    const matches = allMatches?.filter(m => m.transfer_date !== null && m.status === 'active') || [];
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:72',message:'Filtered matches result',data:{filteredMatchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     // Get parent profiles for age calculation
     const parentIds = new Set<string>();
