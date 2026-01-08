@@ -895,46 +895,92 @@ export const AuthProvider = ({ children }) => {
         
         // If transfer_date is being updated, also update surrogate_matches table
         if (updatedData.transfer_date !== undefined) {
+          console.log('🔄 Syncing transfer_date to surrogate_matches...', {
+            userId: user.id,
+            transferDate: updatedData.transfer_date,
+          });
+          
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:900',message:'Updating transfer_date in surrogate_matches',data:{userId:user.id,transferDate:updatedData.transfer_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'H'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:900',message:'Updating transfer_date in surrogate_matches',data:{userId:user.id,transferDate:updatedData.transfer_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'H'})}).catch(()=>{});
           // #endregion
           
-          // Find active match for this surrogate
-          const { data: activeMatch, error: matchError } = await supabase
+          // Find match for this surrogate (try active first, then any match)
+          let match = null;
+          let matchError = null;
+          
+          // First, try to find active match
+          const { data: activeMatch, error: activeMatchError } = await supabase
             .from('surrogate_matches')
             .select('id, status')
             .eq('surrogate_id', user.id)
             .eq('status', 'active')
             .maybeSingle();
           
+          if (activeMatch && !activeMatchError) {
+            match = activeMatch;
+            console.log('✅ Found active match:', activeMatch.id);
+          } else {
+            // If no active match, try to find any match (most recent)
+            console.log('ℹ️ No active match found, searching for any match...');
+            const { data: anyMatch, error: anyMatchError } = await supabase
+              .from('surrogate_matches')
+              .select('id, status')
+              .eq('surrogate_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (anyMatch && !anyMatchError) {
+              match = anyMatch;
+              console.log('✅ Found match (not active):', anyMatch.id, 'status:', anyMatch.status);
+            } else {
+              matchError = anyMatchError || activeMatchError;
+              console.log('❌ No match found for surrogate:', user.id);
+            }
+          }
+          
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:910',message:'Active match lookup result',data:{userId:user.id,activeMatchId:activeMatch?.id||null,matchError:matchError?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'H'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:930',message:'Match lookup result',data:{userId:user.id,matchId:match?.id||null,matchStatus:match?.status||null,matchError:matchError?.message||null,hasActiveMatch:!!activeMatch,hasAnyMatch:!!match},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'H'})}).catch(()=>{});
           // #endregion
           
-          if (activeMatch && !matchError) {
+          if (match && !matchError) {
             // Update the match's transfer_date
-            const { error: matchUpdateError } = await supabase
+            console.log('🔄 Updating match transfer_date...', {
+              matchId: match.id,
+              transferDate: updatedData.transfer_date,
+            });
+            
+            const { data: updatedMatch, error: matchUpdateError } = await supabase
               .from('surrogate_matches')
               .update({
                 transfer_date: updatedData.transfer_date,
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', activeMatch.id);
+              .eq('id', match.id)
+              .select('id, transfer_date')
+              .single();
             
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:920',message:'Match transfer_date update result',data:{matchId:activeMatch.id,transferDate:updatedData.transfer_date,matchUpdateError:matchUpdateError?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'H'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:950',message:'Match transfer_date update result',data:{matchId:match.id,transferDate:updatedData.transfer_date,updatedMatchTransferDate:updatedMatch?.transfer_date||null,matchUpdateError:matchUpdateError?.message||null,errorCode:matchUpdateError?.code||null,errorDetails:matchUpdateError?.details||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'H'})}).catch(()=>{});
             // #endregion
             
             if (matchUpdateError) {
-              console.error('⚠️ Failed to update transfer_date in surrogate_matches:', matchUpdateError);
-              // Don't fail the entire update, just log the error
+              console.error('⚠️ Failed to update transfer_date in surrogate_matches:', {
+                error: matchUpdateError.message,
+                code: matchUpdateError.code,
+                details: matchUpdateError.details,
+                hint: matchUpdateError.hint,
+              });
             } else {
-              console.log('✅ Transfer date synced to surrogate_matches:', activeMatch.id);
+              console.log('✅ Transfer date synced to surrogate_matches:', {
+                matchId: match.id,
+                transferDate: updatedMatch?.transfer_date,
+              });
             }
-          } else if (!activeMatch) {
-            console.log('ℹ️ No active match found for surrogate, skipping surrogate_matches update');
+          } else {
+            console.log('ℹ️ No match found for surrogate, skipping surrogate_matches update');
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:930',message:'No active match found',data:{userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'H'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:970',message:'No match found',data:{userId:user.id,matchError:matchError?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'H'})}).catch(()=>{});
             // #endregion
           }
         }
