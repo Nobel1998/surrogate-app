@@ -36,9 +36,6 @@ export default function BusinessStatisticsPage() {
       setStatistics(data.statistics);
     } catch (error: any) {
       console.error('Error loading statistics:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:52',message:'Error caught in loadStatistics',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
       alert(`Failed to load statistics: ${error.message}`);
     } finally {
       setLoading(false);
@@ -51,6 +48,73 @@ export default function BusinessStatisticsPage() {
 
   const getTotalForRecord = (record: Record<string, number>) => {
     return Object.values(record).reduce((sum, val) => sum + val, 0);
+  };
+
+  const exportToCSV = () => {
+    if (!statistics) return;
+
+    const rows: string[][] = [];
+    
+    // Header
+    rows.push(['Business Statistics Report']);
+    rows.push(['Generated:', new Date().toLocaleString()]);
+    rows.push([]);
+
+    // Transplant Success Rate
+    rows.push(['Transplant Success Rate']);
+    rows.push(['Metric', 'Value']);
+    rows.push(['Total Transfers', statistics.transplantSuccessRate.total.toString()]);
+    rows.push(['Successful Transfers', statistics.transplantSuccessRate.successful.toString()]);
+    rows.push(['Success Rate', `${statistics.transplantSuccessRate.rate.toFixed(2)}%`]);
+    rows.push([]);
+
+    // Client Age Ranges
+    rows.push(['Client Age Ranges']);
+    rows.push(['Age Range', 'Count']);
+    Object.entries(statistics.clientAgeRanges).forEach(([range, count]) => {
+      rows.push([`${range} years`, count.toString()]);
+    });
+    rows.push(['Total', getTotalForRecord(statistics.clientAgeRanges).toString()]);
+    rows.push([]);
+
+    // Embryo Grades
+    rows.push(['Embryo Grades Distribution']);
+    rows.push(['Grade', 'Count']);
+    const sortedGrades = Object.entries(statistics.embryoGrades).sort(([, a], [, b]) => b - a);
+    sortedGrades.forEach(([grade, count]) => {
+      rows.push([grade, count.toString()]);
+    });
+    if (sortedGrades.length > 0) {
+      rows.push(['Total', getTotalForRecord(statistics.embryoGrades).toString()]);
+    }
+    rows.push([]);
+
+    // Transfer Counts
+    rows.push(['Transfer Statistics']);
+    rows.push(['Metric', 'Value']);
+    rows.push(['Total Transfers', statistics.transferCounts.total.toString()]);
+
+    // Convert to CSV string
+    const csvContent = rows.map(row => 
+      row.map(cell => {
+        // Escape cells that contain commas, quotes, or newlines
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      }).join(',')
+    ).join('\n');
+
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `business-statistics-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -71,110 +135,154 @@ export default function BusinessStatisticsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Business Statistics</h1>
-        <p className="text-gray-600 mt-2">Performance metrics and statistics for client display</p>
-      </div>
-
-      {/* Transplant Success Rate */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Transplant Success Rate</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-1">Total Transfers</div>
-            <div className="text-3xl font-bold text-blue-600">{statistics.transplantSuccessRate.total}</div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-1">Successful Transfers</div>
-            <div className="text-3xl font-bold text-green-600">{statistics.transplantSuccessRate.successful}</div>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-1">Success Rate</div>
-            <div className="text-3xl font-bold text-purple-600">
-              {formatPercentage(statistics.transplantSuccessRate.rate)}
-            </div>
-          </div>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Business Statistics</h1>
+          <p className="text-gray-600 mt-2">Performance metrics and statistics for client display</p>
         </div>
-        {statistics.transplantSuccessRate.total > 0 && (
-          <div className="mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div
-                className="bg-green-500 h-4 rounded-full transition-all duration-500"
-                style={{ width: `${statistics.transplantSuccessRate.rate}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Client Age Ranges */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Client Age Ranges</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Object.entries(statistics.clientAgeRanges).map(([range, count]) => (
-            <div key={range} className="bg-gray-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{count}</div>
-              <div className="text-sm text-gray-600 mt-1">{range} years</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 text-sm text-gray-500">
-          Total Clients: {getTotalForRecord(statistics.clientAgeRanges)}
+        <div className="flex gap-3">
+          <button
+            onClick={exportToCSV}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export to CSV
+          </button>
+          <button
+            onClick={loadStatistics}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
-      {/* Embryo Grades */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Embryo Grades Distribution</h2>
-        {Object.keys(statistics.embryoGrades).length === 0 ? (
-          <div className="text-gray-500 text-center py-4">No embryo grade data available</div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
-              {Object.entries(statistics.embryoGrades)
-                .sort(([, a], [, b]) => b - a)
-                .map(([grade, count]) => {
-                  const total = getTotalForRecord(statistics.embryoGrades);
-                  const percentage = total > 0 ? (count / total) * 100 : 0;
-                  return (
-                    <div key={grade} className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg p-4">
-                      <div className="text-2xl font-bold text-gray-800">{count}</div>
-                      <div className="text-sm text-gray-600 mt-1">Grade {grade}</div>
-                      <div className="text-xs text-gray-500 mt-1">{formatPercentage(percentage)}</div>
-                    </div>
-                  );
-                })}
-            </div>
-            <div className="text-sm text-gray-500">
-              Total Embryos: {getTotalForRecord(statistics.embryoGrades)}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Transfer Counts */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Transfer Statistics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-indigo-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-1">Total Transfers</div>
-            <div className="text-3xl font-bold text-indigo-600">{statistics.transferCounts.total}</div>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Transplant Success Rate Table */}
+        <div className="border-b">
+          <div className="px-6 py-4 bg-gray-50 border-b">
+            <h2 className="text-xl font-semibold">Transplant Success Rate</h2>
           </div>
-          <div className="bg-teal-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-1">Active Matches with Transfers</div>
-            <div className="text-3xl font-bold text-teal-600">{statistics.transferCounts.total}</div>
-          </div>
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total Transfers</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{statistics.transplantSuccessRate.total}</td>
+              </tr>
+              <tr className="bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Successful Transfers</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{statistics.transplantSuccessRate.successful}</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Success Rate</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">{formatPercentage(statistics.transplantSuccessRate.rate)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </div>
 
-      {/* Refresh Button */}
-      <div className="mt-6 flex justify-end">
-        <button
-          onClick={loadStatistics}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-        >
-          Refresh Statistics
-        </button>
+        {/* Client Age Ranges Table */}
+        <div className="border-b">
+          <div className="px-6 py-4 bg-gray-50 border-b">
+            <h2 className="text-xl font-semibold">Client Age Ranges</h2>
+          </div>
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Range</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {Object.entries(statistics.clientAgeRanges).map(([range, count], index) => {
+                const total = getTotalForRecord(statistics.clientAgeRanges);
+                const percentage = total > 0 ? (count / total) * 100 : 0;
+                return (
+                  <tr key={range} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{range} years</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPercentage(percentage)}</td>
+                  </tr>
+                );
+              })}
+              <tr className="bg-blue-50 font-semibold">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getTotalForRecord(statistics.clientAgeRanges)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">100.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Embryo Grades Table */}
+        <div className="border-b">
+          <div className="px-6 py-4 bg-gray-50 border-b">
+            <h2 className="text-xl font-semibold">Embryo Grades Distribution</h2>
+          </div>
+          {Object.keys(statistics.embryoGrades).length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-500">No embryo grade data available</div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Object.entries(statistics.embryoGrades)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([grade, count], index) => {
+                    const total = getTotalForRecord(statistics.embryoGrades);
+                    const percentage = total > 0 ? (count / total) * 100 : 0;
+                    return (
+                      <tr key={grade} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{grade}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{count}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPercentage(percentage)}</td>
+                      </tr>
+                    );
+                  })}
+                <tr className="bg-blue-50 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getTotalForRecord(statistics.embryoGrades)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">100.0%</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Transfer Statistics Table */}
+        <div>
+          <div className="px-6 py-4 bg-gray-50 border-b">
+            <h2 className="text-xl font-semibold">Transfer Statistics</h2>
+          </div>
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total Transfers</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{statistics.transferCounts.total}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
