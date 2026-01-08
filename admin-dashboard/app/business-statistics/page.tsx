@@ -354,8 +354,8 @@ export default function BusinessStatisticsPage() {
           </table>
         </div>
 
-        {/* Surrogate Age Ranges Table */}
-        {statistics.surrogateAgeRanges && (
+        {/* Surrogate Age Ranges Table - Only show if no age filter is applied */}
+        {statistics.surrogateAgeRanges && !selectedSurrogateAgeRange && (
           <div className="border-b">
             <div className="px-6 py-4 bg-gray-50 border-b">
               <h2 className="text-xl font-semibold">Surrogate Age Ranges</h2>
