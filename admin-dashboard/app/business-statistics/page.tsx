@@ -228,12 +228,12 @@ export default function BusinessStatisticsPage() {
 
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h2 className="text-lg font-semibold mb-4">筛选条件 (Filters)</h2>
+          <h2 className="text-lg font-semibold mb-4">Filters</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Surrogate Age Range Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                孕妈年龄 (Surrogate Age)
+                Surrogate Age
               </label>
               <select
                 value={selectedSurrogateAgeRange}
@@ -242,7 +242,7 @@ export default function BusinessStatisticsPage() {
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">全部 (All)</option>
+                <option value="">All</option>
                 {filters?.available.surrogateAgeRanges.map(range => (
                   <option key={range} value={range}>{range} years</option>
                 ))}
@@ -252,7 +252,7 @@ export default function BusinessStatisticsPage() {
             {/* Embryo Grade Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                胚胎等级 (Embryo Grade)
+                Embryo Grade
               </label>
               <select
                 value={selectedEmbryoGrade}
@@ -261,7 +261,7 @@ export default function BusinessStatisticsPage() {
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">全部 (All)</option>
+                <option value="">All</option>
                 {filters?.available.embryoGrades.map(grade => (
                   <option key={grade} value={grade}>{grade}</option>
                 ))}
@@ -271,7 +271,7 @@ export default function BusinessStatisticsPage() {
             {/* Surrogate Location Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                孕妈地区 (Surrogate Location)
+                Surrogate Location
               </label>
               <select
                 value={selectedSurrogateLocation}
@@ -280,7 +280,7 @@ export default function BusinessStatisticsPage() {
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">全部 (All)</option>
+                <option value="">All</option>
                 {filters?.available.locations.map(location => (
                   <option key={location} value={location}>{location}</option>
                 ))}
@@ -298,7 +298,7 @@ export default function BusinessStatisticsPage() {
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                清除筛选 (Clear Filters)
+                Clear Filters
               </button>
             </div>
           )}
@@ -307,7 +307,7 @@ export default function BusinessStatisticsPage() {
           {filters?.applied && (
             <div className="mt-4 pt-4 border-t">
               <div className="text-sm text-gray-600">
-                <span className="font-medium">当前筛选:</span>
+                <span className="font-medium">Active Filters:</span>
                 {Object.entries(filters.applied)
                   .filter(([_, value]) => value !== null)
                   .map(([key, value]) => (
@@ -316,7 +316,7 @@ export default function BusinessStatisticsPage() {
                     </span>
                   ))}
                 {Object.values(filters.applied).every(v => v === null) && (
-                  <span className="text-gray-400">无筛选条件</span>
+                  <span className="text-gray-400">No filters applied</span>
                 )}
               </div>
             </div>
@@ -358,7 +358,7 @@ export default function BusinessStatisticsPage() {
         {statistics.surrogateAgeRanges && (
           <div className="border-b">
             <div className="px-6 py-4 bg-gray-50 border-b">
-              <h2 className="text-xl font-semibold">孕妈年龄分布 (Surrogate Age Ranges)</h2>
+              <h2 className="text-xl font-semibold">Surrogate Age Ranges</h2>
             </div>
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -393,7 +393,7 @@ export default function BusinessStatisticsPage() {
         {/* Client Age Ranges Table */}
         <div className="border-b">
           <div className="px-6 py-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">客户年龄分布 (Client Age Ranges)</h2>
+            <h2 className="text-xl font-semibold">Client Age Ranges</h2>
           </div>
           <table className="w-full">
             <thead className="bg-gray-50">
