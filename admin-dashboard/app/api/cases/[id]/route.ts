@@ -179,21 +179,43 @@ export async function PATCH(
     const { id: matchId } = await params;
     const body = await req.json();
 
-    const { error: updateError } = await supabase
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cases/[id]/route.ts:180',message:'PATCH request received',data:{matchId,body,hasTransferDate:'transfer_date' in body,transferDateValue:body.transfer_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+
+    const updateData = {
+      ...body,
+      updated_at: new Date().toISOString(),
+    };
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cases/[id]/route.ts:190',message:'Update data prepared',data:{matchId,updateData,transferDateInUpdate:updateData.transfer_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+
+    const { data: updatedData, error: updateError } = await supabase
       .from('surrogate_matches')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', matchId);
+      .update(updateData)
+      .eq('id', matchId)
+      .select('id, transfer_date, beta_confirm_date');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cases/[id]/route.ts:198',message:'Update result',data:{matchId,updateError:updateError?.message||null,updatedData:updatedData?.[0]||null,transferDateAfterUpdate:updatedData?.[0]?.transfer_date||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
 
     if (updateError) {
       console.error('[cases/[id]] PATCH error:', updateError);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cases/[id]/route.ts:203',message:'Update error occurred',data:{matchId,error:updateError.message,code:updateError.code,details:updateError.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json(
         { error: updateError.message || 'Failed to update case' },
         { status: 500 }
       );
     }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cases/[id]/route.ts:212',message:'Update successful',data:{matchId,updatedTransferDate:updatedData?.[0]?.transfer_date||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
