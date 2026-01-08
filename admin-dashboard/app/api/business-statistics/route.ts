@@ -52,12 +52,20 @@ export async function GET(req: NextRequest) {
   });
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:58',message:'Starting statistics calculation',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     // Get all matches with transfer dates
     const { data: matches, error: matchesError } = await supabase
       .from('surrogate_matches')
       .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status')
       .not('transfer_date', 'is', null)
       .eq('status', 'active');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:66',message:'Matches query result',data:{matchesCount:matches?.length||0,error:matchesError?.message||null,firstMatch:matches?.[0]||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (matchesError) throw matchesError;
 
@@ -69,10 +77,18 @@ export async function GET(req: NextRequest) {
       if (match.second_parent_id) parentIds.add(match.second_parent_id);
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:75',message:'Parent IDs collected',data:{parentIdsCount:parentIds.size,parentIdsArray:Array.from(parentIds).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
     const { data: parentProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, date_of_birth')
       .in('id', Array.from(parentIds));
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Parent profiles query result',data:{profilesCount:parentProfiles?.length||0,error:profilesError?.message||null,firstProfile:parentProfiles?.[0]||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     if (profilesError) throw profilesError;
 
@@ -80,6 +96,10 @@ export async function GET(req: NextRequest) {
     const totalTransfers = matches?.length || 0;
     const successfulTransfers = matches?.filter(m => m.beta_confirm_date !== null).length || 0;
     const successRate = totalTransfers > 0 ? (successfulTransfers / totalTransfers) * 100 : 0;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:88',message:'Transfer statistics calculated',data:{totalTransfers,successfulTransfers,successRate,matchesWithBeta:matches?.filter(m=>m.beta_confirm_date).map(m=>({id:m.id,beta:m.beta_confirm_date}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     // Calculate age ranges
     const ageRanges: Record<string, number> = {
@@ -118,6 +138,9 @@ export async function GET(req: NextRequest) {
       if (match.embryos) {
         // Try to extract grade from embryos field (could be "Grade 5AA", "5AA", "AA", etc.)
         const embryoStr = match.embryos.toString().toUpperCase();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:105',message:'Processing embryo grade',data:{matchId:match.id,embryosRaw:match.embryos,embryosStr:embryoStr},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         // Look for common patterns
         if (embryoStr.includes('AA')) {
           embryoGrades['AA'] = (embryoGrades['AA'] || 0) + 1;
@@ -137,6 +160,10 @@ export async function GET(req: NextRequest) {
       }
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:123',message:'Embryo grades calculated',data:{embryoGrades,matchesWithEmbryos:matches?.filter(m=>m.embryos).length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
     // Count transfers by number
     const transferCounts: Record<number, number> = {};
     matches?.forEach(match => {
@@ -146,7 +173,7 @@ export async function GET(req: NextRequest) {
       transferCounts[count] = (transferCounts[count] || 0) + 1;
     });
 
-    return NextResponse.json({
+    const result = {
       statistics: {
         transplantSuccessRate: {
           total: totalTransfers,
@@ -160,7 +187,13 @@ export async function GET(req: NextRequest) {
           breakdown: transferCounts,
         },
       },
-    });
+    };
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:150',message:'Final statistics result',data:result,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error('[business-statistics] GET error:', error);
     return NextResponse.json(
