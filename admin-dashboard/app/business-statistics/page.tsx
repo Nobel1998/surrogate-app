@@ -27,14 +27,35 @@ export default function BusinessStatisticsPage() {
   const loadStatistics = async () => {
     try {
       setLoading(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:27',message:'Starting to load statistics',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      
       const res = await fetch('/api/business-statistics');
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:35',message:'API response received',data:{resOk:res.ok,resStatus:res.status,resStatusText:res.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      
       if (!res.ok) {
+        const errorText = await res.text();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:40',message:'API error response',data:{errorText,status:res.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
         throw new Error(`Failed to load statistics: ${res.statusText}`);
       }
       const data = await res.json();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:47',message:'Statistics data received',data:{hasStatistics:!!data.statistics,statistics:data.statistics},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      
       setStatistics(data.statistics);
     } catch (error: any) {
       console.error('Error loading statistics:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/page.tsx:52',message:'Error caught in loadStatistics',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       alert(`Failed to load statistics: ${error.message}`);
     } finally {
       setLoading(false);
