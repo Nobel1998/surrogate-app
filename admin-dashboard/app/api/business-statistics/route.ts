@@ -67,6 +67,10 @@ export async function GET(req: NextRequest) {
 
     if (allMatchesError) throw allMatchesError;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:68',message:'After querying all matches',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0,sampleMatches:allMatches?.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     // Filter matches with transfer dates (try both active and all statuses for debugging)
     // First try with active status only
     let matches = allMatches?.filter(m => m.transfer_date !== null && m.status === 'active') || [];
@@ -74,13 +78,14 @@ export async function GET(req: NextRequest) {
     // If no matches found with active status, try all statuses
     if (matches.length === 0) {
       matches = allMatches?.filter(m => m.transfer_date !== null) || [];
-      console.log('[business-statistics] No active matches with transfer_date, using all statuses:', matches.length);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:77',message:'No active matches, using all statuses',data:{matchesCount:matches.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     }
     
-    console.log('[business-statistics] Total matches in DB:', allMatches?.length || 0);
-    console.log('[business-statistics] Matches with transfer_date:', allMatches?.filter(m => m.transfer_date).length || 0);
-    console.log('[business-statistics] Active matches:', allMatches?.filter(m => m.status === 'active').length || 0);
-    console.log('[business-statistics] Filtered matches for stats:', matches.length);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Final filtered matches',data:{matchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:72',message:'Filtered matches result',data:{filteredMatchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
