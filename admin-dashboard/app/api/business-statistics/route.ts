@@ -52,10 +52,6 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:58',message:'Starting statistics calculation',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // First, get all matches to see what we have
     // Use service role key to bypass RLS and get all matches
     const { data: allMatches, error: allMatchesError } = await supabase
@@ -63,39 +59,11 @@ export async function GET(req: NextRequest) {
       .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status')
       .limit(1000); // Add limit to prevent timeout
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:59',message:'All matches query result',data:{allMatchesCount:allMatches?.length||0,error:allMatchesError?.message||null,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     if (allMatchesError) throw allMatchesError;
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:68',message:'After querying all matches',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0,sampleMatches:allMatches?.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // For business statistics, we want comprehensive data
-    // If no matches with transfer_date, we'll still calculate statistics from all matches
-    // This helps identify if the issue is missing transfer_date or missing matches entirely
+    // Filter matches with transfer_date
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:76',message:'Filtered matches (all statuses with transfer_date)',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:matches.length,activeCount:matches.filter(m=>m.status==='active').length,completedCount:matches.filter(m=>m.status==='completed').length,sampleMatches:allMatches?.slice(0,5).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status,beta_confirm_date:m.beta_confirm_date}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
-    // If no matches with transfer_date, log this for debugging
-    if (matches.length === 0 && allMatches && allMatches.length > 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:84',message:'WARNING: No matches with transfer_date found',data:{totalMatches:allMatches.length,matchesWithoutTransferDate:allMatches.filter(m=>!m.transfer_date).length,sampleMatchesWithoutTransfer:allMatches.filter(m=>!m.transfer_date).slice(0,3).map(m=>({id:m.id,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-    }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Final filtered matches',data:{matchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:72',message:'Filtered matches result',data:{filteredMatchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // Get parent profiles for age calculation
     const parentIds = new Set<string>();
@@ -105,18 +73,10 @@ export async function GET(req: NextRequest) {
       if (match.second_parent_id) parentIds.add(match.second_parent_id);
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:75',message:'Parent IDs collected',data:{parentIdsCount:parentIds.size,parentIdsArray:Array.from(parentIds).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-
     const { data: parentProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, date_of_birth')
       .in('id', Array.from(parentIds));
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Parent profiles query result',data:{profilesCount:parentProfiles?.length||0,error:profilesError?.message||null,firstProfile:parentProfiles?.[0]||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
     if (profilesError) throw profilesError;
 
@@ -124,10 +84,6 @@ export async function GET(req: NextRequest) {
     const totalTransfers = matches?.length || 0;
     const successfulTransfers = matches?.filter(m => m.beta_confirm_date !== null).length || 0;
     const successRate = totalTransfers > 0 ? (successfulTransfers / totalTransfers) * 100 : 0;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:88',message:'Transfer statistics calculated',data:{totalTransfers,successfulTransfers,successRate,matchesWithBeta:matches?.filter(m=>m.beta_confirm_date).map(m=>({id:m.id,beta:m.beta_confirm_date}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
 
     // Calculate age ranges
     const ageRanges: Record<string, number> = {
@@ -166,9 +122,6 @@ export async function GET(req: NextRequest) {
       if (match.embryos) {
         // Try to extract grade from embryos field (could be "Grade 5AA", "5AA", "AA", etc.)
         const embryoStr = match.embryos.toString().toUpperCase();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:105',message:'Processing embryo grade',data:{matchId:match.id,embryosRaw:match.embryos,embryosStr:embryoStr},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         // Look for common patterns
         if (embryoStr.includes('AA')) {
           embryoGrades['AA'] = (embryoGrades['AA'] || 0) + 1;
@@ -188,9 +141,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:123',message:'Embryo grades calculated',data:{embryoGrades,matchesWithEmbryos:matches?.filter(m=>m.embryos).length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
 
     // Count transfers by number
     const transferCounts: Record<number, number> = {};
@@ -215,23 +165,7 @@ export async function GET(req: NextRequest) {
           breakdown: transferCounts,
         },
       },
-      // Add debug info to help identify the issue
-      _debug: {
-        allMatchesCount: allMatches?.length || 0,
-        matchesWithTransferDate: matches.length,
-        matchesWithBetaConfirm: matches.filter(m => m.beta_confirm_date).length,
-        matchesWithEmbryos: matches.filter(m => m.embryos).length,
-        parentProfilesCount: parentProfiles?.length || 0,
-        parentIdsCollected: parentIds.size,
-      },
     };
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:210',message:'Final statistics result with debug info',data:result,timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-
-    // Also log to console for Vercel logs
-    console.log('[business-statistics] Final result:', JSON.stringify(result._debug, null, 2));
 
     return NextResponse.json(result);
   } catch (error: any) {
