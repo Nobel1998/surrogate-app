@@ -52,18 +52,91 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    // First, get all matches to see what we have
-    // Use service role key to bypass RLS and get all matches
+    // Get filter parameters from query string
+    const { searchParams } = new URL(req.url);
+    const surrogateAgeRange = searchParams.get('surrogate_age_range'); // e.g., "20-25", "26-30", etc.
+    const embryoGrade = searchParams.get('embryo_grade'); // e.g., "AA", "AB/BA", "BB", etc.
+    const surrogateLocation = searchParams.get('surrogate_location'); // e.g., "California", "Texas", etc.
+    const transferNumber = searchParams.get('transfer_number'); // e.g., "1", "2", "3", etc. (for future use)
+
+    // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status')
-      .limit(1000); // Add limit to prevent timeout
+      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id')
+      .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
 
-    // For business statistics, we want comprehensive data
     // Filter matches with transfer_date
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
+
+    // Get surrogate profiles for filtering
+    const surrogateIds = new Set<string>();
+    matches.forEach(match => {
+      if (match.surrogate_id) surrogateIds.add(match.surrogate_id);
+    });
+
+    const { data: surrogateProfiles, error: surrogateProfilesError } = await supabase
+      .from('profiles')
+      .select('id, date_of_birth, location')
+      .in('id', Array.from(surrogateIds));
+
+    if (surrogateProfilesError) throw surrogateProfilesError;
+
+    const surrogateProfilesMap = new Map(surrogateProfiles?.map(p => [p.id, p]) || []);
+
+    // Apply filters
+    if (surrogateAgeRange || embryoGrade || surrogateLocation) {
+      matches = matches.filter(match => {
+        // Filter by surrogate age
+        if (surrogateAgeRange) {
+          const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
+          if (surrogate?.date_of_birth) {
+            const birthDate = new Date(surrogate.date_of_birth);
+            const age = new Date().getFullYear() - birthDate.getFullYear();
+            const monthDiff = new Date().getMonth() - birthDate.getMonth();
+            const actualAge = monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDate.getDate()) ? age - 1 : age;
+            
+            const [minAge, maxAge] = surrogateAgeRange.split('-').map(Number);
+            if (maxAge) {
+              if (actualAge < minAge || actualAge > maxAge) return false;
+            } else {
+              // 46+ case
+              if (actualAge < 46) return false;
+            }
+          } else {
+            return false; // No age data, exclude
+          }
+        }
+
+        // Filter by embryo grade
+        if (embryoGrade) {
+          if (!match.embryos) return false;
+          const embryoStr = match.embryos.toString().toUpperCase();
+          let matchesGrade = false;
+          
+          if (embryoGrade === 'AA' && embryoStr.includes('AA')) matchesGrade = true;
+          else if (embryoGrade === 'AB/BA' && (embryoStr.includes('AB') || embryoStr.includes('BA'))) matchesGrade = true;
+          else if (embryoGrade === 'BB' && embryoStr.includes('BB')) matchesGrade = true;
+          else if (embryoGrade === 'AC/CA' && (embryoStr.includes('AC') || embryoStr.includes('CA'))) matchesGrade = true;
+          else if (embryoGrade === 'BC/CB' && (embryoStr.includes('BC') || embryoStr.includes('CB'))) matchesGrade = true;
+          else if (embryoGrade === 'CC' && embryoStr.includes('CC')) matchesGrade = true;
+          else if (embryoGrade === 'Other' && !embryoStr.match(/AA|AB|BA|BB|AC|CA|BC|CB|CC/)) matchesGrade = true;
+          
+          if (!matchesGrade) return false;
+        }
+
+        // Filter by surrogate location
+        if (surrogateLocation) {
+          const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
+          if (!surrogate?.location || !surrogate.location.toLowerCase().includes(surrogateLocation.toLowerCase())) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    }
 
     // Get parent profiles for age calculation
     const parentIds = new Set<string>();
@@ -151,6 +224,41 @@ export async function GET(req: NextRequest) {
       transferCounts[count] = (transferCounts[count] || 0) + 1;
     });
 
+    // Also calculate surrogate age ranges for filtered data
+    const surrogateAgeRanges: Record<string, number> = {
+      '20-25': 0,
+      '26-30': 0,
+      '31-35': 0,
+      '36-40': 0,
+      '41-45': 0,
+      '46+': 0,
+    };
+
+    matches.forEach(match => {
+      const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
+      if (surrogate?.date_of_birth) {
+        const birthDate = new Date(surrogate.date_of_birth);
+        const age = new Date().getFullYear() - birthDate.getFullYear();
+        const monthDiff = new Date().getMonth() - birthDate.getMonth();
+        const actualAge = monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDate.getDate()) ? age - 1 : age;
+        
+        if (actualAge >= 20 && actualAge <= 25) surrogateAgeRanges['20-25']++;
+        else if (actualAge >= 26 && actualAge <= 30) surrogateAgeRanges['26-30']++;
+        else if (actualAge >= 31 && actualAge <= 35) surrogateAgeRanges['31-35']++;
+        else if (actualAge >= 36 && actualAge <= 40) surrogateAgeRanges['36-40']++;
+        else if (actualAge >= 41 && actualAge <= 45) surrogateAgeRanges['41-45']++;
+        else if (actualAge >= 46) surrogateAgeRanges['46+']++;
+      }
+    });
+
+    // Get unique locations from surrogates
+    const locations = new Set<string>();
+    surrogateProfiles?.forEach(profile => {
+      if (profile.location) {
+        locations.add(profile.location);
+      }
+    });
+
     const result = {
       statistics: {
         transplantSuccessRate: {
@@ -159,10 +267,24 @@ export async function GET(req: NextRequest) {
           rate: Math.round(successRate * 100) / 100,
         },
         clientAgeRanges: ageRanges,
+        surrogateAgeRanges: surrogateAgeRanges,
         embryoGrades,
         transferCounts: {
           total: totalTransfers,
           breakdown: transferCounts,
+        },
+      },
+      filters: {
+        applied: {
+          surrogateAgeRange: surrogateAgeRange || null,
+          embryoGrade: embryoGrade || null,
+          surrogateLocation: surrogateLocation || null,
+          transferNumber: transferNumber || null,
+        },
+        available: {
+          surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
+          embryoGrades: ['AA', 'AB/BA', 'BB', 'AC/CA', 'BC/CB', 'CC', 'Other'],
+          locations: Array.from(locations).sort(),
         },
       },
     };

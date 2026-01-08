@@ -9,6 +9,7 @@ type Statistics = {
     rate: number;
   };
   clientAgeRanges: Record<string, number>;
+  surrogateAgeRanges?: Record<string, number>;
   embryoGrades: Record<string, number>;
   transferCounts: {
     total: number;
@@ -16,9 +17,29 @@ type Statistics = {
   };
 };
 
+type Filters = {
+  applied: {
+    surrogateAgeRange: string | null;
+    embryoGrade: string | null;
+    surrogateLocation: string | null;
+    transferNumber: string | null;
+  };
+  available: {
+    surrogateAgeRanges: string[];
+    embryoGrades: string[];
+    locations: string[];
+  };
+};
+
 export default function BusinessStatisticsPage() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
+  const [filters, setFilters] = useState<Filters | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Filter state
+  const [selectedSurrogateAgeRange, setSelectedSurrogateAgeRange] = useState<string>('');
+  const [selectedEmbryoGrade, setSelectedEmbryoGrade] = useState<string>('');
+  const [selectedSurrogateLocation, setSelectedSurrogateLocation] = useState<string>('');
 
   useEffect(() => {
     loadStatistics();
@@ -27,19 +48,40 @@ export default function BusinessStatisticsPage() {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/business-statistics');
+      
+      // Build query string with filters
+      const params = new URLSearchParams();
+      if (selectedSurrogateAgeRange) params.append('surrogate_age_range', selectedSurrogateAgeRange);
+      if (selectedEmbryoGrade) params.append('embryo_grade', selectedEmbryoGrade);
+      if (selectedSurrogateLocation) params.append('surrogate_location', selectedSurrogateLocation);
+      
+      const queryString = params.toString();
+      const url = `/api/business-statistics${queryString ? `?${queryString}` : ''}`;
+      const res = await fetch(url);
       
       if (!res.ok) {
         throw new Error(`Failed to load statistics: ${res.statusText}`);
       }
       const data = await res.json();
       setStatistics(data.statistics);
+      setFilters(data.filters);
     } catch (error: any) {
       console.error('Error loading statistics:', error);
       alert(`Failed to load statistics: ${error.message}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = () => {
+    loadStatistics();
+  };
+
+  const clearFilters = () => {
+    setSelectedSurrogateAgeRange('');
+    setSelectedEmbryoGrade('');
+    setSelectedSurrogateLocation('');
+    // Load statistics after clearing (will be triggered by useEffect or manual call)
   };
 
   const formatPercentage = (value: number) => {
@@ -50,6 +92,16 @@ export default function BusinessStatisticsPage() {
     return Object.values(record).reduce((sum, val) => sum + val, 0);
   };
 
+  useEffect(() => {
+    if (selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation) {
+      // Debounce filter changes
+      const timer = setTimeout(() => {
+        loadStatistics();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation]);
+
   const exportToCSV = () => {
     if (!statistics) return;
 
@@ -58,6 +110,14 @@ export default function BusinessStatisticsPage() {
     // Header
     rows.push(['Business Statistics Report']);
     rows.push(['Generated:', new Date().toLocaleString()]);
+    if (filters?.applied) {
+      const appliedFilters = Object.entries(filters.applied)
+        .filter(([_, value]) => value !== null)
+        .map(([key, value]) => `${key}: ${value}`);
+      if (appliedFilters.length > 0) {
+        rows.push(['Applied Filters:', appliedFilters.join(', ')]);
+      }
+    }
     rows.push([]);
 
     // Transplant Success Rate
@@ -67,6 +127,17 @@ export default function BusinessStatisticsPage() {
     rows.push(['Successful Transfers', statistics.transplantSuccessRate.successful.toString()]);
     rows.push(['Success Rate', `${statistics.transplantSuccessRate.rate.toFixed(2)}%`]);
     rows.push([]);
+
+    // Surrogate Age Ranges
+    if (statistics.surrogateAgeRanges) {
+      rows.push(['Surrogate Age Ranges']);
+      rows.push(['Age Range', 'Count']);
+      Object.entries(statistics.surrogateAgeRanges).forEach(([range, count]) => {
+        rows.push([`${range} years`, count.toString()]);
+      });
+      rows.push(['Total', getTotalForRecord(statistics.surrogateAgeRanges).toString()]);
+      rows.push([]);
+    }
 
     // Client Age Ranges
     rows.push(['Client Age Ranges']);
@@ -135,27 +206,126 @@ export default function BusinessStatisticsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Business Statistics</h1>
-          <p className="text-gray-600 mt-2">Performance metrics and statistics for client display</p>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">Business Statistics</h1>
+            <p className="text-gray-600 mt-2">Performance metrics and statistics for client display</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={exportToCSV}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to CSV
+            </button>
+            <button
+              onClick={loadStatistics}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={exportToCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export to CSV
-          </button>
-          <button
-            onClick={loadStatistics}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Refresh
-          </button>
+
+        {/* Filter Section */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <h2 className="text-lg font-semibold mb-4">筛选条件 (Filters)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Surrogate Age Range Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                孕妈年龄 (Surrogate Age)
+              </label>
+              <select
+                value={selectedSurrogateAgeRange}
+                onChange={(e) => {
+                  setSelectedSurrogateAgeRange(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">全部 (All)</option>
+                {filters?.available.surrogateAgeRanges.map(range => (
+                  <option key={range} value={range}>{range} years</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Embryo Grade Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                胚胎等级 (Embryo Grade)
+              </label>
+              <select
+                value={selectedEmbryoGrade}
+                onChange={(e) => {
+                  setSelectedEmbryoGrade(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">全部 (All)</option>
+                {filters?.available.embryoGrades.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Surrogate Location Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                孕妈地区 (Surrogate Location)
+              </label>
+              <select
+                value={selectedSurrogateLocation}
+                onChange={(e) => {
+                  setSelectedSurrogateLocation(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">全部 (All)</option>
+                {filters?.available.locations.map(location => (
+                  <option key={location} value={location}>{location}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Clear Filters Button */}
+          {(selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation) && (
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  clearFilters();
+                  setTimeout(loadStatistics, 100);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                清除筛选 (Clear Filters)
+              </button>
+            </div>
+          )}
+
+          {/* Active Filters Display */}
+          {filters?.applied && (
+            <div className="mt-4 pt-4 border-t">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">当前筛选:</span>
+                {Object.entries(filters.applied)
+                  .filter(([_, value]) => value !== null)
+                  .map(([key, value]) => (
+                    <span key={key} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                      {key}: {value}
+                    </span>
+                  ))}
+                {Object.values(filters.applied).every(v => v === null) && (
+                  <span className="text-gray-400">无筛选条件</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -189,10 +359,46 @@ export default function BusinessStatisticsPage() {
           </table>
         </div>
 
+        {/* Surrogate Age Ranges Table */}
+        {statistics.surrogateAgeRanges && (
+          <div className="border-b">
+            <div className="px-6 py-4 bg-gray-50 border-b">
+              <h2 className="text-xl font-semibold">孕妈年龄分布 (Surrogate Age Ranges)</h2>
+            </div>
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Range</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Object.entries(statistics.surrogateAgeRanges).map(([range, count], index) => {
+                  const total = getTotalForRecord(statistics.surrogateAgeRanges!);
+                  const percentage = total > 0 ? (count / total) * 100 : 0;
+                  return (
+                    <tr key={range} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{range} years</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPercentage(percentage)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-blue-50 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getTotalForRecord(statistics.surrogateAgeRanges!)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">100.0%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Client Age Ranges Table */}
         <div className="border-b">
           <div className="px-6 py-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">Client Age Ranges</h2>
+            <h2 className="text-xl font-semibold">客户年龄分布 (Client Age Ranges)</h2>
           </div>
           <table className="w-full">
             <thead className="bg-gray-50">
