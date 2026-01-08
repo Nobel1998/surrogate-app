@@ -57,9 +57,11 @@ export async function GET(req: NextRequest) {
     // #endregion
 
     // First, get all matches to see what we have
+    // Use service role key to bypass RLS and get all matches
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status');
+      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status')
+      .limit(1000); // Add limit to prevent timeout
 
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:59',message:'All matches query result',data:{allMatchesCount:allMatches?.length||0,error:allMatchesError?.message||null,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
@@ -71,17 +73,14 @@ export async function GET(req: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:68',message:'After querying all matches',data:{allMatchesCount:allMatches?.length||0,matchesWithTransferDate:allMatches?.filter(m=>m.transfer_date).length||0,matchesActive:allMatches?.filter(m=>m.status==='active').length||0,matchesActiveWithTransfer:allMatches?.filter(m=>m.status==='active'&&m.transfer_date).length||0,sampleMatches:allMatches?.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,status:m.status}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
-    // Filter matches with transfer dates (try both active and all statuses for debugging)
-    // First try with active status only
-    let matches = allMatches?.filter(m => m.transfer_date !== null && m.status === 'active') || [];
+    // Filter matches with transfer dates
+    // For business statistics, we want to show all matches with transfer dates, regardless of status
+    // This gives a more comprehensive view of the agency's performance
+    let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
     
-    // If no matches found with active status, try all statuses
-    if (matches.length === 0) {
-      matches = allMatches?.filter(m => m.transfer_date !== null) || [];
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:77',message:'No active matches, using all statuses',data:{matchesCount:matches.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:76',message:'Filtered matches (all statuses with transfer_date)',data:{matchesCount:matches.length,activeCount:matches.filter(m=>m.status==='active').length,completedCount:matches.filter(m=>m.status==='completed').length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'business-statistics/route.ts:82',message:'Final filtered matches',data:{matchesCount:matches.length,sampleMatches:matches.slice(0,3).map(m=>({id:m.id,transfer_date:m.transfer_date,beta_confirm_date:m.beta_confirm_date,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
