@@ -74,6 +74,7 @@ export default function BusinessStatisticsPage() {
   
   // Filter state - Basic
   const [selectedSurrogateAgeRange, setSelectedSurrogateAgeRange] = useState<string>('');
+  const [selectedClientAgeRange, setSelectedClientAgeRange] = useState<string>('');
   const [selectedEmbryoGrade, setSelectedEmbryoGrade] = useState<string>('');
   const [selectedSurrogateLocation, setSelectedSurrogateLocation] = useState<string>('');
   const [selectedSurrogateRace, setSelectedSurrogateRace] = useState<string>('');
