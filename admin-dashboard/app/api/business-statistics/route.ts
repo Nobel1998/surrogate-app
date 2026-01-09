@@ -359,22 +359,31 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Filter by surrogate BMI (from application form_data)
+        // Filter by surrogate BMI (prefer surrogate_bmi from matches table, fallback to calculated from form_data)
         if (surrogateBMI) {
-          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
-          if (appData?.height && appData?.weight) {
-            const heightInMeters = parseFloat(appData.height) / 100; // Assuming height is in cm
-            const weightInKg = parseFloat(appData.weight);
-            if (heightInMeters > 0 && weightInKg > 0) {
-              const bmi = weightInKg / (heightInMeters * heightInMeters);
-              const [minBMI, maxBMI] = surrogateBMI.split('-').map(Number);
-              if (bmi < minBMI || bmi > maxBMI) return false;
-            } else {
-              return false;
-            }
+          let bmi: number | null = null;
+          
+          // First, try to use surrogate_bmi from matches table
+          if (match.surrogate_bmi !== null && match.surrogate_bmi !== undefined) {
+            bmi = parseFloat(match.surrogate_bmi.toString());
           } else {
-            return false;
+            // Fallback: calculate from application form_data
+            const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+            if (appData?.height && appData?.weight) {
+              const heightInMeters = parseFloat(appData.height) / 100; // Assuming height is in cm
+              const weightInKg = parseFloat(appData.weight);
+              if (heightInMeters > 0 && weightInKg > 0) {
+                bmi = weightInKg / (heightInMeters * heightInMeters);
+              }
+            }
           }
+          
+          if (bmi === null || isNaN(bmi)) {
+            return false; // No BMI data available
+          }
+          
+          const [minBMI, maxBMI] = surrogateBMI.split('-').map(Number);
+          if (bmi < minBMI || bmi > maxBMI) return false;
         }
 
         // Filter by surrogate blood type
