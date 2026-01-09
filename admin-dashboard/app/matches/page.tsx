@@ -175,6 +175,8 @@ export default function MatchesPage() {
   const [fetusesValue, setFetusesValue] = useState<string>('');
   const [editingFetalBeat, setEditingFetalBeat] = useState<string | null>(null);
   const [fetalBeatValue, setFetalBeatValue] = useState<string>('');
+  const [editingFetalBeatDate, setEditingFetalBeatDate] = useState<string | null>(null);
+  const [fetalBeatDateValue, setFetalBeatDateValue] = useState<string>('');
   // Date fields
   const [editingSignDate, setEditingSignDate] = useState<string | null>(null);
   const [signDateValue, setSignDateValue] = useState<string>('');
@@ -605,6 +607,32 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Beta Confirm Date:', err);
       alert(err.message || 'Failed to update Beta Confirm Date');
+    }
+  };
+
+  const handleUpdateFetalBeatDate = async (matchId: string) => {
+    try {
+      const dateValue = fetalBeatDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fetal_beat_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Fetal Beat Date');
+      }
+
+      await loadData();
+      setEditingFetalBeatDate(null);
+      setFetalBeatDateValue('');
+      alert('Fetal Beat Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Fetal Beat Date:', err);
+      alert(err.message || 'Failed to update Fetal Beat Date');
     }
   };
 
