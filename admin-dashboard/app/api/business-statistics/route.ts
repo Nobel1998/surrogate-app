@@ -112,6 +112,17 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without application data
     }
 
+    // Get surrogate medical info (OB doctor, delivery hospital)
+    const { data: surrogateMedicalInfo, error: medicalInfoError } = await supabase
+      .from('surrogate_medical_info')
+      .select('user_id, obgyn_doctor_name, delivery_hospital_name')
+      .in('user_id', Array.from(surrogateIds));
+
+    if (medicalInfoError) {
+      console.error('[business-statistics] Error loading medical info:', medicalInfoError);
+      // Don't throw, just continue without medical info
+    }
+
     // Parse application form_data and create a map
     const surrogateApplicationMap = new Map();
     surrogateApplications?.forEach(app => {
@@ -126,6 +137,15 @@ export async function GET(req: NextRequest) {
           console.error('[business-statistics] Error parsing form_data for user:', app.user_id, e);
         }
       }
+    });
+
+    // Create medical info map
+    const surrogateMedicalInfoMap = new Map();
+    surrogateMedicalInfo?.forEach(info => {
+      surrogateMedicalInfoMap.set(info.user_id, {
+        obgynDoctor: info.obgyn_doctor_name,
+        deliveryHospital: info.delivery_hospital_name,
+      });
     });
 
     // Get parent profiles for filtering
@@ -154,12 +174,15 @@ export async function GET(req: NextRequest) {
     const clientMaritalStatus = searchParams.get('client_marital_status');
     const clientBloodType = searchParams.get('client_blood_type');
     const applicationStatus = searchParams.get('application_status'); // Initial review result
+    const obgynDoctor = searchParams.get('obgyn_doctor');
+    const deliveryHospital = searchParams.get('delivery_hospital');
 
     // Apply filters
     if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
         deliveryDateFrom || deliveryDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
-        surrogateDeliveryHistory || surrogateMiscarriageHistory || clientMaritalStatus || clientBloodType || applicationStatus) {
+        surrogateDeliveryHistory || surrogateMiscarriageHistory || clientMaritalStatus || clientBloodType || applicationStatus ||
+        obgynDoctor || deliveryHospital) {
       matches = matches.filter(match => {
         // Filter by surrogate age
         if (surrogateAgeRange) {
@@ -368,6 +391,22 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Filter by OB/GYN doctor
+        if (obgynDoctor) {
+          const medicalInfo = match.surrogate_id ? surrogateMedicalInfoMap.get(match.surrogate_id) : null;
+          if (!medicalInfo?.obgynDoctor || !medicalInfo.obgynDoctor.toLowerCase().includes(obgynDoctor.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Filter by delivery hospital
+        if (deliveryHospital) {
+          const medicalInfo = match.surrogate_id ? surrogateMedicalInfoMap.get(match.surrogate_id) : null;
+          if (!medicalInfo?.deliveryHospital || !medicalInfo.deliveryHospital.toLowerCase().includes(deliveryHospital.toLowerCase())) {
+            return false;
+          }
+        }
+
         return true;
       });
     }
@@ -486,6 +525,8 @@ export async function GET(req: NextRequest) {
     const surrogateBloodTypes = new Set<string>();
     const surrogateMaritalStatuses = new Set<string>();
     const applicationStatuses = new Set<string>();
+    const obgynDoctors = new Set<string>();
+    const deliveryHospitals = new Set<string>();
     
     surrogateProfiles?.forEach(profile => {
       if (profile.location) surrogateLocations.add(profile.location);
@@ -505,6 +546,12 @@ export async function GET(req: NextRequest) {
       if (appData.bloodType) surrogateBloodTypes.add(appData.bloodType);
       if (appData.maritalStatus) surrogateMaritalStatuses.add(appData.maritalStatus);
       if (appData.applicationStatus) applicationStatuses.add(appData.applicationStatus);
+    });
+
+    // Extract unique values from medical info
+    surrogateMedicalInfoMap.forEach((medicalInfo, userId) => {
+      if (medicalInfo.obgynDoctor) obgynDoctors.add(medicalInfo.obgynDoctor);
+      if (medicalInfo.deliveryHospital) deliveryHospitals.add(medicalInfo.deliveryHospital);
     });
 
     const result = {
@@ -549,6 +596,8 @@ export async function GET(req: NextRequest) {
           clientMaritalStatus: clientMaritalStatus || null,
           clientBloodType: clientBloodType || null,
           applicationStatus: applicationStatus || null,
+          obgynDoctor: obgynDoctor || null,
+          deliveryHospital: deliveryHospital || null,
           transferNumber: transferNumber || null,
         },
         available: {
@@ -563,6 +612,8 @@ export async function GET(req: NextRequest) {
           applicationStatuses: Array.from(applicationStatuses).sort(),
           bmiRanges: ['18-25', '25-30', '30-35', '35+'],
           deliveryHistoryOptions: ['0', '1', '2+'],
+          obgynDoctors: Array.from(obgynDoctors).sort(),
+          deliveryHospitals: Array.from(deliveryHospitals).sort(),
         },
       },
     };

@@ -44,6 +44,8 @@ type Filters = {
     clientMaritalStatus: string | null;
     clientBloodType: string | null;
     applicationStatus: string | null;
+    obgynDoctor: string | null;
+    deliveryHospital: string | null;
     transferNumber: string | null;
   };
   available: {
@@ -58,6 +60,8 @@ type Filters = {
     applicationStatuses: string[];
     bmiRanges: string[];
     deliveryHistoryOptions: string[];
+    obgynDoctors: string[];
+    deliveryHospitals: string[];
   };
 };
 
@@ -93,6 +97,8 @@ export default function BusinessStatisticsPage() {
   const [selectedSurrogateDeliveryHistory, setSelectedSurrogateDeliveryHistory] = useState<string>('');
   const [selectedSurrogateMiscarriageHistory, setSelectedSurrogateMiscarriageHistory] = useState<string>('');
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState<string>('');
+  const [selectedObgynDoctor, setSelectedObgynDoctor] = useState<string>('');
+  const [selectedDeliveryHospital, setSelectedDeliveryHospital] = useState<string>('');
   
   // Filter state - Client Details
   const [selectedClientMaritalStatus, setSelectedClientMaritalStatus] = useState<string>('');
@@ -140,6 +146,8 @@ export default function BusinessStatisticsPage() {
       if (selectedSurrogateDeliveryHistory) params.append('surrogate_delivery_history', selectedSurrogateDeliveryHistory);
       if (selectedSurrogateMiscarriageHistory) params.append('surrogate_miscarriage_history', selectedSurrogateMiscarriageHistory);
       if (selectedApplicationStatus) params.append('application_status', selectedApplicationStatus);
+      if (selectedObgynDoctor) params.append('obgyn_doctor', selectedObgynDoctor);
+      if (selectedDeliveryHospital) params.append('delivery_hospital', selectedDeliveryHospital);
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -185,6 +193,8 @@ export default function BusinessStatisticsPage() {
     setSelectedSurrogateDeliveryHistory('');
     setSelectedSurrogateMiscarriageHistory('');
     setSelectedApplicationStatus('');
+    setSelectedObgynDoctor('');
+    setSelectedDeliveryHospital('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -212,7 +222,7 @@ export default function BusinessStatisticsPage() {
     selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedApplicationStatus,
-    selectedClientMaritalStatus, selectedClientBloodType
+    selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType
   ]);
 
   const exportToCSV = () => {
@@ -721,6 +731,34 @@ export default function BusinessStatisticsPage() {
                     <option value="2">2</option>
                     <option value="3">3</option>
                     <option value="4">4+</option>
+                  </select>
+                </div>
+                {/* OB/GYN Doctor */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">OB/GYN Doctor</label>
+                  <select
+                    value={selectedObgynDoctor}
+                    onChange={(e) => setSelectedObgynDoctor(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.obgynDoctors.map(doctor => (
+                      <option key={doctor} value={doctor}>{doctor}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Delivery Hospital */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Hospital</label>
+                  <select
+                    value={selectedDeliveryHospital}
+                    onChange={(e) => setSelectedDeliveryHospital(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.deliveryHospitals.map(hospital => (
+                      <option key={hospital} value={hospital}>{hospital}</option>
+                    ))}
                   </select>
                 </div>
               </div>
