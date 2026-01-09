@@ -968,7 +968,8 @@ export default function BusinessStatisticsPage() {
               </tr>
             </tbody>
           </table>
-        </div>
+          </div>
+        )}
 
         {/* Embryo Grades Table */}
         <div className="border-b">
