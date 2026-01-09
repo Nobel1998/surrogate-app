@@ -166,6 +166,19 @@ export async function GET(req: NextRequest) {
 
     const parentProfilesMap = new Map(parentProfilesForFilter?.map(p => [p.id, p]) || []);
 
+    // Get parent profiles for age filtering (need date_of_birth)
+    const { data: parentProfilesForAge, error: parentProfilesForAgeError } = await supabase
+      .from('profiles')
+      .select('id, date_of_birth')
+      .in('id', Array.from(parentIds));
+
+    if (parentProfilesForAgeError) {
+      console.error('[business-statistics] Error loading parent profiles for age:', parentProfilesForAgeError);
+      // Don't throw, just continue without age filtering
+    }
+
+    const parentProfilesForAgeMap = new Map(parentProfilesForAge?.map(p => [p.id, p]) || []);
+
     // Additional filter parameters from query
     const surrogateBMI = searchParams.get('surrogate_bmi'); // e.g., "18-25", "25-30", etc.
     const surrogateBloodType = searchParams.get('surrogate_blood_type');
