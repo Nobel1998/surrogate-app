@@ -935,11 +935,12 @@ export default function BusinessStatisticsPage() {
           </div>
         )}
 
-        {/* Client Age Ranges Table */}
-        <div className="border-b">
-          <div className="px-6 py-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">Client Age Ranges</h2>
-          </div>
+        {/* Client Age Ranges Table - Only show if no client age filter is applied */}
+        {statistics.clientAgeRanges && !selectedClientAgeRange && (
+          <div className="border-b">
+            <div className="px-6 py-4 bg-gray-50 border-b">
+              <h2 className="text-xl font-semibold">Client Age Ranges</h2>
+            </div>
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
