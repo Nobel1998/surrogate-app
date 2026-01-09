@@ -37,8 +37,10 @@ type Match = {
   case_type?: string | null;
   first_parent_id?: string | null;
   first_parent_name?: string | null;
+  first_parent_blood_type?: string | null;
   second_parent_id?: string | null;
   second_parent_name?: string | null;
+  second_parent_blood_type?: string | null;
   manager_id?: string | null;
   branch_id?: string | null;
   current_step?: string | null;
