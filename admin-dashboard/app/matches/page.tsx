@@ -508,11 +508,12 @@ export default function MatchesPage() {
 
   const handleUpdateFetalBeat = async (matchId: string) => {
     try {
+      const dateValue = fetalBeatValue.trim() || null;
       const res = await fetch(`/api/cases/${matchId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fetal_beat_confirm: fetalBeatValue.trim() || null,
+          fetal_beat_confirm: dateValue,
         }),
       });
 
@@ -2468,7 +2469,7 @@ export default function MatchesPage() {
                             {editingFetalBeat === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
-                                  type="text"
+                                  type="date"
                                   value={fetalBeatValue}
                                   onChange={(e) => setFetalBeatValue(e.target.value)}
                                   onKeyDown={(e) => {
@@ -2503,11 +2504,40 @@ export default function MatchesPage() {
                                 className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
                                 onClick={() => {
                                   setEditingFetalBeat(m.id);
-                                  setFetalBeatValue(m.fetal_beat_confirm || '');
+                                  if (m.fetal_beat_confirm) {
+                                    // Try to parse as date, if it's already a date string
+                                    try {
+                                      const date = new Date(m.fetal_beat_confirm);
+                                      if (!isNaN(date.getTime())) {
+                                        const year = date.getFullYear();
+                                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                                        const day = String(date.getDate()).padStart(2, '0');
+                                        setFetalBeatValue(`${year}-${month}-${day}`);
+                                      } else {
+                                        setFetalBeatValue(m.fetal_beat_confirm);
+                                      }
+                                    } catch (e) {
+                                      setFetalBeatValue(m.fetal_beat_confirm);
+                                    }
+                                  } else {
+                                    setFetalBeatValue('');
+                                  }
                                 }}
-                                title="Click to edit Fetal Beat Confirm"
+                                title="Click to edit Fetal Beat Confirm Date"
                               >
-                                {m.fetal_beat_confirm || (
+                                {m.fetal_beat_confirm ? (
+                                  (() => {
+                                    try {
+                                      const date = new Date(m.fetal_beat_confirm);
+                                      if (!isNaN(date.getTime())) {
+                                        return formatDateOnly(m.fetal_beat_confirm);
+                                      }
+                                    } catch (e) {
+                                      // Not a valid date, show as text
+                                    }
+                                    return m.fetal_beat_confirm;
+                                  })()
+                                ) : (
                                   <span className="text-gray-400 italic">Click to add</span>
                                 )}
                               </div>
