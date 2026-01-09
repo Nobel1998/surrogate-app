@@ -177,6 +177,8 @@ export default function MatchesPage() {
   const [fetalBeatValue, setFetalBeatValue] = useState<string>('');
   const [editingFetalBeatDate, setEditingFetalBeatDate] = useState<string | null>(null);
   const [fetalBeatDateValue, setFetalBeatDateValue] = useState<string>('');
+  const [editingFetalHeartbeatCount, setEditingFetalHeartbeatCount] = useState<string | null>(null);
+  const [fetalHeartbeatCountValue, setFetalHeartbeatCountValue] = useState<string>('');
   // Date fields
   const [editingSignDate, setEditingSignDate] = useState<string | null>(null);
   const [signDateValue, setSignDateValue] = useState<string>('');
@@ -634,6 +636,38 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Fetal Beat Date:', err);
       alert(err.message || 'Failed to update Fetal Beat Date');
+    }
+  };
+
+  const handleUpdateFetalHeartbeatCount = async (matchId: string) => {
+    try {
+      const countValue = fetalHeartbeatCountValue.trim();
+      const count = countValue ? parseInt(countValue, 10) : null;
+      
+      if (countValue && (isNaN(count) || count < 0)) {
+        throw new Error('Please enter a valid number');
+      }
+
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fetal_heartbeat_count: count,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Fetal Heartbeat Count');
+      }
+
+      await loadData();
+      setEditingFetalHeartbeatCount(null);
+      setFetalHeartbeatCountValue('');
+      alert('Fetal Heartbeat Count updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Fetal Heartbeat Count:', err);
+      alert(err.message || 'Failed to update Fetal Heartbeat Count');
     }
   };
 
@@ -2540,6 +2574,58 @@ export default function MatchesPage() {
                                 ) : (
                                   <span className="text-gray-400 italic">Click to add</span>
                                 )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Fetal Heartbeat Count</div>
+                            {editingFetalHeartbeatCount === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={fetalHeartbeatCountValue}
+                                  onChange={(e) => setFetalHeartbeatCountValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateFetalHeartbeatCount(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingFetalHeartbeatCount(null);
+                                      setFetalHeartbeatCountValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                  placeholder="Enter heartbeat count"
+                                />
+                                <button
+                                  onClick={() => handleUpdateFetalHeartbeatCount(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingFetalHeartbeatCount(null);
+                                    setFetalHeartbeatCountValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingFetalHeartbeatCount(m.id);
+                                  setFetalHeartbeatCountValue(m.fetal_heartbeat_count?.toString() || '');
+                                }}
+                                title="Click to edit Fetal Heartbeat Count"
+                              >
+                                {m.fetal_heartbeat_count !== null && m.fetal_heartbeat_count !== undefined
+                                  ? `${m.fetal_heartbeat_count} bpm`
+                                  : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
                           </div>
