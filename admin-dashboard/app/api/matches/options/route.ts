@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
         fetal_beat_confirm,
         fetal_beat_date,
         fetal_heartbeat_count,
+        surrogate_bmi,
         sign_date,
         transfer_date,
         beta_confirm_date,

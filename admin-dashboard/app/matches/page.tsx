@@ -50,6 +50,7 @@ type Match = {
   fetal_beat_confirm?: string | null;
   fetal_beat_date?: string | null;
   fetal_heartbeat_count?: number | null;
+  surrogate_bmi?: number | null;
   sign_date?: string | null;
   transfer_date?: string | null;
   beta_confirm_date?: string | null;
@@ -207,6 +208,8 @@ export default function MatchesPage() {
   const [firstParentBloodTypeValue, setFirstParentBloodTypeValue] = useState<string>('');
   const [editingSecondParentBloodType, setEditingSecondParentBloodType] = useState<string | null>(null);
   const [secondParentBloodTypeValue, setSecondParentBloodTypeValue] = useState<string>('');
+  const [editingSurrogateBMI, setEditingSurrogateBMI] = useState<string | null>(null);
+  const [surrogateBMIValue, setSurrogateBMIValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   
@@ -726,6 +729,38 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Second Parent Blood Type:', err);
       alert(err.message || 'Failed to update Second Parent Blood Type');
+    }
+  };
+
+  const handleUpdateSurrogateBMI = async (matchId: string) => {
+    try {
+      const bmiValue = surrogateBMIValue.trim();
+      const bmi = bmiValue ? parseFloat(bmiValue) : null;
+      
+      if (bmiValue && (isNaN(bmi) || bmi < 0 || bmi > 100)) {
+        throw new Error('Please enter a valid BMI (0-100)');
+      }
+
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surrogate_bmi: bmi,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Surrogate BMI');
+      }
+
+      await loadData();
+      setEditingSurrogateBMI(null);
+      setSurrogateBMIValue('');
+      alert('Surrogate BMI updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Surrogate BMI:', err);
+      alert(err.message || 'Failed to update Surrogate BMI');
     }
   };
 
@@ -2655,6 +2690,60 @@ export default function MatchesPage() {
                                 {m.number_of_fetuses ?? (
                                   <span className="text-gray-400 italic">Click to add</span>
                                 )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Surrogate BMI</div>
+                            {editingSurrogateBMI === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="100"
+                                  value={surrogateBMIValue}
+                                  onChange={(e) => setSurrogateBMIValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateSurrogateBMI(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSurrogateBMI(null);
+                                      setSurrogateBMIValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="e.g., 22.5"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateSurrogateBMI(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSurrogateBMI(null);
+                                    setSurrogateBMIValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingSurrogateBMI(m.id);
+                                  setSurrogateBMIValue(m.surrogate_bmi?.toString() || '');
+                                }}
+                                title="Click to edit Surrogate BMI"
+                              >
+                                {m.surrogate_bmi !== null && m.surrogate_bmi !== undefined
+                                  ? m.surrogate_bmi.toFixed(1)
+                                  : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
                           </div>
