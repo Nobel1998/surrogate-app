@@ -201,6 +201,10 @@ export default function MatchesPage() {
   const [eggDonationValue, setEggDonationValue] = useState<string>('');
   const [editingSpermDonation, setEditingSpermDonation] = useState<string | null>(null);
   const [spermDonationValue, setSpermDonationValue] = useState<string>('');
+  const [editingFirstParentBloodType, setEditingFirstParentBloodType] = useState<string | null>(null);
+  const [firstParentBloodTypeValue, setFirstParentBloodTypeValue] = useState<string>('');
+  const [editingSecondParentBloodType, setEditingSecondParentBloodType] = useState<string | null>(null);
+  const [secondParentBloodTypeValue, setSecondParentBloodTypeValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   
@@ -670,6 +674,56 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Fetal Heartbeat Count:', err);
       alert(err.message || 'Failed to update Fetal Heartbeat Count');
+    }
+  };
+
+  const handleUpdateFirstParentBloodType = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_parent_blood_type: firstParentBloodTypeValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update First Parent Blood Type');
+      }
+
+      await loadData();
+      setEditingFirstParentBloodType(null);
+      setFirstParentBloodTypeValue('');
+      alert('First Parent Blood Type updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating First Parent Blood Type:', err);
+      alert(err.message || 'Failed to update First Parent Blood Type');
+    }
+  };
+
+  const handleUpdateSecondParentBloodType = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          second_parent_blood_type: secondParentBloodTypeValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Second Parent Blood Type');
+      }
+
+      await loadData();
+      setEditingSecondParentBloodType(null);
+      setSecondParentBloodTypeValue('');
+      alert('Second Parent Blood Type updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Second Parent Blood Type:', err);
+      alert(err.message || 'Failed to update Second Parent Blood Type');
     }
   };
 
