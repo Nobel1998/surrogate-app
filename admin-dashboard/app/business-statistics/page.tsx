@@ -405,6 +405,25 @@ export default function BusinessStatisticsPage() {
               </select>
             </div>
 
+            {/* Client Age Range Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Client Age Range
+              </label>
+              <select
+                value={selectedClientAgeRange}
+                onChange={(e) => {
+                  setSelectedClientAgeRange(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                {filters?.available.surrogateAgeRanges.map(range => (
+                  <option key={range} value={range}>{range} years</option>
+                ))}
+              </select>
+            </div>
+
             {/* Embryo Grade Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
