@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
     // Get filter parameters from query string
     const { searchParams } = new URL(req.url);
     const surrogateAgeRange = searchParams.get('surrogate_age_range');
+    const clientAgeRange = searchParams.get('client_age_range');
     const embryoGrade = searchParams.get('embryo_grade');
     const surrogateLocation = searchParams.get('surrogate_location');
     const surrogateRace = searchParams.get('surrogate_race');
@@ -179,7 +180,7 @@ export async function GET(req: NextRequest) {
     const deliveryHospital = searchParams.get('delivery_hospital');
 
     // Apply filters
-    if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
+    if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
         deliveryDateFrom || deliveryDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
@@ -203,6 +204,32 @@ export async function GET(req: NextRequest) {
             }
           } else {
             return false; // No age data, exclude
+          }
+        }
+
+        // Filter by client age
+        if (clientAgeRange) {
+          const parentId = match.parent_id || match.first_parent_id;
+          if (parentId) {
+            const parent = parentProfilesForAgeMap.get(parentId);
+            if (parent?.date_of_birth) {
+              const birthDate = new Date(parent.date_of_birth);
+              const age = new Date().getFullYear() - birthDate.getFullYear();
+              const monthDiff = new Date().getMonth() - birthDate.getMonth();
+              const actualAge = monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDate.getDate()) ? age - 1 : age;
+              
+              const [minAge, maxAge] = clientAgeRange.split('-').map(Number);
+              if (maxAge) {
+                if (actualAge < minAge || actualAge > maxAge) return false;
+              } else {
+                // 46+ case
+                if (actualAge < 46) return false;
+              }
+            } else {
+              return false; // No age data, exclude
+            }
+          } else {
+            return false; // No parent ID, exclude
           }
         }
 

@@ -20,6 +20,7 @@ type Statistics = {
 type Filters = {
   applied: {
     surrogateAgeRange: string | null;
+    clientAgeRange: string | null;
     embryoGrade: string | null;
     surrogateLocation: string | null;
     surrogateRace: string | null;
@@ -174,6 +175,7 @@ export default function BusinessStatisticsPage() {
 
   const clearFilters = () => {
     setSelectedSurrogateAgeRange('');
+    setSelectedClientAgeRange('');
     setSelectedEmbryoGrade('');
     setSelectedSurrogateLocation('');
     setSelectedSurrogateRace('');
@@ -220,7 +222,7 @@ export default function BusinessStatisticsPage() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation, selectedSurrogateRace, 
+    selectedSurrogateAgeRange, selectedClientAgeRange, selectedEmbryoGrade, selectedSurrogateLocation, selectedSurrogateRace, 
     selectedIvfClinic, selectedEggDonation, selectedSpermDonation, selectedClientLocation,
     selectedSignDateFrom, selectedSignDateTo, selectedBetaConfirmDateFrom, selectedBetaConfirmDateTo,
     selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
