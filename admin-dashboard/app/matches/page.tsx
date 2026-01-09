@@ -737,7 +737,7 @@ export default function MatchesPage() {
       const bmiValue = surrogateBMIValue.trim();
       const bmi = bmiValue ? parseFloat(bmiValue) : null;
       
-      if (bmiValue && (isNaN(bmi) || bmi < 0 || bmi > 100)) {
+      if (bmiValue && (bmi === null || isNaN(bmi) || bmi < 0 || bmi > 100)) {
         throw new Error('Please enter a valid BMI (0-100)');
       }
 
