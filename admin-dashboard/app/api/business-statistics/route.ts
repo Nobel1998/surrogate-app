@@ -171,6 +171,7 @@ export async function GET(req: NextRequest) {
     const surrogateMaritalStatus = searchParams.get('surrogate_marital_status');
     const surrogateDeliveryHistory = searchParams.get('surrogate_delivery_history'); // e.g., "0", "1", "2+"
     const surrogateMiscarriageHistory = searchParams.get('surrogate_miscarriage_history'); // 'yes', 'no'
+    const previousSurrogacyExperience = searchParams.get('previous_surrogacy_experience'); // 'yes', 'no'
     const clientMaritalStatus = searchParams.get('client_marital_status');
     const clientBloodType = searchParams.get('client_blood_type');
     const applicationStatus = searchParams.get('application_status'); // Initial review result
@@ -181,7 +182,7 @@ export async function GET(req: NextRequest) {
     if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
         deliveryDateFrom || deliveryDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
-        surrogateDeliveryHistory || surrogateMiscarriageHistory || clientMaritalStatus || clientBloodType || applicationStatus ||
+        surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
         obgynDoctor || deliveryHospital) {
       matches = matches.filter(match => {
         // Filter by surrogate age
@@ -367,6 +368,14 @@ export async function GET(req: NextRequest) {
           const hasMiscarriage = appData?.miscarriageHistory || appData?.previousMiscarriages || false;
           if (surrogateMiscarriageHistory === 'yes' && !hasMiscarriage) return false;
           if (surrogateMiscarriageHistory === 'no' && hasMiscarriage) return false;
+        }
+
+        // Filter by previous surrogacy experience
+        if (previousSurrogacyExperience) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          const hasPreviousSurrogacy = appData?.previousSurrogacy || false;
+          if (previousSurrogacyExperience === 'yes' && !hasPreviousSurrogacy) return false;
+          if (previousSurrogacyExperience === 'no' && hasPreviousSurrogacy) return false;
         }
 
         // Filter by client marital status (need to get from parent application)
@@ -593,6 +602,7 @@ export async function GET(req: NextRequest) {
           surrogateMaritalStatus: surrogateMaritalStatus || null,
           surrogateDeliveryHistory: surrogateDeliveryHistory || null,
           surrogateMiscarriageHistory: surrogateMiscarriageHistory || null,
+          previousSurrogacyExperience: previousSurrogacyExperience || null,
           clientMaritalStatus: clientMaritalStatus || null,
           clientBloodType: clientBloodType || null,
           applicationStatus: applicationStatus || null,

@@ -41,6 +41,7 @@ type Filters = {
     surrogateMaritalStatus: string | null;
     surrogateDeliveryHistory: string | null;
     surrogateMiscarriageHistory: string | null;
+    previousSurrogacyExperience: string | null;
     clientMaritalStatus: string | null;
     clientBloodType: string | null;
     applicationStatus: string | null;
@@ -96,6 +97,7 @@ export default function BusinessStatisticsPage() {
   const [selectedSurrogateMaritalStatus, setSelectedSurrogateMaritalStatus] = useState<string>('');
   const [selectedSurrogateDeliveryHistory, setSelectedSurrogateDeliveryHistory] = useState<string>('');
   const [selectedSurrogateMiscarriageHistory, setSelectedSurrogateMiscarriageHistory] = useState<string>('');
+  const [selectedPreviousSurrogacyExperience, setSelectedPreviousSurrogacyExperience] = useState<string>('');
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState<string>('');
   const [selectedObgynDoctor, setSelectedObgynDoctor] = useState<string>('');
   const [selectedDeliveryHospital, setSelectedDeliveryHospital] = useState<string>('');
@@ -145,6 +147,7 @@ export default function BusinessStatisticsPage() {
       if (selectedSurrogateMaritalStatus) params.append('surrogate_marital_status', selectedSurrogateMaritalStatus);
       if (selectedSurrogateDeliveryHistory) params.append('surrogate_delivery_history', selectedSurrogateDeliveryHistory);
       if (selectedSurrogateMiscarriageHistory) params.append('surrogate_miscarriage_history', selectedSurrogateMiscarriageHistory);
+      if (selectedPreviousSurrogacyExperience) params.append('previous_surrogacy_experience', selectedPreviousSurrogacyExperience);
       if (selectedApplicationStatus) params.append('application_status', selectedApplicationStatus);
       if (selectedObgynDoctor) params.append('obgyn_doctor', selectedObgynDoctor);
       if (selectedDeliveryHospital) params.append('delivery_hospital', selectedDeliveryHospital);
@@ -192,6 +195,7 @@ export default function BusinessStatisticsPage() {
     setSelectedSurrogateMaritalStatus('');
     setSelectedSurrogateDeliveryHistory('');
     setSelectedSurrogateMiscarriageHistory('');
+    setSelectedPreviousSurrogacyExperience('');
     setSelectedApplicationStatus('');
     setSelectedObgynDoctor('');
     setSelectedDeliveryHospital('');
@@ -221,7 +225,7 @@ export default function BusinessStatisticsPage() {
     selectedSignDateFrom, selectedSignDateTo, selectedBetaConfirmDateFrom, selectedBetaConfirmDateTo,
     selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
-    selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedApplicationStatus,
+    selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
     selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType
   ]);
 
@@ -697,6 +701,19 @@ export default function BusinessStatisticsPage() {
                   <select
                     value={selectedSurrogateMiscarriageHistory}
                     onChange={(e) => setSelectedSurrogateMiscarriageHistory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                {/* Previous Surrogacy Experience */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Previous Surrogacy Experience</label>
+                  <select
+                    value={selectedPreviousSurrogacyExperience}
+                    onChange={(e) => setSelectedPreviousSurrogacyExperience(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All</option>
