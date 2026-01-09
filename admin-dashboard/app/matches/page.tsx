@@ -644,7 +644,7 @@ export default function MatchesPage() {
       const countValue = fetalHeartbeatCountValue.trim();
       const count = countValue ? parseInt(countValue, 10) : null;
       
-      if (countValue && (isNaN(count) || count < 0)) {
+      if (countValue && (count === null || isNaN(count) || count < 0)) {
         throw new Error('Please enter a valid number');
       }
 
