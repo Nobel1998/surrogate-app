@@ -46,6 +46,8 @@ type Match = {
   estimated_due_date?: string | null;
   number_of_fetuses?: number;
   fetal_beat_confirm?: string | null;
+  fetal_beat_date?: string | null;
+  fetal_heartbeat_count?: number | null;
   sign_date?: string | null;
   transfer_date?: string | null;
   beta_confirm_date?: string | null;
