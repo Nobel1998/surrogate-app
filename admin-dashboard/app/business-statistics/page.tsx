@@ -22,12 +22,20 @@ type Filters = {
     surrogateAgeRange: string | null;
     embryoGrade: string | null;
     surrogateLocation: string | null;
+    surrogateRace: string | null;
+    ivfClinic: string | null;
+    eggDonation: string | null;
+    spermDonation: string | null;
+    clientLocation: string | null;
     transferNumber: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
     embryoGrades: string[];
-    locations: string[];
+    surrogateLocations: string[];
+    surrogateRaces: string[];
+    ivfClinics: string[];
+    clientLocations: string[];
   };
 };
 
@@ -40,6 +48,11 @@ export default function BusinessStatisticsPage() {
   const [selectedSurrogateAgeRange, setSelectedSurrogateAgeRange] = useState<string>('');
   const [selectedEmbryoGrade, setSelectedEmbryoGrade] = useState<string>('');
   const [selectedSurrogateLocation, setSelectedSurrogateLocation] = useState<string>('');
+  const [selectedSurrogateRace, setSelectedSurrogateRace] = useState<string>('');
+  const [selectedIvfClinic, setSelectedIvfClinic] = useState<string>('');
+  const [selectedEggDonation, setSelectedEggDonation] = useState<string>('');
+  const [selectedSpermDonation, setSelectedSpermDonation] = useState<string>('');
+  const [selectedClientLocation, setSelectedClientLocation] = useState<string>('');
 
   useEffect(() => {
     loadStatistics();
@@ -54,6 +67,11 @@ export default function BusinessStatisticsPage() {
       if (selectedSurrogateAgeRange) params.append('surrogate_age_range', selectedSurrogateAgeRange);
       if (selectedEmbryoGrade) params.append('embryo_grade', selectedEmbryoGrade);
       if (selectedSurrogateLocation) params.append('surrogate_location', selectedSurrogateLocation);
+      if (selectedSurrogateRace) params.append('surrogate_race', selectedSurrogateRace);
+      if (selectedIvfClinic) params.append('ivf_clinic', selectedIvfClinic);
+      if (selectedEggDonation) params.append('egg_donation', selectedEggDonation);
+      if (selectedSpermDonation) params.append('sperm_donation', selectedSpermDonation);
+      if (selectedClientLocation) params.append('client_location', selectedClientLocation);
       
       const queryString = params.toString();
       const url = `/api/business-statistics${queryString ? `?${queryString}` : ''}`;
@@ -77,6 +95,11 @@ export default function BusinessStatisticsPage() {
     setSelectedSurrogateAgeRange('');
     setSelectedEmbryoGrade('');
     setSelectedSurrogateLocation('');
+    setSelectedSurrogateRace('');
+    setSelectedIvfClinic('');
+    setSelectedEggDonation('');
+    setSelectedSpermDonation('');
+    setSelectedClientLocation('');
     // Statistics will reload automatically via useEffect
   };
 
@@ -95,7 +118,7 @@ export default function BusinessStatisticsPage() {
     }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation]);
+  }, [selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation, selectedSurrogateRace, selectedIvfClinic, selectedEggDonation, selectedSpermDonation, selectedClientLocation]);
 
   const exportToCSV = () => {
     if (!statistics) return;
@@ -229,7 +252,7 @@ export default function BusinessStatisticsPage() {
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <h2 className="text-lg font-semibold mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {/* Surrogate Age Range Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -281,7 +304,100 @@ export default function BusinessStatisticsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">All</option>
-                {filters?.available.locations.map(location => (
+                {filters?.available.surrogateLocations.map(location => (
+                  <option key={location} value={location}>{location}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Surrogate Race Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Surrogate Race
+              </label>
+              <select
+                value={selectedSurrogateRace}
+                onChange={(e) => {
+                  setSelectedSurrogateRace(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                {filters?.available.surrogateRaces.map(race => (
+                  <option key={race} value={race}>{race}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* IVF Clinic Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                IVF Clinic
+              </label>
+              <select
+                value={selectedIvfClinic}
+                onChange={(e) => {
+                  setSelectedIvfClinic(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                {filters?.available.ivfClinics.map(clinic => (
+                  <option key={clinic} value={clinic}>{clinic}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Egg Donation Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Egg Donation
+              </label>
+              <select
+                value={selectedEggDonation}
+                onChange={(e) => {
+                  setSelectedEggDonation(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            {/* Sperm Donation Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sperm Donation
+              </label>
+              <select
+                value={selectedSpermDonation}
+                onChange={(e) => {
+                  setSelectedSpermDonation(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            {/* Client Location Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Client Location
+              </label>
+              <select
+                value={selectedClientLocation}
+                onChange={(e) => {
+                  setSelectedClientLocation(e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                {filters?.available.clientLocations.map(location => (
                   <option key={location} value={location}>{location}</option>
                 ))}
               </select>
@@ -289,7 +405,7 @@ export default function BusinessStatisticsPage() {
           </div>
           
           {/* Clear Filters Button */}
-          {(selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation) && (
+          {(selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation || selectedSurrogateRace || selectedIvfClinic || selectedEggDonation || selectedSpermDonation || selectedClientLocation) && (
             <div className="mt-4">
               <button
                 onClick={() => {

@@ -54,15 +54,20 @@ export async function GET(req: NextRequest) {
   try {
     // Get filter parameters from query string
     const { searchParams } = new URL(req.url);
-    const surrogateAgeRange = searchParams.get('surrogate_age_range'); // e.g., "20-25", "26-30", etc.
-    const embryoGrade = searchParams.get('embryo_grade'); // e.g., "AA", "AB/BA", "BB", etc.
-    const surrogateLocation = searchParams.get('surrogate_location'); // e.g., "California", "Texas", etc.
+    const surrogateAgeRange = searchParams.get('surrogate_age_range');
+    const embryoGrade = searchParams.get('embryo_grade');
+    const surrogateLocation = searchParams.get('surrogate_location');
+    const surrogateRace = searchParams.get('surrogate_race');
+    const ivfClinic = searchParams.get('ivf_clinic');
+    const eggDonation = searchParams.get('egg_donation'); // 'yes', 'no', or null
+    const spermDonation = searchParams.get('sperm_donation'); // 'yes', 'no', or null
+    const clientLocation = searchParams.get('client_location');
     const transferNumber = searchParams.get('transfer_number'); // e.g., "1", "2", "3", etc. (for future use)
 
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id')
+      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -78,15 +83,32 @@ export async function GET(req: NextRequest) {
 
     const { data: surrogateProfiles, error: surrogateProfilesError } = await supabase
       .from('profiles')
-      .select('id, date_of_birth, location')
+      .select('id, date_of_birth, location, race')
       .in('id', Array.from(surrogateIds));
 
     if (surrogateProfilesError) throw surrogateProfilesError;
 
     const surrogateProfilesMap = new Map(surrogateProfiles?.map(p => [p.id, p]) || []);
 
+    // Get parent profiles for filtering
+    const parentIds = new Set<string>();
+    matches.forEach(match => {
+      if (match.parent_id) parentIds.add(match.parent_id);
+      if (match.first_parent_id) parentIds.add(match.first_parent_id);
+      if (match.second_parent_id) parentIds.add(match.second_parent_id);
+    });
+
+    const { data: parentProfilesForFilter, error: parentProfilesError } = await supabase
+      .from('profiles')
+      .select('id, location')
+      .in('id', Array.from(parentIds));
+
+    if (parentProfilesError) throw parentProfilesError;
+
+    const parentProfilesMap = new Map(parentProfilesForFilter?.map(p => [p.id, p]) || []);
+
     // Apply filters
-    if (surrogateAgeRange || embryoGrade || surrogateLocation) {
+    if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation) {
       matches = matches.filter(match => {
         // Filter by surrogate age
         if (surrogateAgeRange) {
@@ -134,18 +156,49 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Filter by surrogate race
+        if (surrogateRace) {
+          const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
+          if (!surrogate?.race || !surrogate.race.toLowerCase().includes(surrogateRace.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Filter by IVF clinic
+        if (ivfClinic) {
+          if (!match.clinic || !match.clinic.toLowerCase().includes(ivfClinic.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Filter by egg donation
+        if (eggDonation) {
+          const hasEggDonation = match.egg_donation && match.egg_donation.trim().length > 0;
+          if (eggDonation === 'yes' && !hasEggDonation) return false;
+          if (eggDonation === 'no' && hasEggDonation) return false;
+        }
+
+        // Filter by sperm donation
+        if (spermDonation) {
+          const hasSpermDonation = match.sperm_donation && match.sperm_donation.trim().length > 0;
+          if (spermDonation === 'yes' && !hasSpermDonation) return false;
+          if (spermDonation === 'no' && hasSpermDonation) return false;
+        }
+
+        // Filter by client location
+        if (clientLocation) {
+          const parentId = match.parent_id || match.first_parent_id;
+          const parent = parentId ? parentProfilesMap.get(parentId) : null;
+          if (!parent?.location || !parent.location.toLowerCase().includes(clientLocation.toLowerCase())) {
+            return false;
+          }
+        }
+
         return true;
       });
     }
 
-    // Get parent profiles for age calculation
-    const parentIds = new Set<string>();
-    matches?.forEach(match => {
-      if (match.parent_id) parentIds.add(match.parent_id);
-      if (match.first_parent_id) parentIds.add(match.first_parent_id);
-      if (match.second_parent_id) parentIds.add(match.second_parent_id);
-    });
-
+    // Get parent profiles for age calculation (reuse the set we already have)
     const { data: parentProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, date_of_birth')
@@ -251,12 +304,23 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Get unique locations from surrogates
-    const locations = new Set<string>();
+    // Get unique values for filter options
+    const surrogateLocations = new Set<string>();
+    const surrogateRaces = new Set<string>();
+    const ivfClinics = new Set<string>();
+    const clientLocations = new Set<string>();
+    
     surrogateProfiles?.forEach(profile => {
-      if (profile.location) {
-        locations.add(profile.location);
-      }
+      if (profile.location) surrogateLocations.add(profile.location);
+      if (profile.race) surrogateRaces.add(profile.race);
+    });
+    
+    allMatches?.forEach(match => {
+      if (match.clinic) ivfClinics.add(match.clinic);
+    });
+    
+    parentProfilesForFilter?.forEach(profile => {
+      if (profile.location) clientLocations.add(profile.location);
     });
 
     const result = {
@@ -279,12 +343,20 @@ export async function GET(req: NextRequest) {
           surrogateAgeRange: surrogateAgeRange || null,
           embryoGrade: embryoGrade || null,
           surrogateLocation: surrogateLocation || null,
+          surrogateRace: surrogateRace || null,
+          ivfClinic: ivfClinic || null,
+          eggDonation: eggDonation || null,
+          spermDonation: spermDonation || null,
+          clientLocation: clientLocation || null,
           transferNumber: transferNumber || null,
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
           embryoGrades: ['AA', 'AB/BA', 'BB', 'AC/CA', 'BC/CB', 'CC', 'Other'],
-          locations: Array.from(locations).sort(),
+          surrogateLocations: Array.from(surrogateLocations).sort(),
+          surrogateRaces: Array.from(surrogateRaces).sort(),
+          ivfClinics: Array.from(ivfClinics).sort(),
+          clientLocations: Array.from(clientLocations).sort(),
         },
       },
     };
