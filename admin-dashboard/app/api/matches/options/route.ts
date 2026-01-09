@@ -107,6 +107,7 @@ export async function GET(req: NextRequest) {
         estimated_due_date,
         number_of_fetuses,
         fetal_beat_confirm,
+        fetal_beat_date,
         sign_date,
         transfer_date,
         beta_confirm_date,
