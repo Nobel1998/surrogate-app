@@ -27,6 +27,23 @@ type Filters = {
     eggDonation: string | null;
     spermDonation: string | null;
     clientLocation: string | null;
+    signDateFrom: string | null;
+    signDateTo: string | null;
+    betaConfirmDateFrom: string | null;
+    betaConfirmDateTo: string | null;
+    fetalBeatDateFrom: string | null;
+    fetalBeatDateTo: string | null;
+    deliveryDateFrom: string | null;
+    deliveryDateTo: string | null;
+    embryoCount: string | null;
+    surrogateBMI: string | null;
+    surrogateBloodType: string | null;
+    surrogateMaritalStatus: string | null;
+    surrogateDeliveryHistory: string | null;
+    surrogateMiscarriageHistory: string | null;
+    clientMaritalStatus: string | null;
+    clientBloodType: string | null;
+    applicationStatus: string | null;
     transferNumber: string | null;
   };
   available: {
@@ -36,6 +53,11 @@ type Filters = {
     surrogateRaces: string[];
     ivfClinics: string[];
     clientLocations: string[];
+    surrogateBloodTypes: string[];
+    surrogateMaritalStatuses: string[];
+    applicationStatuses: string[];
+    bmiRanges: string[];
+    deliveryHistoryOptions: string[];
   };
 };
 
@@ -44,7 +66,7 @@ export default function BusinessStatisticsPage() {
   const [filters, setFilters] = useState<Filters | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Filter state
+  // Filter state - Basic
   const [selectedSurrogateAgeRange, setSelectedSurrogateAgeRange] = useState<string>('');
   const [selectedEmbryoGrade, setSelectedEmbryoGrade] = useState<string>('');
   const [selectedSurrogateLocation, setSelectedSurrogateLocation] = useState<string>('');
@@ -53,6 +75,37 @@ export default function BusinessStatisticsPage() {
   const [selectedEggDonation, setSelectedEggDonation] = useState<string>('');
   const [selectedSpermDonation, setSelectedSpermDonation] = useState<string>('');
   const [selectedClientLocation, setSelectedClientLocation] = useState<string>('');
+  
+  // Filter state - Dates
+  const [selectedSignDateFrom, setSelectedSignDateFrom] = useState<string>('');
+  const [selectedSignDateTo, setSelectedSignDateTo] = useState<string>('');
+  const [selectedBetaConfirmDateFrom, setSelectedBetaConfirmDateFrom] = useState<string>('');
+  const [selectedBetaConfirmDateTo, setSelectedBetaConfirmDateTo] = useState<string>('');
+  const [selectedFetalBeatDateFrom, setSelectedFetalBeatDateFrom] = useState<string>('');
+  const [selectedFetalBeatDateTo, setSelectedFetalBeatDateTo] = useState<string>('');
+  const [selectedDeliveryDateFrom, setSelectedDeliveryDateFrom] = useState<string>('');
+  const [selectedDeliveryDateTo, setSelectedDeliveryDateTo] = useState<string>('');
+  
+  // Filter state - Surrogate Details
+  const [selectedSurrogateBMI, setSelectedSurrogateBMI] = useState<string>('');
+  const [selectedSurrogateBloodType, setSelectedSurrogateBloodType] = useState<string>('');
+  const [selectedSurrogateMaritalStatus, setSelectedSurrogateMaritalStatus] = useState<string>('');
+  const [selectedSurrogateDeliveryHistory, setSelectedSurrogateDeliveryHistory] = useState<string>('');
+  const [selectedSurrogateMiscarriageHistory, setSelectedSurrogateMiscarriageHistory] = useState<string>('');
+  const [selectedApplicationStatus, setSelectedApplicationStatus] = useState<string>('');
+  
+  // Filter state - Client Details
+  const [selectedClientMaritalStatus, setSelectedClientMaritalStatus] = useState<string>('');
+  const [selectedClientBloodType, setSelectedClientBloodType] = useState<string>('');
+  
+  // Filter state - Transfer Details
+  const [selectedEmbryoCount, setSelectedEmbryoCount] = useState<string>('');
+  
+  // UI state for collapsible sections
+  const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
+  const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
+  const [showSurrogateFilters, setShowSurrogateFilters] = useState<boolean>(false);
+  const [showClientFilters, setShowClientFilters] = useState<boolean>(false);
 
   useEffect(() => {
     loadStatistics();
@@ -72,6 +125,23 @@ export default function BusinessStatisticsPage() {
       if (selectedEggDonation) params.append('egg_donation', selectedEggDonation);
       if (selectedSpermDonation) params.append('sperm_donation', selectedSpermDonation);
       if (selectedClientLocation) params.append('client_location', selectedClientLocation);
+      if (selectedSignDateFrom) params.append('sign_date_from', selectedSignDateFrom);
+      if (selectedSignDateTo) params.append('sign_date_to', selectedSignDateTo);
+      if (selectedBetaConfirmDateFrom) params.append('beta_confirm_date_from', selectedBetaConfirmDateFrom);
+      if (selectedBetaConfirmDateTo) params.append('beta_confirm_date_to', selectedBetaConfirmDateTo);
+      if (selectedFetalBeatDateFrom) params.append('fetal_beat_date_from', selectedFetalBeatDateFrom);
+      if (selectedFetalBeatDateTo) params.append('fetal_beat_date_to', selectedFetalBeatDateTo);
+      if (selectedDeliveryDateFrom) params.append('delivery_date_from', selectedDeliveryDateFrom);
+      if (selectedDeliveryDateTo) params.append('delivery_date_to', selectedDeliveryDateTo);
+      if (selectedEmbryoCount) params.append('embryo_count', selectedEmbryoCount);
+      if (selectedSurrogateBMI) params.append('surrogate_bmi', selectedSurrogateBMI);
+      if (selectedSurrogateBloodType) params.append('surrogate_blood_type', selectedSurrogateBloodType);
+      if (selectedSurrogateMaritalStatus) params.append('surrogate_marital_status', selectedSurrogateMaritalStatus);
+      if (selectedSurrogateDeliveryHistory) params.append('surrogate_delivery_history', selectedSurrogateDeliveryHistory);
+      if (selectedSurrogateMiscarriageHistory) params.append('surrogate_miscarriage_history', selectedSurrogateMiscarriageHistory);
+      if (selectedApplicationStatus) params.append('application_status', selectedApplicationStatus);
+      if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
+      if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
       const queryString = params.toString();
       const url = `/api/business-statistics${queryString ? `?${queryString}` : ''}`;
@@ -100,6 +170,23 @@ export default function BusinessStatisticsPage() {
     setSelectedEggDonation('');
     setSelectedSpermDonation('');
     setSelectedClientLocation('');
+    setSelectedSignDateFrom('');
+    setSelectedSignDateTo('');
+    setSelectedBetaConfirmDateFrom('');
+    setSelectedBetaConfirmDateTo('');
+    setSelectedFetalBeatDateFrom('');
+    setSelectedFetalBeatDateTo('');
+    setSelectedDeliveryDateFrom('');
+    setSelectedDeliveryDateTo('');
+    setSelectedEmbryoCount('');
+    setSelectedSurrogateBMI('');
+    setSelectedSurrogateBloodType('');
+    setSelectedSurrogateMaritalStatus('');
+    setSelectedSurrogateDeliveryHistory('');
+    setSelectedSurrogateMiscarriageHistory('');
+    setSelectedApplicationStatus('');
+    setSelectedClientMaritalStatus('');
+    setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
   };
 
@@ -118,7 +205,15 @@ export default function BusinessStatisticsPage() {
     }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation, selectedSurrogateRace, selectedIvfClinic, selectedEggDonation, selectedSpermDonation, selectedClientLocation]);
+  }, [
+    selectedSurrogateAgeRange, selectedEmbryoGrade, selectedSurrogateLocation, selectedSurrogateRace, 
+    selectedIvfClinic, selectedEggDonation, selectedSpermDonation, selectedClientLocation,
+    selectedSignDateFrom, selectedSignDateTo, selectedBetaConfirmDateFrom, selectedBetaConfirmDateTo,
+    selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
+    selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
+    selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedApplicationStatus,
+    selectedClientMaritalStatus, selectedClientBloodType
+  ]);
 
   const exportToCSV = () => {
     if (!statistics) return;
@@ -251,8 +346,30 @@ export default function BusinessStatisticsPage() {
 
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Filters</h2>
+            <button
+              onClick={() => {
+                clearFilters();
+                setTimeout(loadStatistics, 100);
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Clear All Filters
+            </button>
+          </div>
+
+          {/* Basic Filters */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowBasicFilters(!showBasicFilters)}
+              className="w-full flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
+            >
+              <span className="font-medium">Basic Filters</span>
+              <span>{showBasicFilters ? '−' : '+'}</span>
+            </button>
+            {showBasicFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
             {/* Surrogate Age Range Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -402,22 +519,257 @@ export default function BusinessStatisticsPage() {
                 ))}
               </select>
             </div>
+              </div>
+            )}
           </div>
-          
-          {/* Clear Filters Button */}
-          {(selectedSurrogateAgeRange || selectedEmbryoGrade || selectedSurrogateLocation || selectedSurrogateRace || selectedIvfClinic || selectedEggDonation || selectedSpermDonation || selectedClientLocation) && (
-            <div className="mt-4">
-              <button
-                onClick={() => {
-                  clearFilters();
-                  setTimeout(loadStatistics, 100);
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800 underline"
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
+
+          {/* Date Range Filters */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowDateFilters(!showDateFilters)}
+              className="w-full flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
+            >
+              <span className="font-medium">Date Range Filters</span>
+              <span>{showDateFilters ? '−' : '+'}</span>
+            </button>
+            {showDateFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* Sign Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sign Date From</label>
+                  <input
+                    type="date"
+                    value={selectedSignDateFrom}
+                    onChange={(e) => setSelectedSignDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sign Date To</label>
+                  <input
+                    type="date"
+                    value={selectedSignDateTo}
+                    onChange={(e) => setSelectedSignDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Beta Confirm Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date From</label>
+                  <input
+                    type="date"
+                    value={selectedBetaConfirmDateFrom}
+                    onChange={(e) => setSelectedBetaConfirmDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date To</label>
+                  <input
+                    type="date"
+                    value={selectedBetaConfirmDateTo}
+                    onChange={(e) => setSelectedBetaConfirmDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Fetal Beat Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fetal Beat Date From</label>
+                  <input
+                    type="date"
+                    value={selectedFetalBeatDateFrom}
+                    onChange={(e) => setSelectedFetalBeatDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fetal Beat Date To</label>
+                  <input
+                    type="date"
+                    value={selectedFetalBeatDateTo}
+                    onChange={(e) => setSelectedFetalBeatDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Delivery Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date From</label>
+                  <input
+                    type="date"
+                    value={selectedDeliveryDateFrom}
+                    onChange={(e) => setSelectedDeliveryDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date To</label>
+                  <input
+                    type="date"
+                    value={selectedDeliveryDateTo}
+                    onChange={(e) => setSelectedDeliveryDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Surrogate Details Filters */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowSurrogateFilters(!showSurrogateFilters)}
+              className="w-full flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
+            >
+              <span className="font-medium">Surrogate Details Filters</span>
+              <span>{showSurrogateFilters ? '−' : '+'}</span>
+            </button>
+            {showSurrogateFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* Surrogate BMI */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate BMI</label>
+                  <select
+                    value={selectedSurrogateBMI}
+                    onChange={(e) => setSelectedSurrogateBMI(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.bmiRanges.map(range => (
+                      <option key={range} value={range}>{range}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Surrogate Blood Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate Blood Type</label>
+                  <select
+                    value={selectedSurrogateBloodType}
+                    onChange={(e) => setSelectedSurrogateBloodType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.surrogateBloodTypes.map(bloodType => (
+                      <option key={bloodType} value={bloodType}>{bloodType}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Surrogate Marital Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate Marital Status</label>
+                  <select
+                    value={selectedSurrogateMaritalStatus}
+                    onChange={(e) => setSelectedSurrogateMaritalStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.surrogateMaritalStatuses.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Surrogate Delivery History */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate Delivery History</label>
+                  <select
+                    value={selectedSurrogateDeliveryHistory}
+                    onChange={(e) => setSelectedSurrogateDeliveryHistory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.deliveryHistoryOptions.map(option => (
+                      <option key={option} value={option}>{option === '0' ? 'None' : option === '1' ? '1 delivery' : '2+ deliveries'}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Surrogate Miscarriage History */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate Miscarriage History</label>
+                  <select
+                    value={selectedSurrogateMiscarriageHistory}
+                    onChange={(e) => setSelectedSurrogateMiscarriageHistory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                {/* Application Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Application Status</label>
+                  <select
+                    value={selectedApplicationStatus}
+                    onChange={(e) => setSelectedApplicationStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.applicationStatuses.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Embryo Count */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Embryo Count</label>
+                  <select
+                    value={selectedEmbryoCount}
+                    onChange={(e) => setSelectedEmbryoCount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Client Details Filters */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowClientFilters(!showClientFilters)}
+              className="w-full flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100"
+            >
+              <span className="font-medium">Client Details Filters</span>
+              <span>{showClientFilters ? '−' : '+'}</span>
+            </button>
+            {showClientFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* Client Marital Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Client Marital Status</label>
+                  <select
+                    value={selectedClientMaritalStatus}
+                    onChange={(e) => setSelectedClientMaritalStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                    <option value="separated">Separated</option>
+                    <option value="lifePartner">Life Partner</option>
+                    <option value="engaged">Engaged</option>
+                  </select>
+                </div>
+                {/* Client Blood Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Client Blood Type</label>
+                  <input
+                    type="text"
+                    value={selectedClientBloodType}
+                    onChange={(e) => setSelectedClientBloodType(e.target.value)}
+                    placeholder="e.g., A+, B-, O+"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Active Filters Display */}
           {filters?.applied && (

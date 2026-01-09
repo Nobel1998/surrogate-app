@@ -64,10 +64,21 @@ export async function GET(req: NextRequest) {
     const clientLocation = searchParams.get('client_location');
     const transferNumber = searchParams.get('transfer_number'); // e.g., "1", "2", "3", etc. (for future use)
 
+    // Additional filter parameters
+    const signDateFrom = searchParams.get('sign_date_from');
+    const signDateTo = searchParams.get('sign_date_to');
+    const betaConfirmDateFrom = searchParams.get('beta_confirm_date_from');
+    const betaConfirmDateTo = searchParams.get('beta_confirm_date_to');
+    const fetalBeatDateFrom = searchParams.get('fetal_beat_date_from');
+    const fetalBeatDateTo = searchParams.get('fetal_beat_date_to');
+    const deliveryDateFrom = searchParams.get('delivery_date_from');
+    const deliveryDateTo = searchParams.get('delivery_date_to');
+    const embryoCount = searchParams.get('embryo_count'); // Number of embryos transferred
+
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation')
+      .select('id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -90,6 +101,33 @@ export async function GET(req: NextRequest) {
 
     const surrogateProfilesMap = new Map(surrogateProfiles?.map(p => [p.id, p]) || []);
 
+    // Get surrogate applications for additional data (BMI, blood type, delivery history, etc.)
+    const { data: surrogateApplications, error: applicationsError } = await supabase
+      .from('applications')
+      .select('user_id, form_data, status')
+      .in('user_id', Array.from(surrogateIds));
+
+    if (applicationsError) {
+      console.error('[business-statistics] Error loading applications:', applicationsError);
+      // Don't throw, just continue without application data
+    }
+
+    // Parse application form_data and create a map
+    const surrogateApplicationMap = new Map();
+    surrogateApplications?.forEach(app => {
+      if (app.form_data) {
+        try {
+          const formData = typeof app.form_data === 'string' ? JSON.parse(app.form_data) : app.form_data;
+          surrogateApplicationMap.set(app.user_id, {
+            ...formData,
+            applicationStatus: app.status,
+          });
+        } catch (e) {
+          console.error('[business-statistics] Error parsing form_data for user:', app.user_id, e);
+        }
+      }
+    });
+
     // Get parent profiles for filtering
     const parentIds = new Set<string>();
     matches.forEach(match => {
@@ -107,8 +145,21 @@ export async function GET(req: NextRequest) {
 
     const parentProfilesMap = new Map(parentProfilesForFilter?.map(p => [p.id, p]) || []);
 
+    // Additional filter parameters from query
+    const surrogateBMI = searchParams.get('surrogate_bmi'); // e.g., "18-25", "25-30", etc.
+    const surrogateBloodType = searchParams.get('surrogate_blood_type');
+    const surrogateMaritalStatus = searchParams.get('surrogate_marital_status');
+    const surrogateDeliveryHistory = searchParams.get('surrogate_delivery_history'); // e.g., "0", "1", "2+"
+    const surrogateMiscarriageHistory = searchParams.get('surrogate_miscarriage_history'); // 'yes', 'no'
+    const clientMaritalStatus = searchParams.get('client_marital_status');
+    const clientBloodType = searchParams.get('client_blood_type');
+    const applicationStatus = searchParams.get('application_status'); // Initial review result
+
     // Apply filters
-    if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation) {
+    if (surrogateAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
+        signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
+        deliveryDateFrom || deliveryDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
+        surrogateDeliveryHistory || surrogateMiscarriageHistory || clientMaritalStatus || clientBloodType || applicationStatus) {
       matches = matches.filter(match => {
         // Filter by surrogate age
         if (surrogateAgeRange) {
@@ -190,6 +241,129 @@ export async function GET(req: NextRequest) {
           const parentId = match.parent_id || match.first_parent_id;
           const parent = parentId ? parentProfilesMap.get(parentId) : null;
           if (!parent?.location || !parent.location.toLowerCase().includes(clientLocation.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Filter by sign date range
+        if (signDateFrom || signDateTo) {
+          if (!match.sign_date) return false;
+          const signDate = new Date(match.sign_date);
+          if (signDateFrom && signDate < new Date(signDateFrom)) return false;
+          if (signDateTo && signDate > new Date(signDateTo)) return false;
+        }
+
+        // Filter by beta confirm date range
+        if (betaConfirmDateFrom || betaConfirmDateTo) {
+          if (!match.beta_confirm_date) return false;
+          const betaDate = new Date(match.beta_confirm_date);
+          if (betaConfirmDateFrom && betaDate < new Date(betaConfirmDateFrom)) return false;
+          if (betaConfirmDateTo && betaDate > new Date(betaConfirmDateTo)) return false;
+        }
+
+        // Filter by fetal beat date range (fetal_beat_confirm is a text field, need to parse)
+        if (fetalBeatDateFrom || fetalBeatDateTo) {
+          // fetal_beat_confirm might be a date string or "None"
+          if (!match.fetal_beat_confirm || match.fetal_beat_confirm === 'None') return false;
+          try {
+            const fetalBeatDate = new Date(match.fetal_beat_confirm);
+            if (isNaN(fetalBeatDate.getTime())) return false;
+            if (fetalBeatDateFrom && fetalBeatDate < new Date(fetalBeatDateFrom)) return false;
+            if (fetalBeatDateTo && fetalBeatDate > new Date(fetalBeatDateTo)) return false;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        // Filter by delivery date range
+        if (deliveryDateFrom || deliveryDateTo) {
+          if (!match.due_date) return false;
+          const deliveryDate = new Date(match.due_date);
+          if (deliveryDateFrom && deliveryDate < new Date(deliveryDateFrom)) return false;
+          if (deliveryDateTo && deliveryDate > new Date(deliveryDateTo)) return false;
+        }
+
+        // Filter by embryo count (parse from embryos field)
+        if (embryoCount) {
+          const count = parseInt(embryoCount);
+          if (match.embryos) {
+            // Try to extract number from embryos field
+            const matchCount = parseInt(match.embryos.toString().match(/\d+/)?.[0] || '0');
+            if (matchCount !== count) return false;
+          } else {
+            return false;
+          }
+        }
+
+        // Filter by surrogate BMI (from application form_data)
+        if (surrogateBMI) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          if (appData?.height && appData?.weight) {
+            const heightInMeters = parseFloat(appData.height) / 100; // Assuming height is in cm
+            const weightInKg = parseFloat(appData.weight);
+            if (heightInMeters > 0 && weightInKg > 0) {
+              const bmi = weightInKg / (heightInMeters * heightInMeters);
+              const [minBMI, maxBMI] = surrogateBMI.split('-').map(Number);
+              if (bmi < minBMI || bmi > maxBMI) return false;
+            } else {
+              return false;
+            }
+          } else {
+            return false;
+          }
+        }
+
+        // Filter by surrogate blood type
+        if (surrogateBloodType) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          if (!appData?.bloodType || !appData.bloodType.toLowerCase().includes(surrogateBloodType.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Filter by surrogate marital status
+        if (surrogateMaritalStatus) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          if (!appData?.maritalStatus || appData.maritalStatus.toLowerCase() !== surrogateMaritalStatus.toLowerCase()) {
+            return false;
+          }
+        }
+
+        // Filter by surrogate delivery history
+        if (surrogateDeliveryHistory) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          const totalDeliveries = parseInt(appData?.totalDeliveries || '0');
+          if (surrogateDeliveryHistory === '0' && totalDeliveries !== 0) return false;
+          if (surrogateDeliveryHistory === '1' && totalDeliveries !== 1) return false;
+          if (surrogateDeliveryHistory === '2+' && totalDeliveries < 2) return false;
+        }
+
+        // Filter by surrogate miscarriage history
+        if (surrogateMiscarriageHistory) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          const hasMiscarriage = appData?.miscarriageHistory || appData?.previousMiscarriages || false;
+          if (surrogateMiscarriageHistory === 'yes' && !hasMiscarriage) return false;
+          if (surrogateMiscarriageHistory === 'no' && hasMiscarriage) return false;
+        }
+
+        // Filter by client marital status (need to get from parent application)
+        if (clientMaritalStatus) {
+          const parentId = match.parent_id || match.first_parent_id;
+          // Would need to query parent applications, for now skip this filter
+          // TODO: Implement parent application lookup
+        }
+
+        // Filter by client blood type (need to get from parent application)
+        if (clientBloodType) {
+          const parentId = match.parent_id || match.first_parent_id;
+          // Would need to query parent applications, for now skip this filter
+          // TODO: Implement parent application lookup
+        }
+
+        // Filter by application status (initial review result)
+        if (applicationStatus) {
+          const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
+          if (!appData?.applicationStatus || appData.applicationStatus.toLowerCase() !== applicationStatus.toLowerCase()) {
             return false;
           }
         }
@@ -309,6 +483,9 @@ export async function GET(req: NextRequest) {
     const surrogateRaces = new Set<string>();
     const ivfClinics = new Set<string>();
     const clientLocations = new Set<string>();
+    const surrogateBloodTypes = new Set<string>();
+    const surrogateMaritalStatuses = new Set<string>();
+    const applicationStatuses = new Set<string>();
     
     surrogateProfiles?.forEach(profile => {
       if (profile.location) surrogateLocations.add(profile.location);
@@ -321,6 +498,13 @@ export async function GET(req: NextRequest) {
     
     parentProfilesForFilter?.forEach(profile => {
       if (profile.location) clientLocations.add(profile.location);
+    });
+
+    // Extract unique values from application form_data
+    surrogateApplicationMap.forEach((appData, userId) => {
+      if (appData.bloodType) surrogateBloodTypes.add(appData.bloodType);
+      if (appData.maritalStatus) surrogateMaritalStatuses.add(appData.maritalStatus);
+      if (appData.applicationStatus) applicationStatuses.add(appData.applicationStatus);
     });
 
     const result = {
@@ -348,6 +532,23 @@ export async function GET(req: NextRequest) {
           eggDonation: eggDonation || null,
           spermDonation: spermDonation || null,
           clientLocation: clientLocation || null,
+          signDateFrom: signDateFrom || null,
+          signDateTo: signDateTo || null,
+          betaConfirmDateFrom: betaConfirmDateFrom || null,
+          betaConfirmDateTo: betaConfirmDateTo || null,
+          fetalBeatDateFrom: fetalBeatDateFrom || null,
+          fetalBeatDateTo: fetalBeatDateTo || null,
+          deliveryDateFrom: deliveryDateFrom || null,
+          deliveryDateTo: deliveryDateTo || null,
+          embryoCount: embryoCount || null,
+          surrogateBMI: surrogateBMI || null,
+          surrogateBloodType: surrogateBloodType || null,
+          surrogateMaritalStatus: surrogateMaritalStatus || null,
+          surrogateDeliveryHistory: surrogateDeliveryHistory || null,
+          surrogateMiscarriageHistory: surrogateMiscarriageHistory || null,
+          clientMaritalStatus: clientMaritalStatus || null,
+          clientBloodType: clientBloodType || null,
+          applicationStatus: applicationStatus || null,
           transferNumber: transferNumber || null,
         },
         available: {
@@ -357,6 +558,11 @@ export async function GET(req: NextRequest) {
           surrogateRaces: Array.from(surrogateRaces).sort(),
           ivfClinics: Array.from(ivfClinics).sort(),
           clientLocations: Array.from(clientLocations).sort(),
+          surrogateBloodTypes: Array.from(surrogateBloodTypes).sort(),
+          surrogateMaritalStatuses: Array.from(surrogateMaritalStatuses).sort(),
+          applicationStatuses: Array.from(applicationStatuses).sort(),
+          bmiRanges: ['18-25', '25-30', '30-35', '35+'],
+          deliveryHistoryOptions: ['0', '1', '2+'],
         },
       },
     };
