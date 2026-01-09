@@ -2165,6 +2165,57 @@ export default function MatchesPage() {
                             <div className="text-xs text-gray-500 mb-1">Parent</div>
                             <div className="text-sm font-medium text-gray-900">{m.first_parent_name || parent?.name || m.parent_id}</div>
                             <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
+                            <div className="mt-1">
+                              <div className="text-xs text-gray-500 mb-1">Blood Type</div>
+                              {editingFirstParentBloodType === m.id ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={firstParentBloodTypeValue}
+                                    onChange={(e) => setFirstParentBloodTypeValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleUpdateFirstParentBloodType(m.id);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingFirstParentBloodType(null);
+                                        setFirstParentBloodTypeValue('');
+                                      }
+                                    }}
+                                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., A+, B-, O+"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateFirstParentBloodType(m.id)}
+                                    className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingFirstParentBloodType(null);
+                                      setFirstParentBloodTypeValue('');
+                                    }}
+                                    className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                  onClick={() => {
+                                    setEditingFirstParentBloodType(m.id);
+                                    setFirstParentBloodTypeValue(m.first_parent_blood_type || '');
+                                  }}
+                                  title="Click to edit First Parent Blood Type"
+                                >
+                                  {m.first_parent_blood_type || (
+                                    <span className="text-gray-400 italic">Click to add</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {m.notes && (
                             <div>
@@ -2221,6 +2272,57 @@ export default function MatchesPage() {
                                 )}
                               </div>
                             )}
+                            <div className="mt-1">
+                              <div className="text-xs text-gray-500 mb-1">Blood Type</div>
+                              {editingSecondParentBloodType === m.id ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={secondParentBloodTypeValue}
+                                    onChange={(e) => setSecondParentBloodTypeValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleUpdateSecondParentBloodType(m.id);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingSecondParentBloodType(null);
+                                        setSecondParentBloodTypeValue('');
+                                      }
+                                    }}
+                                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., A+, B-, O+"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateSecondParentBloodType(m.id)}
+                                    className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingSecondParentBloodType(null);
+                                      setSecondParentBloodTypeValue('');
+                                    }}
+                                    className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                  onClick={() => {
+                                    setEditingSecondParentBloodType(m.id);
+                                    setSecondParentBloodTypeValue(m.second_parent_blood_type || '');
+                                  }}
+                                  title="Click to edit Second Parent Blood Type"
+                                >
+                                  {m.second_parent_blood_type || (
+                                    <span className="text-gray-400 italic">Click to add</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Manager</div>
