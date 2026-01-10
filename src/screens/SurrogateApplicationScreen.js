@@ -3136,10 +3136,124 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     </ScrollView>
   );
 
-  const renderStep7 = () => (
+  const renderStep7 = () => {
+    const concernOptions = [
+      'Medical procedures',
+      'Pregnancy risks',
+      'Time commitment',
+      'Impact on my family',
+      'Emotional challenges',
+      'Legal issues',
+      'Compensation and payments got paid on time',
+      'Communication with intended parents',
+      'agency can provide timely support when needed'
+    ];
+
+    const toggleConcern = (concern) => {
+      const currentConcerns = applicationData.mainConcerns || [];
+      if (currentConcerns.includes(concern)) {
+        updateField('mainConcerns', currentConcerns.filter(c => c !== concern));
+      } else {
+        updateField('mainConcerns', [...currentConcerns, concern]);
+      }
+    };
+
+    return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>General Questions</Text>
       <Text style={styles.stepDescription}>Please answer the following questions</Text>
+
+      {/* Main Concerns */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What are your main concerns about the surrogacy process? *</Text>
+        {concernOptions.map((concern, index) => {
+          const isSelected = (applicationData.mainConcerns || []).includes(concern);
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.checkboxContainer,
+                isSelected && styles.checkboxSelected
+              ]}
+              onPress={() => toggleConcern(concern)}
+            >
+              <Text style={[styles.checkboxText, isSelected && styles.checkboxTextSelected]}>
+                {isSelected ? '✓ ' : '○ '}{concern}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Parent Qualities */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What qualities if any would you consider most important that the parents you choose will have? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.parentQualities || ''}
+          onChangeText={(value) => updateField('parentQualities', value)}
+          placeholder="Describe important qualities in intended parents"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* Religious Preference */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you have any preferences for the religious background of the parents? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.religiousPreference === true && styles.radioButtonSelected]}
+            onPress={() => updateField('religiousPreference', true)}
+          >
+            <Text style={[styles.radioText, applicationData.religiousPreference === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.religiousPreference === false && styles.radioButtonSelected]}
+            onPress={() => updateField('religiousPreference', false)}
+          >
+            <Text style={[styles.radioText, applicationData.religiousPreference === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Unmarried Couple */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with an unmarried couple or person? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.unmarriedCouple === true && styles.radioButtonSelected]}
+            onPress={() => updateField('unmarriedCouple', true)}
+          >
+            <Text style={[styles.radioText, applicationData.unmarriedCouple === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.unmarriedCouple === false && styles.radioButtonSelected]}
+            onPress={() => updateField('unmarriedCouple', false)}
+          >
+            <Text style={[styles.radioText, applicationData.unmarriedCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Heterosexual Couple */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a heterosexual couple? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.heterosexualCouple === true && styles.radioButtonSelected]}
+            onPress={() => updateField('heterosexualCouple', true)}
+          >
+            <Text style={[styles.radioText, applicationData.heterosexualCouple === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.heterosexualCouple === false && styles.radioButtonSelected]}
+            onPress={() => updateField('heterosexualCouple', false)}
+          >
+            <Text style={[styles.radioText, applicationData.heterosexualCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation for becoming a surrogate mother *</Text>
@@ -3187,6 +3301,82 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           multiline
           numberOfLines={3}
         />
+      </View>
+
+      {/* Egg Donor */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a couple using an egg donor? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.eggDonor === true && styles.radioButtonSelected]}
+            onPress={() => updateField('eggDonor', true)}
+          >
+            <Text style={[styles.radioText, applicationData.eggDonor === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.eggDonor === false && styles.radioButtonSelected]}
+            onPress={() => updateField('eggDonor', false)}
+          >
+            <Text style={[styles.radioText, applicationData.eggDonor === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Sperm Donor */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a couple using a sperm donor? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.spermDonor === true && styles.radioButtonSelected]}
+            onPress={() => updateField('spermDonor', true)}
+          >
+            <Text style={[styles.radioText, applicationData.spermDonor === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.spermDonor === false && styles.radioButtonSelected]}
+            onPress={() => updateField('spermDonor', false)}
+          >
+            <Text style={[styles.radioText, applicationData.spermDonor === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Older Couple */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with an older couple? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.olderCouple === true && styles.radioButtonSelected]}
+            onPress={() => updateField('olderCouple', true)}
+          >
+            <Text style={[styles.radioText, applicationData.olderCouple === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.olderCouple === false && styles.radioButtonSelected]}
+            onPress={() => updateField('olderCouple', false)}
+          >
+            <Text style={[styles.radioText, applicationData.olderCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Couple With Children */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a couple with children? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.coupleWithChildren === true && styles.radioButtonSelected]}
+            onPress={() => updateField('coupleWithChildren', true)}
+          >
+            <Text style={[styles.radioText, applicationData.coupleWithChildren === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.coupleWithChildren === false && styles.radioButtonSelected]}
+            onPress={() => updateField('coupleWithChildren', false)}
+          >
+            <Text style={[styles.radioText, applicationData.coupleWithChildren === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Working Preferences */}
@@ -3247,7 +3437,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Would you be willing to work with an international couple? *</Text>
+        <Text style={styles.label}>Would you be willing to work with an international couple? (a couple living outside of the United States) *</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.internationalCouple === true && styles.radioButtonSelected]}
@@ -3260,6 +3450,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             onPress={() => updateField('internationalCouple', false)}
           >
             <Text style={[styles.radioText, applicationData.internationalCouple === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Non-English Speaking */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to work with a non-English speaking couple using a translator? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.nonEnglishSpeaking === true && styles.radioButtonSelected]}
+            onPress={() => updateField('nonEnglishSpeaking', true)}
+          >
+            <Text style={[styles.radioText, applicationData.nonEnglishSpeaking === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.nonEnglishSpeaking === false && styles.radioButtonSelected]}
+            onPress={() => updateField('nonEnglishSpeaking', false)}
+          >
+            <Text style={[styles.radioText, applicationData.nonEnglishSpeaking === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -3282,6 +3491,82 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Reduction Willing */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>In the case of a multiples pregnancy, are you willing to reduce the pregnancy from 3 to 2 or 1? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.reductionWilling === true && styles.radioButtonSelected]}
+            onPress={() => updateField('reductionWilling', true)}
+          >
+            <Text style={[styles.radioText, applicationData.reductionWilling === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.reductionWilling === false && styles.radioButtonSelected]}
+            onPress={() => updateField('reductionWilling', false)}
+          >
+            <Text style={[styles.radioText, applicationData.reductionWilling === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Amniocentesis */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you be willing to undergo amniocentesis or other diagnostic testing to determine the presence of birth defects? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.amniocentesis === true && styles.radioButtonSelected]}
+            onPress={() => updateField('amniocentesis', true)}
+          >
+            <Text style={[styles.radioText, applicationData.amniocentesis === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.amniocentesis === false && styles.radioButtonSelected]}
+            onPress={() => updateField('amniocentesis', false)}
+          >
+            <Text style={[styles.radioText, applicationData.amniocentesis === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Abortion Willing */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>If there were a serious problem with the fetus and the parents wanted to abort would you be willing to abort in the presence of birth defects? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.abortionWilling === true && styles.radioButtonSelected]}
+            onPress={() => updateField('abortionWilling', true)}
+          >
+            <Text style={[styles.radioText, applicationData.abortionWilling === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.abortionWilling === false && styles.radioButtonSelected]}
+            onPress={() => updateField('abortionWilling', false)}
+          >
+            <Text style={[styles.radioText, applicationData.abortionWilling === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Concerns Placing Baby */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you have any concerns about placing the baby with the parents after you give birth? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.concernsPlacingBaby === true && styles.radioButtonSelected]}
+            onPress={() => updateField('concernsPlacingBaby', true)}
+          >
+            <Text style={[styles.radioText, applicationData.concernsPlacingBaby === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.concernsPlacingBaby === false && styles.radioButtonSelected]}
+            onPress={() => updateField('concernsPlacingBaby', false)}
+          >
+            <Text style={[styles.radioText, applicationData.concernsPlacingBaby === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to receive injections, medications, and ultrasounds as required? *</Text>
         <View style={styles.radioContainer}>
@@ -3296,6 +3581,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             onPress={() => updateField('receiveInjections', false)}
           >
             <Text style={[styles.radioText, applicationData.receiveInjections === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Medical Examinations */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you willing to undergo all medical examinations designated by the doctor? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.medicalExaminations === true && styles.radioButtonSelected]}
+            onPress={() => updateField('medicalExaminations', true)}
+          >
+            <Text style={[styles.radioText, applicationData.medicalExaminations === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.medicalExaminations === false && styles.radioButtonSelected]}
+            onPress={() => updateField('medicalExaminations', false)}
+          >
+            <Text style={[styles.radioText, applicationData.medicalExaminations === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -3336,6 +3640,63 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Follow Guidelines */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you able to follow pregnancy-related lifestyle guidelines? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.followGuidelines === true && styles.radioButtonSelected]}
+            onPress={() => updateField('followGuidelines', true)}
+          >
+            <Text style={[styles.radioText, applicationData.followGuidelines === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.followGuidelines === false && styles.radioButtonSelected]}
+            onPress={() => updateField('followGuidelines', false)}
+          >
+            <Text style={[styles.radioText, applicationData.followGuidelines === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Avoid High Risk Work */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you willing to refrain from high-risk work during pregnancy? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.avoidHighRiskWork === true && styles.radioButtonSelected]}
+            onPress={() => updateField('avoidHighRiskWork', true)}
+          >
+            <Text style={[styles.radioText, applicationData.avoidHighRiskWork === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.avoidHighRiskWork === false && styles.radioButtonSelected]}
+            onPress={() => updateField('avoidHighRiskWork', false)}
+          >
+            <Text style={[styles.radioText, applicationData.avoidHighRiskWork === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Placed Child Adoption */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever placed a child up for adoption? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.placedChildAdoption === true && styles.radioButtonSelected]}
+            onPress={() => updateField('placedChildAdoption', true)}
+          >
+            <Text style={[styles.radioText, applicationData.placedChildAdoption === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.placedChildAdoption === false && styles.radioButtonSelected]}
+            onPress={() => updateField('placedChildAdoption', false)}
+          >
+            <Text style={[styles.radioText, applicationData.placedChildAdoption === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Will you permit the parents in the delivery room? *</Text>
         <View style={styles.radioContainer}>
@@ -3372,6 +3733,82 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Notify Hospital */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents to notify the hospital that you are not the biological parent of the child? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.notifyHospital === true && styles.radioButtonSelected]}
+            onPress={() => updateField('notifyHospital', true)}
+          >
+            <Text style={[styles.radioText, applicationData.notifyHospital === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.notifyHospital === false && styles.radioButtonSelected]}
+            onPress={() => updateField('notifyHospital', false)}
+          >
+            <Text style={[styles.radioText, applicationData.notifyHospital === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Parents On Birth Certificate */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you allow the parents' names to be placed on the birth certificate? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsOnBirthCertificate === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsOnBirthCertificate', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsOnBirthCertificate === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsOnBirthCertificate === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsOnBirthCertificate', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsOnBirthCertificate === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Applying Elsewhere */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you currently applying to be a gestational carrier at any other medical facility, agency, and facilitator, or independently? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.applyingElsewhere === true && styles.radioButtonSelected]}
+            onPress={() => updateField('applyingElsewhere', true)}
+          >
+            <Text style={[styles.radioText, applicationData.applyingElsewhere === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.applyingElsewhere === false && styles.radioButtonSelected]}
+            onPress={() => updateField('applyingElsewhere', false)}
+          >
+            <Text style={[styles.radioText, applicationData.applyingElsewhere === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Rejected Elsewhere */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever applied to be a gestational carrier at any other medical facility and been told that you do not meet the criteria to be a gestational carrier? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.rejectedElsewhere === true && styles.radioButtonSelected]}
+            onPress={() => updateField('rejectedElsewhere', true)}
+          >
+            <Text style={[styles.radioText, applicationData.rejectedElsewhere === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.rejectedElsewhere === false && styles.radioButtonSelected]}
+            onPress={() => updateField('rejectedElsewhere', false)}
+          >
+            <Text style={[styles.radioText, applicationData.rejectedElsewhere === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>How much contact would you like to have with the parents throughout the process?</Text>
         <TextInput
@@ -3395,8 +3832,47 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           numberOfLines={2}
         />
       </View>
+
+      {/* Unsupportive People */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Is there anyone important in your life that is not supportive of you considering becoming a gestational surrogate? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.unsupportivePeople === true && styles.radioButtonSelected]}
+            onPress={() => updateField('unsupportivePeople', true)}
+          >
+            <Text style={[styles.radioText, applicationData.unsupportivePeople === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.unsupportivePeople === false && styles.radioButtonSelected]}
+            onPress={() => updateField('unsupportivePeople', false)}
+          >
+            <Text style={[styles.radioText, applicationData.unsupportivePeople === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Childcare Support */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you feel like you will have the necessary support to be able to find adequate child care for all appointments you will be required to attend? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.childcareSupport === true && styles.radioButtonSelected]}
+            onPress={() => updateField('childcareSupport', true)}
+          >
+            <Text style={[styles.radioText, applicationData.childcareSupport === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.childcareSupport === false && styles.radioButtonSelected]}
+            onPress={() => updateField('childcareSupport', false)}
+          >
+            <Text style={[styles.radioText, applicationData.childcareSupport === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </ScrollView>
-  );
+    );
+  };
 
   const renderStep8 = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -3747,6 +4223,27 @@ const styles = StyleSheet.create({
   },
   radioTextSelected: {
     color: '#fff',
+  },
+  checkboxContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E0E7EE',
+    backgroundColor: '#fff',
+    marginBottom: 8,
+  },
+  checkboxSelected: {
+    borderColor: '#2A7BF6',
+    backgroundColor: '#E8F2FF',
+  },
+  checkboxText: {
+    fontSize: 15,
+    color: '#1A1D1E',
+  },
+  checkboxTextSelected: {
+    color: '#2A7BF6',
+    fontWeight: '600',
   },
   buttonContainer: {
     flexDirection: 'row',
