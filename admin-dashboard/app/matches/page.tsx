@@ -587,10 +587,10 @@ export default function MatchesPage() {
             return null;
           }
           // Smart unit detection:
-          // - If height < 3, assume feet (e.g., 5 = 5 feet = 60 inches)
-          // - If height >= 3 and < 100, assume inches (e.g., 66 = 66 inches)
+          // - If height < 10, assume feet (e.g., 5 = 5 feet = 60 inches, 5.5 = 5.5 feet = 66 inches)
+          // - If height >= 10 and < 100, assume inches (e.g., 66 = 66 inches)
           // - If height >= 100, assume cm
-          if (heightNum < 3) {
+          if (heightNum < 10) {
             // Likely feet (e.g., 5 = 5 feet)
             const feet = heightNum;
             const totalInches = feet * 12;
@@ -614,7 +614,7 @@ export default function MatchesPage() {
         }
       } else {
         // Height is already a number - smart unit detection
-        if (height < 3) {
+        if (height < 10) {
           // Likely feet
           const feet = height;
           const totalInches = feet * 12;
