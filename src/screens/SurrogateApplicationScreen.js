@@ -3175,7 +3175,33 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <Text style={styles.stepTitle}>General Questions</Text>
       <Text style={styles.stepDescription}>Please answer the following questions</Text>
 
-      {/* Main Concerns */}
+      {/* 1. Understanding and Motivation */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail? and your motivation for becoming a surrogate mother. *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.surrogacyUnderstanding || ''}
+          onChangeText={(value) => updateField('surrogacyUnderstanding', value)}
+          placeholder="Your understanding and motivation"
+          multiline
+          numberOfLines={5}
+        />
+      </View>
+
+      {/* 2. Self Introduction */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Generally please introduce yourself: personality, hobbies, interests, family support.......? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.selfIntroduction || ''}
+          onChangeText={(value) => updateField('selfIntroduction', value)}
+          placeholder="Tell us about yourself"
+          multiline
+          numberOfLines={5}
+        />
+      </View>
+
+      {/* 3. Main Concerns */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>What are your main concerns about the surrogacy process? *</Text>
         {concernOptions.map((concern, index) => {
@@ -3197,7 +3223,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         })}
       </View>
 
-      {/* Parent Qualities */}
+      {/* 4. Parent Qualities */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>What qualities if any would you consider most important that the parents you choose will have? *</Text>
         <TextInput
@@ -3210,7 +3236,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
-      {/* Religious Preference */}
+      {/* 5. Religious Preference */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you have any preferences for the religious background of the parents? *</Text>
         <View style={styles.radioContainer}>
@@ -3229,7 +3255,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Unmarried Couple */}
+      {/* 6. Unmarried Couple */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with an unmarried couple or person? *</Text>
         <View style={styles.radioContainer}>
@@ -3248,7 +3274,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Heterosexual Couple */}
+      {/* 7. Heterosexual Couple */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a heterosexual couple? *</Text>
         <View style={styles.radioContainer}>
@@ -3267,55 +3293,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Briefly explain your understanding of what being a gestational carrier will entail and your motivation for becoming a surrogate mother *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.surrogacyUnderstanding || ''}
-          onChangeText={(value) => updateField('surrogacyUnderstanding', value)}
-          placeholder="Your understanding and motivation"
-          multiline
-          numberOfLines={5}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Generally please introduce yourself: personality, hobbies, interests, family support *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.selfIntroduction || ''}
-          onChangeText={(value) => updateField('selfIntroduction', value)}
-          placeholder="Tell us about yourself"
-          multiline
-          numberOfLines={5}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>What kind of support do you expect to have while being a gestational carrier from intended parents and our agency? *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.expectedSupport || ''}
-          onChangeText={(value) => updateField('expectedSupport', value)}
-          placeholder="Please be specific"
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>How does your husband/partner feel about your participating in the surrogacy process? *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.partnerFeelings || ''}
-          onChangeText={(value) => updateField('partnerFeelings', value)}
-          placeholder="Partner's feelings about surrogacy"
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      {/* Egg Donor */}
+      {/* 11. Egg Donor */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a couple using an egg donor? *</Text>
         <View style={styles.radioContainer}>
@@ -3334,7 +3312,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Sperm Donor */}
+      {/* 12. Sperm Donor */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a couple using a sperm donor? *</Text>
         <View style={styles.radioContainer}>
@@ -3353,7 +3331,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Older Couple */}
+      {/* 13. Older Couple */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with an older couple? *</Text>
         <View style={styles.radioContainer}>
@@ -3372,7 +3350,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Couple With Children */}
+      {/* 14. Couple With Children */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a couple with children? *</Text>
         <View style={styles.radioContainer}>
@@ -3391,9 +3369,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Working Preferences */}
-      <Text style={[styles.label, { marginTop: 20, marginBottom: 10, fontSize: 16, fontWeight: 'bold' }]}>Working Preferences</Text>
-
+      {/* 8. Same Sex Couple */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a same sex couple? *</Text>
         <View style={styles.radioContainer}>
@@ -3412,6 +3388,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 9. Single Male */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a single male? *</Text>
         <View style={styles.radioContainer}>
@@ -3430,6 +3407,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 10. Single Female */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a single female? *</Text>
         <View style={styles.radioContainer}>
@@ -3448,6 +3426,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 15. International Couple */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with an international couple? (a couple living outside of the United States) *</Text>
         <View style={styles.radioContainer}>
@@ -3466,7 +3445,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Non-English Speaking */}
+      {/* 16. Non-English Speaking */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to work with a non-English speaking couple using a translator? *</Text>
         <View style={styles.radioContainer}>
@@ -3485,6 +3464,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 17. Carry Twins */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to carry twins? *</Text>
         <View style={styles.radioContainer}>
@@ -3503,7 +3483,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Reduction Willing */}
+      {/* 18. Reduction Willing */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>In the case of a multiples pregnancy, are you willing to reduce the pregnancy from 3 to 2 or 1? *</Text>
         <View style={styles.radioContainer}>
@@ -3522,7 +3502,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Amniocentesis */}
+      {/* 19. Amniocentesis */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Would you be willing to undergo amniocentesis or other diagnostic testing to determine the presence of birth defects? *</Text>
         <View style={styles.radioContainer}>
@@ -3541,7 +3521,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Abortion Willing */}
+      {/* 20. Abortion Willing */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>If there were a serious problem with the fetus and the parents wanted to abort would you be willing to abort in the presence of birth defects? *</Text>
         <View style={styles.radioContainer}>
@@ -3560,7 +3540,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Concerns Placing Baby */}
+      {/* 23. Concerns Placing Baby */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you have any concerns about placing the baby with the parents after you give birth? *</Text>
         <View style={styles.radioContainer}>
@@ -3579,6 +3559,140 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 24. Parents In Delivery Room */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents in the delivery room? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsInDeliveryRoom === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsInDeliveryRoom', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsInDeliveryRoom === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsInDeliveryRoom === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsInDeliveryRoom', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsInDeliveryRoom === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 25. Parents At Appointments */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents to attend doctor appointments if they want to attend? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsAtAppointments === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsAtAppointments', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsAtAppointments === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsAtAppointments === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsAtAppointments', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsAtAppointments === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 26. Notify Hospital */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you permit the parents to notify the hospital that you are not the biological parent of the child? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.notifyHospital === true && styles.radioButtonSelected]}
+            onPress={() => updateField('notifyHospital', true)}
+          >
+            <Text style={[styles.radioText, applicationData.notifyHospital === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.notifyHospital === false && styles.radioButtonSelected]}
+            onPress={() => updateField('notifyHospital', false)}
+          >
+            <Text style={[styles.radioText, applicationData.notifyHospital === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 27. Parents On Birth Certificate */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Will you allow the parents' names to be placed on the birth certificate? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsOnBirthCertificate === true && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsOnBirthCertificate', true)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsOnBirthCertificate === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.parentsOnBirthCertificate === false && styles.radioButtonSelected]}
+            onPress={() => updateField('parentsOnBirthCertificate', false)}
+          >
+            <Text style={[styles.radioText, applicationData.parentsOnBirthCertificate === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 28. Applying Elsewhere */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you currently applying to be a gestational carrier at any other medical facility, agency, and facilitator, or independently? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.applyingElsewhere === true && styles.radioButtonSelected]}
+            onPress={() => updateField('applyingElsewhere', true)}
+          >
+            <Text style={[styles.radioText, applicationData.applyingElsewhere === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.applyingElsewhere === false && styles.radioButtonSelected]}
+            onPress={() => updateField('applyingElsewhere', false)}
+          >
+            <Text style={[styles.radioText, applicationData.applyingElsewhere === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 29. Rejected Elsewhere */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever applied to be a gestational carrier at any other medical facility and been told that you do not meet the criteria to be a gestational carrier? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.rejectedElsewhere === true && styles.radioButtonSelected]}
+            onPress={() => updateField('rejectedElsewhere', true)}
+          >
+            <Text style={[styles.radioText, applicationData.rejectedElsewhere === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.rejectedElsewhere === false && styles.radioButtonSelected]}
+            onPress={() => updateField('rejectedElsewhere', false)}
+          >
+            <Text style={[styles.radioText, applicationData.rejectedElsewhere === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 30. Attend Checkups */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you able to attend all prenatal check-ups on time? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.attendCheckups === true && styles.radioButtonSelected]}
+            onPress={() => updateField('attendCheckups', true)}
+          >
+            <Text style={[styles.radioText, applicationData.attendCheckups === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.attendCheckups === false && styles.radioButtonSelected]}
+            onPress={() => updateField('attendCheckups', false)}
+          >
+            <Text style={[styles.radioText, applicationData.attendCheckups === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 31. Receive Injections */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to receive injections, medications, and ultrasounds as required? *</Text>
         <View style={styles.radioContainer}>
@@ -3597,7 +3711,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Medical Examinations */}
+      {/* 32. Medical Examinations */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to undergo all medical examinations designated by the doctor? *</Text>
         <View style={styles.radioContainer}>
@@ -3634,6 +3748,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 34. Avoid Long Travel */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to avoid long-distance travel during pregnancy? *</Text>
         <View style={styles.radioContainer}>
@@ -3652,7 +3767,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Follow Guidelines */}
+      {/* 33. Follow Guidelines */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you able to follow pregnancy-related lifestyle guidelines? *</Text>
         <View style={styles.radioContainer}>
@@ -3671,7 +3786,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Avoid High Risk Work */}
+      {/* 35. Avoid High Risk Work */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to refrain from high-risk work during pregnancy? *</Text>
         <View style={styles.radioContainer}>
@@ -3690,7 +3805,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Placed Child Adoption */}
+      {/* 36. Placed Child Adoption */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever placed a child up for adoption? *</Text>
         <View style={styles.radioContainer}>
@@ -3821,8 +3936,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* 21. Contact During Process */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>How much contact would you like to have with the parents throughout the process?</Text>
+        <Text style={styles.label}>How much contact would you like to have with the parents throughout the process? *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.contactDuringProcess || ''}
@@ -3833,8 +3949,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
+      {/* 22. Contact After Birth */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>How much contact would you like to have with the parents after the birth?</Text>
+        <Text style={styles.label}>How much contact would you like to have with the parents after the birth? *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.contactAfterBirth || ''}
@@ -3845,7 +3962,20 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
-      {/* Unsupportive People */}
+      {/* 37. Expected Support */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What kind of support do you expect to have while being a gestational carrier from intended parents, and our agency? Please be specific. *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.expectedSupport || ''}
+          onChangeText={(value) => updateField('expectedSupport', value)}
+          placeholder="Please be specific"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* 38. Unsupportive People */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Is there anyone important in your life that is not supportive of you considering becoming a gestational surrogate? *</Text>
         <View style={styles.radioContainer}>
@@ -3864,7 +3994,20 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Childcare Support */}
+      {/* 39. Partner Feelings */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How does your husband/partner feel about your participating in the surrogacy process? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.partnerFeelings || ''}
+          onChangeText={(value) => updateField('partnerFeelings', value)}
+          placeholder="Partner's feelings about surrogacy"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* 40. Childcare Support */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you feel like you will have the necessary support to be able to find adequate child care for all appointments you will be required to attend? *</Text>
         <View style={styles.radioContainer}>
