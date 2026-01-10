@@ -167,7 +167,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     householdMembers: '',
     
     // Step 6: Education History
-    educationLevel: '', // highSchool, college, tradeSchool
+    educationLevel: '', // highSchool, college
     tradeSchoolDetails: '',
     
     // Step 7: General Questions & Preferences
@@ -3118,26 +3118,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           >
             <Text style={[styles.radioText, applicationData.educationLevel === 'college' && styles.radioTextSelected]}>College</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.educationLevel === 'tradeSchool' && styles.radioButtonSelected]}
-            onPress={() => updateField('educationLevel', 'tradeSchool')}
-          >
-            <Text style={[styles.radioText, applicationData.educationLevel === 'tradeSchool' && styles.radioTextSelected]}>Trade School</Text>
-          </TouchableOpacity>
         </View>
       </View>
-
-      {applicationData.educationLevel === 'tradeSchool' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>If you completed your education through a trade school, please specify</Text>
-        <TextInput
-          style={styles.input}
-            value={applicationData.tradeSchoolDetails || ''}
-            onChangeText={(value) => updateField('tradeSchoolDetails', value)}
-            placeholder="Trade school details"
-        />
-      </View>
-      )}
 
       {/* Referral Code */}
       <View style={styles.inputGroup}>
