@@ -3841,14 +3841,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <Text style={[styles.label, { lineHeight: 22 }]}>
           I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs. I understand, and expressly condition this authorization upon such understanding.
         </Text>
-        <View style={[styles.radioContainer, { marginTop: 15 }]}>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.authorizationAgreed === true && styles.radioButtonSelected, { paddingVertical: 15, paddingHorizontal: 25 }]}
-            onPress={() => updateField('authorizationAgreed', true)}
-          >
-            <Text style={[styles.radioText, applicationData.authorizationAgreed === true && styles.radioTextSelected]}>I Agree</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.checkboxContainer, { marginTop: 15 }]}
+          onPress={() => updateField('authorizationAgreed', !applicationData.authorizationAgreed)}
+        >
+          <Text style={[styles.checkboxText, applicationData.authorizationAgreed && styles.checkboxTextSelected]}>
+            {applicationData.authorizationAgreed ? '✓ ' : '○ '}I Agree *
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Applicant Information */}
