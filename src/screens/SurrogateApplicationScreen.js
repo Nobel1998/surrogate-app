@@ -2278,6 +2278,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       </View>
       )}
 
+      {/* Household Marijuana */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you or any members of your household smoke or inject marijuana? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.householdMarijuana === true && styles.radioButtonSelected]}
+            onPress={() => updateField('householdMarijuana', true)}
+          >
+            <Text style={[styles.radioText, applicationData.householdMarijuana === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.householdMarijuana === false && styles.radioButtonSelected]}
+            onPress={() => updateField('householdMarijuana', false)}
+          >
+            <Text style={[styles.radioText, applicationData.householdMarijuana === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you drink alcohol? *</Text>
         <View style={styles.radioContainer}>
