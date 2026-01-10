@@ -3023,31 +3023,30 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Spouse/Partner Employment - Only show if not single */}
-      {applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && (
+      {/* Spouse/Partner Employment - Only show if married */}
+      {(applicationData.isMarried === true || applicationData.maritalStatus === 'married') && (
         <>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Please list your husband/partner's current place of employment *</Text>
-            <Text style={styles.subLabel}>Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state N/A</Text>
+            <Text style={styles.label}>Please list your husband/partner's current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A" *</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={applicationData.spouseEmployment || ''}
               onChangeText={(value) => updateField('spouseEmployment', value)}
               placeholder="Position, start date, employer location (or N/A)"
               multiline
-              numberOfLines={3}
+              numberOfLines={4}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>What is your Spouse's/Partner's current monthly income?</Text>
+            <Text style={styles.label}>What is your Spouse's/Partner's current monthly income? *</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontSize: 18, marginRight: 5, color: '#333' }}>$</Text>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 value={applicationData.spouseMonthlyIncome || ''}
                 onChangeText={(value) => updateField('spouseMonthlyIncome', value)}
-                placeholder="Monthly income (USD) or N/A"
+                placeholder="Monthly income (USD)"
                 keyboardType="numeric"
               />
             </View>
