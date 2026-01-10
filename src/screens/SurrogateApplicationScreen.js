@@ -2413,6 +2413,76 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* Children Health Problems */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do any of your children have serious health problems? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.childrenHealthProblems === true && styles.radioButtonSelected]}
+            onPress={() => updateField('childrenHealthProblems', true)}
+          >
+            <Text style={[styles.radioText, applicationData.childrenHealthProblems === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.childrenHealthProblems === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('childrenHealthProblems', false);
+              updateField('childrenHealthDetails', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.childrenHealthProblems === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.childrenHealthProblems && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If yes, please explain *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.childrenHealthDetails || ''}
+            onChangeText={(value) => updateField('childrenHealthDetails', value)}
+            placeholder="Please explain"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      {/* Breastfeeding */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you currently breastfeeding? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.breastfeeding === true && styles.radioButtonSelected]}
+            onPress={() => updateField('breastfeeding', true)}
+          >
+            <Text style={[styles.radioText, applicationData.breastfeeding === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.breastfeeding === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('breastfeeding', false);
+              updateField('breastfeedingStopDate', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.breastfeeding === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.breastfeeding && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If so, when do you plan to stop?</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.breastfeedingStopDate || ''}
+            onChangeText={(value) => updateField('breastfeedingStopDate', value)}
+            placeholder="Expected stop date"
+          />
+        </View>
+      )}
+
       {/* Surgeries & Illnesses */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever had any surgery? *</Text>
