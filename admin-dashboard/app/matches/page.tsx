@@ -156,6 +156,7 @@ export default function MatchesPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [surrogateApplications, setSurrogateApplications] = useState<Map<string, any>>(new Map());
 
   const [selectedSurrogate, setSelectedSurrogate] = useState<string>('');
   const [selectedParent, setSelectedParent] = useState<string>('');
@@ -424,6 +425,9 @@ export default function MatchesPage() {
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
       
+      // Load surrogate applications for BMI calculation
+      await loadSurrogateApplications(surList.map(s => s.id));
+      
       // #region agent log
       const attorneyRetainerContracts = contractsData.filter((c: any) => c.document_type === 'attorney_retainer');
       fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadData:afterSetContracts',message:'After loading contracts',data:{totalContracts:contractsData.length,attorneyRetainerCount:attorneyRetainerContracts.length,attorneyRetainerContracts:attorneyRetainerContracts.map((c:any)=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name,fileUrl:c.file_url}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
@@ -460,6 +464,84 @@ export default function MatchesPage() {
     } catch (err) {
       console.error('Error loading admin users:', err);
     }
+  };
+
+  const loadSurrogateApplications = async (surrogateIds: string[]) => {
+    try {
+      if (surrogateIds.length === 0) return;
+      
+      const applicationsMap = new Map<string, any>();
+      
+      // Fetch applications for all surrogates (one by one to avoid URL length issues)
+      const fetchPromises = surrogateIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/applications?user_id=${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const applications = data.data || [];
+            
+            // Get the most recent approved application, or most recent if none approved
+            let bestApp = null;
+            for (const app of applications) {
+              if (app.form_data) {
+                if (!bestApp) {
+                  bestApp = app;
+                } else if (app.status === 'approved' && bestApp.status !== 'approved') {
+                  bestApp = app;
+                } else if (app.status === bestApp.status && new Date(app.created_at) > new Date(bestApp.created_at)) {
+                  bestApp = app;
+                }
+              }
+            }
+            
+            if (bestApp) {
+              try {
+                const formData = JSON.parse(bestApp.form_data);
+                applicationsMap.set(id, formData);
+              } catch (e) {
+                console.error('Error parsing form_data for user:', id, e);
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error loading application for surrogate ${id}:`, err);
+        }
+      });
+      
+      await Promise.all(fetchPromises);
+      setSurrogateApplications(applicationsMap);
+    } catch (err) {
+      console.error('Error loading surrogate applications:', err);
+    }
+  };
+
+  // Calculate BMI from height and weight
+  const calculateBMI = (height: string | number, weight: string | number): number | null => {
+    try {
+      const heightNum = typeof height === 'string' ? parseFloat(height) : height;
+      const weightNum = typeof weight === 'string' ? parseFloat(weight) : weight;
+      
+      if (isNaN(heightNum) || isNaN(weightNum) || heightNum <= 0 || weightNum <= 0) {
+        return null;
+      }
+      
+      // Assume height is in cm, convert to meters
+      const heightInMeters = heightNum / 100;
+      const bmi = weightNum / (heightInMeters * heightInMeters);
+      
+      return isNaN(bmi) ? null : bmi;
+    } catch (e) {
+      console.error('Error calculating BMI:', e);
+      return null;
+    }
+  };
+
+  // Get calculated BMI for a surrogate
+  const getCalculatedBMI = (surrogateId: string): number | null => {
+    const appData = surrogateApplications.get(surrogateId);
+    if (!appData) return null;
+    
+    return calculateBMI(appData.height, appData.weight);
   };
 
   const handleUpdateParent2 = async (matchId: string) => {
@@ -761,6 +843,36 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Surrogate BMI:', err);
       alert(err.message || 'Failed to update Surrogate BMI');
+    }
+  };
+
+  const handleAutoCalculateBMI = async (matchId: string, surrogateId: string) => {
+    try {
+      const calculatedBMI = getCalculatedBMI(surrogateId);
+      
+      if (calculatedBMI === null) {
+        alert('Cannot calculate BMI: Height and weight data not available from application form');
+        return;
+      }
+
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surrogate_bmi: calculatedBMI,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Surrogate BMI');
+      }
+
+      await loadData();
+      alert(`Surrogate BMI calculated and saved: ${calculatedBMI.toFixed(1)}`);
+    } catch (err: any) {
+      console.error('[matches] Error auto-calculating Surrogate BMI:', err);
+      alert(err.message || 'Failed to auto-calculate Surrogate BMI');
     }
   };
 
@@ -2733,17 +2845,41 @@ export default function MatchesPage() {
                                 </button>
                               </div>
                             ) : (
-                              <div 
-                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
-                                onClick={() => {
-                                  setEditingSurrogateBMI(m.id);
-                                  setSurrogateBMIValue(m.surrogate_bmi?.toString() || '');
-                                }}
-                                title="Click to edit Surrogate BMI"
-                              >
-                                {m.surrogate_bmi !== null && m.surrogate_bmi !== undefined
-                                  ? m.surrogate_bmi.toFixed(1)
-                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900 flex-1"
+                                  onClick={() => {
+                                    setEditingSurrogateBMI(m.id);
+                                    setSurrogateBMIValue(m.surrogate_bmi?.toString() || '');
+                                  }}
+                                  title="Click to edit Surrogate BMI"
+                                >
+                                  {m.surrogate_bmi !== null && m.surrogate_bmi !== undefined
+                                    ? m.surrogate_bmi.toFixed(1)
+                                    : (() => {
+                                        const calculatedBMI = getCalculatedBMI(m.surrogate_id);
+                                        if (calculatedBMI !== null) {
+                                          return (
+                                            <span className="text-blue-600 italic" title="Calculated from application form (height & weight)">
+                                              {calculatedBMI.toFixed(1)} (calc)
+                                            </span>
+                                          );
+                                        }
+                                        return <span className="text-gray-400 italic">Click to add</span>;
+                                      })()}
+                                </div>
+                                {m.surrogate_bmi === null || m.surrogate_bmi === undefined ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAutoCalculateBMI(m.id, m.surrogate_id);
+                                    }}
+                                    className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded"
+                                    title="Auto-calculate BMI from application form"
+                                  >
+                                    Auto
+                                  </button>
+                                ) : null}
                               </div>
                             )}
                           </div>
