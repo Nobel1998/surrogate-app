@@ -3730,24 +3730,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Are you able to attend all prenatal check-ups on time? *</Text>
-        <View style={styles.radioContainer}>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.attendCheckups === true && styles.radioButtonSelected]}
-            onPress={() => updateField('attendCheckups', true)}
-          >
-            <Text style={[styles.radioText, applicationData.attendCheckups === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.attendCheckups === false && styles.radioButtonSelected]}
-            onPress={() => updateField('attendCheckups', false)}
-          >
-            <Text style={[styles.radioText, applicationData.attendCheckups === false && styles.radioTextSelected]}>NO</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* 34. Avoid Long Travel */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you willing to avoid long-distance travel during pregnancy? *</Text>
