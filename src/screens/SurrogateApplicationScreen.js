@@ -2803,14 +2803,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <Text style={styles.stepDescription}>Please provide your sexual health information</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>List any contraceptives you have used in the past and any reaction you have had</Text>
+        <Text style={styles.label}>List any contraceptives you have used in the past and any reaction you have had to the use of the contraceptive including Tubal Ligation. *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.pastContraceptives || ''}
           onChangeText={(value) => updateField('pastContraceptives', value)}
-          placeholder="Include Tubal Ligation if applicable"
+          placeholder="List contraceptives used, reactions, and Tubal Ligation if applicable"
           multiline
-          numberOfLines={3}
+          numberOfLines={4}
         />
       </View>
 
