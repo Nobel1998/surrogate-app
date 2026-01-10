@@ -426,7 +426,7 @@ export default function MatchesPage() {
       setCanViewAllBranches(canViewAll !== false);
       
       // Load surrogate applications for BMI calculation
-      await loadSurrogateApplications(surList.map(s => s.id));
+      await loadSurrogateApplications(surList.map((s: Profile) => s.id));
       
       // #region agent log
       const attorneyRetainerContracts = contractsData.filter((c: any) => c.document_type === 'attorney_retainer');
