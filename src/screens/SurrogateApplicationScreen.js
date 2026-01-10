@@ -2997,15 +2997,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <Text style={styles.stepDescription}>Please provide your employment details</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Please list your current place of employment *</Text>
-        <Text style={styles.subLabel}>Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state N/A</Text>
+        <Text style={styles.label}>Please list your current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A" *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.currentEmployment || ''}
           onChangeText={(value) => updateField('currentEmployment', value)}
-          placeholder="Position, start date, employer location"
+          placeholder="Position, start date, employer location (or N/A)"
           multiline
-          numberOfLines={3}
+          numberOfLines={4}
         />
       </View>
 
