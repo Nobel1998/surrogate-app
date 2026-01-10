@@ -2377,6 +2377,42 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
+      {/* Pregnancy Problems */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Did you suffer any emotional or physical problems during and/or after each of your pregnancies? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.pregnancyProblems === true && styles.radioButtonSelected]}
+            onPress={() => updateField('pregnancyProblems', true)}
+          >
+            <Text style={[styles.radioText, applicationData.pregnancyProblems === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.pregnancyProblems === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('pregnancyProblems', false);
+              updateField('pregnancyProblemsDetails', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.pregnancyProblems === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.pregnancyProblems && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If yes, please explain *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.pregnancyProblemsDetails || ''}
+            onChangeText={(value) => updateField('pregnancyProblemsDetails', value)}
+            placeholder="Please explain"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
       {/* Surgeries & Illnesses */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever had any surgery? *</Text>
