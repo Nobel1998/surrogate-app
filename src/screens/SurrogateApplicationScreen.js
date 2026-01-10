@@ -3839,14 +3839,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { lineHeight: 22 }]}>
-          I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs. I understand, and expressly condition this authorization upon such understanding.
+          I hereby authorize Babytree Surrogacy to disclose the information contained in this Surrogate Application to anyone interested in reviewing my application to assist them in selecting a Surrogate, and for review by appropriate medical and psychological professionals and their staffs. I understand, and expressly condition this authorization upon such understanding. *
         </Text>
         <TouchableOpacity
           style={[styles.checkboxContainer, { marginTop: 15 }]}
           onPress={() => updateField('authorizationAgreed', !applicationData.authorizationAgreed)}
         >
           <Text style={[styles.checkboxText, applicationData.authorizationAgreed && styles.checkboxTextSelected]}>
-            {applicationData.authorizationAgreed ? '✓ ' : '○ '}I Agree *
+            {applicationData.authorizationAgreed ? '✓ ' : '○ '}I Agree
           </Text>
         </TouchableOpacity>
       </View>
