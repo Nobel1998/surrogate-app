@@ -518,19 +518,90 @@ export default function MatchesPage() {
   // Calculate BMI from height and weight
   const calculateBMI = (height: string | number, weight: string | number): number | null => {
     try {
-      const heightNum = typeof height === 'string' ? parseFloat(height) : height;
-      const weightNum = typeof weight === 'string' ? parseFloat(weight) : weight;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:entry',message:'BMI calculation started',data:{height,weight,heightType:typeof height,weightType:typeof weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
-      if (isNaN(heightNum) || isNaN(weightNum) || heightNum <= 0 || weightNum <= 0) {
+      let heightInCm: number;
+      let weightInKg: number;
+      
+      // Parse height - can be in format "5'6" (feet'inches) or number (cm or inches)
+      if (typeof height === 'string') {
+        // Check for feet'inches format (e.g., "5'6", "5'10")
+        const feetInchesMatch = height.match(/^(\d+)[''](\d+)$/);
+        if (feetInchesMatch) {
+          const feet = parseInt(feetInchesMatch[1], 10);
+          const inches = parseInt(feetInchesMatch[2], 10);
+          const totalInches = feet * 12 + inches;
+          heightInCm = totalInches * 2.54; // Convert inches to cm
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:feetInches',message:'Parsed feet/inches format',data:{originalHeight:height,feet,inches,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+        } else {
+          // Try to parse as number (could be cm or inches)
+          const heightNum = parseFloat(height);
+          if (isNaN(heightNum) || heightNum <= 0) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidHeight',message:'Invalid height value',data:{originalHeight:height,parsed:heightNum},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            return null;
+          }
+          // If height is less than 100, assume it's in inches, otherwise assume cm
+          heightInCm = heightNum < 100 ? heightNum * 2.54 : heightNum;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeight',message:'Parsed numeric height',data:{originalHeight:height,parsed:heightNum,assumedUnit:heightNum<100?'inches':'cm',heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+        }
+      } else {
+        // Height is already a number - assume cm if > 100, otherwise inches
+        heightInCm = height < 100 ? height * 2.54 : height;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInput',message:'Numeric height input',data:{height,assumedUnit:height<100?'inches':'cm',heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+      }
+      
+      // Parse weight - can be in lbs or kg
+      if (typeof weight === 'string') {
+        const weightNum = parseFloat(weight);
+        if (isNaN(weightNum) || weightNum <= 0) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidWeight',message:'Invalid weight value',data:{originalWeight:weight,parsed:weightNum},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          return null;
+        }
+        // If weight is less than 50, assume it's already in kg, otherwise assume lbs
+        weightInKg = weightNum < 50 ? weightNum : weightNum / 2.20462;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:weight',message:'Parsed weight',data:{originalWeight:weight,parsed:weightNum,assumedUnit:weightNum<50?'kg':'lbs',weightInKg},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+      } else {
+        // Weight is already a number - assume kg if < 50, otherwise lbs
+        weightInKg = weight < 50 ? weight : weight / 2.20462;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericWeightInput',message:'Numeric weight input',data:{weight,assumedUnit:weight<50?'kg':'lbs',weightInKg},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+      }
+      
+      // Calculate BMI: weight (kg) / height (m)^2
+      const heightInMeters = heightInCm / 100;
+      const bmi = weightInKg / (heightInMeters * heightInMeters);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:result',message:'BMI calculation result',data:{heightInCm,heightInMeters,weightInKg,bmi,isValid:!isNaN(bmi)&&bmi>0&&bmi<100},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      if (isNaN(bmi) || bmi <= 0 || bmi > 100) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidBMI',message:'Invalid BMI result',data:{bmi},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         return null;
       }
       
-      // Assume height is in cm, convert to meters
-      const heightInMeters = heightNum / 100;
-      const bmi = weightNum / (heightInMeters * heightInMeters);
-      
-      return isNaN(bmi) ? null : bmi;
+      return bmi;
     } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:error',message:'BMI calculation error',data:{error:String(e),height,weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.error('Error calculating BMI:', e);
       return null;
     }
@@ -848,29 +919,67 @@ export default function MatchesPage() {
 
   const handleAutoCalculateBMI = async (matchId: string, surrogateId: string) => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:entry',message:'Auto calculate BMI started',data:{matchId,surrogateId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      const appData = surrogateApplications.get(surrogateId);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:appData',message:'Application data retrieved',data:{surrogateId,hasAppData:!!appData,height:appData?.height,weight:appData?.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
       const calculatedBMI = getCalculatedBMI(surrogateId);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:calculated',message:'BMI calculated',data:{calculatedBMI,isValid:calculatedBMI!==null&&calculatedBMI>0&&calculatedBMI<100},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       
       if (calculatedBMI === null) {
         alert('Cannot calculate BMI: Height and weight data not available from application form');
         return;
       }
 
+      // Validate BMI is within reasonable range before saving
+      if (calculatedBMI <= 0 || calculatedBMI > 100) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:invalidRange',message:'BMI out of valid range',data:{calculatedBMI},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        alert(`Calculated BMI (${calculatedBMI.toFixed(1)}) is out of valid range (0-100). Please check height and weight values.`);
+        return;
+      }
+
+      // Round to 2 decimal places to match database precision
+      const bmiToSave = Math.round(calculatedBMI * 100) / 100;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:beforeSave',message:'About to save BMI',data:{calculatedBMI,bmiToSave,matchId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
       const res = await fetch(`/api/cases/${matchId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          surrogate_bmi: calculatedBMI,
+          surrogate_bmi: bmiToSave,
         }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:saveError',message:'Failed to save BMI',data:{error:errData.error,status:res.status,bmiToSave},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         throw new Error(errData.error || 'Failed to update Surrogate BMI');
       }
 
       await loadData();
-      alert(`Surrogate BMI calculated and saved: ${calculatedBMI.toFixed(1)}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:success',message:'BMI saved successfully',data:{bmiToSave},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      alert(`Surrogate BMI calculated and saved: ${bmiToSave.toFixed(1)}`);
     } catch (err: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:exception',message:'Exception in auto calculate BMI',data:{error:String(err),message:err.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.error('[matches] Error auto-calculating Surrogate BMI:', err);
       alert(err.message || 'Failed to auto-calculate Surrogate BMI');
     }
