@@ -2651,6 +2651,99 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* Depression Medication */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever been prescribed any medication for depression or mental health? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.depressionMedication === true && styles.radioButtonSelected]}
+            onPress={() => updateField('depressionMedication', true)}
+          >
+            <Text style={[styles.radioText, applicationData.depressionMedication === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.depressionMedication === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('depressionMedication', false);
+              updateField('depressionMedicationDetails', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.depressionMedication === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.depressionMedication && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If yes, please list medication name, reason for use and dates of use *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.depressionMedicationDetails || ''}
+            onChangeText={(value) => updateField('depressionMedicationDetails', value)}
+            placeholder="Medication name, reason, and dates of use"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      {/* Drug or Alcohol Abuse */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever had any problems with drug or alcohol abuse? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.drugAlcoholAbuse === true && styles.radioButtonSelected]}
+            onPress={() => updateField('drugAlcoholAbuse', true)}
+          >
+            <Text style={[styles.radioText, applicationData.drugAlcoholAbuse === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.drugAlcoholAbuse === false && styles.radioButtonSelected]}
+            onPress={() => updateField('drugAlcoholAbuse', false)}
+          >
+            <Text style={[styles.radioText, applicationData.drugAlcoholAbuse === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Excess Heat */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you exposed to excess heat in the way of saunas, hot tubs and/or steam rooms? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.excessHeat === true && styles.radioButtonSelected]}
+            onPress={() => updateField('excessHeat', true)}
+          >
+            <Text style={[styles.radioText, applicationData.excessHeat === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.excessHeat === false && styles.radioButtonSelected]}
+            onPress={() => updateField('excessHeat', false)}
+          >
+            <Text style={[styles.radioText, applicationData.excessHeat === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Alcohol Limit Advised */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever been advised to limit your use of alcohol or any other drug? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.alcoholLimitAdvised === true && styles.radioButtonSelected]}
+            onPress={() => updateField('alcoholLimitAdvised', true)}
+          >
+            <Text style={[styles.radioText, applicationData.alcoholLimitAdvised === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.alcoholLimitAdvised === false && styles.radioButtonSelected]}
+            onPress={() => updateField('alcoholLimitAdvised', false)}
+          >
+            <Text style={[styles.radioText, applicationData.alcoholLimitAdvised === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Vaccinations */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you been vaccinated for Hepatitis B? *</Text>
