@@ -578,7 +578,7 @@ export default function MatchesPage() {
           fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:feetInches',message:'Parsed feet/inches format',data:{originalHeight:height,feet,inches,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
           // #endregion
         } else {
-          // Try to parse as number (could be cm or inches)
+          // Try to parse as number (could be cm, inches, or feet)
           const heightNum = parseFloat(height);
           if (isNaN(heightNum) || heightNum <= 0) {
             // #region agent log
@@ -586,18 +586,55 @@ export default function MatchesPage() {
             // #endregion
             return null;
           }
-          // If height is less than 100, assume it's in inches, otherwise assume cm
-          heightInCm = heightNum < 100 ? heightNum * 2.54 : heightNum;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeight',message:'Parsed numeric height',data:{originalHeight:height,parsed:heightNum,assumedUnit:heightNum<100?'inches':'cm',heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
+          // Smart unit detection:
+          // - If height < 3, assume feet (e.g., 5 = 5 feet = 60 inches)
+          // - If height >= 3 and < 100, assume inches (e.g., 66 = 66 inches)
+          // - If height >= 100, assume cm
+          if (heightNum < 3) {
+            // Likely feet (e.g., 5 = 5 feet)
+            const feet = heightNum;
+            const totalInches = feet * 12;
+            heightInCm = totalInches * 2.54;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightFeet',message:'Parsed numeric height as feet',data:{originalHeight:height,parsed:heightNum,feet,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          } else if (heightNum < 100) {
+            // Likely inches
+            heightInCm = heightNum * 2.54;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInches',message:'Parsed numeric height as inches',data:{originalHeight:height,parsed:heightNum,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          } else {
+            // Likely cm
+            heightInCm = heightNum;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightCm',message:'Parsed numeric height as cm',data:{originalHeight:height,parsed:heightNum,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          }
         }
       } else {
-        // Height is already a number - assume cm if > 100, otherwise inches
-        heightInCm = height < 100 ? height * 2.54 : height;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInput',message:'Numeric height input',data:{height,assumedUnit:height<100?'inches':'cm',heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
+        // Height is already a number - smart unit detection
+        if (height < 3) {
+          // Likely feet
+          const feet = height;
+          const totalInches = feet * 12;
+          heightInCm = totalInches * 2.54;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputFeet',message:'Numeric height input as feet',data:{height,feet,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+        } else if (height < 100) {
+          // Likely inches
+          heightInCm = height * 2.54;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputInches',message:'Numeric height input as inches',data:{height,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+        } else {
+          // Likely cm
+          heightInCm = height;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputCm',message:'Numeric height input as cm',data:{height,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+        }
       }
       
       // Parse weight - can be in lbs or kg
