@@ -2171,6 +2171,42 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
+      {/* Infertility Doctor */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever been seen by a doctor for infertility? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.infertilityDoctor === true && styles.radioButtonSelected]}
+            onPress={() => updateField('infertilityDoctor', true)}
+          >
+            <Text style={[styles.radioText, applicationData.infertilityDoctor === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.infertilityDoctor === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('infertilityDoctor', false);
+              updateField('infertilityDetails', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.infertilityDoctor === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.infertilityDoctor && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If yes, please explain *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.infertilityDetails || ''}
+            onChangeText={(value) => updateField('infertilityDetails', value)}
+            placeholder="Please explain"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
       {/* Smoking & Alcohol */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you currently or have you ever smoked cigarettes or ANY form of nicotine? *</Text>
