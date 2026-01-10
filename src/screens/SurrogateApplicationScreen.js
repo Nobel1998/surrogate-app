@@ -2997,7 +2997,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <Text style={styles.stepDescription}>Please provide your employment details</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Please list your current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A" *</Text>
+        <Text style={styles.label}>Please list your current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A". *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.currentEmployment || ''}
@@ -3026,7 +3026,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {(applicationData.isMarried === true || applicationData.maritalStatus === 'married') && (
         <>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Please list your husband/partner's current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A" *</Text>
+            <Text style={styles.label}>Please list your husband/partner's current place of employment. Include (1) position held, (2) date of employment and (3) location of employer. If not applicable please state "N/A". *</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={applicationData.spouseEmployment || ''}
