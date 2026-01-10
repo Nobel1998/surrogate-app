@@ -3120,6 +3120,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Trade School Details */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>If you completed your education through a trade school, please specify. *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.tradeSchoolDetails || ''}
+          onChangeText={(value) => updateField('tradeSchoolDetails', value)}
+          placeholder="Specify trade school details"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
       {/* Referral Code */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Referral Code (Optional)</Text>
