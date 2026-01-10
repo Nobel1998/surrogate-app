@@ -1118,42 +1118,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Contact Information */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number *</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.phoneNumber}
-          onChangeText={(value) => updateField('phoneNumber', value)}
-          placeholder="Phone Number"
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email Address *</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.email}
-          onChangeText={(value) => updateField('email', value)}
-          placeholder="Email Address"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Address *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={applicationData.address || ''}
-          onChangeText={(value) => updateField('address', value)}
-          placeholder="Street Address, City, State, Zip Code"
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
       {/* Marital Status Section */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Are you single? *</Text>
@@ -1931,37 +1895,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <View>
           {applicationData.deliveries.map((_, index) => renderDeliveryForm(index))}
         </View>
-      )}
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Have you been a surrogate before? *</Text>
-        <View style={styles.radioContainer}>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.previousSurrogacy === true && styles.radioButtonSelected]}
-            onPress={() => updateField('previousSurrogacy', true)}
-          >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.radioButton, applicationData.previousSurrogacy === false && styles.radioButtonSelected]}
-            onPress={() => updateField('previousSurrogacy', false)}
-          >
-            <Text style={[styles.radioText, applicationData.previousSurrogacy === false && styles.radioTextSelected]}>NO</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {applicationData.previousSurrogacy && (
-      <View style={styles.inputGroup}>
-          <Text style={styles.label}>How many times have you been a surrogate before? *</Text>
-        <TextInput
-            style={styles.input}
-            value={applicationData.previousSurrogacyCount || ''}
-            onChangeText={(value) => updateField('previousSurrogacyCount', value)}
-            placeholder="Number of times"
-            keyboardType="numeric"
-        />
-      </View>
       )}
     </ScrollView>
   );
@@ -3963,6 +3896,17 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           value={applicationData.phoneNumber || ''}
           placeholder="Phone"
           editable={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Applicant Address *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.address || ''}
+          placeholder="Street Address, City, State, Zip Code"
+          multiline
+          numberOfLines={3}
         />
       </View>
 
