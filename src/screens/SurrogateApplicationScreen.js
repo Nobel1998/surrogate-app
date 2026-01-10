@@ -1558,6 +1558,177 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Legal Problems */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Please list any problems you or your spouse/partner have experienced with the law including, but not limited to any arrests, convictions, and/or sentences. *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.legalProblems || ''}
+          onChangeText={(value) => updateField('legalProblems', value)}
+          placeholder="List any legal problems (or N/A)"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* Jail Time */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you or your spouse/partner ever served time in jail? If yes, how much time did you serve and for what? *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.jailTime || ''}
+          onChangeText={(value) => updateField('jailTime', value)}
+          placeholder="Jail time details (or N/A)"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      {/* Nearest Airport */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>What is the name of the nearest airport to your home and how many miles is it away from your home? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.nearestAirport || ''}
+          onChangeText={(value) => updateField('nearestAirport', value)}
+          placeholder="Airport name and distance in miles"
+        />
+      </View>
+
+      {/* Pets */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you have any pets? If yes, please list. *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={applicationData.pets || ''}
+          onChangeText={(value) => updateField('pets', value)}
+          placeholder="List pets (or N/A)"
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      {/* Current Living Situation */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Current Living Situation *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.livingSituation === 'own' && styles.radioButtonSelected]}
+            onPress={() => updateField('livingSituation', 'own')}
+          >
+            <Text style={[styles.radioText, applicationData.livingSituation === 'own' && styles.radioTextSelected]}>I own the place I live in</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.livingSituation === 'family' && styles.radioButtonSelected]}
+            onPress={() => updateField('livingSituation', 'family')}
+          >
+            <Text style={[styles.radioText, applicationData.livingSituation === 'family' && styles.radioTextSelected]}>I live with family members</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.livingSituation === 'rent' && styles.radioButtonSelected]}
+            onPress={() => updateField('livingSituation', 'rent')}
+          >
+            <Text style={[styles.radioText, applicationData.livingSituation === 'rent' && styles.radioTextSelected]}>I rent the place I live in</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Own or Lease Car */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you own or lease a car? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.ownCar === true && styles.radioButtonSelected]}
+            onPress={() => updateField('ownCar', true)}
+          >
+            <Text style={[styles.radioText, applicationData.ownCar === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.ownCar === false && styles.radioButtonSelected]}
+            onPress={() => updateField('ownCar', false)}
+          >
+            <Text style={[styles.radioText, applicationData.ownCar === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Driver's License */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Do you have a driver's license? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.driverLicense === true && styles.radioButtonSelected]}
+            onPress={() => updateField('driverLicense', true)}
+          >
+            <Text style={[styles.radioText, applicationData.driverLicense === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.driverLicense === false && styles.radioButtonSelected]}
+            onPress={() => updateField('driverLicense', false)}
+          >
+            <Text style={[styles.radioText, applicationData.driverLicense === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Car Insured */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Is your car insured? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.carInsured === true && styles.radioButtonSelected]}
+            onPress={() => updateField('carInsured', true)}
+          >
+            <Text style={[styles.radioText, applicationData.carInsured === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.carInsured === false && styles.radioButtonSelected]}
+            onPress={() => updateField('carInsured', false)}
+          >
+            <Text style={[styles.radioText, applicationData.carInsured === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Transportation Method - Only show if no license */}
+      {applicationData.driverLicense === false && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If you do not have a license how will you get to all necessary appointments? *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={applicationData.transportationMethod || ''}
+            onChangeText={(value) => updateField('transportationMethod', value)}
+            placeholder="How will you get to appointments?"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
+
+      {/* Siblings Count */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many siblings do you have? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.siblingsCount || ''}
+          onChangeText={(value) => updateField('siblingsCount', value)}
+          placeholder="Number of siblings"
+          keyboardType="numeric"
+        />
+      </View>
+
+      {/* Mother's Siblings Count */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>How many siblings does your mother have? *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.motherSiblingsCount || ''}
+          onChangeText={(value) => updateField('motherSiblingsCount', value)}
+          placeholder="Number of mother's siblings"
+          keyboardType="numeric"
+        />
+      </View>
     </ScrollView>
   );
 
