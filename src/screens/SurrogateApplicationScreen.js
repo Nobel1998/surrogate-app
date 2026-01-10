@@ -1150,6 +1150,402 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           numberOfLines={3}
         />
       </View>
+
+      {/* Marital Status Section */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Are you single? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.maritalStatus === 'single' && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('maritalStatus', 'single');
+              // Clear spouse/partner fields when selecting single
+              updateField('spouseName', '');
+              updateField('spouseDateOfBirth', '');
+              updateField('marriageDate', '');
+              updateField('lifePartner', false);
+              updateField('partnerName', '');
+              updateField('partnerDateOfBirth', '');
+              updateField('engaged', false);
+              updateField('engagementDate', '');
+              updateField('weddingDate', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.maritalStatus === 'single' && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+            onPress={() => {
+              if (applicationData.maritalStatus === 'single') {
+                updateField('maritalStatus', '');
+              }
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.maritalStatus !== 'single' && (
+        <>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Are you married? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maritalStatus === 'married' && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('maritalStatus', 'married');
+                  updateField('lifePartner', false);
+                  updateField('engaged', false);
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.maritalStatus === 'married' && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maritalStatus !== 'married' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+                onPress={() => {
+                  if (applicationData.maritalStatus === 'married') {
+                    updateField('maritalStatus', '');
+                    updateField('spouseName', '');
+                    updateField('spouseDateOfBirth', '');
+                    updateField('marriageDate', '');
+                  }
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.maritalStatus !== 'married' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Married - Spouse Information */}
+          {applicationData.maritalStatus === 'married' && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What was the date of your marriage? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.marriageDate || ''}
+                  onChangeText={(value) => updateField('marriageDate', value)}
+                  placeholder="MM/DD/YYYY"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What is your spouse's name? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.spouseName || ''}
+                  onChangeText={(value) => updateField('spouseName', value)}
+                  placeholder="Spouse's full name"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What is your spouse's date of birth? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.spouseDateOfBirth || ''}
+                  onChangeText={(value) => updateField('spouseDateOfBirth', value)}
+                  placeholder="MM/DD/YYYY"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Have you ever experienced marital problems? If yes, please explain. *</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={applicationData.maritalProblems || ''}
+                  onChangeText={(value) => updateField('maritalProblems', value)}
+                  placeholder="If yes, please explain"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Have you ever been divorced? *</Text>
+                <View style={styles.radioContainer}>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.divorced === true && styles.radioButtonSelected]}
+                    onPress={() => updateField('divorced', true)}
+                  >
+                    <Text style={[styles.radioText, applicationData.divorced === true && styles.radioTextSelected]}>YES</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.divorced === false && styles.radioButtonSelected]}
+                    onPress={() => {
+                      updateField('divorced', false);
+                      updateField('divorceDate', '');
+                      updateField('divorceCause', '');
+                    }}
+                  >
+                    <Text style={[styles.radioText, applicationData.divorced === false && styles.radioTextSelected]}>NO</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {applicationData.divorced && (
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>When did your divorce occur? *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={applicationData.divorceDate || ''}
+                      onChangeText={(value) => updateField('divorceDate', value)}
+                      placeholder="MM/DD/YYYY"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>What was the cause of your break up? *</Text>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={applicationData.divorceCause || ''}
+                      onChangeText={(value) => updateField('divorceCause', value)}
+                      placeholder="Reason for divorce"
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Have you re-married? If yes, how long ago? *</Text>
+                    <View style={styles.radioContainer}>
+                      <TouchableOpacity
+                        style={[styles.radioButton, applicationData.remarried === true && styles.radioButtonSelected]}
+                        onPress={() => updateField('remarried', true)}
+                      >
+                        <Text style={[styles.radioText, applicationData.remarried === true && styles.radioTextSelected]}>YES</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.radioButton, applicationData.remarried === false && styles.radioButtonSelected]}
+                        onPress={() => {
+                          updateField('remarried', false);
+                          updateField('remarriedDate', '');
+                        }}
+                      >
+                        <Text style={[styles.radioText, applicationData.remarried === false && styles.radioTextSelected]}>NO</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {applicationData.remarried && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>When did you re-marry? *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={applicationData.remarriedDate || ''}
+                        onChangeText={(value) => updateField('remarriedDate', value)}
+                        placeholder="MM/DD/YYYY"
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Are you legally separated? *</Text>
+                <View style={styles.radioContainer}>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.legallySeparated === true && styles.radioButtonSelected]}
+                    onPress={() => updateField('legallySeparated', true)}
+                  >
+                    <Text style={[styles.radioText, applicationData.legallySeparated === true && styles.radioTextSelected]}>YES</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.legallySeparated === false && styles.radioButtonSelected]}
+                    onPress={() => {
+                      updateField('legallySeparated', false);
+                      updateField('separationDetails', '');
+                    }}
+                  >
+                    <Text style={[styles.radioText, applicationData.legallySeparated === false && styles.radioTextSelected]}>NO</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {applicationData.legallySeparated && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>If you are separated, how long have you been married and how long have you been separated? *</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={applicationData.separationDetails || ''}
+                    onChangeText={(value) => updateField('separationDetails', value)}
+                    placeholder="Marriage duration and separation duration"
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Widowed */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Are you widowed? If so, when was your partner deceased? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maritalStatus === 'widowed' && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('maritalStatus', 'widowed');
+                  updateField('married', false);
+                  updateField('lifePartner', false);
+                  updateField('engaged', false);
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.maritalStatus === 'widowed' && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.maritalStatus !== 'widowed' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+                onPress={() => {
+                  if (applicationData.maritalStatus === 'widowed') {
+                    updateField('maritalStatus', '');
+                    updateField('widowedDate', '');
+                  }
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.maritalStatus !== 'widowed' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {applicationData.maritalStatus === 'widowed' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>When was your partner deceased? *</Text>
+              <TextInput
+                style={styles.input}
+                value={applicationData.widowedDate || ''}
+                onChangeText={(value) => updateField('widowedDate', value)}
+                placeholder="MM/DD/YYYY"
+              />
+            </View>
+          )}
+
+          {/* Life Partner */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Do you have a Life Partner? If so, how long have you been together? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.lifePartner === true && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('lifePartner', true);
+                  updateField('maritalStatus', 'lifePartner');
+                  updateField('married', false);
+                  updateField('engaged', false);
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.lifePartner === true && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.lifePartner === false && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('lifePartner', false);
+                  if (applicationData.maritalStatus === 'lifePartner') {
+                    updateField('maritalStatus', '');
+                  }
+                  updateField('partnerName', '');
+                  updateField('partnerDateOfBirth', '');
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.lifePartner === false && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {applicationData.lifePartner && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What is your partner's full name and date of birth? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.partnerName || ''}
+                  onChangeText={(value) => updateField('partnerName', value)}
+                  placeholder="Partner's full name"
+                />
+                <TextInput
+                  style={[styles.input, { marginTop: 10 }]}
+                  value={applicationData.partnerDateOfBirth || ''}
+                  onChangeText={(value) => updateField('partnerDateOfBirth', value)}
+                  placeholder="Partner's date of birth (MM/DD/YYYY)"
+                />
+              </View>
+            </>
+          )}
+
+          {/* Engaged */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Are you engaged? If so, when was your engagement and when are you scheduled to be married? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.engaged === true && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('engaged', true);
+                  updateField('maritalStatus', 'engaged');
+                  updateField('lifePartner', false);
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.engaged === true && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.engaged === false && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('engaged', false);
+                  if (applicationData.maritalStatus === 'engaged') {
+                    updateField('maritalStatus', '');
+                  }
+                  updateField('engagementDate', '');
+                  updateField('weddingDate', '');
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.engaged === false && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {applicationData.engaged && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>When was your engagement? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.engagementDate || ''}
+                  onChangeText={(value) => updateField('engagementDate', value)}
+                  placeholder="MM/DD/YYYY"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>When are you scheduled to be married? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.weddingDate || ''}
+                  onChangeText={(value) => updateField('weddingDate', value)}
+                  placeholder="MM/DD/YYYY"
+                />
+              </View>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Want More Children */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Would you like to have any more children of your own in the future? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.wantMoreChildren === true && styles.radioButtonSelected]}
+            onPress={() => updateField('wantMoreChildren', true)}
+          >
+            <Text style={[styles.radioText, applicationData.wantMoreChildren === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.wantMoreChildren === false && styles.radioButtonSelected]}
+            onPress={() => updateField('wantMoreChildren', false)}
+          >
+            <Text style={[styles.radioText, applicationData.wantMoreChildren === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </ScrollView>
   );
 
