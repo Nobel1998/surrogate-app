@@ -1174,14 +1174,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <Text style={[styles.radioText, applicationData.maritalStatus === 'single' && styles.radioTextSelected]}>YES</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.radioButton, applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+            style={styles.radioButton}
             onPress={() => {
               if (applicationData.maritalStatus === 'single') {
                 updateField('maritalStatus', '');
               }
             }}
           >
-            <Text style={[styles.radioText, applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+            <Text style={styles.radioText}>NO</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1202,7 +1202,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 <Text style={[styles.radioText, applicationData.maritalStatus === 'married' && styles.radioTextSelected]}>YES</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, applicationData.maritalStatus !== 'married' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+                style={styles.radioButton}
                 onPress={() => {
                   if (applicationData.maritalStatus === 'married') {
                     updateField('maritalStatus', '');
@@ -1212,7 +1212,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   }
                 }}
               >
-                <Text style={[styles.radioText, applicationData.maritalStatus !== 'married' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+                <Text style={styles.radioText}>NO</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1396,7 +1396,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 <Text style={[styles.radioText, applicationData.maritalStatus === 'widowed' && styles.radioTextSelected]}>YES</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, applicationData.maritalStatus !== 'widowed' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioButtonSelected]}
+                style={styles.radioButton}
                 onPress={() => {
                   if (applicationData.maritalStatus === 'widowed') {
                     updateField('maritalStatus', '');
@@ -1404,7 +1404,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   }
                 }}
               >
-                <Text style={[styles.radioText, applicationData.maritalStatus !== 'widowed' && applicationData.maritalStatus !== 'single' && applicationData.maritalStatus !== '' && styles.radioTextSelected]}>NO</Text>
+                <Text style={styles.radioText}>NO</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1437,7 +1437,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 <Text style={[styles.radioText, applicationData.lifePartner === true && styles.radioTextSelected]}>YES</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, applicationData.lifePartner === false && styles.radioButtonSelected]}
+                style={styles.radioButton}
                 onPress={() => {
                   updateField('lifePartner', false);
                   if (applicationData.maritalStatus === 'lifePartner') {
@@ -1447,7 +1447,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   updateField('partnerDateOfBirth', '');
                 }}
               >
-                <Text style={[styles.radioText, applicationData.lifePartner === false && styles.radioTextSelected]}>NO</Text>
+                <Text style={styles.radioText}>NO</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1487,7 +1487,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 <Text style={[styles.radioText, applicationData.engaged === true && styles.radioTextSelected]}>YES</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, applicationData.engaged === false && styles.radioButtonSelected]}
+                style={styles.radioButton}
                 onPress={() => {
                   updateField('engaged', false);
                   if (applicationData.maritalStatus === 'engaged') {
@@ -1497,7 +1497,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   updateField('weddingDate', '');
                 }}
               >
-                <Text style={[styles.radioText, applicationData.engaged === false && styles.radioTextSelected]}>NO</Text>
+                <Text style={styles.radioText}>NO</Text>
               </TouchableOpacity>
             </View>
           </View>
