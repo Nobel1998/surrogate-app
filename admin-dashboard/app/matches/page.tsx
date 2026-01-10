@@ -468,6 +468,10 @@ export default function MatchesPage() {
 
   const loadSurrogateApplications = async (surrogateIds: string[]) => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:entry',message:'Loading surrogate applications',data:{surrogateIdsCount:surrogateIds.length,surrogateIds:surrogateIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
       if (surrogateIds.length === 0) return;
       
       const applicationsMap = new Map<string, any>();
@@ -475,10 +479,23 @@ export default function MatchesPage() {
       // Fetch applications for all surrogates (one by one to avoid URL length issues)
       const fetchPromises = surrogateIds.map(async (id) => {
         try {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:fetching',message:'Fetching application for surrogate',data:{surrogateId:id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          
           const res = await fetch(`/api/applications?user_id=${id}`);
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:response',message:'Application API response',data:{surrogateId:id,status:res.status,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          
           if (res.ok) {
             const data = await res.json();
             const applications = data.data || [];
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:applications',message:'Applications found',data:{surrogateId:id,applicationsCount:applications.length,applications:applications.map((a:any)=>({id:a.id,status:a.status,hasFormData:!!a.form_data,created_at:a.created_at}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
             
             // Get the most recent approved application, or most recent if none approved
             let bestApp = null;
@@ -494,23 +511,46 @@ export default function MatchesPage() {
               }
             }
             
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:bestApp',message:'Best application selected',data:{surrogateId:id,hasBestApp:!!bestApp,bestAppStatus:bestApp?.status,bestAppCreatedAt:bestApp?.created_at,hasFormData:!!bestApp?.form_data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            
             if (bestApp) {
               try {
                 const formData = JSON.parse(bestApp.form_data);
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:parsed',message:'Form data parsed',data:{surrogateId:id,formDataKeys:Object.keys(formData),hasHeight:!!formData.height,hasWeight:!!formData.weight,height:formData.height,weight:formData.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                
                 applicationsMap.set(id, formData);
               } catch (e) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:parseError',message:'Error parsing form_data',data:{surrogateId:id,error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 console.error('Error parsing form_data for user:', id, e);
               }
             }
           }
         } catch (err) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:fetchError',message:'Error fetching application',data:{surrogateId:id,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           console.error(`Error loading application for surrogate ${id}:`, err);
         }
       });
       
       await Promise.all(fetchPromises);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:complete',message:'Applications loading complete',data:{applicationsMapSize:applicationsMap.size,loadedSurrogateIds:Array.from(applicationsMap.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
       setSurrogateApplications(applicationsMap);
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:error',message:'Error loading surrogate applications',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       console.error('Error loading surrogate applications:', err);
     }
   };
@@ -609,10 +649,37 @@ export default function MatchesPage() {
 
   // Get calculated BMI for a surrogate
   const getCalculatedBMI = (surrogateId: string): number | null => {
-    const appData = surrogateApplications.get(surrogateId);
-    if (!appData) return null;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:entry',message:'Get calculated BMI started',data:{surrogateId,surrogateApplicationsSize:surrogateApplications.size,hasAppData:surrogateApplications.has(surrogateId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     
-    return calculateBMI(appData.height, appData.weight);
+    const appData = surrogateApplications.get(surrogateId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:appData',message:'Application data check',data:{surrogateId,hasAppData:!!appData,appDataKeys:appData?Object.keys(appData):null,height:appData?.height,weight:appData?.weight,heightType:typeof appData?.height,weightType:typeof appData?.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    if (!appData) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:noAppData',message:'No application data found',data:{surrogateId,allSurrogateIds:Array.from(surrogateApplications.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return null;
+    }
+    
+    if (!appData.height || !appData.weight) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:missingFields',message:'Height or weight missing',data:{surrogateId,hasHeight:!!appData.height,hasWeight:!!appData.weight,height:appData.height,weight:appData.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return null;
+    }
+    
+    const bmi = calculateBMI(appData.height, appData.weight);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:result',message:'BMI calculation result',data:{surrogateId,bmi,hasBMI:bmi!==null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    return bmi;
   };
 
   const handleUpdateParent2 = async (matchId: string) => {
