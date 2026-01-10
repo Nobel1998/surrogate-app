@@ -2552,6 +2552,40 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
+      {/* Tattoos and Piercings */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you had a tattoo or body piercing in the last year and a half? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.tattoosPiercings === true && styles.radioButtonSelected]}
+            onPress={() => updateField('tattoosPiercings', true)}
+          >
+            <Text style={[styles.radioText, applicationData.tattoosPiercings === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.tattoosPiercings === false && styles.radioButtonSelected]}
+            onPress={() => {
+              updateField('tattoosPiercings', false);
+              updateField('tattoosPiercingsDate', '');
+            }}
+          >
+            <Text style={[styles.radioText, applicationData.tattoosPiercings === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {applicationData.tattoosPiercings && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>If yes, when? *</Text>
+          <TextInput
+            style={styles.input}
+            value={applicationData.tattoosPiercingsDate || ''}
+            onChangeText={(value) => updateField('tattoosPiercingsDate', value)}
+            placeholder="Date (MM/DD/YYYY)"
+          />
+        </View>
+      )}
+
       {/* Mental Health */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Have you ever been seen by a professional for mental health issues? *</Text>
