@@ -2101,6 +2101,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Abnormal Pap Smear */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Have you ever had an abnormal pap smear? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.abnormalPapSmear === true && styles.radioButtonSelected]}
+            onPress={() => updateField('abnormalPapSmear', true)}
+          >
+            <Text style={[styles.radioText, applicationData.abnormalPapSmear === true && styles.radioTextSelected]}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.abnormalPapSmear === false && styles.radioButtonSelected]}
+            onPress={() => updateField('abnormalPapSmear', false)}
+          >
+            <Text style={[styles.radioText, applicationData.abnormalPapSmear === false && styles.radioTextSelected]}>NO</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Menstrual Information */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do your menstrual cycles occur monthly? *</Text>
