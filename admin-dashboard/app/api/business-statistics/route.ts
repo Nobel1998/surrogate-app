@@ -539,6 +539,7 @@ export async function GET(req: NextRequest) {
           // #region agent log
           const logData = {
             matchId: match.id,
+            claimId: match.claim_id || 'N/A',
             surrogateId: match.surrogate_id,
             examDate: examDate,
             filterFrom: medicalExamDateFrom,
@@ -549,25 +550,30 @@ export async function GET(req: NextRequest) {
           // #endregion
           
           if (!examDate) return false; // No exam date, exclude
-          const examDateObj = new Date(examDate);
-          const fromDate = medicalExamDateFrom ? new Date(medicalExamDateFrom) : null;
-          const toDate = medicalExamDateTo ? new Date(medicalExamDateTo) : null;
+          
+          // Compare dates by date only (ignore time) to avoid timezone issues
+          const examDateOnly = new Date(examDate);
+          examDateOnly.setHours(0, 0, 0, 0);
+          const fromDate = medicalExamDateFrom ? new Date(medicalExamDateFrom + 'T00:00:00') : null;
+          const toDate = medicalExamDateTo ? new Date(medicalExamDateTo + 'T23:59:59') : null;
           
           // #region agent log
           const comparisonData = {
             matchId: match.id,
-            examDateObj: examDateObj.toISOString(),
-            fromDate: fromDate?.toISOString() || null,
-            toDate: toDate?.toISOString() || null,
-            beforeFrom: fromDate ? examDateObj < fromDate : false,
-            afterTo: toDate ? examDateObj > toDate : false,
-            willExclude: (fromDate && examDateObj < fromDate) || (toDate && examDateObj > toDate)
+            claimId: match.claim_id || 'N/A',
+            examDateRaw: examDate,
+            examDateOnly: examDateOnly.toISOString().split('T')[0],
+            fromDate: fromDate?.toISOString().split('T')[0] || null,
+            toDate: toDate?.toISOString().split('T')[0] || null,
+            beforeFrom: fromDate ? examDateOnly < fromDate : false,
+            afterTo: toDate ? examDateOnly > toDate : false,
+            willExclude: (fromDate && examDateOnly < fromDate) || (toDate && examDateOnly > toDate)
           };
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:520',message:'Medical exam date comparison',data:comparisonData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:530',message:'Medical exam date comparison',data:comparisonData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
           
-          if (fromDate && examDateObj < fromDate) return false;
-          if (toDate && examDateObj > toDate) return false;
+          if (fromDate && examDateOnly < fromDate) return false;
+          if (toDate && examDateOnly > toDate) return false;
         }
 
         return true;
