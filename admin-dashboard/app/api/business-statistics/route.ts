@@ -284,8 +284,7 @@ export async function GET(req: NextRequest) {
     const applicationStatus = searchParams.get('application_status'); // Initial review result
     const obgynDoctor = searchParams.get('obgyn_doctor');
     const deliveryHospital = searchParams.get('delivery_hospital');
-    const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
-    const medicalExamDateTo = searchParams.get('medical_exam_date_to');
+    // medicalExamDateFrom and medicalExamDateTo are already defined above (line 115-116)
 
     // #region agent log
     writeLog('route.ts:198', 'Medical exam date filter params received', {medicalExamDateFrom,medicalExamDateTo}, 'C');
