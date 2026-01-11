@@ -49,6 +49,8 @@ type Filters = {
     obgynDoctor: string | null;
     deliveryHospital: string | null;
     transferNumber: string | null;
+    medicalExamDateFrom: string | null;
+    medicalExamDateTo: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
@@ -157,6 +159,8 @@ export default function BusinessStatisticsPage() {
       if (selectedApplicationStatus) params.append('application_status', selectedApplicationStatus);
       if (selectedObgynDoctor) params.append('obgyn_doctor', selectedObgynDoctor);
       if (selectedDeliveryHospital) params.append('delivery_hospital', selectedDeliveryHospital);
+      if (selectedMedicalExamDateFrom) params.append('medical_exam_date_from', selectedMedicalExamDateFrom);
+      if (selectedMedicalExamDateTo) params.append('medical_exam_date_to', selectedMedicalExamDateTo);
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -206,6 +210,8 @@ export default function BusinessStatisticsPage() {
     setSelectedApplicationStatus('');
     setSelectedObgynDoctor('');
     setSelectedDeliveryHospital('');
+    setSelectedMedicalExamDateFrom('');
+    setSelectedMedicalExamDateTo('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -803,6 +809,25 @@ export default function BusinessStatisticsPage() {
                       <option key={hospital} value={hospital}>{hospital}</option>
                     ))}
                   </select>
+                </div>
+                {/* Medical Exam Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical Exam Date From</label>
+                  <input
+                    type="date"
+                    value={selectedMedicalExamDateFrom}
+                    onChange={(e) => setSelectedMedicalExamDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical Exam Date To</label>
+                  <input
+                    type="date"
+                    value={selectedMedicalExamDateTo}
+                    onChange={(e) => setSelectedMedicalExamDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             )}
