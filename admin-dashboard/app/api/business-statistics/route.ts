@@ -552,8 +552,17 @@ export async function GET(req: NextRequest) {
           if (!examDate) return false; // No exam date, exclude
           
           // Compare dates by date only (ignore time) to avoid timezone issues
-          const examDateOnly = new Date(examDate);
-          examDateOnly.setHours(0, 0, 0, 0);
+          // Parse examDate as date string (YYYY-MM-DD) to avoid timezone conversion
+          const examDateMatch = String(examDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          let examDateOnly: Date;
+          if (examDateMatch) {
+            const [, year, month, day] = examDateMatch;
+            examDateOnly = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          } else {
+            examDateOnly = new Date(examDate);
+            examDateOnly.setHours(0, 0, 0, 0);
+          }
+          
           const fromDate = medicalExamDateFrom ? new Date(medicalExamDateFrom + 'T00:00:00') : null;
           const toDate = medicalExamDateTo ? new Date(medicalExamDateTo + 'T23:59:59') : null;
           
