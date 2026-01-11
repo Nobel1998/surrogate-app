@@ -39,8 +39,19 @@ async function checkAdminAuth() {
 
 // GET - Fetch business statistics
 export async function GET(req: NextRequest) {
+  // #region agent log
+  const url = new URL(req.url);
+  const searchParams = url.searchParams;
+  const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
+  const medicalExamDateTo = searchParams.get('medical_exam_date_to');
+  fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:GET:entry',message:'API GET called',data:{url:req.url,medicalExamDateFrom,medicalExamDateTo,allParams:Object.fromEntries(searchParams.entries())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
+  
   const authCheck = await checkAdminAuth();
   if (!authCheck.isAdmin) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:GET:authFailed',message:'Authentication failed',data:{error:authCheck.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
       { status: 401 }

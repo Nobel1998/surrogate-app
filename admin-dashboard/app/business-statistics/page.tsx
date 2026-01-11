@@ -170,12 +170,25 @@ export default function BusinessStatisticsPage() {
       
       const queryString = params.toString();
       const url = `/api/business-statistics${queryString ? `?${queryString}` : ''}`;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:loadStatistics:beforeFetch',message:'About to fetch API',data:{url,queryString,selectedMedicalExamDateFrom,selectedMedicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+      
       const res = await fetch(url);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:loadStatistics:afterFetch',message:'API response received',data:{url,status:res.status,ok:res.ok,statusText:res.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       
       if (!res.ok) {
         throw new Error(`Failed to load statistics: ${res.statusText}`);
       }
       const data = await res.json();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:loadStatistics:dataReceived',message:'Statistics data received',data:{hasStatistics:!!data.statistics,hasFilters:!!data.filters,statisticsKeys:data.statistics?Object.keys(data.statistics):[],filtersKeys:data.filters?Object.keys(data.filters):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       setStatistics(data.statistics);
       setFilters(data.filters);
     } catch (error: any) {
