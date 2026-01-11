@@ -773,7 +773,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         
         // #region agent log
         const formDataLen = payload.form_data ? payload.form_data.length : 0;
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:update',message:'Updating application',data:{applicationId:applicationId,formDataLength:formDataLen}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+        const logData = {
+          location: 'SurrogateApplicationScreen.js:handleSubmit:update',
+          message: 'Updating application',
+          data: { applicationId: applicationId, formDataLength: formDataLen },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'D'
+        };
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(logData)
+        }).catch(() => {});
         // #endregion
         
         const { data, error } = await supabase
