@@ -60,6 +60,7 @@ type Match = {
   embryos?: string | null;
   lawyer?: string | null;
   company?: string | null;
+  transfer_hotel?: string | null;
   egg_donation?: string | null;
   sperm_donation?: string | null;
   files?: any;
@@ -204,6 +205,8 @@ export default function MatchesPage() {
   const [lawyerValue, setLawyerValue] = useState<string>('');
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyValue, setCompanyValue] = useState<string>('');
+  const [editingTransferHotel, setEditingTransferHotel] = useState<string | null>(null);
+  const [transferHotelValue, setTransferHotelValue] = useState<string>('');
   const [editingEggDonation, setEditingEggDonation] = useState<string | null>(null);
   const [eggDonationValue, setEggDonationValue] = useState<string>('');
   const [editingSpermDonation, setEditingSpermDonation] = useState<string | null>(null);
@@ -1216,6 +1219,31 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Escrow:', err);
       alert(err.message || 'Failed to update Escrow');
+    }
+  };
+
+  const handleUpdateTransferHotel = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transfer_hotel: transferHotelValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Transfer Hotel');
+      }
+
+      await loadData();
+      setEditingTransferHotel(null);
+      setTransferHotelValue('');
+      alert('Transfer Hotel updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Transfer Hotel:', err);
+      alert(err.message || 'Failed to update Transfer Hotel');
     }
   };
 
@@ -3421,6 +3449,56 @@ export default function MatchesPage() {
                                 return formatDateOnly(transferDate);
                               })()}
                             </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Transfer Hotel</div>
+                            {editingTransferHotel === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={transferHotelValue}
+                                  onChange={(e) => setTransferHotelValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateTransferHotel(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingTransferHotel(null);
+                                      setTransferHotelValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateTransferHotel(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingTransferHotel(null);
+                                    setTransferHotelValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingTransferHotel(m.id);
+                                  setTransferHotelValue(m.transfer_hotel || '');
+                                }}
+                                title="Click to edit Transfer Hotel"
+                              >
+                                {m.transfer_hotel || (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Beta Confirm Date</div>

@@ -121,6 +121,7 @@ export async function GET(req: NextRequest) {
         embryos,
         lawyer,
         company,
+        transfer_hotel,
         egg_donation,
         sperm_donation,
         files
