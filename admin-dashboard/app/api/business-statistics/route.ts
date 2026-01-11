@@ -587,12 +587,29 @@ export async function GET(req: NextRequest) {
           fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:530',message:'Medical exam date comparison',data:comparisonData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
           
-          if (fromDate && examDateOnly < fromDate) return false;
-          if (toDate && examDateOnly > toDate) return false;
+          if (fromDate && examDateOnly < fromDate) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:580',message:'Match excluded: exam date before from date',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),fromDate:fromDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            return false;
+          }
+          if (toDate && examDateOnly > toDate) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:586',message:'Match excluded: exam date after to date',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),toDate:toDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            return false;
+          }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:591',message:'Match passed medical exam date filter',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
         }
 
         return true;
       });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:600',message:'After filtering',data:{filteredMatchesCount:matches.length,medicalExamDateFrom,medicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
     }
 
     // Get parent profiles for age calculation (reuse the set we already have)
