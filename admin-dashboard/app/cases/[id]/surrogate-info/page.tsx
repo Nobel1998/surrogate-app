@@ -151,19 +151,62 @@ export default function SurrogateInfoPage() {
         <>
           {renderField('Full Name', profile?.name || formData.fullName)}
           {renderField('First Name', formData.firstName)}
+          {renderField('Middle Name', formData.middleName)}
           {renderField('Last Name', formData.lastName)}
           {renderField('Phone', profile?.phone || formData.phoneNumber)}
           {renderField('Email', profile?.email || formData.email)}
           {renderField('Date of Birth', profile?.date_of_birth || formData.dateOfBirth)}
           {renderField('Age', formData.age)}
           {renderField('Location', profile?.location)}
-          {renderField('Address', profile?.address || formData.address)}
+          {renderField('Address', profile?.address || formData.address || formData.applicantAddress)}
           {renderField('Race/Ethnicity', profile?.race || formData.race)}
           {renderField('Blood Type', formData.bloodType)}
           {renderField('Height', formData.height)}
           {renderField('Weight', formData.weight)}
           {renderField('US Citizen', formData.usCitizen)}
           {renderField('Religious Background', formData.religiousBackground)}
+          {renderField('Practicing Religion', formData.practicingReligion)}
+          {renderField('Hear About Us', formData.hearAboutUs)}
+          {renderField('Referral Code', formData.referralCode)}
+          {renderField('Siblings Count', formData.siblingsCount)}
+          {renderField('Mother Siblings Count', formData.motherSiblingsCount)}
+          {renderField('Pets', formData.pets)}
+          {renderField('Living Situation', formData.livingSituation)}
+          {renderField('Own Car', formData.ownCar)}
+          {renderField('Driver License', formData.driverLicense)}
+          {renderField('Car Insured', formData.carInsured)}
+          {renderField('Transportation Method', formData.transportationMethod)}
+          {renderField('Nearest Airport', formData.nearestAirport)}
+          {renderField('Airport Distance', formData.airportDistance)}
+          {renderField('Legal Problems', formData.legalProblems)}
+          {renderField('Jail Time', formData.jailTime)}
+          {renderField('Want More Children', formData.wantMoreChildren)}
+        </>
+      )}
+
+      {/* Marital Status */}
+      {renderSection('Marital Status & Family', '💑',
+        <>
+          {renderField('Marital Status', formData.maritalStatus)}
+          {renderField('Are you single?', formData.isSingle === true ? 'Yes' : formData.isSingle === false ? 'No' : 'N/A')}
+          {renderField('Are you married?', formData.isMarried === true ? 'Yes' : formData.isMarried === false ? 'No' : 'N/A')}
+          {renderField('Are you widowed?', formData.isWidowed === true ? 'Yes' : formData.isWidowed === false ? 'No' : 'N/A')}
+          {renderField('Life Partner', formData.lifePartner)}
+          {renderField('Engaged', formData.engaged)}
+          {renderField('Spouse/Partner Name', formData.spouseName || formData.partnerName)}
+          {renderField('Spouse/Partner Date of Birth', formData.spouseDateOfBirth || formData.partnerDateOfBirth)}
+          {renderField('Marriage Date', formData.marriageDate)}
+          {renderField('Wedding Date', formData.weddingDate)}
+          {renderField('Widowed Date', formData.widowedDate)}
+          {renderField('Marital Problems', formData.maritalProblems)}
+          {renderField('Divorced', formData.divorced)}
+          {renderField('Divorce Date', formData.divorceDate)}
+          {renderField('Divorce Cause', formData.divorceCause)}
+          {renderField('Remarried', formData.remarried)}
+          {renderField('Remarried Date', formData.remarriedDate)}
+          {renderField('Legally Separated', formData.legallySeparated)}
+          {renderField('Separation Details', formData.separationDetails)}
+          {renderField('Engagement Date', formData.engagementDate)}
         </>
       )}
 
@@ -172,6 +215,7 @@ export default function SurrogateInfoPage() {
         <>
           {renderField('Total Deliveries', formData.totalDeliveries)}
           {renderField('Previous Surrogacy', formData.previousSurrogacy)}
+          {renderField('Previous Surrogacy Count', formData.previousSurrogacyCount)}
           {formData.deliveries && formData.deliveries.length > 0 && (
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-700 mb-2">Delivery Records:</p>
@@ -198,8 +242,35 @@ export default function SurrogateInfoPage() {
         <>
           {renderField('Health Insurance', formData.healthInsurance)}
           {renderField('Maternity Coverage', formData.maternityCoverage)}
+          {renderField('Insurance Details', formData.insuranceDetails)}
+          {renderField('State Agency Insurance', formData.stateAgencyInsurance)}
+          {renderField('State Agency Name', formData.stateAgencyName)}
+          {renderField('Insurance Payment Method', formData.insurancePaymentMethod)}
           {renderField('Delivery Hospital', formData.deliveryHospital)}
+          {renderField('Delivered at Hospital Before', formData.deliveredAtHospitalBefore)}
+          {renderField('Abnormal Pap Smear', formData.abnormalPapSmear)}
+          {renderField('Monthly Cycles', formData.monthlyCycles)}
+          {renderField('Cycle Days', formData.cycleDays)}
+          {renderField('Period Days', formData.periodDays)}
+          {renderField('Last Menstrual Period', formData.lastMenstrualPeriod)}
+          {renderField('Infertility Doctor', formData.infertilityDoctor)}
+          {renderField('Infertility Details', formData.infertilityDetails)}
+          {renderField('Household Marijuana Use', formData.householdMarijuana)}
+          {renderField('Pregnancy Problems', formData.pregnancyProblems)}
+          {renderField('Pregnancy Problems Details', formData.pregnancyProblemsDetails)}
+          {renderField('Children Health Problems', formData.childrenHealthProblems)}
+          {renderField('Children Health Details', formData.childrenHealthDetails)}
+          {renderField('Currently Breastfeeding', formData.breastfeeding)}
+          {renderField('Breastfeeding Stop Date', formData.breastfeedingStopDate)}
+          {renderField('Tattoos/Piercings (Last 1.5 years)', formData.tattoosPiercings)}
+          {renderField('Tattoos/Piercings Date', formData.tattoosPiercingsDate)}
+          {renderField('Depression Medication', formData.depressionMedication)}
+          {renderField('Depression Medication Details', formData.depressionMedicationDetails)}
+          {renderField('Drug/Alcohol Abuse', formData.drugAlcoholAbuse)}
+          {renderField('Excess Heat Exposure', formData.excessHeat)}
+          {renderField('Alcohol Limit Advised', formData.alcoholLimitAdvised)}
           {renderField('Smoking Status', formData.smokingStatus)}
+          {renderField('Smoked During Pregnancy', formData.smokedDuringPregnancy)}
           {renderField('Alcohol Usage', formData.alcoholUsage)}
           {renderField('Illegal Drugs', formData.illegalDrugs)}
           {renderField('Mental Health Treatment', formData.mentalHealthTreatment)}
@@ -208,6 +279,15 @@ export default function SurrogateInfoPage() {
           {renderField('Allergies', formData.allergies)}
           {renderField('Current Medications', formData.currentMedications)}
           {renderField('Children List', formData.childrenList)}
+        </>
+      )}
+
+      {/* Sexual History */}
+      {renderSection('Sexual History', '💕',
+        <>
+          {renderField('Past Contraceptives', formData.pastContraceptives)}
+          {renderField('STD History', formData.stdHistory)}
+          {renderField('STD Details', formData.stdDetails)}
         </>
       )}
 
@@ -221,20 +301,60 @@ export default function SurrogateInfoPage() {
           {renderField('Persons Supported', formData.personsSupported)}
           {renderField('Public Assistance', formData.publicAssistance)}
           {renderField('Education Level', formData.educationLevel)}
+          {renderField('Trade School Specify', formData.tradeSchoolSpecify)}
         </>
       )}
 
-      {/* Preferences */}
-      {renderSection('Preferences', '💭',
+      {/* General Questions & Preferences */}
+      {renderSection('General Questions & Preferences', '💭',
         <>
           {renderField('Surrogacy Understanding', formData.surrogacyUnderstanding)}
           {renderField('Self Introduction', formData.selfIntroduction)}
+          {renderField('Main Concerns', Array.isArray(formData.mainConcerns) ? formData.mainConcerns.join(', ') : formData.mainConcerns)}
+          {renderField('Parent Qualities', formData.parentQualities)}
+          {renderField('Religious Background Preference', formData.religiousPreference)}
+          {renderField('Work with Unmarried Couple', formData.unmarriedCouple)}
+          {renderField('Work with Heterosexual Couple', formData.heterosexualCouple)}
+          {renderField('Work with Egg Donor', formData.eggDonor)}
+          {renderField('Work with Sperm Donor', formData.spermDonor)}
+          {renderField('Work with Older Couple', formData.olderCouple)}
+          {renderField('Work with Couple with Children', formData.coupleWithChildren)}
+          {renderField('Work with International Couple', formData.internationalCouple)}
+          {renderField('Work with Non-English Speaking Couple', formData.nonEnglishCouple)}
+          {renderField('Willing to Carry Twins', formData.carryTwins)}
+          {renderField('Willing to Reduce Multiples', formData.reduceMultiples)}
+          {renderField('Willing to Undergo Amniocentesis', formData.amniocentesis)}
+          {renderField('Willing to Abort for Birth Defects', formData.abortBirthDefects)}
+          {renderField('Contact During Process', formData.contactDuringProcess)}
+          {renderField('Contact After Birth', formData.contactAfterBirth)}
+          {renderField('Concerns About Placing Baby', formData.concernsPlacingBaby)}
+          {renderField('Permit Parents in Delivery Room', formData.parentsInDeliveryRoom)}
+          {renderField('Permit Parents at Doctor Appointments', formData.parentsAtAppointments)}
+          {renderField('Permit Hospital Notification', formData.hospitalNotification)}
+          {renderField('Allow Parents Names on Birth Certificate', formData.parentsOnBirthCertificate)}
+          {renderField('Currently Applying Elsewhere', formData.applyingElsewhere)}
+          {renderField('Previously Rejected Elsewhere', formData.previouslyRejected)}
+          {renderField('Able to Attend Prenatal Check-ups', formData.attendPrenatalCheckups)}
+          {renderField('Willing to Undergo Medical Examinations', formData.medicalExaminations)}
+          {renderField('Able to Follow Lifestyle Guidelines', formData.lifestyleGuidelines)}
+          {renderField('Willing to Avoid Long-distance Travel', formData.avoidLongTravel)}
+          {renderField('Willing to Refrain from High-risk Work', formData.refrainHighRiskWork)}
+          {renderField('Placed Child for Adoption', formData.placedForAdoption)}
+          {renderField('Expected Support', formData.expectedSupport)}
+          {renderField('Non-supportive People', formData.nonSupportivePeople)}
+          {renderField('Husband/Partner Feelings', formData.partnerFeelings)}
+          {renderField('Adequate Child Care Support', formData.childCareSupport)}
           {renderField('Work with Same Sex Couple', formData.sameSexCouple)}
           {renderField('Work with Single Male', formData.singleMale)}
           {renderField('Work with Single Female', formData.singleFemale)}
-          {renderField('Work with International Couple', formData.internationalCouple)}
-          {renderField('Carry Twins', formData.carryTwins)}
-          {renderField('Parents in Delivery Room', formData.parentsInDeliveryRoom)}
+        </>
+      )}
+
+      {/* Authorization */}
+      {renderSection('Authorization', '📝',
+        <>
+          {renderField('Authorization Agreed', formData.authorizationAgreed)}
+          {renderField('Applicant Address', formData.applicantAddress)}
         </>
       )}
 

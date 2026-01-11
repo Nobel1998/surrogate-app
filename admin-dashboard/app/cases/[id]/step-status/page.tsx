@@ -437,13 +437,16 @@ export default function StepStatusPage() {
                   {renderField('Phone', caseData?.surrogate?.phone || formData.phoneNumber)}
                   {renderField('Email', caseData?.surrogate?.email || formData.email)}
                   {renderField('Location', caseData?.surrogate?.location)}
-                  {renderField('Address', formData.address)}
+                  {renderField('Address', formData.address || formData.applicantAddress)}
                   {renderField('Date of Birth', formData.dateOfBirth)}
                   {renderField('Age', formData.age)}
                   {renderField('Blood Type', formData.bloodType)}
                   {renderField('Height', formData.height)}
                   {renderField('Weight', formData.weight)}
                   {renderField('Race/Ethnicity', formData.race)}
+                  {renderField('Marital Status', formData.maritalStatus)}
+                  {renderField('Previous Surrogacy', formData.previousSurrogacy)}
+                  {renderField('Previous Surrogacy Count', formData.previousSurrogacyCount)}
                 </div>
                 {surrogateApp && (
                   <div className="mt-4 pt-4 border-t">
@@ -463,6 +466,17 @@ export default function StepStatusPage() {
                 {renderField('Previous Surrogacy', formData.previousSurrogacy)}
                 {renderField('Health Insurance', formData.healthInsurance)}
                 {renderField('Maternity Coverage', formData.maternityCoverage)}
+                {renderField('Abnormal Pap Smear', formData.abnormalPapSmear)}
+                {renderField('Infertility Doctor', formData.infertilityDoctor)}
+                {renderField('Household Marijuana Use', formData.householdMarijuana)}
+                {renderField('Pregnancy Problems', formData.pregnancyProblems)}
+                {renderField('Children Health Problems', formData.childrenHealthProblems)}
+                {renderField('Currently Breastfeeding', formData.breastfeeding)}
+                {renderField('Tattoos/Piercings (Last 1.5 years)', formData.tattoosPiercings)}
+                {renderField('Depression Medication', formData.depressionMedication)}
+                {renderField('Drug/Alcohol Abuse', formData.drugAlcoholAbuse)}
+                {renderField('Excess Heat Exposure', formData.excessHeat)}
+                {renderField('Alcohol Limit Advised', formData.alcoholLimitAdvised)}
                 {renderField('Smoking Status', formData.smokingStatus)}
                 {renderField('Alcohol Usage', formData.alcoholUsage)}
                 {renderField('Mental Health Treatment', formData.mentalHealthTreatment)}
