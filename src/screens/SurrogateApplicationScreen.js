@@ -697,7 +697,31 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:entry',message:'Submit started',data:{currentStep,editMode,applicationId,applicationDataKeys:Object.keys(applicationData),applicationDataSample:{divorced:applicationData.divorced,legalProblems:applicationData.legalProblems,referralCode:applicationData.referralCode,abnormalPapSmear:applicationData.abnormalPapSmear,householdMarijuana:applicationData.householdMarijuana}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      const logDataEntry = {
+        location: 'SurrogateApplicationScreen.js:handleSubmit:entry',
+        message: 'Submit started',
+        data: {
+          currentStep,
+          editMode,
+          applicationId,
+          applicationDataKeys: Object.keys(applicationData),
+          applicationDataSample: {
+            divorced: applicationData.divorced,
+            legalProblems: applicationData.legalProblems,
+            referralCode: applicationData.referralCode,
+            abnormalPapSmear: applicationData.abnormalPapSmear,
+            householdMarijuana: applicationData.householdMarijuana
+          }
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'A'
+      };
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logDataEntry)
+      }).catch(() => {});
       // #endregion
       
       // 获取当前认证用户ID
@@ -751,7 +775,31 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       const { fullName, phoneNumber, ...otherFields } = applicationData;
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:beforePayload',message:'Before payload construction',data:{fullName,phoneNumber,otherFieldsKeys:Object.keys(otherFields),otherFieldsSample:{divorced:otherFields.divorced,legalProblems:otherFields.legalProblems,referralCode:otherFields.referralCode,abnormalPapSmear:otherFields.abnormalPapSmear,householdMarijuana:otherFields.householdMarijuana,tradeSchoolDetails:otherFields.tradeSchoolDetails}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      const logDataBefore = {
+        location: 'SurrogateApplicationScreen.js:handleSubmit:beforePayload',
+        message: 'Before payload construction',
+        data: {
+          fullName,
+          phoneNumber,
+          otherFieldsKeys: Object.keys(otherFields),
+          otherFieldsSample: {
+            divorced: otherFields.divorced,
+            legalProblems: otherFields.legalProblems,
+            referralCode: otherFields.referralCode,
+            abnormalPapSmear: otherFields.abnormalPapSmear,
+            householdMarijuana: otherFields.householdMarijuana,
+            tradeSchoolDetails: otherFields.tradeSchoolDetails
+          }
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'B'
+      };
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logDataBefore)
+      }).catch(() => {});
       // #endregion
       
       const payload = {
@@ -762,7 +810,32 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       };
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:afterPayload',message:'After payload construction',data:{payloadFormDataLength:payload.form_data.length,formDataParsed:JSON.parse(payload.form_data),formDataKeys:Object.keys(JSON.parse(payload.form_data)),formDataSample:{divorced:JSON.parse(payload.form_data).divorced,legalProblems:JSON.parse(payload.form_data).legalProblems,referralCode:JSON.parse(payload.form_data).referralCode,abnormalPapSmear:JSON.parse(payload.form_data).abnormalPapSmear,householdMarijuana:JSON.parse(payload.form_data).householdMarijuana,tradeSchoolDetails:JSON.parse(payload.form_data).tradeSchoolDetails}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      const parsedFormData = JSON.parse(payload.form_data);
+      const logDataAfter = {
+        location: 'SurrogateApplicationScreen.js:handleSubmit:afterPayload',
+        message: 'After payload construction',
+        data: {
+          payloadFormDataLength: payload.form_data.length,
+          formDataParsed: parsedFormData,
+          formDataKeys: Object.keys(parsedFormData),
+          formDataSample: {
+            divorced: parsedFormData.divorced,
+            legalProblems: parsedFormData.legalProblems,
+            referralCode: parsedFormData.referralCode,
+            abnormalPapSmear: parsedFormData.abnormalPapSmear,
+            householdMarijuana: parsedFormData.householdMarijuana,
+            tradeSchoolDetails: parsedFormData.tradeSchoolDetails
+          }
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'C'
+      };
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logDataAfter)
+      }).catch(() => {});
       // #endregion
 
       let resultData;
@@ -852,7 +925,21 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         }
         
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:insertSuccess',message:'Insert successful',data:{resultData,resultFormData:resultData?.[0]?.form_data,resultFormDataParsed:resultData?.[0]?.form_data?JSON.parse(resultData[0].form_data):null}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+        const resultFormData2 = resultData?.[0]?.form_data;
+        const resultFormDataParsed2 = resultFormData2 ? JSON.parse(resultFormData2) : null;
+        const logDataInsertSuccess = {
+          location: 'SurrogateApplicationScreen.js:handleSubmit:insertSuccess',
+          message: 'Insert successful',
+          data: { resultData, resultFormData: resultFormData2, resultFormDataParsed: resultFormDataParsed2 },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'G'
+        };
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(logDataInsertSuccess)
+        }).catch(() => {});
         // #endregion
         
         resultData = data;
