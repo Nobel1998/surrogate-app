@@ -409,18 +409,18 @@ export async function GET(req: NextRequest) {
           const isEngaged = appData.engaged === true || appData.maritalStatus === 'engaged';
           
           const statusLower = surrogateMaritalStatus.toLowerCase();
-          if (statusLower === 'married' && !isMarried) return false;
-          if (statusLower === 'single' && !isSingle) return false;
-          if (statusLower === 'widowed' && !isWidowed) return false;
-          if (statusLower === 'divorced' && !isDivorced) return false;
-          if (statusLower === 'separated' && !isSeparated) return false;
-          if (statusLower === 'life partner' && !isLifePartner) return false;
-          if (statusLower === 'engaged' && !isEngaged) return false;
+          // Handle both "Married" (from dropdown) and "married" (from form_data)
+          if ((statusLower === 'married' || statusLower === 'Married'.toLowerCase()) && !isMarried) return false;
+          if ((statusLower === 'single' || statusLower === 'Single'.toLowerCase()) && !isSingle) return false;
+          if ((statusLower === 'widowed' || statusLower === 'Widowed'.toLowerCase()) && !isWidowed) return false;
+          if ((statusLower === 'divorced' || statusLower === 'Divorced'.toLowerCase()) && !isDivorced) return false;
+          if ((statusLower === 'separated' || statusLower === 'Separated'.toLowerCase()) && !isSeparated) return false;
+          if ((statusLower === 'life partner' || statusLower === 'Life Partner'.toLowerCase()) && !isLifePartner) return false;
+          if ((statusLower === 'engaged' || statusLower === 'Engaged'.toLowerCase()) && !isEngaged) return false;
           // If it's a specific status that doesn't match, exclude
-          if (statusLower !== 'married' && statusLower !== 'single' && statusLower !== 'widowed' && 
-              statusLower !== 'divorced' && statusLower !== 'separated' && statusLower !== 'life partner' && 
-              statusLower !== 'engaged') {
-            // For other status values, check maritalStatus field directly
+          const knownStatuses = ['married', 'single', 'widowed', 'divorced', 'separated', 'life partner', 'engaged'];
+          if (!knownStatuses.includes(statusLower)) {
+            // For other status values, check maritalStatus field directly (case-insensitive)
             if (!appData.maritalStatus || appData.maritalStatus.toLowerCase() !== statusLower) {
               return false;
             }
