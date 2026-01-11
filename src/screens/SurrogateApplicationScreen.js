@@ -1237,87 +1237,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Have you ever been divorced? *</Text>
-                <View style={styles.radioContainer}>
-                  <TouchableOpacity
-                    style={[styles.radioButton, applicationData.divorced === true && styles.radioButtonSelected]}
-                    onPress={() => updateField('divorced', true)}
-                  >
-                    <Text style={[styles.radioText, applicationData.divorced === true && styles.radioTextSelected]}>YES</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.radioButton, applicationData.divorced === false && styles.radioButtonSelected]}
-                    onPress={() => {
-                      updateField('divorced', false);
-                      updateField('divorceDate', '');
-                      updateField('divorceCause', '');
-                    }}
-                  >
-                    <Text style={[styles.radioText, applicationData.divorced === false && styles.radioTextSelected]}>NO</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {applicationData.divorced && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>When did your divorce occur? *</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={applicationData.divorceDate || ''}
-                      onChangeText={(value) => updateField('divorceDate', value)}
-                      placeholder="MM/DD/YYYY"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>What was the cause of your break up? *</Text>
-                    <TextInput
-                      style={[styles.input, styles.textArea]}
-                      value={applicationData.divorceCause || ''}
-                      onChangeText={(value) => updateField('divorceCause', value)}
-                      placeholder="Reason for divorce"
-                      multiline
-                      numberOfLines={3}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Have you re-married? If yes, how long ago? *</Text>
-                    <View style={styles.radioContainer}>
-                      <TouchableOpacity
-                        style={[styles.radioButton, applicationData.remarried === true && styles.radioButtonSelected]}
-                        onPress={() => updateField('remarried', true)}
-                      >
-                        <Text style={[styles.radioText, applicationData.remarried === true && styles.radioTextSelected]}>YES</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.radioButton, applicationData.remarried === false && styles.radioButtonSelected]}
-                        onPress={() => {
-                          updateField('remarried', false);
-                          updateField('remarriedDate', '');
-                        }}
-                      >
-                        <Text style={[styles.radioText, applicationData.remarried === false && styles.radioTextSelected]}>NO</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {applicationData.remarried && (
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>When did you re-marry? *</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={applicationData.remarriedDate || ''}
-                        onChangeText={(value) => updateField('remarriedDate', value)}
-                        placeholder="MM/DD/YYYY"
-                      />
-                    </View>
-                  )}
-                </>
-              )}
-
-              <View style={styles.inputGroup}>
                 <Text style={styles.label}>Are you legally separated? *</Text>
                 <View style={styles.radioContainer}>
                   <TouchableOpacity
@@ -1348,6 +1267,88 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                     placeholder="Marriage duration and separation duration"
                     multiline
                     numberOfLines={3}
+                  />
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Divorce - Independent of married status */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Have you ever been divorced? *</Text>
+            <View style={styles.radioContainer}>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.divorced === true && styles.radioButtonSelected]}
+                onPress={() => updateField('divorced', true)}
+              >
+                <Text style={[styles.radioText, applicationData.divorced === true && styles.radioTextSelected]}>YES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.radioButton, applicationData.divorced === false && styles.radioButtonSelected]}
+                onPress={() => {
+                  updateField('divorced', false);
+                  updateField('divorceDate', '');
+                  updateField('divorceCause', '');
+                }}
+              >
+                <Text style={[styles.radioText, applicationData.divorced === false && styles.radioTextSelected]}>NO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {applicationData.divorced && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>When did your divorce occur? *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={applicationData.divorceDate || ''}
+                  onChangeText={(value) => updateField('divorceDate', value)}
+                  placeholder="MM/DD/YYYY"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What was the cause of your break up? *</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={applicationData.divorceCause || ''}
+                  onChangeText={(value) => updateField('divorceCause', value)}
+                  placeholder="Reason for divorce"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Have you re-married? If yes, how long ago? *</Text>
+                <View style={styles.radioContainer}>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.remarried === true && styles.radioButtonSelected]}
+                    onPress={() => updateField('remarried', true)}
+                  >
+                    <Text style={[styles.radioText, applicationData.remarried === true && styles.radioTextSelected]}>YES</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.radioButton, applicationData.remarried === false && styles.radioButtonSelected]}
+                    onPress={() => {
+                      updateField('remarried', false);
+                      updateField('remarriedDate', '');
+                    }}
+                  >
+                    <Text style={[styles.radioText, applicationData.remarried === false && styles.radioTextSelected]}>NO</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {applicationData.remarried && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>When did you re-marry? *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={applicationData.remarriedDate || ''}
+                    onChangeText={(value) => updateField('remarriedDate', value)}
+                    placeholder="MM/DD/YYYY"
                   />
                 </View>
               )}
@@ -3066,18 +3067,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
-      {/* Referral Code */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Referral Code (Optional)</Text>
-        <Text style={styles.subLabel}>If you were referred by someone, enter their invite code</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.referralCode || ''}
-          onChangeText={(value) => updateField('referralCode', value)}
-          placeholder="Enter referral code (optional)"
-          autoCapitalize="none"
-        />
-      </View>
     </ScrollView>
   );
 
@@ -3919,6 +3908,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           placeholder="Name, Relationship, Phone Number"
           multiline
           numberOfLines={2}
+        />
+      </View>
+
+      {/* Referral Code */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Referral Code (Optional)</Text>
+        <Text style={styles.subLabel}>If you were referred by someone, enter their invite code</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.referralCode || ''}
+          onChangeText={(value) => updateField('referralCode', value)}
+          placeholder="Enter referral code (optional)"
+          autoCapitalize="none"
         />
       </View>
 
