@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { appendFileSync } from 'fs';
+import { join } from 'path';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
+
+// Helper function to write debug logs
+function writeLog(location: string, message: string, data: any, hypothesisId: string = 'G') {
+  try {
+    const logEntry = JSON.stringify({location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId}) + '\n';
+    appendFileSync(join(process.cwd(), '.cursor', 'debug.log'), logEntry);
+  } catch (e) {
+    // Silently fail if log file cannot be written
+  }
+}
 
 // Helper function to check admin authentication
 async function checkAdminAuth() {
@@ -44,13 +56,13 @@ export async function GET(req: NextRequest) {
   const searchParams = url.searchParams;
   const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
   const medicalExamDateTo = searchParams.get('medical_exam_date_to');
-  fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:GET:entry',message:'API GET called',data:{url:req.url,medicalExamDateFrom,medicalExamDateTo,allParams:Object.fromEntries(searchParams.entries())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  writeLog('route.ts:GET:entry', 'API GET called', {url:req.url,medicalExamDateFrom,medicalExamDateTo,allParams:Object.fromEntries(searchParams.entries())}, 'G');
   // #endregion
   
   const authCheck = await checkAdminAuth();
   if (!authCheck.isAdmin) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:GET:authFailed',message:'Authentication failed',data:{error:authCheck.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    writeLog('route.ts:GET:authFailed', 'Authentication failed', {error:authCheck.error}, 'G');
     // #endregion
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
@@ -98,14 +110,14 @@ export async function GET(req: NextRequest) {
     // Filter matches with transfer_date
     // #region agent log
     const f887BeforeFilter = allMatches?.find(m => m.claim_id === 'MATCH-F887A9CE');
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:88',message:'Before transfer_date filter',data:{totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    writeLog('route.ts:88', 'Before transfer_date filter', {totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null}, 'H');
     // #endregion
     
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
 
     // #region agent log
     const f887AfterFilter = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:95',message:'After transfer_date filter',data:{totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id}:null,f887Included:!!f887AfterFilter},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    writeLog('route.ts:95', 'After transfer_date filter', {totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id}:null,f887Included:!!f887AfterFilter}, 'D');
     // #endregion
 
     // Get surrogate profiles for filtering
@@ -163,7 +175,7 @@ export async function GET(req: NextRequest) {
 
     // #region agent log
     const allSurrogateIds = Array.from(surrogateIds);
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:137',message:'Medical reports query result',data:{totalAllReports:allMedicalReports?.length||0,totalPreTransferReports:medicalReports.length,allReports:allMedicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],preTransferReports:medicalReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    writeLog('route.ts:137', 'Medical reports query result', {totalAllReports:allMedicalReports?.length||0,totalPreTransferReports:medicalReports.length,allReports:allMedicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],preTransferReports:medicalReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds}, 'A');
     // #endregion
 
     // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
@@ -181,13 +193,13 @@ export async function GET(req: NextRequest) {
       const f887SurrogateId = f887Match.surrogate_id;
       const f887ExamDate = f887SurrogateId ? surrogateMedicalExamMap.get(f887SurrogateId) : null;
       const f887Reports = medicalReports?.filter(r => r.user_id === f887SurrogateId) || [];
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:155',message:'F887A9CE match details',data:{matchId:f887Match.id,claimId:f887Match.claim_id,surrogateId:f887SurrogateId,examDate:f887ExamDate,reportsCount:f887Reports.length,reports:f887Reports.map(r=>({visitDate:r.visit_date,stage:r.stage})),inMap:!!f887ExamDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      writeLog('route.ts:155', 'F887A9CE match details', {matchId:f887Match.id,claimId:f887Match.claim_id,surrogateId:f887SurrogateId,examDate:f887ExamDate,reportsCount:f887Reports.length,reports:f887Reports.map(r=>({visitDate:r.visit_date,stage:r.stage})),inMap:!!f887ExamDate}, 'F');
     }
     // #endregion
 
     // #region agent log
     const mapEntries = Array.from(surrogateMedicalExamMap.entries()).map(([k,v])=>({userId:k,examDate:v}));
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Medical exam map created',data:{mapSize:surrogateMedicalExamMap.size,mapEntries:mapEntries},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    writeLog('route.ts:146', 'Medical exam map created', {mapSize:surrogateMedicalExamMap.size,mapEntries:mapEntries}, 'A');
     // #endregion
 
     // Parse application form_data and create a map
@@ -262,7 +274,7 @@ export async function GET(req: NextRequest) {
     const medicalExamDateTo = searchParams.get('medical_exam_date_to');
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:198',message:'Medical exam date filter params received',data:{medicalExamDateFrom,medicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    writeLog('route.ts:198', 'Medical exam date filter params received', {medicalExamDateFrom,medicalExamDateTo}, 'C');
     // #endregion
 
     // Apply filters
@@ -583,7 +595,7 @@ export async function GET(req: NextRequest) {
             filterTo: medicalExamDateTo,
             hasExamDate: !!examDate
           };
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:510',message:'Medical exam date filter check',data:logData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          writeLog('route.ts:510', 'Medical exam date filter check', logData, 'B');
           // #endregion
           
           if (!examDate) return false; // No exam date, exclude
@@ -615,23 +627,23 @@ export async function GET(req: NextRequest) {
             afterTo: toDate ? examDateOnly > toDate : false,
             willExclude: (fromDate && examDateOnly < fromDate) || (toDate && examDateOnly > toDate)
           };
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:530',message:'Medical exam date comparison',data:comparisonData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          writeLog('route.ts:530', 'Medical exam date comparison', comparisonData, 'B');
           // #endregion
           
           if (fromDate && examDateOnly < fromDate) {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:580',message:'Match excluded: exam date before from date',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),fromDate:fromDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            writeLog('route.ts:580', 'Match excluded: exam date before from date', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),fromDate:fromDate.toISOString()}, 'B');
             // #endregion
             return false;
           }
           if (toDate && examDateOnly > toDate) {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:586',message:'Match excluded: exam date after to date',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),toDate:toDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            writeLog('route.ts:586', 'Match excluded: exam date after to date', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),toDate:toDate.toISOString()}, 'B');
             // #endregion
             return false;
           }
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:591',message:'Match passed medical exam date filter',data:{matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          writeLog('route.ts:591', 'Match passed medical exam date filter', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString()}, 'B');
           // #endregion
         }
 
@@ -639,7 +651,7 @@ export async function GET(req: NextRequest) {
       });
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:600',message:'After filtering',data:{filteredMatchesCount:matches.length,medicalExamDateFrom,medicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      writeLog('route.ts:600', 'After filtering', {filteredMatchesCount:matches.length,medicalExamDateFrom,medicalExamDateTo}, 'E');
       // #endregion
     }
 
