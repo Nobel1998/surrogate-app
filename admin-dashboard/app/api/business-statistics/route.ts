@@ -136,6 +136,10 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without medical reports
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:127',message:'Medical reports loaded',data:{totalReports:medicalReports?.length||0,reports:medicalReports?.slice(0,5).map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],surrogateIdsCount:surrogateIds.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
     const surrogateMedicalExamMap = new Map();
     medicalReports?.forEach(report => {
@@ -144,6 +148,10 @@ export async function GET(req: NextRequest) {
         surrogateMedicalExamMap.set(report.user_id, report.visit_date);
       }
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Medical exam map created',data:{mapSize:surrogateMedicalExamMap.size,mapEntries:Array.from(surrogateMedicalExamMap.entries()).slice(0,5).map(([k,v])=>({userId:k,examDate:v}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     // Parse application form_data and create a map
     const surrogateApplicationMap = new Map();
@@ -523,10 +531,39 @@ export async function GET(req: NextRequest) {
         // Filter by medical examination date range (Pre-Transfer exam)
         if (medicalExamDateFrom || medicalExamDateTo) {
           const examDate = match.surrogate_id ? surrogateMedicalExamMap.get(match.surrogate_id) : null;
+          
+          // #region agent log
+          const logData = {
+            matchId: match.id,
+            surrogateId: match.surrogate_id,
+            examDate: examDate,
+            filterFrom: medicalExamDateFrom,
+            filterTo: medicalExamDateTo,
+            hasExamDate: !!examDate
+          };
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:510',message:'Medical exam date filter check',data:logData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
           if (!examDate) return false; // No exam date, exclude
           const examDateObj = new Date(examDate);
-          if (medicalExamDateFrom && examDateObj < new Date(medicalExamDateFrom)) return false;
-          if (medicalExamDateTo && examDateObj > new Date(medicalExamDateTo)) return false;
+          const fromDate = medicalExamDateFrom ? new Date(medicalExamDateFrom) : null;
+          const toDate = medicalExamDateTo ? new Date(medicalExamDateTo) : null;
+          
+          // #region agent log
+          const comparisonData = {
+            matchId: match.id,
+            examDateObj: examDateObj.toISOString(),
+            fromDate: fromDate?.toISOString() || null,
+            toDate: toDate?.toISOString() || null,
+            beforeFrom: fromDate ? examDateObj < fromDate : false,
+            afterTo: toDate ? examDateObj > toDate : false,
+            willExclude: (fromDate && examDateObj < fromDate) || (toDate && examDateObj > toDate)
+          };
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:520',message:'Medical exam date comparison',data:comparisonData,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
+          if (fromDate && examDateObj < fromDate) return false;
+          if (toDate && examDateObj > toDate) return false;
         }
 
         return true;
