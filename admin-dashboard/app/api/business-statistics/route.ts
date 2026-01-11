@@ -129,16 +129,25 @@ export async function GET(req: NextRequest) {
     }
 
     // Get medical reports for Pre-Transfer examination dates
-    const { data: medicalReports, error: medicalReportsError } = await supabase
+    // Query ALL medical reports first, then filter by Pre-Transfer stage
+    // This ensures we get all reports even if RLS might filter some
+    const { data: allMedicalReports, error: allMedicalReportsError } = await supabase
       .from('medical_reports')
       .select('user_id, visit_date, stage')
-      .in('user_id', Array.from(surrogateIds))
-      .eq('stage', 'Pre-Transfer');
+      .in('user_id', Array.from(surrogateIds));
 
-    if (medicalReportsError) {
-      console.error('[business-statistics] Error loading medical reports:', medicalReportsError);
+    if (allMedicalReportsError) {
+      console.error('[business-statistics] Error loading all medical reports:', allMedicalReportsError);
       // Don't throw, just continue without medical reports
     }
+
+    // Filter to Pre-Transfer stage
+    const medicalReports = allMedicalReports?.filter(r => r.stage === 'Pre-Transfer') || [];
+
+    // #region agent log
+    const allSurrogateIds = Array.from(surrogateIds);
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:137',message:'Medical reports query result',data:{totalAllReports:allMedicalReports?.length||0,totalPreTransferReports:medicalReports.length,allReports:allMedicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],preTransferReports:medicalReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     // #region agent log
     const allSurrogateIds = Array.from(surrogateIds);

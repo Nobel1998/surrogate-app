@@ -131,6 +131,10 @@ export default function BusinessStatisticsPage() {
     try {
       setLoading(true);
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:loadStatistics:entry',message:'Loading statistics',data:{selectedMedicalExamDateFrom,selectedMedicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+      
       // Build query string with filters
       const params = new URLSearchParams();
       if (selectedSurrogateAgeRange) params.append('surrogate_age_range', selectedSurrogateAgeRange);
