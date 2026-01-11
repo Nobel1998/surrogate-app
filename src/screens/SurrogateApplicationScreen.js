@@ -800,7 +800,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         console.log('📝 Submitting new application for user:', authUser.id);
         
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:insert',message:'Inserting new application',data:{userId:authUser.id,formDataLength:payload.form_data?payload.form_data.length:0}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+        const formDataLen2 = payload.form_data ? payload.form_data.length : 0;
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:insert',message:'Inserting new application',data:{userId:authUser.id,formDataLength:formDataLen2}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
         // #endregion
         
       const { data, error } = await supabase
