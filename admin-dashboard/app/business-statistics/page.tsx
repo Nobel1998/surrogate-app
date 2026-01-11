@@ -51,6 +51,8 @@ type Filters = {
     transferNumber: string | null;
     medicalExamDateFrom: string | null;
     medicalExamDateTo: string | null;
+    legalClearanceDateFrom: string | null;
+    legalClearanceDateTo: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
@@ -117,6 +119,10 @@ export default function BusinessStatisticsPage() {
   const [selectedMedicalExamDateFrom, setSelectedMedicalExamDateFrom] = useState<string>('');
   const [selectedMedicalExamDateTo, setSelectedMedicalExamDateTo] = useState<string>('');
   
+  // Filter state - Legal Clearance Date
+  const [selectedLegalClearanceDateFrom, setSelectedLegalClearanceDateFrom] = useState<string>('');
+  const [selectedLegalClearanceDateTo, setSelectedLegalClearanceDateTo] = useState<string>('');
+  
   // UI state for collapsible sections
   const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
   const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
@@ -161,6 +167,8 @@ export default function BusinessStatisticsPage() {
       if (selectedDeliveryHospital) params.append('delivery_hospital', selectedDeliveryHospital);
       if (selectedMedicalExamDateFrom) params.append('medical_exam_date_from', selectedMedicalExamDateFrom);
       if (selectedMedicalExamDateTo) params.append('medical_exam_date_to', selectedMedicalExamDateTo);
+      if (selectedLegalClearanceDateFrom) params.append('legal_clearance_date_from', selectedLegalClearanceDateFrom);
+      if (selectedLegalClearanceDateTo) params.append('legal_clearance_date_to', selectedLegalClearanceDateTo);
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -212,6 +220,8 @@ export default function BusinessStatisticsPage() {
     setSelectedDeliveryHospital('');
     setSelectedMedicalExamDateFrom('');
     setSelectedMedicalExamDateTo('');
+    setSelectedLegalClearanceDateFrom('');
+    setSelectedLegalClearanceDateTo('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -240,7 +250,7 @@ export default function BusinessStatisticsPage() {
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
     selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType,
-    selectedMedicalExamDateFrom, selectedMedicalExamDateTo
+    selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo
   ]);
 
   const exportToCSV = () => {
@@ -827,6 +837,25 @@ export default function BusinessStatisticsPage() {
                     type="date"
                     value={selectedMedicalExamDateTo}
                     onChange={(e) => setSelectedMedicalExamDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Legal Clearance Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Legal Clearance Date From</label>
+                  <input
+                    type="date"
+                    value={selectedLegalClearanceDateFrom}
+                    onChange={(e) => setSelectedLegalClearanceDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Legal Clearance Date To</label>
+                  <input
+                    type="date"
+                    value={selectedLegalClearanceDateTo}
+                    onChange={(e) => setSelectedLegalClearanceDateTo(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
