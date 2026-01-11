@@ -803,7 +803,21 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         }
         
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:updateSuccess',message:'Update successful',data:{resultData,resultFormData:resultData?.[0]?.form_data,resultFormDataParsed:resultData?.[0]?.form_data?JSON.parse(resultData[0].form_data):null}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        const resultFormData = resultData?.[0]?.form_data;
+        const resultFormDataParsed = resultFormData ? JSON.parse(resultFormData) : null;
+        const logData3 = {
+          location: 'SurrogateApplicationScreen.js:handleSubmit:updateSuccess',
+          message: 'Update successful',
+          data: { resultData, resultFormData, resultFormDataParsed },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'E'
+        };
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(logData3)
+        }).catch(() => {});
         // #endregion
         
         resultData = data;
@@ -813,7 +827,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         
         // #region agent log
         const formDataLen2 = payload.form_data ? payload.form_data.length : 0;
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:handleSubmit:insert',message:'Inserting new application',data:{userId:authUser.id,formDataLength:formDataLen2}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+        const logData4 = {
+          location: 'SurrogateApplicationScreen.js:handleSubmit:insert',
+          message: 'Inserting new application',
+          data: { userId: authUser.id, formDataLength: formDataLen2 },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'F'
+        };
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(logData4)
+        }).catch(() => {});
         // #endregion
         
       const { data, error } = await supabase
