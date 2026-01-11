@@ -154,6 +154,16 @@ export async function GET(req: NextRequest) {
       }
     });
 
+    // #region agent log - Check for F887A9CE specifically
+    const f887Match = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
+    if (f887Match) {
+      const f887SurrogateId = f887Match.surrogate_id;
+      const f887ExamDate = f887SurrogateId ? surrogateMedicalExamMap.get(f887SurrogateId) : null;
+      const f887Reports = medicalReports?.filter(r => r.user_id === f887SurrogateId) || [];
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:155',message:'F887A9CE match details',data:{matchId:f887Match.id,claimId:f887Match.claim_id,surrogateId:f887SurrogateId,examDate:f887ExamDate,reportsCount:f887Reports.length,reports:f887Reports.map(r=>({visitDate:r.visit_date,stage:r.stage})),inMap:!!f887ExamDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    }
+    // #endregion
+
     // #region agent log
     const mapEntries = Array.from(surrogateMedicalExamMap.entries()).map(([k,v])=>({userId:k,examDate:v}));
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Medical exam map created',data:{mapSize:surrogateMedicalExamMap.size,mapEntries:mapEntries},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
