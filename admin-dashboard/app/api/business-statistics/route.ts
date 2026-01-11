@@ -397,8 +397,33 @@ export async function GET(req: NextRequest) {
         // Filter by surrogate marital status
         if (surrogateMaritalStatus) {
           const appData = match.surrogate_id ? surrogateApplicationMap.get(match.surrogate_id) : null;
-          if (!appData?.maritalStatus || appData.maritalStatus.toLowerCase() !== surrogateMaritalStatus.toLowerCase()) {
-            return false;
+          if (!appData) return false;
+          
+          // Check if married based on isMarried flag or maritalStatus field
+          const isMarried = appData.isMarried === true || appData.maritalStatus === 'married';
+          const isSingle = appData.isSingle === true || appData.maritalStatus === 'single';
+          const isWidowed = appData.isWidowed === true || appData.maritalStatus === 'widowed';
+          const isDivorced = appData.divorced === true || appData.maritalStatus === 'divorced';
+          const isSeparated = appData.legallySeparated === true || appData.maritalStatus === 'separated';
+          const isLifePartner = appData.lifePartner === true || appData.maritalStatus === 'lifePartner';
+          const isEngaged = appData.engaged === true || appData.maritalStatus === 'engaged';
+          
+          const statusLower = surrogateMaritalStatus.toLowerCase();
+          if (statusLower === 'married' && !isMarried) return false;
+          if (statusLower === 'single' && !isSingle) return false;
+          if (statusLower === 'widowed' && !isWidowed) return false;
+          if (statusLower === 'divorced' && !isDivorced) return false;
+          if (statusLower === 'separated' && !isSeparated) return false;
+          if (statusLower === 'life partner' && !isLifePartner) return false;
+          if (statusLower === 'engaged' && !isEngaged) return false;
+          // If it's a specific status that doesn't match, exclude
+          if (statusLower !== 'married' && statusLower !== 'single' && statusLower !== 'widowed' && 
+              statusLower !== 'divorced' && statusLower !== 'separated' && statusLower !== 'life partner' && 
+              statusLower !== 'engaged') {
+            // For other status values, check maritalStatus field directly
+            if (!appData.maritalStatus || appData.maritalStatus.toLowerCase() !== statusLower) {
+              return false;
+            }
           }
         }
 
@@ -602,7 +627,28 @@ export async function GET(req: NextRequest) {
     // Extract unique values from application form_data
     surrogateApplicationMap.forEach((appData, userId) => {
       if (appData.bloodType) surrogateBloodTypes.add(appData.bloodType);
-      if (appData.maritalStatus) surrogateMaritalStatuses.add(appData.maritalStatus);
+      
+      // Determine marital status from form data
+      if (appData.isMarried === true || appData.maritalStatus === 'married') {
+        surrogateMaritalStatuses.add('Married');
+      } else if (appData.isSingle === true || appData.maritalStatus === 'single') {
+        surrogateMaritalStatuses.add('Single');
+      } else if (appData.isWidowed === true || appData.maritalStatus === 'widowed') {
+        surrogateMaritalStatuses.add('Widowed');
+      } else if (appData.divorced === true || appData.maritalStatus === 'divorced') {
+        surrogateMaritalStatuses.add('Divorced');
+      } else if (appData.legallySeparated === true || appData.maritalStatus === 'separated') {
+        surrogateMaritalStatuses.add('Separated');
+      } else if (appData.lifePartner === true || appData.maritalStatus === 'lifePartner') {
+        surrogateMaritalStatuses.add('Life Partner');
+      } else if (appData.engaged === true || appData.maritalStatus === 'engaged') {
+        surrogateMaritalStatuses.add('Engaged');
+      } else if (appData.maritalStatus) {
+        // Fallback to raw maritalStatus value if it exists
+        const status = appData.maritalStatus.charAt(0).toUpperCase() + appData.maritalStatus.slice(1);
+        surrogateMaritalStatuses.add(status);
+      }
+      
       if (appData.applicationStatus) applicationStatuses.add(appData.applicationStatus);
     });
 
