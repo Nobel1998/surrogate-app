@@ -239,7 +239,8 @@ export default function BusinessStatisticsPage() {
     selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
-    selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType
+    selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType,
+    selectedMedicalExamDateFrom, selectedMedicalExamDateTo
   ]);
 
   const exportToCSV = () => {
