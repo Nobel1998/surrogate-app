@@ -113,10 +113,10 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without application data
     }
 
-    // Get surrogate medical info (OB doctor, delivery hospital)
+    // Get surrogate medical info (OB doctor, delivery hospital, IVF clinic)
     const { data: surrogateMedicalInfo, error: medicalInfoError } = await supabase
       .from('surrogate_medical_info')
-      .select('user_id, obgyn_doctor_name, delivery_hospital_name')
+      .select('user_id, obgyn_doctor_name, delivery_hospital_name, ivf_clinic_name')
       .in('user_id', Array.from(surrogateIds));
 
     if (medicalInfoError) {
@@ -146,6 +146,7 @@ export async function GET(req: NextRequest) {
       surrogateMedicalInfoMap.set(info.user_id, {
         obgynDoctor: info.obgyn_doctor_name,
         deliveryHospital: info.delivery_hospital_name,
+        ivfClinic: info.ivf_clinic_name,
       });
     });
 
@@ -279,9 +280,15 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Filter by IVF clinic
+        // Filter by IVF clinic (check both match.clinic and medical_info.ivf_clinic_name)
         if (ivfClinic) {
-          if (!match.clinic || !match.clinic.toLowerCase().includes(ivfClinic.toLowerCase())) {
+          const matchClinic = match.clinic?.toLowerCase() || '';
+          const medicalInfo = match.surrogate_id ? surrogateMedicalInfoMap.get(match.surrogate_id) : null;
+          const medicalClinic = medicalInfo?.ivfClinic?.toLowerCase() || '';
+          const searchClinic = ivfClinic.toLowerCase();
+          
+          // Match if either source contains the search term
+          if (!matchClinic.includes(searchClinic) && !medicalClinic.includes(searchClinic)) {
             return false;
           }
         }
@@ -616,8 +623,13 @@ export async function GET(req: NextRequest) {
       if (profile.race) surrogateRaces.add(profile.race);
     });
     
+    // Collect IVF clinics from both matches table and medical_info table
     allMatches?.forEach(match => {
       if (match.clinic) ivfClinics.add(match.clinic);
+    });
+    
+    surrogateMedicalInfo?.forEach(info => {
+      if (info.ivf_clinic_name) ivfClinics.add(info.ivf_clinic_name);
     });
     
     parentProfilesForFilter?.forEach(profile => {
