@@ -3056,7 +3056,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Trade School Details */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>If you completed your education through a trade school, please specify. *</Text>
+        <Text style={styles.label}>If you completed your education through a trade school, please specify.</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={applicationData.tradeSchoolDetails || ''}
