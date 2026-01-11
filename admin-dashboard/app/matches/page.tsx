@@ -55,6 +55,7 @@ type Match = {
   transfer_date?: string | null;
   beta_confirm_date?: string | null;
   due_date?: string | null;
+  legal_clearance_date?: string | null;
   clinic?: string | null;
   embryos?: string | null;
   lawyer?: string | null;
@@ -192,6 +193,8 @@ export default function MatchesPage() {
   const [transferDateValue, setTransferDateValue] = useState<string>('');
   const [editingBetaConfirmDate, setEditingBetaConfirmDate] = useState<string | null>(null);
   const [betaConfirmDateValue, setBetaConfirmDateValue] = useState<string>('');
+  const [editingLegalClearanceDate, setEditingLegalClearanceDate] = useState<string | null>(null);
+  const [legalClearanceDateValue, setLegalClearanceDateValue] = useState<string>('');
   // Text fields
   const [editingClinic, setEditingClinic] = useState<string | null>(null);
   const [clinicValue, setClinicValue] = useState<string>('');
@@ -878,6 +881,32 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Beta Confirm Date:', err);
       alert(err.message || 'Failed to update Beta Confirm Date');
+    }
+  };
+
+  const handleUpdateLegalClearanceDate = async (matchId: string) => {
+    try {
+      const dateValue = legalClearanceDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legal_clearance_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Legal Clearance Date');
+      }
+
+      await loadData();
+      setEditingLegalClearanceDate(null);
+      setLegalClearanceDateValue('');
+      alert('Legal Clearance Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Legal Clearance Date:', err);
+      alert(err.message || 'Failed to update Legal Clearance Date');
     }
   };
 
@@ -3447,6 +3476,64 @@ export default function MatchesPage() {
                               >
                                 {m.beta_confirm_date 
                                   ? formatDateOnly(m.beta_confirm_date)
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Legal Clearance Date</div>
+                            {editingLegalClearanceDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={legalClearanceDateValue}
+                                  onChange={(e) => setLegalClearanceDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateLegalClearanceDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingLegalClearanceDate(null);
+                                      setLegalClearanceDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateLegalClearanceDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingLegalClearanceDate(null);
+                                    setLegalClearanceDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingLegalClearanceDate(m.id);
+                                  if (m.legal_clearance_date) {
+                                    const date = new Date(m.legal_clearance_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setLegalClearanceDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setLegalClearanceDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Legal Clearance Date"
+                              >
+                                {m.legal_clearance_date 
+                                  ? formatDateOnly(m.legal_clearance_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
