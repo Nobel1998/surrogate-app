@@ -85,10 +85,16 @@ export async function GET(req: NextRequest) {
     if (allMatchesError) throw allMatchesError;
 
     // Filter matches with transfer_date
+    // #region agent log
+    const f887BeforeFilter = allMatches?.find(m => m.claim_id === 'MATCH-F887A9CE');
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:88',message:'Before transfer_date filter',data:{totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
+    
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:88',message:'Initial matches loaded',data:{totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    const f887AfterFilter = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:95',message:'After transfer_date filter',data:{totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id}:null,f887Included:!!f887AfterFilter},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
 
     // Get surrogate profiles for filtering
