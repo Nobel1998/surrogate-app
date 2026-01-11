@@ -155,11 +155,6 @@ export async function GET(req: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:137',message:'Medical reports query result',data:{totalAllReports:allMedicalReports?.length||0,totalPreTransferReports:medicalReports.length,allReports:allMedicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],preTransferReports:medicalReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
-    // #region agent log
-    const allSurrogateIds = Array.from(surrogateIds);
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:127',message:'Medical reports loaded',data:{totalReports:medicalReports?.length||0,reports:medicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
     const surrogateMedicalExamMap = new Map();
     medicalReports?.forEach(report => {
