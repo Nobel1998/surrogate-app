@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
     // Filter matches with transfer_date
     let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:88',message:'Initial matches loaded',data:{totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
     // Get surrogate profiles for filtering
     const surrogateIds = new Set<string>();
     matches.forEach(match => {
@@ -137,7 +141,8 @@ export async function GET(req: NextRequest) {
     }
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:127',message:'Medical reports loaded',data:{totalReports:medicalReports?.length||0,reports:medicalReports?.slice(0,5).map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],surrogateIdsCount:surrogateIds.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    const allSurrogateIds = Array.from(surrogateIds);
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:127',message:'Medical reports loaded',data:{totalReports:medicalReports?.length||0,reports:medicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
     // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
@@ -150,7 +155,8 @@ export async function GET(req: NextRequest) {
     });
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Medical exam map created',data:{mapSize:surrogateMedicalExamMap.size,mapEntries:Array.from(surrogateMedicalExamMap.entries()).slice(0,5).map(([k,v])=>({userId:k,examDate:v}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    const mapEntries = Array.from(surrogateMedicalExamMap.entries()).map(([k,v])=>({userId:k,examDate:v}));
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Medical exam map created',data:{mapSize:surrogateMedicalExamMap.size,mapEntries:mapEntries},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
     // Parse application form_data and create a map
