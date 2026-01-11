@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { appendFileSync } from 'fs';
-import { join } from 'path';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
-
-// Helper function to write debug logs
-function writeLog(location: string, message: string, data: any, hypothesisId: string = 'G') {
-  try {
-    const logEntry = JSON.stringify({location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId}) + '\n';
-    const logPath = join(process.cwd(), '.cursor', 'debug.log');
-    appendFileSync(logPath, logEntry);
-    // Also log to console for Vercel deployment
-    console.log(`[DEBUG] ${location}: ${message}`, JSON.stringify(data, null, 2));
-  } catch (e) {
-    // Fallback to console if file write fails
-    console.log(`[DEBUG] ${location}: ${message}`, JSON.stringify(data, null, 2));
-  }
-}
 
 // Helper function to check admin authentication
 async function checkAdminAuth() {
@@ -55,24 +39,16 @@ async function checkAdminAuth() {
 
 // GET - Fetch business statistics
 export async function GET(req: NextRequest) {
-  // #region agent log
-  const url = new URL(req.url);
-  const searchParams = url.searchParams;
-  const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
-  const medicalExamDateTo = searchParams.get('medical_exam_date_to');
-  writeLog('route.ts:GET:entry', 'API GET called', {url:req.url,medicalExamDateFrom,medicalExamDateTo,allParams:Object.fromEntries(searchParams.entries())}, 'G');
-  // #endregion
-  
   const authCheck = await checkAdminAuth();
   if (!authCheck.isAdmin) {
-    // #region agent log
-    writeLog('route.ts:GET:authFailed', 'Authentication failed', {error:authCheck.error}, 'G');
-    // #endregion
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
       { status: 401 }
     );
   }
+
+  const url = new URL(req.url);
+  const searchParams = url.searchParams;
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -118,21 +94,11 @@ export async function GET(req: NextRequest) {
     // Filter matches with transfer_date
     // BUT: If user is filtering by medical exam date, include ALL matches (even without transfer_date)
     // because they might have a medical exam date but no transfer date yet
-    // #region agent log
-    const f887BeforeFilter = allMatches?.find(m => m.claim_id === 'MATCH-F887A9CE');
-    writeLog('route.ts:88', 'Before transfer_date filter', {totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null,filteringByMedicalExam:!!(medicalExamDateFrom || medicalExamDateTo)}, 'H');
-    // #endregion
-    
     // Only filter by transfer_date if NOT filtering by medical exam date
     // This allows matches with medical exam dates but no transfer_date to be included
     let matches = (medicalExamDateFrom || medicalExamDateTo) 
       ? (allMatches || [])  // Include all matches when filtering by medical exam date
       : (allMatches?.filter(m => m.transfer_date !== null) || []);  // Otherwise, only matches with transfer_date
-
-    // #region agent log
-    const f887AfterFilter = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
-    writeLog('route.ts:95', 'After transfer_date filter', {totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id,transferDate:f887AfterFilter.transfer_date}:null,f887Included:!!f887AfterFilter}, 'D');
-    // #endregion
 
     // Get surrogate profiles for filtering
     const surrogateIds = new Set<string>();
@@ -189,18 +155,6 @@ export async function GET(req: NextRequest) {
     // Also get all reports for debugging
     const allReports = allMedicalReports || [];
 
-    // #region agent log
-    const allSurrogateIds = Array.from(surrogateIds);
-    writeLog('route.ts:137', 'Medical reports query result', {
-      totalAllReports:allReports.length,
-      totalPreTransferReports:preTransferReports.length,
-      allReports:allReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),
-      preTransferReports:preTransferReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),
-      surrogateIdsCount:surrogateIds.size,
-      surrogateIds:allSurrogateIds,
-      f887SurrogateId: matches.find(m => m.claim_id === 'MATCH-F887A9CE')?.surrogate_id || null
-    }, 'A');
-    // #endregion
 
     // Create medical exam date map
     // Use Pre-Transfer reports first, but if none exist, use the earliest report of any stage
@@ -226,33 +180,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // #region agent log - Check for F887A9CE specifically
-    const f887Match = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
-    if (f887Match) {
-      const f887SurrogateId = f887Match.surrogate_id;
-      const f887ExamDate = f887SurrogateId ? surrogateMedicalExamMap.get(f887SurrogateId) : null;
-      const f887AllReports = allReports?.filter(r => r.user_id === f887SurrogateId) || [];
-      const f887PreTransferReports = preTransferReports?.filter(r => r.user_id === f887SurrogateId) || [];
-      writeLog('route.ts:155', 'F887A9CE match details', {
-        matchId:f887Match.id,
-        claimId:f887Match.claim_id,
-        surrogateId:f887SurrogateId,
-        transferDate:f887Match.transfer_date,
-        examDate:f887ExamDate,
-        allReportsCount:f887AllReports.length,
-        preTransferReportsCount:f887PreTransferReports.length,
-        allReports:f887AllReports.map(r=>({visitDate:r.visit_date,stage:r.stage})),
-        preTransferReports:f887PreTransferReports.map(r=>({visitDate:r.visit_date,stage:r.stage})),
-        inMap:!!f887ExamDate,
-        mapSize:surrogateMedicalExamMap.size
-      }, 'F');
-    }
-    // #endregion
-
-    // #region agent log
-    const mapEntries = Array.from(surrogateMedicalExamMap.entries()).map(([k,v])=>({userId:k,examDate:v}));
-    writeLog('route.ts:146', 'Medical exam map created', {mapSize:surrogateMedicalExamMap.size,mapEntries:mapEntries}, 'A');
-    // #endregion
 
     // Parse application form_data and create a map
     const surrogateApplicationMap = new Map();
@@ -324,9 +251,6 @@ export async function GET(req: NextRequest) {
     const deliveryHospital = searchParams.get('delivery_hospital');
     // medicalExamDateFrom and medicalExamDateTo are already defined above (line 115-116)
 
-    // #region agent log
-    writeLog('route.ts:198', 'Medical exam date filter params received', {medicalExamDateFrom,medicalExamDateTo}, 'C');
-    // #endregion
 
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
@@ -636,19 +560,6 @@ export async function GET(req: NextRequest) {
         if (medicalExamDateFrom || medicalExamDateTo) {
           const examDate = match.surrogate_id ? surrogateMedicalExamMap.get(match.surrogate_id) : null;
           
-          // #region agent log
-          const logData = {
-            matchId: match.id,
-            claimId: match.claim_id || 'N/A',
-            surrogateId: match.surrogate_id,
-            examDate: examDate,
-            filterFrom: medicalExamDateFrom,
-            filterTo: medicalExamDateTo,
-            hasExamDate: !!examDate
-          };
-          writeLog('route.ts:510', 'Medical exam date filter check', logData, 'B');
-          // #endregion
-          
           if (!examDate) return false; // No exam date, exclude
           
           // Compare dates by date only (ignore time) to avoid timezone issues
@@ -666,44 +577,16 @@ export async function GET(req: NextRequest) {
           const fromDate = medicalExamDateFrom ? new Date(medicalExamDateFrom + 'T00:00:00') : null;
           const toDate = medicalExamDateTo ? new Date(medicalExamDateTo + 'T23:59:59') : null;
           
-          // #region agent log
-          const comparisonData = {
-            matchId: match.id,
-            claimId: match.claim_id || 'N/A',
-            examDateRaw: examDate,
-            examDateOnly: examDateOnly.toISOString().split('T')[0],
-            fromDate: fromDate?.toISOString().split('T')[0] || null,
-            toDate: toDate?.toISOString().split('T')[0] || null,
-            beforeFrom: fromDate ? examDateOnly < fromDate : false,
-            afterTo: toDate ? examDateOnly > toDate : false,
-            willExclude: (fromDate && examDateOnly < fromDate) || (toDate && examDateOnly > toDate)
-          };
-          writeLog('route.ts:530', 'Medical exam date comparison', comparisonData, 'B');
-          // #endregion
-          
           if (fromDate && examDateOnly < fromDate) {
-            // #region agent log
-            writeLog('route.ts:580', 'Match excluded: exam date before from date', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),fromDate:fromDate.toISOString()}, 'B');
-            // #endregion
             return false;
           }
           if (toDate && examDateOnly > toDate) {
-            // #region agent log
-            writeLog('route.ts:586', 'Match excluded: exam date after to date', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString(),toDate:toDate.toISOString()}, 'B');
-            // #endregion
             return false;
           }
-          // #region agent log
-          writeLog('route.ts:591', 'Match passed medical exam date filter', {matchId:match.id,claimId:match.claim_id,examDate:examDate,examDateOnly:examDateOnly.toISOString()}, 'B');
-          // #endregion
         }
 
         return true;
       });
-      
-      // #region agent log
-      writeLog('route.ts:600', 'After filtering', {filteredMatchesCount:matches.length,medicalExamDateFrom,medicalExamDateTo}, 'E');
-      // #endregion
     }
 
     // Get parent profiles for age calculation (reuse the set we already have)
