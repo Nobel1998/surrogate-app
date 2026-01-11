@@ -124,6 +124,27 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without medical info
     }
 
+    // Get medical reports for Pre-Transfer examination dates
+    const { data: medicalReports, error: medicalReportsError } = await supabase
+      .from('medical_reports')
+      .select('user_id, visit_date, stage')
+      .in('user_id', Array.from(surrogateIds))
+      .eq('stage', 'Pre-Transfer');
+
+    if (medicalReportsError) {
+      console.error('[business-statistics] Error loading medical reports:', medicalReportsError);
+      // Don't throw, just continue without medical reports
+    }
+
+    // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
+    const surrogateMedicalExamMap = new Map();
+    medicalReports?.forEach(report => {
+      const existing = surrogateMedicalExamMap.get(report.user_id);
+      if (!existing || new Date(report.visit_date) < new Date(existing)) {
+        surrogateMedicalExamMap.set(report.user_id, report.visit_date);
+      }
+    });
+
     // Parse application form_data and create a map
     const surrogateApplicationMap = new Map();
     surrogateApplications?.forEach(app => {
@@ -192,13 +213,15 @@ export async function GET(req: NextRequest) {
     const applicationStatus = searchParams.get('application_status'); // Initial review result
     const obgynDoctor = searchParams.get('obgyn_doctor');
     const deliveryHospital = searchParams.get('delivery_hospital');
+    const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
+    const medicalExamDateTo = searchParams.get('medical_exam_date_to');
 
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
         deliveryDateFrom || deliveryDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
-        obgynDoctor || deliveryHospital) {
+        obgynDoctor || deliveryHospital || medicalExamDateFrom || medicalExamDateTo) {
       matches = matches.filter(match => {
         // Filter by surrogate age
         if (surrogateAgeRange) {
@@ -497,6 +520,15 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Filter by medical examination date range (Pre-Transfer exam)
+        if (medicalExamDateFrom || medicalExamDateTo) {
+          const examDate = match.surrogate_id ? surrogateMedicalExamMap.get(match.surrogate_id) : null;
+          if (!examDate) return false; // No exam date, exclude
+          const examDateObj = new Date(examDate);
+          if (medicalExamDateFrom && examDateObj < new Date(medicalExamDateFrom)) return false;
+          if (medicalExamDateTo && examDateObj > new Date(medicalExamDateTo)) return false;
+        }
+
         return true;
       });
     }
@@ -716,6 +748,8 @@ export async function GET(req: NextRequest) {
           obgynDoctor: obgynDoctor || null,
           deliveryHospital: deliveryHospital || null,
           transferNumber: transferNumber || null,
+          medicalExamDateFrom: medicalExamDateFrom || null,
+          medicalExamDateTo: medicalExamDateTo || null,
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],

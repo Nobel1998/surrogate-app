@@ -111,6 +111,10 @@ export default function BusinessStatisticsPage() {
   // Filter state - Transfer Details
   const [selectedEmbryoCount, setSelectedEmbryoCount] = useState<string>('');
   
+  // Filter state - Medical Exam Date
+  const [selectedMedicalExamDateFrom, setSelectedMedicalExamDateFrom] = useState<string>('');
+  const [selectedMedicalExamDateTo, setSelectedMedicalExamDateTo] = useState<string>('');
+  
   // UI state for collapsible sections
   const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
   const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
