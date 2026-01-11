@@ -171,8 +171,8 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without medical info
     }
 
-    // Get medical reports for Pre-Transfer examination dates
-    // Query ALL medical reports first, then filter by Pre-Transfer stage
+    // Get medical reports for examination dates
+    // Query ALL medical reports first, prioritize Pre-Transfer but include all stages
     // This ensures we get all reports even if RLS might filter some
     const { data: allMedicalReports, error: allMedicalReportsError } = await supabase
       .from('medical_reports')
@@ -184,20 +184,45 @@ export async function GET(req: NextRequest) {
       // Don't throw, just continue without medical reports
     }
 
-    // Filter to Pre-Transfer stage
-    const medicalReports = allMedicalReports?.filter(r => r.stage === 'Pre-Transfer') || [];
+    // Filter to Pre-Transfer stage (medical check-in is typically Pre-Transfer)
+    const preTransferReports = allMedicalReports?.filter(r => r.stage === 'Pre-Transfer') || [];
+    // Also get all reports for debugging
+    const allReports = allMedicalReports || [];
 
     // #region agent log
     const allSurrogateIds = Array.from(surrogateIds);
-    writeLog('route.ts:137', 'Medical reports query result', {totalAllReports:allMedicalReports?.length||0,totalPreTransferReports:medicalReports.length,allReports:allMedicalReports?.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage}))||[],preTransferReports:medicalReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),surrogateIdsCount:surrogateIds.size,surrogateIds:allSurrogateIds}, 'A');
+    writeLog('route.ts:137', 'Medical reports query result', {
+      totalAllReports:allReports.length,
+      totalPreTransferReports:preTransferReports.length,
+      allReports:allReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),
+      preTransferReports:preTransferReports.map(r=>({userId:r.user_id,visitDate:r.visit_date,stage:r.stage})),
+      surrogateIdsCount:surrogateIds.size,
+      surrogateIds:allSurrogateIds,
+      f887SurrogateId: matches.find(m => m.claim_id === 'MATCH-F887A9CE')?.surrogate_id || null
+    }, 'A');
     // #endregion
 
-    // Create medical exam date map (use earliest Pre-Transfer exam date for each surrogate)
+    // Create medical exam date map
+    // Use Pre-Transfer reports first, but if none exist, use the earliest report of any stage
     const surrogateMedicalExamMap = new Map();
-    medicalReports?.forEach(report => {
+    
+    // First, add Pre-Transfer reports (these are the medical check-ins)
+    preTransferReports?.forEach(report => {
       const existing = surrogateMedicalExamMap.get(report.user_id);
       if (!existing || new Date(report.visit_date) < new Date(existing)) {
         surrogateMedicalExamMap.set(report.user_id, report.visit_date);
+      }
+    });
+    
+    // If a surrogate has no Pre-Transfer report but has other reports, use the earliest one
+    allReports?.forEach(report => {
+      if (!surrogateMedicalExamMap.has(report.user_id)) {
+        surrogateMedicalExamMap.set(report.user_id, report.visit_date);
+      } else {
+        const existing = surrogateMedicalExamMap.get(report.user_id);
+        if (new Date(report.visit_date) < new Date(existing)) {
+          surrogateMedicalExamMap.set(report.user_id, report.visit_date);
+        }
       }
     });
 
@@ -206,8 +231,21 @@ export async function GET(req: NextRequest) {
     if (f887Match) {
       const f887SurrogateId = f887Match.surrogate_id;
       const f887ExamDate = f887SurrogateId ? surrogateMedicalExamMap.get(f887SurrogateId) : null;
-      const f887Reports = medicalReports?.filter(r => r.user_id === f887SurrogateId) || [];
-      writeLog('route.ts:155', 'F887A9CE match details', {matchId:f887Match.id,claimId:f887Match.claim_id,surrogateId:f887SurrogateId,examDate:f887ExamDate,reportsCount:f887Reports.length,reports:f887Reports.map(r=>({visitDate:r.visit_date,stage:r.stage})),inMap:!!f887ExamDate}, 'F');
+      const f887AllReports = allReports?.filter(r => r.user_id === f887SurrogateId) || [];
+      const f887PreTransferReports = preTransferReports?.filter(r => r.user_id === f887SurrogateId) || [];
+      writeLog('route.ts:155', 'F887A9CE match details', {
+        matchId:f887Match.id,
+        claimId:f887Match.claim_id,
+        surrogateId:f887SurrogateId,
+        transferDate:f887Match.transfer_date,
+        examDate:f887ExamDate,
+        allReportsCount:f887AllReports.length,
+        preTransferReportsCount:f887PreTransferReports.length,
+        allReports:f887AllReports.map(r=>({visitDate:r.visit_date,stage:r.stage})),
+        preTransferReports:f887PreTransferReports.map(r=>({visitDate:r.visit_date,stage:r.stage})),
+        inMap:!!f887ExamDate,
+        mapSize:surrogateMedicalExamMap.size
+      }, 'F');
     }
     // #endregion
 
