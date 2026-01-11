@@ -224,6 +224,10 @@ export async function GET(req: NextRequest) {
     const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
     const medicalExamDateTo = searchParams.get('medical_exam_date_to');
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:198',message:'Medical exam date filter params received',data:{medicalExamDateFrom,medicalExamDateTo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
