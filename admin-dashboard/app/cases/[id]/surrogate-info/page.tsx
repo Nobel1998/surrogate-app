@@ -301,7 +301,7 @@ export default function SurrogateInfoPage() {
           {renderField('Persons Supported', formData.personsSupported)}
           {renderField('Public Assistance', formData.publicAssistance)}
           {renderField('Education Level', formData.educationLevel)}
-          {renderField('Trade School Specify', formData.tradeSchoolSpecify)}
+          {renderField('Trade School Specify', formData.tradeSchoolDetails || formData.tradeSchoolSpecify)}
         </>
       )}
 

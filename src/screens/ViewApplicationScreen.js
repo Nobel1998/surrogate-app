@@ -176,6 +176,7 @@ export default function ViewApplicationScreen({ navigation }) {
           <>
             {renderField('Full Name', application.full_name || formData.fullName)}
             {renderField('First Name', formData.firstName)}
+            {renderField('Middle Name', formData.middleName)}
             {renderField('Last Name', formData.lastName)}
             {renderField('Date of Birth', formData.dateOfBirth)}
             {renderField('Age', formData.age)}
@@ -185,9 +186,53 @@ export default function ViewApplicationScreen({ navigation }) {
             {renderField('Race/Ethnicity', formData.race)}
             {renderField('Phone', application.phone || formData.phoneNumber)}
             {renderField('Email', formData.email)}
-            {renderField('Address', formData.address)}
+            {renderField('Address', formData.address || formData.applicantAddress)}
             {renderBooleanField('US Citizen', formData.usCitizen)}
+            {renderField('Religious Background', formData.religiousBackground)}
+            {renderBooleanField('Practicing Religion', formData.practicingReligion)}
+            {renderField('Hear About Us', formData.hearAboutUs)}
+            {renderField('Referral Code', formData.referralCode)}
+            {renderField('Siblings Count', formData.siblingsCount)}
+            {renderField('Mother Siblings Count', formData.motherSiblingsCount)}
+            {renderField('Pets', formData.pets)}
+            {renderField('Living Situation', formData.livingSituation)}
+            {renderBooleanField('Own Car', formData.ownCar)}
+            {renderBooleanField('Driver License', formData.driverLicense)}
+            {renderBooleanField('Car Insured', formData.carInsured)}
+            {renderField('Transportation Method', formData.transportationMethod)}
+            {renderField('Nearest Airport', formData.nearestAirport)}
+            {renderField('Airport Distance', formData.airportDistance)}
+            {renderField('Legal Problems', formData.legalProblems)}
+            {renderField('Jail Time', formData.jailTime)}
+            {renderBooleanField('Want More Children', formData.wantMoreChildren)}
             {renderBooleanField('Previous Surrogacy', formData.previousSurrogacy)}
+            {renderField('Previous Surrogacy Count', formData.previousSurrogacyCount)}
+          </>
+        )}
+
+        {/* Marital Status */}
+        {renderSection('Marital Status & Family', 'heart', '#E91E63',
+          <>
+            {renderField('Marital Status', formData.maritalStatus)}
+            {renderField('Are you single?', formData.isSingle === true ? 'Yes' : formData.isSingle === false ? 'No' : 'N/A')}
+            {renderField('Are you married?', formData.isMarried === true ? 'Yes' : formData.isMarried === false ? 'No' : 'N/A')}
+            {renderField('Are you widowed?', formData.isWidowed === true ? 'Yes' : formData.isWidowed === false ? 'No' : 'N/A')}
+            {renderBooleanField('Life Partner', formData.lifePartner)}
+            {renderBooleanField('Engaged', formData.engaged)}
+            {renderField('Spouse/Partner Name', formData.spouseName || formData.partnerName)}
+            {renderField('Spouse/Partner Date of Birth', formData.spouseDateOfBirth || formData.partnerDateOfBirth)}
+            {renderField('Marriage Date', formData.marriageDate)}
+            {renderField('Wedding Date', formData.weddingDate)}
+            {renderField('Widowed Date', formData.widowedDate)}
+            {renderField('Marital Problems', formData.maritalProblems)}
+            {renderBooleanField('Divorced', formData.divorced)}
+            {renderField('Divorce Date', formData.divorceDate)}
+            {renderField('Divorce Cause', formData.divorceCause)}
+            {renderBooleanField('Remarried', formData.remarried)}
+            {renderField('Remarried Date', formData.remarriedDate)}
+            {renderBooleanField('Legally Separated', formData.legallySeparated)}
+            {renderField('Separation Details', formData.separationDetails)}
+            {renderField('Engagement Date', formData.engagementDate)}
           </>
         )}
 
@@ -219,13 +264,43 @@ export default function ViewApplicationScreen({ navigation }) {
         {renderSection('Health Information', 'activity', '#4CAF50',
           <>
             {renderBooleanField('Health Insurance', formData.healthInsurance)}
+            {renderBooleanField('Maternity Coverage', formData.maternityCoverage)}
+            {renderField('Insurance Details', formData.insuranceDetails)}
+            {renderBooleanField('State Agency Insurance', formData.stateAgencyInsurance)}
+            {renderField('State Agency Name', formData.stateAgencyName)}
+            {renderField('Insurance Payment Method', formData.insurancePaymentMethod)}
             {renderField('Delivery Hospital', formData.deliveryHospital)}
+            {renderBooleanField('Delivered at Hospital Before', formData.deliveredAtHospitalBefore)}
+            {renderBooleanField('Abnormal Pap Smear', formData.abnormalPapSmear)}
+            {renderBooleanField('Monthly Cycles', formData.monthlyCycles)}
+            {renderField('Cycle Days', formData.cycleDays)}
+            {renderField('Period Days', formData.periodDays)}
+            {renderField('Last Menstrual Period', formData.lastMenstrualPeriod)}
+            {renderBooleanField('Infertility Doctor', formData.infertilityDoctor)}
+            {renderField('Infertility Details', formData.infertilityDetails)}
+            {renderBooleanField('Household Marijuana Use', formData.householdMarijuana)}
+            {renderBooleanField('Pregnancy Problems', formData.pregnancyProblems)}
+            {renderField('Pregnancy Problems Details', formData.pregnancyProblemsDetails)}
+            {renderBooleanField('Children Health Problems', formData.childrenHealthProblems)}
+            {renderField('Children Health Details', formData.childrenHealthDetails)}
+            {renderBooleanField('Currently Breastfeeding', formData.breastfeeding)}
+            {renderField('Breastfeeding Stop Date', formData.breastfeedingStopDate)}
+            {renderBooleanField('Tattoos/Piercings (Last 1.5 years)', formData.tattoosPiercings)}
+            {renderField('Tattoos/Piercings Date', formData.tattoosPiercingsDate)}
+            {renderBooleanField('Depression Medication', formData.depressionMedication)}
+            {renderField('Depression Medication Details', formData.depressionMedicationDetails)}
+            {renderBooleanField('Drug/Alcohol Abuse', formData.drugAlcoholAbuse)}
+            {renderBooleanField('Excess Heat Exposure', formData.excessHeat)}
+            {renderBooleanField('Alcohol Limit Advised', formData.alcoholLimitAdvised)}
             {renderField('Smoking Status', formData.smokingStatus)}
+            {renderBooleanField('Smoked During Pregnancy', formData.smokedDuringPregnancy)}
             {renderField('Alcohol Usage', formData.alcoholUsage)}
             {renderBooleanField('Illegal Drugs', formData.illegalDrugs)}
             {renderBooleanField('Mental Health Treatment', formData.mentalHealthTreatment)}
             {renderBooleanField('Postpartum Depression', formData.postpartumDepression)}
             {renderBooleanField('Hepatitis B Vaccinated', formData.hepatitisBVaccinated)}
+            {renderBooleanField('Allergies', formData.allergies)}
+            {renderField('Allergies Details', formData.allergiesDetails)}
             {renderField('Children List', formData.childrenList)}
             {renderField('Current Medications', formData.currentMedications)}
           </>
@@ -234,11 +309,18 @@ export default function ViewApplicationScreen({ navigation }) {
         {/* Step 4: Sexual History */}
         {renderSection('Sexual History', 'shield', '#9C27B0',
           <>
+            {renderField('Past Contraceptives', formData.pastContraceptives)}
             {renderBooleanField('Current Birth Control', formData.currentBirthControl)}
             {renderField('Birth Control Method', formData.birthControlMethod)}
+            {renderField('Birth Control Duration', formData.birthControlDuration)}
             {renderBooleanField('Sexual Partner', formData.sexualPartner)}
+            {renderBooleanField('Multiple Partners', formData.multiplePartners)}
             {renderField('Partners (Last 3 Years)', formData.partnersLastThreeYears)}
+            {renderBooleanField('High Risk HIV Contact', formData.highRiskHIVContact)}
+            {renderBooleanField('HIV Risk', formData.hivRisk)}
+            {renderBooleanField('Blood Transfusion', formData.bloodTransfusion)}
             {renderBooleanField('STD History', formData.stdHistory)}
+            {renderField('STD Details', formData.stdDetails)}
           </>
         )}
 
@@ -263,21 +345,52 @@ export default function ViewApplicationScreen({ navigation }) {
               formData.educationLevel === 'tradeSchool' ? 'Trade School' :
               formData.educationLevel || 'N/A'
             )}
-            {renderField('Referral Code', formData.referralCode)}
+            {renderField('Trade School Specify', formData.tradeSchoolDetails)}
           </>
         )}
 
-        {/* Step 7: Preferences */}
-        {renderSection('Preferences', 'settings', '#607D8B',
+        {/* Step 7: General Questions & Preferences */}
+        {renderSection('General Questions & Preferences', 'settings', '#607D8B',
           <>
             {renderField('Surrogacy Understanding', formData.surrogacyUnderstanding)}
             {renderField('Self Introduction', formData.selfIntroduction)}
+            {renderField('Main Concerns', Array.isArray(formData.mainConcerns) ? formData.mainConcerns.join(', ') : formData.mainConcerns)}
+            {renderField('Parent Qualities', formData.parentQualities)}
+            {renderBooleanField('Religious Background Preference', formData.religiousPreference)}
+            {renderBooleanField('Work with Unmarried Couple', formData.unmarriedCouple)}
+            {renderBooleanField('Work with Heterosexual Couple', formData.heterosexualCouple)}
             {renderBooleanField('Work with Same Sex Couple', formData.sameSexCouple)}
             {renderBooleanField('Work with Single Male', formData.singleMale)}
             {renderBooleanField('Work with Single Female', formData.singleFemale)}
+            {renderBooleanField('Work with Egg Donor', formData.eggDonor)}
+            {renderBooleanField('Work with Sperm Donor', formData.spermDonor)}
+            {renderBooleanField('Work with Older Couple', formData.olderCouple)}
+            {renderBooleanField('Work with Couple with Children', formData.coupleWithChildren)}
             {renderBooleanField('Work with International Couple', formData.internationalCouple)}
-            {renderBooleanField('Carry Twins', formData.carryTwins)}
-            {renderBooleanField('Parents in Delivery Room', formData.parentsInDeliveryRoom)}
+            {renderBooleanField('Work with Non-English Speaking Couple', formData.nonEnglishSpeaking)}
+            {renderBooleanField('Willing to Carry Twins', formData.carryTwins)}
+            {renderBooleanField('Willing to Reduce Multiples', formData.reduceMultiples)}
+            {renderBooleanField('Willing to Undergo Amniocentesis', formData.amniocentesis)}
+            {renderBooleanField('Willing to Abort for Birth Defects', formData.abortBirthDefects)}
+            {renderField('Contact During Process', formData.contactDuringProcess)}
+            {renderField('Contact After Birth', formData.contactAfterBirth)}
+            {renderBooleanField('Concerns About Placing Baby', formData.concernsPlacingBaby)}
+            {renderBooleanField('Permit Parents in Delivery Room', formData.parentsInDeliveryRoom)}
+            {renderBooleanField('Permit Parents at Doctor Appointments', formData.parentsAtAppointments)}
+            {renderBooleanField('Permit Hospital Notification', formData.hospitalNotification)}
+            {renderBooleanField('Allow Parents Names on Birth Certificate', formData.parentsOnBirthCertificate)}
+            {renderBooleanField('Currently Applying Elsewhere', formData.applyingElsewhere)}
+            {renderBooleanField('Previously Rejected Elsewhere', formData.previouslyRejected)}
+            {renderBooleanField('Able to Attend Prenatal Check-ups', formData.attendPrenatalCheckups)}
+            {renderBooleanField('Willing to Undergo Medical Examinations', formData.medicalExaminations)}
+            {renderBooleanField('Able to Follow Lifestyle Guidelines', formData.lifestyleGuidelines)}
+            {renderBooleanField('Willing to Avoid Long-distance Travel', formData.avoidLongTravel)}
+            {renderBooleanField('Willing to Refrain from High-risk Work', formData.refrainHighRiskWork)}
+            {renderBooleanField('Placed Child for Adoption', formData.placedForAdoption)}
+            {renderField('Expected Support', formData.expectedSupport)}
+            {renderBooleanField('Non-supportive People', formData.nonSupportivePeople)}
+            {renderField('Husband/Partner Feelings', formData.partnerFeelings)}
+            {renderBooleanField('Adequate Child Care Support', formData.childCareSupport)}
           </>
         )}
 
@@ -285,6 +398,7 @@ export default function ViewApplicationScreen({ navigation }) {
         {renderSection('Authorization', 'check-square', '#F44336',
           <>
             {renderBooleanField('Authorization Agreed', formData.authorizationAgreed)}
+            {renderField('Applicant Address', formData.applicantAddress)}
             {renderField('Emergency Contact', formData.emergencyContact)}
           </>
         )}
