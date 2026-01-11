@@ -13,9 +13,13 @@ export const dynamic = 'force-dynamic';
 function writeLog(location: string, message: string, data: any, hypothesisId: string = 'G') {
   try {
     const logEntry = JSON.stringify({location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId}) + '\n';
-    appendFileSync(join(process.cwd(), '.cursor', 'debug.log'), logEntry);
+    const logPath = join(process.cwd(), '.cursor', 'debug.log');
+    appendFileSync(logPath, logEntry);
+    // Also log to console for Vercel deployment
+    console.log(`[DEBUG] ${location}: ${message}`, JSON.stringify(data, null, 2));
   } catch (e) {
-    // Silently fail if log file cannot be written
+    // Fallback to console if file write fails
+    console.log(`[DEBUG] ${location}: ${message}`, JSON.stringify(data, null, 2));
   }
 }
 
@@ -107,17 +111,27 @@ export async function GET(req: NextRequest) {
 
     if (allMatchesError) throw allMatchesError;
 
+    // Get filter parameters early to determine if we should filter by transfer_date
+    const medicalExamDateFrom = searchParams.get('medical_exam_date_from');
+    const medicalExamDateTo = searchParams.get('medical_exam_date_to');
+    
     // Filter matches with transfer_date
+    // BUT: If user is filtering by medical exam date, include ALL matches (even without transfer_date)
+    // because they might have a medical exam date but no transfer date yet
     // #region agent log
     const f887BeforeFilter = allMatches?.find(m => m.claim_id === 'MATCH-F887A9CE');
-    writeLog('route.ts:88', 'Before transfer_date filter', {totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null}, 'H');
+    writeLog('route.ts:88', 'Before transfer_date filter', {totalAllMatches:allMatches?.length||0,f887Match:f887BeforeFilter?{id:f887BeforeFilter.id,claimId:f887BeforeFilter.claim_id,surrogateId:f887BeforeFilter.surrogate_id,transferDate:f887BeforeFilter.transfer_date}:null,filteringByMedicalExam:!!(medicalExamDateFrom || medicalExamDateTo)}, 'H');
     // #endregion
     
-    let matches = allMatches?.filter(m => m.transfer_date !== null) || [];
+    // Only filter by transfer_date if NOT filtering by medical exam date
+    // This allows matches with medical exam dates but no transfer_date to be included
+    let matches = (medicalExamDateFrom || medicalExamDateTo) 
+      ? (allMatches || [])  // Include all matches when filtering by medical exam date
+      : (allMatches?.filter(m => m.transfer_date !== null) || []);  // Otherwise, only matches with transfer_date
 
     // #region agent log
     const f887AfterFilter = matches.find(m => m.claim_id === 'MATCH-F887A9CE');
-    writeLog('route.ts:95', 'After transfer_date filter', {totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id}:null,f887Included:!!f887AfterFilter}, 'D');
+    writeLog('route.ts:95', 'After transfer_date filter', {totalMatches:matches.length,matchesWithClaimId:matches.filter(m=>m.claim_id).map(m=>({id:m.id,claimId:m.claim_id,surrogateId:m.surrogate_id,transferDate:m.transfer_date})),f887Match:f887AfterFilter?{id:f887AfterFilter.id,claimId:f887AfterFilter.claim_id,surrogateId:f887AfterFilter.surrogate_id,transferDate:f887AfterFilter.transfer_date}:null,f887Included:!!f887AfterFilter}, 'D');
     // #endregion
 
     // Get surrogate profiles for filtering
