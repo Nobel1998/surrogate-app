@@ -691,7 +691,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Email *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.email = ref; }}
+          ref={(ref) => { step1InputRefs.current.email = ref; }}
           style={styles.input}
           placeholder="Enter email address"
           value={applicationData.parent1Email}
@@ -703,7 +703,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Person other than spouse to be notified in case of emergency: *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.emergencyContact = ref; }}
+          ref={(ref) => { step1InputRefs.current.emergencyContact = ref; }}
           style={styles.input}
           placeholder="Enter emergency contact name"
           value={applicationData.parent1EmergencyContact}
