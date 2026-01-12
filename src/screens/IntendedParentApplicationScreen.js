@@ -473,8 +473,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   const renderStep1 = () => {
+    const scrollViewRef = React.useRef(null);
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Family Structure</Text>
         <Text style={styles.label}>What is your family structure? *</Text>
         {['married', 'domestic_partners', 'same_sex_couple', 'single_father', 'single_mother'].map((option) => (
@@ -584,6 +592,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Blood Type *"
           value={applicationData.parent1BloodType}
           onChangeText={(text) => updateField('parent1BloodType', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <TextInput
@@ -591,6 +604,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Citizenship *"
           value={applicationData.parent1Citizenship}
           onChangeText={(text) => updateField('parent1Citizenship', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <TextInput
@@ -598,6 +616,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Country/State of Residence *"
           value={applicationData.parent1CountryState}
           onChangeText={(text) => updateField('parent1CountryState', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <TextInput
@@ -605,6 +628,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Occupation: *"
           value={applicationData.parent1Occupation}
           onChangeText={(text) => updateField('parent1Occupation', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <TextInput
@@ -612,6 +640,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="What languages do you speak? *"
           value={applicationData.parent1Languages}
           onChangeText={(text) => updateField('parent1Languages', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <Text style={styles.label}>Phone Number *</Text>
@@ -646,6 +679,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           onChangeText={(text) => updateField('parent1Email', text)}
           keyboardType="email-address"
           autoCapitalize="none"
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <TextInput
@@ -653,6 +691,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Person other than spouse to be notified in case of emergency: *"
           value={applicationData.parent1EmergencyContact}
           onChangeText={(text) => updateField('parent1EmergencyContact', text)}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
         />
 
         <Text style={styles.label}>Address *</Text>
@@ -1576,7 +1619,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
     >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
