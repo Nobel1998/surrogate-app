@@ -25,6 +25,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   
+  // Refs for Step 1 scroll view and input fields
+  const step1ScrollViewRef = React.useRef(null);
+  const step1InputRefs = React.useRef({});
+  
   const [applicationData, setApplicationData] = useState({
     // Step 1: Family Structure & Basic Information
     familyStructure: '', // married, domestic_partners, same_sex_couple, single_father, single_mother
@@ -473,28 +477,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   const renderStep1 = () => {
-    const scrollViewRef = React.useRef(null);
-    const inputRefs = {};
-    
     const handleInputFocus = (inputName) => {
       return () => {
         setTimeout(() => {
-          if (inputRefs[inputName] && scrollViewRef.current) {
-            inputRefs[inputName].measureLayout(
-              scrollViewRef.current,
+          if (step1InputRefs.current[inputName] && step1ScrollViewRef.current) {
+            step1InputRefs.current[inputName].measureLayout(
+              step1ScrollViewRef.current,
               (x, y) => {
-                scrollViewRef.current?.scrollTo({
+                step1ScrollViewRef.current?.scrollTo({
                   y: y - 100,
                   animated: true,
                 });
               },
               () => {
                 // Fallback to scrollToEnd if measureLayout fails
-                scrollViewRef.current?.scrollToEnd({ animated: true });
+                step1ScrollViewRef.current?.scrollToEnd({ animated: true });
               }
             );
           } else {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+            step1ScrollViewRef.current?.scrollToEnd({ animated: true });
           }
         }, 100);
       };
@@ -502,7 +503,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     
     return (
       <ScrollView 
-        ref={scrollViewRef}
+        ref={step1ScrollViewRef}
         style={styles.stepContent}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
