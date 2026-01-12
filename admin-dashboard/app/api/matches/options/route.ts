@@ -117,6 +117,7 @@ export async function GET(req: NextRequest) {
         beta_confirm_date,
         due_date,
         legal_clearance_date,
+        medication_start_date,
         clinic,
         embryos,
         lawyer,

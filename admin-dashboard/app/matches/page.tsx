@@ -56,6 +56,7 @@ type Match = {
   beta_confirm_date?: string | null;
   due_date?: string | null;
   legal_clearance_date?: string | null;
+  medication_start_date?: string | null;
   clinic?: string | null;
   embryos?: string | null;
   lawyer?: string | null;
@@ -196,6 +197,8 @@ export default function MatchesPage() {
   const [betaConfirmDateValue, setBetaConfirmDateValue] = useState<string>('');
   const [editingLegalClearanceDate, setEditingLegalClearanceDate] = useState<string | null>(null);
   const [legalClearanceDateValue, setLegalClearanceDateValue] = useState<string>('');
+  const [editingMedicationStartDate, setEditingMedicationStartDate] = useState<string | null>(null);
+  const [medicationStartDateValue, setMedicationStartDateValue] = useState<string>('');
   // Text fields
   const [editingClinic, setEditingClinic] = useState<string | null>(null);
   const [clinicValue, setClinicValue] = useState<string>('');
@@ -910,6 +913,32 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Legal Clearance Date:', err);
       alert(err.message || 'Failed to update Legal Clearance Date');
+    }
+  };
+
+  const handleUpdateMedicationStartDate = async (matchId: string) => {
+    try {
+      const dateValue = medicationStartDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medication_start_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Medication Start Date');
+      }
+
+      await loadData();
+      setEditingMedicationStartDate(null);
+      setMedicationStartDateValue('');
+      alert('Medication Start Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Medication Start Date:', err);
+      alert(err.message || 'Failed to update Medication Start Date');
     }
   };
 
@@ -3612,6 +3641,64 @@ export default function MatchesPage() {
                               >
                                 {m.legal_clearance_date 
                                   ? formatDateOnly(m.legal_clearance_date)
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Medication Start Date</div>
+                            {editingMedicationStartDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={medicationStartDateValue}
+                                  onChange={(e) => setMedicationStartDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateMedicationStartDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingMedicationStartDate(null);
+                                      setMedicationStartDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateMedicationStartDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingMedicationStartDate(null);
+                                    setMedicationStartDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingMedicationStartDate(m.id);
+                                  if (m.medication_start_date) {
+                                    const date = new Date(m.medication_start_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setMedicationStartDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setMedicationStartDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Medication Start Date"
+                              >
+                                {m.medication_start_date 
+                                  ? formatDateOnly(m.medication_start_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
