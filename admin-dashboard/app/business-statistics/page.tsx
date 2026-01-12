@@ -54,6 +54,8 @@ type Filters = {
     medicalExamDateTo: string | null;
     legalClearanceDateFrom: string | null;
     legalClearanceDateTo: string | null;
+    medicationStartDateFrom: string | null;
+    medicationStartDateTo: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
@@ -126,6 +128,10 @@ export default function BusinessStatisticsPage() {
   const [selectedLegalClearanceDateFrom, setSelectedLegalClearanceDateFrom] = useState<string>('');
   const [selectedLegalClearanceDateTo, setSelectedLegalClearanceDateTo] = useState<string>('');
   
+  // Filter state - Medication Start Date
+  const [selectedMedicationStartDateFrom, setSelectedMedicationStartDateFrom] = useState<string>('');
+  const [selectedMedicationStartDateTo, setSelectedMedicationStartDateTo] = useState<string>('');
+  
   // UI state for collapsible sections
   const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
   const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
@@ -173,6 +179,8 @@ export default function BusinessStatisticsPage() {
       if (selectedMedicalExamDateTo) params.append('medical_exam_date_to', selectedMedicalExamDateTo);
       if (selectedLegalClearanceDateFrom) params.append('legal_clearance_date_from', selectedLegalClearanceDateFrom);
       if (selectedLegalClearanceDateTo) params.append('legal_clearance_date_to', selectedLegalClearanceDateTo);
+      if (selectedMedicationStartDateFrom) params.append('medication_start_date_from', selectedMedicationStartDateFrom);
+      if (selectedMedicationStartDateTo) params.append('medication_start_date_to', selectedMedicationStartDateTo);
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -227,6 +235,8 @@ export default function BusinessStatisticsPage() {
     setSelectedMedicalExamDateTo('');
     setSelectedLegalClearanceDateFrom('');
     setSelectedLegalClearanceDateTo('');
+    setSelectedMedicationStartDateFrom('');
+    setSelectedMedicationStartDateTo('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -255,7 +265,8 @@ export default function BusinessStatisticsPage() {
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
     selectedObgynDoctor, selectedDeliveryHospital, selectedTransferHotel, selectedClientMaritalStatus, selectedClientBloodType,
-    selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo
+    selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo,
+    selectedMedicationStartDateFrom, selectedMedicationStartDateTo
   ]);
 
   const exportToCSV = () => {
@@ -875,6 +886,25 @@ export default function BusinessStatisticsPage() {
                     type="date"
                     value={selectedLegalClearanceDateTo}
                     onChange={(e) => setSelectedLegalClearanceDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Medication Start Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Medication Start Date From</label>
+                  <input
+                    type="date"
+                    value={selectedMedicationStartDateFrom}
+                    onChange={(e) => setSelectedMedicationStartDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Medication Start Date To</label>
+                  <input
+                    type="date"
+                    value={selectedMedicationStartDateTo}
+                    onChange={(e) => setSelectedMedicationStartDateTo(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

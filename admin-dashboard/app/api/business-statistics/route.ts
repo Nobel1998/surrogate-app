@@ -79,12 +79,14 @@ export async function GET(req: NextRequest) {
     const deliveryDateTo = searchParams.get('delivery_date_to');
     const legalClearanceDateFrom = searchParams.get('legal_clearance_date_from');
     const legalClearanceDateTo = searchParams.get('legal_clearance_date_to');
+    const medicationStartDateFrom = searchParams.get('medication_start_date_from');
+    const medicationStartDateTo = searchParams.get('medication_start_date_to');
     const embryoCount = searchParams.get('embryo_count'); // Number of embryos transferred
 
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel')
+      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel, medication_start_date')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -258,7 +260,7 @@ export async function GET(req: NextRequest) {
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
-        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
+        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || medicationStartDateFrom || medicationStartDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
         obgynDoctor || deliveryHospital || transferHotel || medicalExamDateFrom || medicalExamDateTo) {
       matches = matches.filter(match => {
@@ -617,6 +619,32 @@ export async function GET(req: NextRequest) {
             return false;
           }
           if (toDate && clearanceDateOnly > toDate) {
+            return false;
+          }
+        }
+
+        // Filter by medication start date range
+        if (medicationStartDateFrom || medicationStartDateTo) {
+          if (!match.medication_start_date) return false; // No medication start date, exclude
+          
+          // Compare dates by date only (ignore time) to avoid timezone issues
+          const medicationDateMatch = String(match.medication_start_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          let medicationDateOnly: Date;
+          if (medicationDateMatch) {
+            const [, year, month, day] = medicationDateMatch;
+            medicationDateOnly = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          } else {
+            medicationDateOnly = new Date(match.medication_start_date);
+            medicationDateOnly.setHours(0, 0, 0, 0);
+          }
+          
+          const fromDate = medicationStartDateFrom ? new Date(medicationStartDateFrom + 'T00:00:00') : null;
+          const toDate = medicationStartDateTo ? new Date(medicationStartDateTo + 'T23:59:59') : null;
+          
+          if (fromDate && medicationDateOnly < fromDate) {
+            return false;
+          }
+          if (toDate && medicationDateOnly > toDate) {
             return false;
           }
         }
