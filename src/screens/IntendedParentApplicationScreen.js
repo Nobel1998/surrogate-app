@@ -613,46 +613,51 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </TouchableOpacity>
         ))}
 
+        <Text style={styles.label}>Blood Type *</Text>
         <TextInput
           ref={(ref) => { inputRefs.bloodType = ref; }}
           style={styles.input}
-          placeholder="Blood Type *"
+          placeholder="Enter blood type"
           value={applicationData.parent1BloodType}
           onChangeText={(text) => updateField('parent1BloodType', text)}
           onFocus={handleInputFocus('bloodType')}
         />
 
+        <Text style={styles.label}>Citizenship *</Text>
         <TextInput
           ref={(ref) => { inputRefs.citizenship = ref; }}
           style={styles.input}
-          placeholder="Citizenship *"
+          placeholder="Enter citizenship"
           value={applicationData.parent1Citizenship}
           onChangeText={(text) => updateField('parent1Citizenship', text)}
           onFocus={handleInputFocus('citizenship')}
         />
 
+        <Text style={styles.label}>Country/State of Residence *</Text>
         <TextInput
           ref={(ref) => { inputRefs.countryState = ref; }}
           style={styles.input}
-          placeholder="Country/State of Residence *"
+          placeholder="Enter country/state"
           value={applicationData.parent1CountryState}
           onChangeText={(text) => updateField('parent1CountryState', text)}
           onFocus={handleInputFocus('countryState')}
         />
 
+        <Text style={styles.label}>Occupation: *</Text>
         <TextInput
           ref={(ref) => { inputRefs.occupation = ref; }}
           style={styles.input}
-          placeholder="Occupation: *"
+          placeholder="Enter occupation"
           value={applicationData.parent1Occupation}
           onChangeText={(text) => updateField('parent1Occupation', text)}
           onFocus={handleInputFocus('occupation')}
         />
 
+        <Text style={styles.label}>What languages do you speak? *</Text>
         <TextInput
           ref={(ref) => { inputRefs.languages = ref; }}
           style={styles.input}
-          placeholder="What languages do you speak? *"
+          placeholder="Enter languages"
           value={applicationData.parent1Languages}
           onChangeText={(text) => updateField('parent1Languages', text)}
           onFocus={handleInputFocus('languages')}
@@ -683,10 +688,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           />
         </View>
 
+        <Text style={styles.label}>Email *</Text>
         <TextInput
           ref={(ref) => { inputRefs.email = ref; }}
           style={styles.input}
-          placeholder="Email *"
+          placeholder="Enter email address"
           value={applicationData.parent1Email}
           onChangeText={(text) => updateField('parent1Email', text)}
           keyboardType="email-address"
@@ -694,10 +700,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           onFocus={handleInputFocus('email')}
         />
 
+        <Text style={styles.label}>Person other than spouse to be notified in case of emergency: *</Text>
         <TextInput
           ref={(ref) => { inputRefs.emergencyContact = ref; }}
           style={styles.input}
-          placeholder="Person other than spouse to be notified in case of emergency: *"
+          placeholder="Enter emergency contact name"
           value={applicationData.parent1EmergencyContact}
           onChangeText={(text) => updateField('parent1EmergencyContact', text)}
           onFocus={handleInputFocus('emergencyContact')}
