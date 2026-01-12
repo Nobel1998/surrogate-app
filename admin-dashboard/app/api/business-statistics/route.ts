@@ -873,6 +873,10 @@ export async function GET(req: NextRequest) {
           transferNumber: transferNumber || null,
           medicalExamDateFrom: medicalExamDateFrom || null,
           medicalExamDateTo: medicalExamDateTo || null,
+          legalClearanceDateFrom: legalClearanceDateFrom || null,
+          legalClearanceDateTo: legalClearanceDateTo || null,
+          medicationStartDateFrom: medicationStartDateFrom || null,
+          medicationStartDateTo: medicationStartDateTo || null,
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
