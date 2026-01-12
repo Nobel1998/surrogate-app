@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date')
+      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -251,6 +251,7 @@ export async function GET(req: NextRequest) {
     const applicationStatus = searchParams.get('application_status'); // Initial review result
     const obgynDoctor = searchParams.get('obgyn_doctor');
     const deliveryHospital = searchParams.get('delivery_hospital');
+    const transferHotel = searchParams.get('transfer_hotel');
     // medicalExamDateFrom and medicalExamDateTo are already defined above (line 115-116)
 
 
@@ -259,7 +260,7 @@ export async function GET(req: NextRequest) {
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
         deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
-        obgynDoctor || deliveryHospital || medicalExamDateFrom || medicalExamDateTo) {
+        obgynDoctor || deliveryHospital || transferHotel || medicalExamDateFrom || medicalExamDateTo) {
       matches = matches.filter(match => {
         // Filter by surrogate age
         if (surrogateAgeRange) {
@@ -558,6 +559,13 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Filter by transfer hotel
+        if (transferHotel) {
+          if (!match.transfer_hotel || !match.transfer_hotel.toLowerCase().includes(transferHotel.toLowerCase())) {
+            return false;
+          }
+        }
+
         // Filter by medical examination date range (Pre-Transfer exam)
         if (medicalExamDateFrom || medicalExamDateTo) {
           const examDate = match.surrogate_id ? surrogateMedicalExamMap.get(match.surrogate_id) : null;
@@ -733,15 +741,17 @@ export async function GET(req: NextRequest) {
     const applicationStatuses = new Set<string>();
     const obgynDoctors = new Set<string>();
     const deliveryHospitals = new Set<string>();
+    const transferHotels = new Set<string>();
     
     surrogateProfiles?.forEach(profile => {
       if (profile.location) surrogateLocations.add(profile.location);
       if (profile.race) surrogateRaces.add(profile.race);
     });
     
-    // Collect IVF clinics from both matches table and medical_info table
+    // Collect IVF clinics and transfer hotels from matches table
     allMatches?.forEach(match => {
       if (match.clinic) ivfClinics.add(match.clinic);
+      if (match.transfer_hotel) transferHotels.add(match.transfer_hotel);
     });
     
     surrogateMedicalInfo?.forEach(info => {
@@ -831,6 +841,7 @@ export async function GET(req: NextRequest) {
           applicationStatus: applicationStatus || null,
           obgynDoctor: obgynDoctor || null,
           deliveryHospital: deliveryHospital || null,
+          transferHotel: transferHotel || null,
           transferNumber: transferNumber || null,
           medicalExamDateFrom: medicalExamDateFrom || null,
           medicalExamDateTo: medicalExamDateTo || null,
@@ -849,6 +860,7 @@ export async function GET(req: NextRequest) {
           deliveryHistoryOptions: ['0', '1', '2+'],
           obgynDoctors: Array.from(obgynDoctors).sort(),
           deliveryHospitals: Array.from(deliveryHospitals).sort(),
+          transferHotels: Array.from(transferHotels).sort(),
         },
       },
     };

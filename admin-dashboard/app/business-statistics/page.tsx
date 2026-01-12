@@ -48,6 +48,7 @@ type Filters = {
     applicationStatus: string | null;
     obgynDoctor: string | null;
     deliveryHospital: string | null;
+    transferHotel: string | null;
     transferNumber: string | null;
     medicalExamDateFrom: string | null;
     medicalExamDateTo: string | null;
@@ -68,6 +69,7 @@ type Filters = {
     deliveryHistoryOptions: string[];
     obgynDoctors: string[];
     deliveryHospitals: string[];
+    transferHotels: string[];
   };
 };
 
@@ -107,6 +109,7 @@ export default function BusinessStatisticsPage() {
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState<string>('');
   const [selectedObgynDoctor, setSelectedObgynDoctor] = useState<string>('');
   const [selectedDeliveryHospital, setSelectedDeliveryHospital] = useState<string>('');
+  const [selectedTransferHotel, setSelectedTransferHotel] = useState<string>('');
   
   // Filter state - Client Details
   const [selectedClientMaritalStatus, setSelectedClientMaritalStatus] = useState<string>('');
@@ -165,6 +168,7 @@ export default function BusinessStatisticsPage() {
       if (selectedApplicationStatus) params.append('application_status', selectedApplicationStatus);
       if (selectedObgynDoctor) params.append('obgyn_doctor', selectedObgynDoctor);
       if (selectedDeliveryHospital) params.append('delivery_hospital', selectedDeliveryHospital);
+      if (selectedTransferHotel) params.append('transfer_hotel', selectedTransferHotel);
       if (selectedMedicalExamDateFrom) params.append('medical_exam_date_from', selectedMedicalExamDateFrom);
       if (selectedMedicalExamDateTo) params.append('medical_exam_date_to', selectedMedicalExamDateTo);
       if (selectedLegalClearanceDateFrom) params.append('legal_clearance_date_from', selectedLegalClearanceDateFrom);
@@ -218,6 +222,7 @@ export default function BusinessStatisticsPage() {
     setSelectedApplicationStatus('');
     setSelectedObgynDoctor('');
     setSelectedDeliveryHospital('');
+    setSelectedTransferHotel('');
     setSelectedMedicalExamDateFrom('');
     setSelectedMedicalExamDateTo('');
     setSelectedLegalClearanceDateFrom('');
@@ -249,7 +254,7 @@ export default function BusinessStatisticsPage() {
     selectedFetalBeatDateFrom, selectedFetalBeatDateTo, selectedDeliveryDateFrom, selectedDeliveryDateTo,
     selectedEmbryoCount, selectedSurrogateBMI, selectedSurrogateBloodType, selectedSurrogateMaritalStatus,
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
-    selectedObgynDoctor, selectedDeliveryHospital, selectedClientMaritalStatus, selectedClientBloodType,
+    selectedObgynDoctor, selectedDeliveryHospital, selectedTransferHotel, selectedClientMaritalStatus, selectedClientBloodType,
     selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo
   ]);
 
@@ -818,6 +823,20 @@ export default function BusinessStatisticsPage() {
                     <option value="">All</option>
                     {filters?.available.deliveryHospitals.map(hospital => (
                       <option key={hospital} value={hospital}>{hospital}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Transfer Hotel */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Transfer Hotel</label>
+                  <select
+                    value={selectedTransferHotel}
+                    onChange={(e) => setSelectedTransferHotel(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {filters?.available.transferHotels.map(hotel => (
+                      <option key={hotel} value={hotel}>{hotel}</option>
                     ))}
                   </select>
                 </div>
