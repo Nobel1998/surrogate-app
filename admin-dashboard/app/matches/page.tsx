@@ -57,6 +57,7 @@ type Match = {
   due_date?: string | null;
   legal_clearance_date?: string | null;
   medication_start_date?: string | null;
+  pregnancy_test_date?: string | null;
   clinic?: string | null;
   embryos?: string | null;
   lawyer?: string | null;
@@ -199,6 +200,8 @@ export default function MatchesPage() {
   const [legalClearanceDateValue, setLegalClearanceDateValue] = useState<string>('');
   const [editingMedicationStartDate, setEditingMedicationStartDate] = useState<string | null>(null);
   const [medicationStartDateValue, setMedicationStartDateValue] = useState<string>('');
+  const [editingPregnancyTestDate, setEditingPregnancyTestDate] = useState<string | null>(null);
+  const [pregnancyTestDateValue, setPregnancyTestDateValue] = useState<string>('');
   // Text fields
   const [editingClinic, setEditingClinic] = useState<string | null>(null);
   const [clinicValue, setClinicValue] = useState<string>('');
@@ -939,6 +942,32 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Medication Start Date:', err);
       alert(err.message || 'Failed to update Medication Start Date');
+    }
+  };
+
+  const handleUpdatePregnancyTestDate = async (matchId: string) => {
+    try {
+      const dateValue = pregnancyTestDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pregnancy_test_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Pregnancy Test Date');
+      }
+
+      await loadData();
+      setEditingPregnancyTestDate(null);
+      setPregnancyTestDateValue('');
+      alert('Pregnancy Test Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Pregnancy Test Date:', err);
+      alert(err.message || 'Failed to update Pregnancy Test Date');
     }
   };
 
@@ -3699,6 +3728,64 @@ export default function MatchesPage() {
                               >
                                 {m.medication_start_date 
                                   ? formatDateOnly(m.medication_start_date)
+                                  : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Pregnancy Test Date</div>
+                            {editingPregnancyTestDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={pregnancyTestDateValue}
+                                  onChange={(e) => setPregnancyTestDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdatePregnancyTestDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingPregnancyTestDate(null);
+                                      setPregnancyTestDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdatePregnancyTestDate(m.id)}
+                                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingPregnancyTestDate(null);
+                                    setPregnancyTestDateValue('');
+                                  }}
+                                  className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onClick={() => {
+                                  setEditingPregnancyTestDate(m.id);
+                                  if (m.pregnancy_test_date) {
+                                    const date = new Date(m.pregnancy_test_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setPregnancyTestDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setPregnancyTestDateValue('');
+                                  }
+                                }}
+                                className="px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
+                                title="Click to edit Pregnancy Test Date"
+                              >
+                                {m.pregnancy_test_date 
+                                  ? formatDateOnly(m.pregnancy_test_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
                               </div>
                             )}
