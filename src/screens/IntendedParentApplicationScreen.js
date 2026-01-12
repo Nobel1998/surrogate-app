@@ -474,6 +474,32 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
   const renderStep1 = () => {
     const scrollViewRef = React.useRef(null);
+    const inputRefs = {};
+    
+    const handleInputFocus = (inputName) => {
+      return () => {
+        setTimeout(() => {
+          if (inputRefs[inputName] && scrollViewRef.current) {
+            inputRefs[inputName].measureLayout(
+              scrollViewRef.current,
+              (x, y) => {
+                scrollViewRef.current?.scrollTo({
+                  y: y - 100,
+                  animated: true,
+                });
+              },
+              () => {
+                // Fallback to scrollToEnd if measureLayout fails
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }
+            );
+          } else {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      };
+    };
+    
     return (
       <ScrollView 
         ref={scrollViewRef}
@@ -588,63 +614,48 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         ))}
 
         <TextInput
+          ref={(ref) => { inputRefs.bloodType = ref; }}
           style={styles.input}
           placeholder="Blood Type *"
           value={applicationData.parent1BloodType}
           onChangeText={(text) => updateField('parent1BloodType', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('bloodType')}
         />
 
         <TextInput
+          ref={(ref) => { inputRefs.citizenship = ref; }}
           style={styles.input}
           placeholder="Citizenship *"
           value={applicationData.parent1Citizenship}
           onChangeText={(text) => updateField('parent1Citizenship', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('citizenship')}
         />
 
         <TextInput
+          ref={(ref) => { inputRefs.countryState = ref; }}
           style={styles.input}
           placeholder="Country/State of Residence *"
           value={applicationData.parent1CountryState}
           onChangeText={(text) => updateField('parent1CountryState', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('countryState')}
         />
 
         <TextInput
+          ref={(ref) => { inputRefs.occupation = ref; }}
           style={styles.input}
           placeholder="Occupation: *"
           value={applicationData.parent1Occupation}
           onChangeText={(text) => updateField('parent1Occupation', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('occupation')}
         />
 
         <TextInput
+          ref={(ref) => { inputRefs.languages = ref; }}
           style={styles.input}
           placeholder="What languages do you speak? *"
           value={applicationData.parent1Languages}
           onChangeText={(text) => updateField('parent1Languages', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('languages')}
         />
 
         <Text style={styles.label}>Phone Number *</Text>
@@ -673,29 +684,23 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         </View>
 
         <TextInput
+          ref={(ref) => { inputRefs.email = ref; }}
           style={styles.input}
           placeholder="Email *"
           value={applicationData.parent1Email}
           onChangeText={(text) => updateField('parent1Email', text)}
           keyboardType="email-address"
           autoCapitalize="none"
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('email')}
         />
 
         <TextInput
+          ref={(ref) => { inputRefs.emergencyContact = ref; }}
           style={styles.input}
           placeholder="Person other than spouse to be notified in case of emergency: *"
           value={applicationData.parent1EmergencyContact}
           onChangeText={(text) => updateField('parent1EmergencyContact', text)}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }}
+          onFocus={handleInputFocus('emergencyContact')}
         />
 
         <Text style={styles.label}>Address *</Text>
@@ -1802,6 +1807,9 @@ const styles = StyleSheet.create({
   stepContent: {
     flex: 1,
     padding: 16,
+  },
+  scrollContent: {
+    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: 20,
