@@ -16,6 +16,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
 import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen';
+import IntendedParentApplicationScreen from './src/screens/IntendedParentApplicationScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import LandingScreen from './src/screens/LandingScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
