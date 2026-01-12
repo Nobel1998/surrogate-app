@@ -56,6 +56,8 @@ type Filters = {
     legalClearanceDateTo: string | null;
     medicationStartDateFrom: string | null;
     medicationStartDateTo: string | null;
+    pregnancyTestDateFrom: string | null;
+    pregnancyTestDateTo: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
@@ -132,6 +134,10 @@ export default function BusinessStatisticsPage() {
   const [selectedMedicationStartDateFrom, setSelectedMedicationStartDateFrom] = useState<string>('');
   const [selectedMedicationStartDateTo, setSelectedMedicationStartDateTo] = useState<string>('');
   
+  // Filter state - Pregnancy Test Date
+  const [selectedPregnancyTestDateFrom, setSelectedPregnancyTestDateFrom] = useState<string>('');
+  const [selectedPregnancyTestDateTo, setSelectedPregnancyTestDateTo] = useState<string>('');
+  
   // UI state for collapsible sections
   const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
   const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
@@ -181,6 +187,8 @@ export default function BusinessStatisticsPage() {
       if (selectedLegalClearanceDateTo) params.append('legal_clearance_date_to', selectedLegalClearanceDateTo);
       if (selectedMedicationStartDateFrom) params.append('medication_start_date_from', selectedMedicationStartDateFrom);
       if (selectedMedicationStartDateTo) params.append('medication_start_date_to', selectedMedicationStartDateTo);
+      if (selectedPregnancyTestDateFrom) params.append('pregnancy_test_date_from', selectedPregnancyTestDateFrom);
+      if (selectedPregnancyTestDateTo) params.append('pregnancy_test_date_to', selectedPregnancyTestDateTo);
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -237,6 +245,8 @@ export default function BusinessStatisticsPage() {
     setSelectedLegalClearanceDateTo('');
     setSelectedMedicationStartDateFrom('');
     setSelectedMedicationStartDateTo('');
+    setSelectedPregnancyTestDateFrom('');
+    setSelectedPregnancyTestDateTo('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -266,7 +276,7 @@ export default function BusinessStatisticsPage() {
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
     selectedObgynDoctor, selectedDeliveryHospital, selectedTransferHotel, selectedClientMaritalStatus, selectedClientBloodType,
     selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo,
-    selectedMedicationStartDateFrom, selectedMedicationStartDateTo
+    selectedMedicationStartDateFrom, selectedMedicationStartDateTo, selectedPregnancyTestDateFrom, selectedPregnancyTestDateTo
   ]);
 
   const exportToCSV = () => {

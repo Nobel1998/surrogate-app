@@ -81,12 +81,14 @@ export async function GET(req: NextRequest) {
     const legalClearanceDateTo = searchParams.get('legal_clearance_date_to');
     const medicationStartDateFrom = searchParams.get('medication_start_date_from');
     const medicationStartDateTo = searchParams.get('medication_start_date_to');
+    const pregnancyTestDateFrom = searchParams.get('pregnancy_test_date_from');
+    const pregnancyTestDateTo = searchParams.get('pregnancy_test_date_to');
     const embryoCount = searchParams.get('embryo_count'); // Number of embryos transferred
 
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel, medication_start_date')
+      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel, medication_start_date, pregnancy_test_date')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -260,7 +262,7 @@ export async function GET(req: NextRequest) {
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
-        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || medicationStartDateFrom || medicationStartDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
+        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || medicationStartDateFrom || medicationStartDateTo || pregnancyTestDateFrom || pregnancyTestDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
         obgynDoctor || deliveryHospital || transferHotel || medicalExamDateFrom || medicalExamDateTo) {
       matches = matches.filter(match => {
@@ -645,6 +647,32 @@ export async function GET(req: NextRequest) {
             return false;
           }
           if (toDate && medicationDateOnly > toDate) {
+            return false;
+          }
+        }
+
+        // Filter by pregnancy test date range
+        if (pregnancyTestDateFrom || pregnancyTestDateTo) {
+          if (!match.pregnancy_test_date) return false; // No pregnancy test date, exclude
+          
+          // Compare dates by date only (ignore time) to avoid timezone issues
+          const pregnancyTestDateMatch = String(match.pregnancy_test_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          let pregnancyTestDateOnly: Date;
+          if (pregnancyTestDateMatch) {
+            const [, year, month, day] = pregnancyTestDateMatch;
+            pregnancyTestDateOnly = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          } else {
+            pregnancyTestDateOnly = new Date(match.pregnancy_test_date);
+            pregnancyTestDateOnly.setHours(0, 0, 0, 0);
+          }
+          
+          const fromDate = pregnancyTestDateFrom ? new Date(pregnancyTestDateFrom + 'T00:00:00') : null;
+          const toDate = pregnancyTestDateTo ? new Date(pregnancyTestDateTo + 'T23:59:59') : null;
+          
+          if (fromDate && pregnancyTestDateOnly < fromDate) {
+            return false;
+          }
+          if (toDate && pregnancyTestDateOnly > toDate) {
             return false;
           }
         }
