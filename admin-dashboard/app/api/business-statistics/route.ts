@@ -905,6 +905,8 @@ export async function GET(req: NextRequest) {
           legalClearanceDateTo: legalClearanceDateTo || null,
           medicationStartDateFrom: medicationStartDateFrom || null,
           medicationStartDateTo: medicationStartDateTo || null,
+          pregnancyTestDateFrom: pregnancyTestDateFrom || null,
+          pregnancyTestDateTo: pregnancyTestDateTo || null,
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
