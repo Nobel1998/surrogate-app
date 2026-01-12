@@ -50,6 +50,22 @@ export default function LandingScreen({ navigation }) {
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
 
+            {/* Intended Parents Path */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('IntendedParentApplication')}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: '#F0FDF4' }]}>
+                <Icon name="heart" size={24} color="#22C55E" />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardTitle}>Become Intended Parents</Text>
+                <Text style={styles.cardSubtitle}>Start your family journey</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#A0A3BD" />
+            </TouchableOpacity>
+
             {/* Auth Path (parents & surrogates) */}
             <TouchableOpacity
               style={styles.actionCard}

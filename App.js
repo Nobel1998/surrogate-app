@@ -189,6 +189,7 @@ function GuestStackNavigator() {
       <Stack.Screen name="LoginScreen" component={LoginScreen} />
       <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
+      <Stack.Screen name="IntendedParentApplication" component={IntendedParentApplicationScreen} />
     </Stack.Navigator>
   );
 }
@@ -204,6 +205,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="MedicalReportForm" component={MedicalReportFormScreen} />
       <Stack.Screen name="IntendedParentsProfile" component={IntendedParentsProfileScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
+      <Stack.Screen name="IntendedParentApplication" component={IntendedParentApplicationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="Benefits" component={BenefitsScreen} />
       <Stack.Screen name="Ambassador" component={AmbassadorScreen} />

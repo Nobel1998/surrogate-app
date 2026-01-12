@@ -1,0 +1,1914 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import AsyncStorageLib from '../utils/Storage';
+import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
+import { useLanguage } from '../context/LanguageContext';
+
+export default function IntendedParentApplicationScreen({ navigation, route }) {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  
+  // Edit mode parameters
+  const editMode = route?.params?.editMode || false;
+  const applicationId = route?.params?.applicationId || null;
+  const existingData = route?.params?.existingData || null;
+  
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 9;
+  const [isLoading, setIsLoading] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [formVersion, setFormVersion] = useState(0);
+  
+  const [applicationData, setApplicationData] = useState({
+    // Step 1: Family Structure & Basic Information
+    familyStructure: '', // married, domestic_partners, same_sex_couple, single_father, single_mother
+    hearAboutUs: '', // google_search, youtube, online_resources, facebook, friend, other_agency, ai, clinic_referral
+    
+    // Intended Parent 1
+    parent1FirstName: '',
+    parent1LastName: '',
+    parent1DateOfBirthMonth: '',
+    parent1DateOfBirthDay: '',
+    parent1DateOfBirthYear: '',
+    parent1Gender: '', // male, female
+    parent1BloodType: '',
+    parent1Citizenship: '',
+    parent1CountryState: '',
+    parent1Occupation: '',
+    parent1Languages: '',
+    parent1PhoneCountryCode: '',
+    parent1PhoneAreaCode: '',
+    parent1PhoneNumber: '',
+    parent1Email: '',
+    parent1EmergencyContact: '',
+    parent1AddressStreet: '',
+    parent1AddressStreet2: '',
+    parent1AddressCity: '',
+    parent1AddressState: '',
+    parent1AddressZip: '',
+    
+    // Step 2: Intended Parent 2 (if applicable)
+    parent2FirstName: '',
+    parent2LastName: '',
+    parent2DateOfBirthMonth: '',
+    parent2DateOfBirthDay: '',
+    parent2DateOfBirthYear: '',
+    parent2Gender: '', // male, female
+    parent2BloodType: '',
+    parent2Citizenship: '',
+    parent2CountryState: '',
+    parent2Occupation: '',
+    parent2Languages: '',
+    parent2PhoneCountryCode: '',
+    parent2PhoneAreaCode: '',
+    parent2PhoneNumber: '',
+    parent2Email: '',
+    
+    // Step 3: Family Background
+    howLongTogether: '',
+    haveChildren: null, // true, false
+    childrenDetails: '', // ages, gender, IVF/surrogacy/natural birth
+    
+    // Step 4: Medical & Fertility History
+    reasonForSurrogacy: '', // infertility_diagnosis, medical_condition, same_sex_couple, single_parent
+    undergoneIVF: null, // true, false
+    needDonorEggs: null, // true, false
+    needDonorSperm: null, // true, false
+    haveEmbryos: null, // true, false
+    numberOfEmbryos: '',
+    pgtATested: null, // true, false
+    embryoDevelopmentDay: '', // day_3, day_5, day_6
+    frozenAtClinic: '',
+    clinicEmail: '',
+    fertilityDoctorName: '',
+    hivHepatitisSTD: '',
+    
+    // Step 5: Surrogate Preferences
+    preferredSurrogateAgeRange: '',
+    surrogateLocationPreference: '', // california, nationwide, specific_states, no_preference
+    specificStates: '',
+    acceptPreviousCSections: null, // true, false
+    preferNoWorkDuringPregnancy: null, // true, false
+    preferStableHome: null, // true, false
+    preferFlexibleSchedule: null, // true, false
+    haveDietPreference: null, // true, false
+    dietPreference: '',
+    communicationPreference: '', // weekly_updates, monthly_updates, major_medical_only, prefer_text, prefer_video, no_preference
+    relationshipStyle: '', // close_relationship, moderate_relationship, minimal_contact, no_preference
+    preferOBGYNGuidelines: null, // true, false
+    
+    // Step 6: More Surrogate Preferences
+    preferAvoidHeavyLifting: null, // true, false
+    preferAvoidTravel: null, // true, false
+    comfortableLocalHospital: null, // true, false
+    preferOpenToSelectiveReduction: null, // true, false
+    preferOpenToTerminationMedical: null, // true, false
+    preferPreviousSurrogacyExperience: '', // yes, no, no_preference
+    preferStrongSupportSystem: null, // true, false
+    preferMarried: '', // yes, no, no_preference
+    preferStableIncome: null, // true, false
+    preferComfortableWithAppointments: '', // yes, no, no_preference
+    
+    // Step 7: More Surrogate Preferences (continued)
+    preferComfortableWithBirth: '', // yes, no, no_preference
+    
+    // Step 8: General Questions
+    transferMoreThanOneEmbryo: null, // true, false
+    attorneyName: '',
+    attorneyEmail: '',
+    haveTranslator: null, // true, false
+    translatorName: '',
+    translatorEmail: '',
+    preparedForFailedTransfer: null, // true, false
+    willingMultipleCycles: null, // true, false
+    emotionallyPrepared: null, // true, false
+    ableToHandleDelays: null, // true, false
+    
+    // Step 9: Letter to Surrogate
+    letterToSurrogate: '',
+  });
+
+  // Load existing data if in edit mode
+  useEffect(() => {
+    if (editMode && existingData) {
+      setApplicationData(existingData);
+    } else if (user) {
+      // Pre-fill with user data if available
+      setApplicationData(prev => ({
+        ...prev,
+        parent1Email: user.email || '',
+        parent1PhoneNumber: user.phone || '',
+      }));
+    }
+  }, [editMode, existingData, user]);
+
+  // Check if user needs to sign up
+  useEffect(() => {
+    if (!user && currentStep > 1) {
+      setShowAuthPrompt(true);
+    }
+  }, [user, currentStep]);
+
+  const updateField = (field, value) => {
+    setApplicationData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    setFormVersion(prev => prev + 1);
+  };
+
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      // Validate current step before proceeding
+      if (validateStep(currentStep)) {
+        setCurrentStep(currentStep + 1);
+      }
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        if (!applicationData.familyStructure) {
+          Alert.alert('Required Field', 'Please select your family structure.');
+          return false;
+        }
+        if (!applicationData.hearAboutUs) {
+          Alert.alert('Required Field', 'Please select how you heard about us.');
+          return false;
+        }
+        if (!applicationData.parent1FirstName || !applicationData.parent1LastName) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 name.');
+          return false;
+        }
+        if (!applicationData.parent1DateOfBirthMonth || !applicationData.parent1DateOfBirthDay || !applicationData.parent1DateOfBirthYear) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 date of birth.');
+          return false;
+        }
+        if (!applicationData.parent1Gender) {
+          Alert.alert('Required Field', 'Please select Intended Parent 1 gender.');
+          return false;
+        }
+        if (!applicationData.parent1BloodType) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 blood type.');
+          return false;
+        }
+        if (!applicationData.parent1Citizenship) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 citizenship.');
+          return false;
+        }
+        if (!applicationData.parent1CountryState) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 country/state of residence.');
+          return false;
+        }
+        if (!applicationData.parent1Occupation) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 occupation.');
+          return false;
+        }
+        if (!applicationData.parent1Languages) {
+          Alert.alert('Required Field', 'Please enter languages spoken by Intended Parent 1.');
+          return false;
+        }
+        if (!applicationData.parent1PhoneNumber) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 phone number.');
+          return false;
+        }
+        if (!applicationData.parent1Email) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 email.');
+          return false;
+        }
+        if (!applicationData.parent1EmergencyContact) {
+          Alert.alert('Required Field', 'Please enter emergency contact person.');
+          return false;
+        }
+        if (!applicationData.parent1AddressStreet || !applicationData.parent1AddressCity || !applicationData.parent1AddressState || !applicationData.parent1AddressZip) {
+          Alert.alert('Required Field', 'Please enter complete address.');
+          return false;
+        }
+        break;
+      case 2:
+        // Only validate if family structure requires parent 2
+        if (applicationData.familyStructure !== 'single_father' && applicationData.familyStructure !== 'single_mother') {
+          if (!applicationData.parent2FirstName || !applicationData.parent2LastName) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 name.');
+            return false;
+          }
+          if (!applicationData.parent2DateOfBirthMonth || !applicationData.parent2DateOfBirthDay || !applicationData.parent2DateOfBirthYear) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 date of birth.');
+            return false;
+          }
+          if (!applicationData.parent2Gender) {
+            Alert.alert('Required Field', 'Please select Intended Parent 2 gender.');
+            return false;
+          }
+          if (!applicationData.parent2BloodType) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 blood type.');
+            return false;
+          }
+          if (!applicationData.parent2Citizenship) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 citizenship.');
+            return false;
+          }
+          if (!applicationData.parent2CountryState) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 country/state of residence.');
+            return false;
+          }
+          if (!applicationData.parent2Occupation) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 occupation.');
+            return false;
+          }
+          if (!applicationData.parent2Languages) {
+            Alert.alert('Required Field', 'Please enter languages spoken by Intended Parent 2.');
+            return false;
+          }
+          if (!applicationData.parent2PhoneNumber) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 phone number.');
+            return false;
+          }
+          if (!applicationData.parent2Email) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 email.');
+            return false;
+          }
+        }
+        break;
+      case 3:
+        if (!applicationData.howLongTogether) {
+          Alert.alert('Required Field', 'Please enter how long you have been together.');
+          return false;
+        }
+        if (applicationData.haveChildren === null) {
+          Alert.alert('Required Field', 'Please indicate if you have children.');
+          return false;
+        }
+        if (applicationData.haveChildren && !applicationData.childrenDetails) {
+          Alert.alert('Required Field', 'Please provide details about your children.');
+          return false;
+        }
+        break;
+      case 4:
+        if (!applicationData.reasonForSurrogacy) {
+          Alert.alert('Required Field', 'Please select reason for pursuing surrogacy.');
+          return false;
+        }
+        if (applicationData.undergoneIVF === null) {
+          Alert.alert('Required Field', 'Please indicate if you have undergone IVF.');
+          return false;
+        }
+        if (applicationData.needDonorEggs === null) {
+          Alert.alert('Required Field', 'Please indicate if you need donor eggs.');
+          return false;
+        }
+        if (applicationData.needDonorSperm === null) {
+          Alert.alert('Required Field', 'Please indicate if you need donor sperm.');
+          return false;
+        }
+        if (applicationData.haveEmbryos === null) {
+          Alert.alert('Required Field', 'Please indicate if you currently have embryos.');
+          return false;
+        }
+        if (applicationData.haveEmbryos && !applicationData.numberOfEmbryos) {
+          Alert.alert('Required Field', 'Please enter number of embryos.');
+          return false;
+        }
+        if (applicationData.haveEmbryos && applicationData.pgtATested === null) {
+          Alert.alert('Required Field', 'Please indicate if embryos are PGT-A tested.');
+          return false;
+        }
+        if (applicationData.haveEmbryos && !applicationData.embryoDevelopmentDay) {
+          Alert.alert('Required Field', 'Please indicate development day of embryos.');
+          return false;
+        }
+        if (applicationData.haveEmbryos && !applicationData.frozenAtClinic) {
+          Alert.alert('Required Field', 'Please enter clinic where embryos are frozen.');
+          return false;
+        }
+        if (applicationData.haveEmbryos && !applicationData.clinicEmail) {
+          Alert.alert('Required Field', 'Please enter clinic email contact.');
+          return false;
+        }
+        if (!applicationData.fertilityDoctorName) {
+          Alert.alert('Required Field', 'Please enter fertility doctor name.');
+          return false;
+        }
+        if (!applicationData.hivHepatitisSTD) {
+          Alert.alert('Required Field', 'Please indicate HIV, Hepatitis, or STD status.');
+          return false;
+        }
+        break;
+      // Steps 5-9 validation can be added as needed
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(currentStep)) {
+      return;
+    }
+
+    if (!user) {
+      setShowAuthPrompt(true);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const formDataToSave = JSON.stringify(applicationData);
+
+      if (editMode && applicationId) {
+        // Update existing application
+        const { data, error } = await supabase
+          .from('intended_parent_applications')
+          .update({
+            form_data: formDataToSave,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', applicationId)
+          .select();
+
+        if (error) throw error;
+
+        Alert.alert(
+          'Success',
+          'Application updated successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      } else {
+        // Create new application
+        const { data, error } = await supabase
+          .from('intended_parent_applications')
+          .insert({
+            user_id: user.id,
+            form_data: formDataToSave,
+            status: 'pending',
+            submitted_at: new Date().toISOString(),
+          })
+          .select();
+
+        if (error) throw error;
+
+        // Save to local storage for history
+        const application = {
+          id: data[0].id,
+          type: 'Intended Parent Application',
+          status: 'pending',
+          submittedDate: new Date().toISOString().split('T')[0],
+          lastUpdated: new Date().toISOString().split('T')[0],
+          description: `Intended Parent Application - ${applicationData.parent1FirstName} ${applicationData.parent1LastName}`,
+          nextStep: 'Wait for initial review',
+          data: applicationData,
+        };
+
+        try {
+          const existingApplications = await AsyncStorageLib.getItem('user_applications');
+          let applications = [];
+          if (existingApplications) {
+            applications = JSON.parse(existingApplications);
+          }
+          applications.unshift(application);
+          await AsyncStorageLib.setItem('user_applications', JSON.stringify(applications));
+        } catch (storageError) {
+          console.error('Error saving application locally:', storageError);
+        }
+
+        Alert.alert(
+          'Success',
+          'Application submitted successfully! Our team will review and contact you within 5-7 business days.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      Alert.alert('Error', error.message || 'Failed to submit application. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      case 3:
+        return renderStep3();
+      case 4:
+        return renderStep4();
+      case 5:
+        return renderStep5();
+      case 6:
+        return renderStep6();
+      case 7:
+        return renderStep7();
+      case 8:
+        return renderStep8();
+      case 9:
+        return renderStep9();
+      default:
+        return null;
+    }
+  };
+
+  const renderStep1 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Family Structure</Text>
+        <Text style={styles.label}>What is your family structure? *</Text>
+        {['married', 'domestic_partners', 'same_sex_couple', 'single_father', 'single_mother'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.familyStructure === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('familyStructure', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'married' && 'Married Heterosexual couple'}
+              {option === 'domestic_partners' && 'Domestic partners (unmarried couple living together)'}
+              {option === 'same_sex_couple' && 'Same-sex couple'}
+              {option === 'single_father' && 'Single Father'}
+              {option === 'single_mother' && 'Single Mother'}
+            </Text>
+            {applicationData.familyStructure === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.sectionTitle}>Basic Information</Text>
+        
+        <Text style={styles.label}>How did you hear about us? *</Text>
+        {['google_search', 'youtube', 'online_resources', 'facebook', 'friend', 'other_agency', 'ai', 'clinic_referral'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.hearAboutUs === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('hearAboutUs', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'google_search' && 'Google Search'}
+              {option === 'youtube' && 'Youtube'}
+              {option === 'online_resources' && 'Online resources, etc'}
+              {option === 'facebook' && 'Facebook, X'}
+              {option === 'friend' && 'Friend'}
+              {option === 'other_agency' && 'Other Agency'}
+              {option === 'ai' && 'AI'}
+              {option === 'clinic_referral' && 'Clinic Referral'}
+            </Text>
+            {applicationData.hearAboutUs === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.sectionTitle}>Intended Parent 1 Name *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 8 }]}
+            placeholder="First Name"
+            value={applicationData.parent1FirstName}
+            onChangeText={(text) => updateField('parent1FirstName', text)}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 8 }]}
+            placeholder="Last Name"
+            value={applicationData.parent1LastName}
+            onChangeText={(text) => updateField('parent1LastName', text)}
+          />
+        </View>
+
+        <Text style={styles.label}>Date of Birth *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 4 }]}
+            placeholder="Month"
+            value={applicationData.parent1DateOfBirthMonth}
+            onChangeText={(text) => updateField('parent1DateOfBirthMonth', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
+            placeholder="Day"
+            value={applicationData.parent1DateOfBirthDay}
+            onChangeText={(text) => updateField('parent1DateOfBirthDay', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 4 }]}
+            placeholder="Year"
+            value={applicationData.parent1DateOfBirthYear}
+            onChangeText={(text) => updateField('parent1DateOfBirthYear', text)}
+            keyboardType="numeric"
+          />
+        </View>
+
+        <Text style={styles.label}>Gender *</Text>
+        {['male', 'female'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.parent1Gender === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('parent1Gender', option)}
+          >
+            <Text style={styles.radioText}>{option === 'male' ? 'Male' : 'Female'}</Text>
+            {applicationData.parent1Gender === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Blood Type *"
+          value={applicationData.parent1BloodType}
+          onChangeText={(text) => updateField('parent1BloodType', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Citizenship *"
+          value={applicationData.parent1Citizenship}
+          onChangeText={(text) => updateField('parent1Citizenship', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Country/State of Residence *"
+          value={applicationData.parent1CountryState}
+          onChangeText={(text) => updateField('parent1CountryState', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Occupation: *"
+          value={applicationData.parent1Occupation}
+          onChangeText={(text) => updateField('parent1Occupation', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="What languages do you speak? *"
+          value={applicationData.parent1Languages}
+          onChangeText={(text) => updateField('parent1Languages', text)}
+        />
+
+        <Text style={styles.label}>Phone Number *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 4 }]}
+            placeholder="Country Code"
+            value={applicationData.parent1PhoneCountryCode}
+            onChangeText={(text) => updateField('parent1PhoneCountryCode', text)}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
+            placeholder="Area Code"
+            value={applicationData.parent1PhoneAreaCode}
+            onChangeText={(text) => updateField('parent1PhoneAreaCode', text)}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 4 }]}
+            placeholder="Phone Number"
+            value={applicationData.parent1PhoneNumber}
+            onChangeText={(text) => updateField('parent1PhoneNumber', text)}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Email *"
+          value={applicationData.parent1Email}
+          onChangeText={(text) => updateField('parent1Email', text)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Person other than spouse to be notified in case of emergency: *"
+          value={applicationData.parent1EmergencyContact}
+          onChangeText={(text) => updateField('parent1EmergencyContact', text)}
+        />
+
+        <Text style={styles.label}>Address *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Street Address"
+          value={applicationData.parent1AddressStreet}
+          onChangeText={(text) => updateField('parent1AddressStreet', text)}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Street Address Line 2"
+          value={applicationData.parent1AddressStreet2}
+          onChangeText={(text) => updateField('parent1AddressStreet2', text)}
+        />
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 8 }]}
+            placeholder="City"
+            value={applicationData.parent1AddressCity}
+            onChangeText={(text) => updateField('parent1AddressCity', text)}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 8 }]}
+            placeholder="State / Province"
+            value={applicationData.parent1AddressState}
+            onChangeText={(text) => updateField('parent1AddressState', text)}
+          />
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Postal / Zip Code"
+          value={applicationData.parent1AddressZip}
+          onChangeText={(text) => updateField('parent1AddressZip', text)}
+        />
+      </ScrollView>
+    );
+  };
+
+  const renderStep2 = () => {
+    // Only show if not single parent
+    if (applicationData.familyStructure === 'single_father' || applicationData.familyStructure === 'single_mother') {
+      return (
+        <ScrollView style={styles.stepContent}>
+          <Text style={styles.infoText}>This step is not applicable for single parents.</Text>
+        </ScrollView>
+      );
+    }
+
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Intended Parent 2 Name *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 8 }]}
+            placeholder="First Name"
+            value={applicationData.parent2FirstName}
+            onChangeText={(text) => updateField('parent2FirstName', text)}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 8 }]}
+            placeholder="Last Name"
+            value={applicationData.parent2LastName}
+            onChangeText={(text) => updateField('parent2LastName', text)}
+          />
+        </View>
+
+        <Text style={styles.label}>Date of Birth *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 4 }]}
+            placeholder="Month"
+            value={applicationData.parent2DateOfBirthMonth}
+            onChangeText={(text) => updateField('parent2DateOfBirthMonth', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
+            placeholder="Day"
+            value={applicationData.parent2DateOfBirthDay}
+            onChangeText={(text) => updateField('parent2DateOfBirthDay', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 4 }]}
+            placeholder="Year"
+            value={applicationData.parent2DateOfBirthYear}
+            onChangeText={(text) => updateField('parent2DateOfBirthYear', text)}
+            keyboardType="numeric"
+          />
+        </View>
+
+        <Text style={styles.label}>Gender *</Text>
+        {['male', 'female'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.parent2Gender === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('parent2Gender', option)}
+          >
+            <Text style={styles.radioText}>{option === 'male' ? 'Male' : 'Female'}</Text>
+            {applicationData.parent2Gender === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Blood Type *"
+          value={applicationData.parent2BloodType}
+          onChangeText={(text) => updateField('parent2BloodType', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Citizenship *"
+          value={applicationData.parent2Citizenship}
+          onChangeText={(text) => updateField('parent2Citizenship', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Country/State of Residence *"
+          value={applicationData.parent2CountryState}
+          onChangeText={(text) => updateField('parent2CountryState', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Occupation: *"
+          value={applicationData.parent2Occupation}
+          onChangeText={(text) => updateField('parent2Occupation', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="What languages do you speak? *"
+          value={applicationData.parent2Languages}
+          onChangeText={(text) => updateField('parent2Languages', text)}
+        />
+
+        <Text style={styles.label}>Phone Number *</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 4 }]}
+            placeholder="Country Code"
+            value={applicationData.parent2PhoneCountryCode}
+            onChangeText={(text) => updateField('parent2PhoneCountryCode', text)}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
+            placeholder="Area Code"
+            value={applicationData.parent2PhoneAreaCode}
+            onChangeText={(text) => updateField('parent2PhoneAreaCode', text)}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, marginLeft: 4 }]}
+            placeholder="Phone Number"
+            value={applicationData.parent2PhoneNumber}
+            onChangeText={(text) => updateField('parent2PhoneNumber', text)}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Email *"
+          value={applicationData.parent2Email}
+          onChangeText={(text) => updateField('parent2Email', text)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      </ScrollView>
+    );
+  };
+
+  const renderStep3 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Family Background</Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="How long have you been together? *"
+          value={applicationData.howLongTogether}
+          onChangeText={(text) => updateField('howLongTogether', text)}
+        />
+
+        <Text style={styles.label}>Do you have any children? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.haveChildren === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('haveChildren', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.haveChildren === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        {applicationData.haveChildren && (
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="If yes, please list ages, gender and whether they were born via IVF, surrogacy, or natural birth. *"
+            value={applicationData.childrenDetails}
+            onChangeText={(text) => updateField('childrenDetails', text)}
+            multiline
+            numberOfLines={4}
+          />
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderStep4 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Medical & Fertility History</Text>
+        
+        <Text style={styles.label}>Reason for pursuing surrogacy *</Text>
+        {['infertility_diagnosis', 'medical_condition', 'same_sex_couple', 'single_parent'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.reasonForSurrogacy === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('reasonForSurrogacy', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'infertility_diagnosis' && 'Infertility diagnosis'}
+              {option === 'medical_condition' && 'Medical condition'}
+              {option === 'same_sex_couple' && 'Same-sex couple'}
+              {option === 'single_parent' && 'Single parent'}
+            </Text>
+            {applicationData.reasonForSurrogacy === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Have you undergone IVF to get pregnant by yourself before? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.undergoneIVF === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('undergoneIVF', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.undergoneIVF === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Do you need donor eggs? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.needDonorEggs === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('needDonorEggs', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.needDonorEggs === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Do you need donor sperm? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.needDonorSperm === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('needDonorSperm', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.needDonorSperm === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Do you currently have embryos? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.haveEmbryos === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('haveEmbryos', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.haveEmbryos === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        {applicationData.haveEmbryos && (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Number of embryos *"
+              value={applicationData.numberOfEmbryos}
+              onChangeText={(text) => updateField('numberOfEmbryos', text)}
+              keyboardType="numeric"
+            />
+
+            <Text style={styles.label}>PGT-A tested? *</Text>
+            {[true, false].map((option) => (
+              <TouchableOpacity
+                key={String(option)}
+                style={[
+                  styles.radioOption,
+                  applicationData.pgtATested === option && styles.radioOptionSelected,
+                ]}
+                onPress={() => updateField('pgtATested', option)}
+              >
+                <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+                {applicationData.pgtATested === option && <Text style={styles.radioCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+
+            <Text style={styles.label}>Please indicate the development day of your embryos: *</Text>
+            {['day_3', 'day_5', 'day_6'].map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.radioOption,
+                  applicationData.embryoDevelopmentDay === option && styles.radioOptionSelected,
+                ]}
+                onPress={() => updateField('embryoDevelopmentDay', option)}
+              >
+                <Text style={styles.radioText}>
+                  {option === 'day_3' && 'Day 3'}
+                  {option === 'day_5' && 'Day 5 (blastocyst)'}
+                  {option === 'day_6' && 'Day 6 (blastocyst)'}
+                </Text>
+                {applicationData.embryoDevelopmentDay === option && <Text style={styles.radioCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Frozen at which clinic? *"
+              value={applicationData.frozenAtClinic}
+              onChangeText={(text) => updateField('frozenAtClinic', text)}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Please list an email contact for your fertility clinic. *"
+              value={applicationData.clinicEmail}
+              onChangeText={(text) => updateField('clinicEmail', text)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </>
+        )}
+
+        <TextInput
+          style={styles.input}
+          placeholder="What is the name of the fertility doctor you are working with? *"
+          value={applicationData.fertilityDoctorName}
+          onChangeText={(text) => updateField('fertilityDoctorName', text)}
+        />
+
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Are you or have you ever been positive for any of the following things? If yes please list what specifically. HIV, Hepatitis A,B,or C or any STDs *"
+          value={applicationData.hivHepatitisSTD}
+          onChangeText={(text) => updateField('hivHepatitisSTD', text)}
+          multiline
+          numberOfLines={4}
+        />
+      </ScrollView>
+    );
+  };
+
+  const renderStep5 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Surrogate Preferences</Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="What is your preferred surrogate age range? *"
+          value={applicationData.preferredSurrogateAgeRange}
+          onChangeText={(text) => updateField('preferredSurrogateAgeRange', text)}
+        />
+
+        <Text style={styles.label}>Surrogate location preference *</Text>
+        {['california', 'nationwide', 'specific_states', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.surrogateLocationPreference === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('surrogateLocationPreference', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'california' && 'California'}
+              {option === 'nationwide' && 'Nationwide'}
+              {option === 'specific_states' && 'Specific states'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.surrogateLocationPreference === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        {applicationData.surrogateLocationPreference === 'specific_states' && (
+          <TextInput
+            style={styles.input}
+            placeholder="Please list which state *"
+            value={applicationData.specificStates}
+            onChangeText={(text) => updateField('specificStates', text)}
+          />
+        )}
+
+        <Text style={styles.label}>Accept a surrogate with previous C-sections? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.acceptPreviousCSections === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('acceptPreviousCSections', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.acceptPreviousCSections === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer a surrogate who does not work during pregnancy? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferNoWorkDuringPregnancy === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferNoWorkDuringPregnancy', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferNoWorkDuringPregnancy === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate with stable home environment? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferStableHome === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferStableHome', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferStableHome === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate with flexible schedule? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferFlexibleSchedule === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferFlexibleSchedule', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferFlexibleSchedule === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Do you have diet preference during pregnancy? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.haveDietPreference === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('haveDietPreference', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.haveDietPreference === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        {applicationData.haveDietPreference && (
+          <TextInput
+            style={styles.input}
+            placeholder="If yes, what is your preference *"
+            value={applicationData.dietPreference}
+            onChangeText={(text) => updateField('dietPreference', text)}
+          />
+        )}
+
+        <Text style={styles.label}>Communication Preferences *</Text>
+        {['weekly_updates', 'monthly_updates', 'major_medical_only', 'prefer_text', 'prefer_video', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.communicationPreference === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('communicationPreference', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'weekly_updates' && 'Weekly updates'}
+              {option === 'monthly_updates' && 'Monthly updates'}
+              {option === 'major_medical_only' && 'Only major medical updates'}
+              {option === 'prefer_text' && 'Prefer text messages'}
+              {option === 'prefer_video' && 'Prefer video calls'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.communicationPreference === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Relationship Style With Surrogate *</Text>
+        {['close_relationship', 'moderate_relationship', 'minimal_contact', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.relationshipStyle === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('relationshipStyle', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'close_relationship' && 'Close relationship (frequent communication)'}
+              {option === 'moderate_relationship' && 'Moderate relationship (regular updates)'}
+              {option === 'minimal_contact' && 'Prefer minimal contact'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.relationshipStyle === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate to follow specific OB/GYN guidelines? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferOBGYNGuidelines === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferOBGYNGuidelines', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferOBGYNGuidelines === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderStep6 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Surrogate Preferences (Continued)</Text>
+        
+        <Text style={styles.label}>Prefer surrogate to avoid heavy lifting? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferAvoidHeavyLifting === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferAvoidHeavyLifting', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferAvoidHeavyLifting === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate to avoid travel during pregnancy? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferAvoidTravel === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferAvoidTravel', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferAvoidTravel === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Comfortable with surrogate delivering in her local hospital? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.comfortableLocalHospital === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('comfortableLocalHospital', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.comfortableLocalHospital === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate who is open to selective reduction? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferOpenToSelectiveReduction === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferOpenToSelectiveReduction', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferOpenToSelectiveReduction === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate who is open to termination for medical reasons? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferOpenToTerminationMedical === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferOpenToTerminationMedical', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferOpenToTerminationMedical === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate with previous surrogacy experience? *</Text>
+        {['yes', 'no', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.preferPreviousSurrogacyExperience === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferPreviousSurrogacyExperience', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'yes' && 'Yes'}
+              {option === 'no' && 'No'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.preferPreviousSurrogacyExperience === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate with strong support system? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferStrongSupportSystem === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferStrongSupportSystem', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferStrongSupportSystem === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate who is married? *</Text>
+        {['yes', 'no', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.preferMarried === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferMarried', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'yes' && 'Yes'}
+              {option === 'no' && 'No'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.preferMarried === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate with stable income? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferStableIncome === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferStableIncome', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferStableIncome === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate who is comfortable with intended parents attending appointments? *</Text>
+        {['yes', 'no', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.preferComfortableWithAppointments === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferComfortableWithAppointments', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'yes' && 'Yes'}
+              {option === 'no' && 'No'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.preferComfortableWithAppointments === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderStep7 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Surrogate Preferences (Continued)</Text>
+        
+        <Text style={styles.label}>Prefer surrogate who is comfortable with intended parents being present at birth? *</Text>
+        {['yes', 'no', 'no_preference'].map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.radioOption,
+              applicationData.preferComfortableWithBirth === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferComfortableWithBirth', option)}
+          >
+            <Text style={styles.radioText}>
+              {option === 'yes' && 'Yes'}
+              {option === 'no' && 'No'}
+              {option === 'no_preference' && 'No preference'}
+            </Text>
+            {applicationData.preferComfortableWithBirth === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderStep8 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>General Questions</Text>
+        
+        <Text style={styles.label}>Will you transfer more than one embryo? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.transferMoreThanOneEmbryo === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('transferMoreThanOneEmbryo', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.transferMoreThanOneEmbryo === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Please list the attorney you are working with *"
+          value={applicationData.attorneyName}
+          onChangeText={(text) => updateField('attorneyName', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Please list the Attorney's Email address below. *"
+          value={applicationData.attorneyEmail}
+          onChangeText={(text) => updateField('attorneyEmail', text)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>Do you have a translator? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.haveTranslator === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('haveTranslator', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.haveTranslator === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        {applicationData.haveTranslator && (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Please list the name of your translator *"
+              value={applicationData.translatorName}
+              onChangeText={(text) => updateField('translatorName', text)}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Please provide translator email *"
+              value={applicationData.translatorEmail}
+              onChangeText={(text) => updateField('translatorEmail', text)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </>
+        )}
+
+        <Text style={styles.label}>Are you prepared for the possibility of a failed embryo transfer? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preparedForFailedTransfer === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preparedForFailedTransfer', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preparedForFailedTransfer === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Are you willing to attempt multiple cycles if needed? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.willingMultipleCycles === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('willingMultipleCycles', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.willingMultipleCycles === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Are you emotionally prepared for the full surrogacy journey? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.emotionallyPrepared === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('emotionallyPrepared', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.emotionallyPrepared === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Are you able to handle potential delays or medical risks? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.ableToHandleDelays === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('ableToHandleDelays', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.ableToHandleDelays === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderStep9 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>Letter to Surrogate</Text>
+        
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *"
+          value={applicationData.letterToSurrogate}
+          onChangeText={(text) => updateField('letterToSurrogate', text)}
+          multiline
+          numberOfLines={15}
+        />
+      </ScrollView>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Intended Parent Application</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${(currentStep / totalSteps) * 100}%` }]} />
+          </View>
+          <Text style={styles.progressText}>Step {currentStep} of {totalSteps}</Text>
+        </View>
+
+        {/* Step Content */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          {renderStepContent()}
+        </TouchableWithoutFeedback>
+
+        {/* Navigation Buttons */}
+        <View style={styles.navigationContainer}>
+          {currentStep > 1 && (
+            <TouchableOpacity style={styles.navButton} onPress={prevStep}>
+              <Text style={styles.navButtonText}>Previous</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.navButtonSpacer} />
+          {currentStep < totalSteps ? (
+            <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
+              <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>Next</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.navButton, styles.navButtonPrimary, isLoading && styles.navButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+            >
+              <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
+                {isLoading ? 'Submitting...' : 'Submit'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Auth Prompt Modal */}
+        {showAuthPrompt && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Sign Up Required</Text>
+              <Text style={styles.modalText}>
+                Please create an account to continue with your application.
+              </Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Email"
+                value={authEmail}
+                onChangeText={setAuthEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Password"
+                value={authPassword}
+                onChangeText={setAuthPassword}
+                secureTextEntry
+              />
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Confirm Password"
+                value={authPasswordConfirm}
+                onChangeText={setAuthPasswordConfirm}
+                secureTextEntry
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => setShowAuthPrompt(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={async () => {
+                    if (!authEmail.trim() || !authPassword.trim()) {
+                      Alert.alert('Error', 'Please fill in all fields');
+                      return;
+                    }
+                    if (authPassword !== authPasswordConfirm) {
+                      Alert.alert('Error', 'Passwords do not match');
+                      return;
+                    }
+                    setAuthLoading(true);
+                    try {
+                      const { data, error } = await supabase.auth.signUp({
+                        email: authEmail,
+                        password: authPassword,
+                      });
+                      if (error) throw error;
+                      setShowAuthPrompt(false);
+                      Alert.alert('Success', 'Account created! You can now continue with your application.');
+                    } catch (error) {
+                      Alert.alert('Error', error.message);
+                    } finally {
+                      setAuthLoading(false);
+                    }
+                  }}
+                  disabled={authLoading}
+                >
+                  <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
+                    {authLoading ? 'Creating...' : 'Sign Up'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </SafeAreaView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  backButton: {
+    padding: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2A7BF6',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1D1E',
+  },
+  headerSpacer: {
+    width: 60,
+  },
+  progressContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FA',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#2A7BF6',
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6E7191',
+    textAlign: 'center',
+  },
+  stepContent: {
+    flex: 1,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1D1E',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1A1D1E',
+    backgroundColor: '#fff',
+    marginBottom: 12,
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  row: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  radioOptionSelected: {
+    borderColor: '#2A7BF6',
+    backgroundColor: '#E3F2FD',
+  },
+  radioText: {
+    fontSize: 16,
+    color: '#1A1D1E',
+    flex: 1,
+  },
+  radioCheck: {
+    fontSize: 18,
+    color: '#2A7BF6',
+    fontWeight: 'bold',
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#6E7191',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+    backgroundColor: '#fff',
+  },
+  navButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center',
+  },
+  navButtonPrimary: {
+    backgroundColor: '#2A7BF6',
+  },
+  navButtonDisabled: {
+    opacity: 0.6,
+  },
+  navButtonSpacer: {
+    width: 12,
+  },
+  navButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1D1E',
+  },
+  navButtonTextPrimary: {
+    color: '#fff',
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#6E7191',
+    marginBottom: 20,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#F8F9FA',
+    marginRight: 8,
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#2A7BF6',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1D1E',
+  },
+  modalButtonTextPrimary: {
+    color: '#fff',
+  },
+});
