@@ -462,7 +462,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     
     setAuthLoading(true);
     try {
-      const role = 'intended_parent';
+      const role = 'parent';
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: authEmail.trim(),
         password: authPassword,
@@ -490,7 +490,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
               phone: applicationData.parent1PhoneNumber || '',
               email: authEmail.trim(),
-              role: 'intended_parent',
+              role: 'parent',
               invite_code: inviteCode,
             }, { onConflict: 'id' });
 
