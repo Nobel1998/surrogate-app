@@ -2025,9 +2025,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       <ScrollView style={styles.stepContent}>
         <Text style={styles.sectionTitle}>Letter to Surrogate</Text>
         
+        <Text style={styles.label}>Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *"
+          placeholder="Write your letter here"
           value={applicationData.letterToSurrogate}
           onChangeText={(text) => updateField('letterToSurrogate', text)}
           multiline
