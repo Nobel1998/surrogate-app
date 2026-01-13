@@ -521,6 +521,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate to follow specific OB/GYN guidelines.');
           return false;
         }
+        break;
+      case 6:
         if (applicationData.preferAvoidHeavyLifting === null) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate to avoid heavy lifting.');
           return false;
@@ -549,7 +551,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate with strong support system.');
           return false;
         }
-        if (applicationData.preferMarried === null) {
+        if (!applicationData.preferMarried) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is married.');
           return false;
         }
@@ -557,16 +559,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate with stable income.');
           return false;
         }
-        if (!applicationData.preferComfortableAttendingAppointments) {
+        if (!applicationData.preferComfortableWithAppointments) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents attending appointments.');
           return false;
         }
-        if (!applicationData.preferComfortableAtBirth) {
+        if (!applicationData.preferComfortableWithBirth) {
           Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents being present at birth.');
           return false;
         }
         break;
-      // Steps 6-9 validation can be added as needed
+      // Steps 7-9 validation can be added as needed
     }
     return true;
   };
