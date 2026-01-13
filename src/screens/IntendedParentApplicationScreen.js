@@ -221,7 +221,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   // Load existing data if in edit mode or restore draft
   useEffect(() => {
     if (editMode && existingData) {
-      setApplicationData(existingData);
+      // Ensure reasonForSurrogacy is an array (for backward compatibility)
+      const dataToSet = { ...existingData };
+      if (dataToSet.reasonForSurrogacy && !Array.isArray(dataToSet.reasonForSurrogacy)) {
+        dataToSet.reasonForSurrogacy = dataToSet.reasonForSurrogacy ? [dataToSet.reasonForSurrogacy] : [];
+      }
+      setApplicationData(dataToSet);
     } else if (user) {
       // Pre-fill with user data if available
       setApplicationData(prev => ({
