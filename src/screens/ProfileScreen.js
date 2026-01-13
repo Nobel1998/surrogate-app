@@ -23,6 +23,8 @@ export default function ProfileScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
   const [loadingApplication, setLoadingApplication] = useState(false);
+  const [intendedParentApplicationStatus, setIntendedParentApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
+  const [loadingIntendedParentApplication, setLoadingIntendedParentApplication] = useState(false);
 
   useEffect(() => {
     loadUserRole();
@@ -38,9 +40,10 @@ export default function ProfileScreen({ navigation }) {
         loadOnlineClaimsDoc();
         loadApplicationStatus();
       }
-      // Only load Trust Account for parents
+      // Only load Trust Account and Intended Parent Application for parents
       if (userRole === 'parent') {
         loadTrustAccountDoc();
+        loadIntendedParentApplicationStatus();
       }
     }
   }, [user, userRole]);
@@ -228,6 +231,36 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const loadIntendedParentApplicationStatus = async () => {
+    if (!user?.id) {
+      setIntendedParentApplicationStatus('none');
+      return;
+    }
+    
+    setLoadingIntendedParentApplication(true);
+    try {
+      const { data, error } = await supabase
+        .from('intended_parent_applications')
+        .select('id, status, submitted_at')
+        .eq('user_id', user.id)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading intended parent application status:', error);
+        setIntendedParentApplicationStatus('none');
+      } else {
+        setIntendedParentApplicationStatus(data ? 'submitted' : 'none');
+      }
+    } catch (error) {
+      console.error('Failed to load intended parent application status:', error);
+      setIntendedParentApplicationStatus('none');
+    } finally {
+      setLoadingIntendedParentApplication(false);
+    }
+  };
+
   const handleApplicationPress = () => {
     if (applicationStatus === 'submitted') {
       // Navigate to view application
@@ -235,6 +268,16 @@ export default function ProfileScreen({ navigation }) {
     } else {
       // Navigate to submit application
       navigation.navigate('SurrogateApplication');
+    }
+  };
+
+  const handleIntendedParentApplicationPress = () => {
+    if (intendedParentApplicationStatus === 'submitted') {
+      // Navigate to Application History to view the application
+      navigation.navigate('ApplicationHistory');
+    } else {
+      // Navigate to submit intended parent application
+      navigation.navigate('IntendedParentApplication');
     }
   };
 
@@ -274,7 +317,7 @@ export default function ProfileScreen({ navigation }) {
       }
       
       if (userRole === 'parent') {
-        refreshPromises.push(loadTrustAccountDoc());
+        refreshPromises.push(loadTrustAccountDoc(), loadIntendedParentApplicationStatus());
       }
       
       await Promise.all(refreshPromises);
@@ -696,16 +739,26 @@ export default function ProfileScreen({ navigation }) {
               )}
             </>
           )}
-          {/* Only show Trust Account for parents */}
+          {/* Only show Trust Account and Intended Parent Application for parents */}
           {userRole === 'parent' && (
-            renderMenuItem(
-              'Trust Account',
-              'dollar-sign',
-              handleTrustAccountPress,
-              '#00B894',
-              trustAccountDoc ? t('profile.available') : t('profile.notAvailable'),
-              loadingTrustAccountDoc
-            )
+            <>
+              {renderMenuItem(
+                intendedParentApplicationStatus === 'submitted' ? 'View Intended Parent Application' : 'Submit Intended Parent Application',
+                intendedParentApplicationStatus === 'submitted' ? 'file-text' : 'edit-3',
+                handleIntendedParentApplicationPress,
+                intendedParentApplicationStatus === 'submitted' ? '#4CAF50' : '#E91E63',
+                intendedParentApplicationStatus === 'submitted' ? 'Submitted' : 'Not Submitted',
+                loadingIntendedParentApplication
+              )}
+              {renderMenuItem(
+                'Trust Account',
+                'dollar-sign',
+                handleTrustAccountPress,
+                '#00B894',
+                trustAccountDoc ? t('profile.available') : t('profile.notAvailable'),
+                loadingTrustAccountDoc
+              )}
+            </>
           )}
           {/* Only show Application, Benefit Package, Injection Tutorial Videos, and Medical Info for surrogates */}
           {userRole === 'surrogate' && (

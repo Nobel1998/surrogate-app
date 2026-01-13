@@ -82,23 +82,35 @@ export default function ApplicationHistoryScreen({ navigation }) {
 
       console.log('🔐 Authenticated user ID:', authUser.id);
       
-      // 只查询当前用户的申请
-      const { data: supabaseApps, error } = await supabase
+      // 查询当前用户的 Surrogate 申请
+      const { data: supabaseApps, error: appsError } = await supabase
         .from('applications')
         .select('*')
-        .eq('user_id', authUser.id)  // 只获取当前用户的申请
+        .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (appsError) {
+        console.error('Supabase error loading applications:', appsError);
       }
 
-      console.log(`📊 Found ${supabaseApps?.length || 0} applications for current user`);
+      // 查询当前用户的 Intended Parent 申请
+      const { data: intendedParentApps, error: ipAppsError } = await supabase
+        .from('intended_parent_applications')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('submitted_at', { ascending: false });
 
+      if (ipAppsError) {
+        console.error('Supabase error loading intended parent applications:', ipAppsError);
+      }
+
+      console.log(`📊 Found ${supabaseApps?.length || 0} surrogate applications and ${intendedParentApps?.length || 0} intended parent applications`);
+
+      const allFormattedApps = [];
+
+      // 格式化 Surrogate 申请
       if (supabaseApps && supabaseApps.length > 0) {
-        // 转换Supabase数据为显示格式
-        const formattedApps = supabaseApps.map(app => {
+        const formattedSurrogateApps = supabaseApps.map(app => {
           let formData = {};
           try {
             if (app.form_data) {
@@ -118,19 +130,62 @@ export default function ApplicationHistoryScreen({ navigation }) {
             nextStep: getNextStepByStatus(app.status || 'pending'),
             documents: ['Application Form', 'Personal Information', 'Medical History', 'Background Check'],
             notes: getStatusNotes(app.status || 'pending'),
-            // 保存原始数据用于调试
             originalId: app.id,
             fullName: app.full_name || formData.fullName || 'Unknown',
             phone: app.phone || formData.phoneNumber || 'N/A',
             email: formData.email || 'N/A'
           };
         });
+        allFormattedApps.push(...formattedSurrogateApps);
+      }
 
-        console.log('✅ Formatted applications:', formattedApps.length);
-        setApplications(formattedApps);
+      // 格式化 Intended Parent 申请
+      if (intendedParentApps && intendedParentApps.length > 0) {
+        const formattedIPApps = intendedParentApps.map(app => {
+          let formData = {};
+          try {
+            if (app.form_data) {
+              formData = typeof app.form_data === 'string' ? JSON.parse(app.form_data) : app.form_data;
+            }
+          } catch (e) {
+            console.error('Error parsing intended parent form_data:', e);
+          }
+
+          const parent1Name = formData.parent1FirstName && formData.parent1LastName 
+            ? `${formData.parent1FirstName} ${formData.parent1LastName}`
+            : 'Applicant';
+
+          return {
+            id: `IP-APP-${app.id}`,
+            type: 'Intended Parent Application',
+            status: app.status || 'pending',
+            submittedDate: app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : new Date(app.created_at).toLocaleDateString(),
+            lastUpdated: app.updated_at ? new Date(app.updated_at).toLocaleDateString() : (app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : new Date(app.created_at).toLocaleDateString()),
+            description: `Intended Parent Application - ${parent1Name}`,
+            nextStep: getNextStepByStatus(app.status || 'pending'),
+            documents: ['Application Form', 'Family Information', 'Medical History', 'Surrogate Preferences'],
+            notes: getStatusNotes(app.status || 'pending'),
+            originalId: app.id,
+            applicationType: 'intended_parent',
+            formData: formData
+          };
+        });
+        allFormattedApps.push(...formattedIPApps);
+      }
+
+      // 按提交日期排序（最新的在前）
+      allFormattedApps.sort((a, b) => {
+        const dateA = new Date(a.submittedDate);
+        const dateB = new Date(b.submittedDate);
+        return dateB - dateA;
+      });
+
+      if (allFormattedApps.length > 0) {
+        console.log('✅ Formatted applications:', allFormattedApps.length);
+        setApplications(allFormattedApps);
         
         // 同时保存到本地作为缓存
-        await AsyncStorageLib.setItem('user_applications', JSON.stringify(formattedApps));
+        await AsyncStorageLib.setItem('user_applications', JSON.stringify(allFormattedApps));
         return;
       }
 
@@ -250,13 +305,37 @@ export default function ApplicationHistoryScreen({ navigation }) {
   });
 
   const getApplicationDetails = (application) => {
+    const actions = [
+      { text: 'Close', style: 'cancel' },
+      { text: 'View Documents', onPress: () => showDocuments(application) }
+    ];
+
+    // If it's an Intended Parent Application, add option to view full application
+    if (application.applicationType === 'intended_parent' && application.originalId) {
+      actions.splice(1, 0, {
+        text: 'View Full Application',
+        onPress: () => {
+          navigation.navigate('IntendedParentApplication', {
+            editMode: true,
+            applicationId: application.originalId,
+            existingData: application.formData || {}
+          });
+        }
+      });
+    } else if (application.type === 'Surrogacy Application' && application.originalId) {
+      // For Surrogate Application, navigate to ViewApplication
+      actions.splice(1, 0, {
+        text: 'View Full Application',
+        onPress: () => {
+          navigation.navigate('ViewApplication');
+        }
+      });
+    }
+
     Alert.alert(
       `Application Details - ${application.id}`,
       `Type: ${application.type}\nStatus: ${getStatusText(application.status)}\nSubmitted: ${application.submittedDate}\nLast Updated: ${application.lastUpdated}\n\nDescription: ${application.description}\n\nNext Step: ${application.nextStep}\n\nNotes: ${application.notes}`,
-      [
-        { text: 'Close', style: 'cancel' },
-        { text: 'View Documents', onPress: () => showDocuments(application) }
-      ]
+      actions
     );
   };
 
@@ -274,8 +353,7 @@ export default function ApplicationHistoryScreen({ navigation }) {
       'Select application type',
       [
         { text: 'Surrogacy Application', onPress: () => navigation.navigate('SurrogateApplication') },
-        { text: 'Medical Clearance', onPress: () => console.log('Create medical clearance application') },
-        { text: 'Legal Documentation', onPress: () => console.log('Create legal documentation application') },
+        { text: 'Intended Parent Application', onPress: () => navigation.navigate('IntendedParentApplication') },
         { text: 'Cancel', style: 'cancel' }
       ]
     );
