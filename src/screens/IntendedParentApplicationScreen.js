@@ -993,37 +993,42 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </TouchableOpacity>
         ))}
 
+        <Text style={styles.label}>Blood Type *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Blood Type *"
+          placeholder="Enter blood type"
           value={applicationData.parent2BloodType}
           onChangeText={(text) => updateField('parent2BloodType', text)}
         />
 
+        <Text style={styles.label}>Citizenship *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Citizenship *"
+          placeholder="Enter citizenship"
           value={applicationData.parent2Citizenship}
           onChangeText={(text) => updateField('parent2Citizenship', text)}
         />
 
+        <Text style={styles.label}>Country/State of Residence *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Country/State of Residence *"
+          placeholder="Enter country/state"
           value={applicationData.parent2CountryState}
           onChangeText={(text) => updateField('parent2CountryState', text)}
         />
 
+        <Text style={styles.label}>Occupation: *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Occupation: *"
+          placeholder="Enter occupation"
           value={applicationData.parent2Occupation}
           onChangeText={(text) => updateField('parent2Occupation', text)}
         />
 
+        <Text style={styles.label}>What languages do you speak? *</Text>
         <TextInput
           style={styles.input}
-          placeholder="What languages do you speak? *"
+          placeholder="Enter languages"
           value={applicationData.parent2Languages}
           onChangeText={(text) => updateField('parent2Languages', text)}
         />
