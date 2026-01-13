@@ -29,6 +29,21 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const step1ScrollViewRef = React.useRef(null);
   const step1InputRefs = React.useRef({});
   
+  // Generate invite code helper
+  const generateInviteCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const hasDigit = (str) => /\d/.test(str);
+    let code = '';
+    // ensure at least one digit
+    do {
+      code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+    } while (!hasDigit(code));
+    return code;
+  };
+  
   const [applicationData, setApplicationData] = useState({
     // Step 1: Family Structure & Basic Information
     familyStructure: '', // married, domestic_partners, same_sex_couple, single_father, single_mother
@@ -464,19 +479,31 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       const userId = authData?.user?.id;
       if (userId) {
-        // Upsert profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
-            phone: applicationData.parent1PhoneNumber || '',
-            email: authEmail.trim(),
-            role: 'intended_parent',
-          }, { onConflict: 'id' });
+        // Upsert profile with invite_code
+        let inviteCode = generateInviteCode();
+        let attempts = 0;
+        while (attempts < 3) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
+              phone: applicationData.parent1PhoneNumber || '',
+              email: authEmail.trim(),
+              role: 'intended_parent',
+              invite_code: inviteCode,
+            }, { onConflict: 'id' });
 
-        if (profileError) {
-          console.error('Profile upsert error:', profileError);
+          if (!profileError) break;
+
+          if (profileError.code === '23505') {
+            // duplicate invite_code, regenerate and retry
+            inviteCode = generateInviteCode();
+            attempts += 1;
+            continue;
+          }
+
+          throw profileError;
         }
 
         // Save draft under the new user key
