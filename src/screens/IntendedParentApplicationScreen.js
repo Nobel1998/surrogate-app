@@ -1269,16 +1269,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               </TouchableOpacity>
             ))}
 
+            <Text style={styles.label}>Frozen at which clinic? *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Frozen at which clinic? *"
+              placeholder="Enter clinic name"
               value={applicationData.frozenAtClinic}
               onChangeText={(text) => updateField('frozenAtClinic', text)}
             />
 
+            <Text style={styles.label}>Please list an email contact for your fertility clinic. *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Please list an email contact for your fertility clinic. *"
+              placeholder="Enter clinic email"
               value={applicationData.clinicEmail}
               onChangeText={(text) => updateField('clinicEmail', text)}
               keyboardType="email-address"
@@ -1287,16 +1289,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </>
         )}
 
+        <Text style={styles.label}>What is the name of the fertility doctor you are working with? *</Text>
         <TextInput
           style={styles.input}
-          placeholder="What is the name of the fertility doctor you are working with? *"
+          placeholder="Enter doctor name"
           value={applicationData.fertilityDoctorName}
           onChangeText={(text) => updateField('fertilityDoctorName', text)}
         />
 
+        <Text style={styles.label}>Are you or have you ever been positive for any of the following things? If yes please list what specifically. HIV, Hepatitis A,B,or C or any STDs *</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Are you or have you ever been positive for any of the following things? If yes please list what specifically. HIV, Hepatitis A,B,or C or any STDs *"
+          placeholder="Enter details if applicable"
           value={applicationData.hivHepatitisSTD}
           onChangeText={(text) => updateField('hivHepatitisSTD', text)}
           multiline
