@@ -1315,9 +1315,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       <ScrollView style={styles.stepContent}>
         <Text style={styles.sectionTitle}>Surrogate Preferences</Text>
         
+        <Text style={styles.label}>What is your preferred surrogate age range? *</Text>
         <TextInput
           style={styles.input}
-          placeholder="What is your preferred surrogate age range? *"
+          placeholder="Enter age range (e.g., 25-35)"
           value={applicationData.preferredSurrogateAgeRange}
           onChangeText={(text) => updateField('preferredSurrogateAgeRange', text)}
         />
