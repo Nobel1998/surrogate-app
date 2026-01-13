@@ -291,20 +291,31 @@ function AppContent() {
   }, [isLoading]);
 
   // Detect if we should resume the application flow after lazy signup
+  const [resumeApplicationType, setResumeApplicationType] = useState(null);
+  
   useEffect(() => {
     const checkResume = async () => {
       if (isAuthenticated) {
         const flag = await AsyncStorageLib.getItem('resume_application_flow');
-        console.log('🔁 resume_application_flow flag (auth):', flag);
-        setResumeApplication(flag === 'true');
-        if (flag === 'true') {
+        const appType = await AsyncStorageLib.getItem('resume_application_type');
+        console.log('🔁 resume_application_flow flag (auth):', flag, 'type:', appType);
+        
+        if (flag === 'true' || flag === 'intended_parent') {
+          setResumeApplication(true);
+          setResumeApplicationType(appType || 'surrogate'); // default to surrogate for backward compatibility
           await AsyncStorageLib.removeItem('resume_application_flow');
+          await AsyncStorageLib.removeItem('resume_application_type');
           console.log('🧹 cleared resume_application_flow after consume');
+        } else {
+          setResumeApplication(false);
+          setResumeApplicationType(null);
         }
       } else {
         console.log('🔁 resume_application_flow cleared (not authenticated)');
         setResumeApplication(false);
+        setResumeApplicationType(null);
         await AsyncStorageLib.removeItem('resume_application_flow');
+        await AsyncStorageLib.removeItem('resume_application_type');
       }
     };
     checkResume();
@@ -327,10 +338,21 @@ function AppContent() {
     ? (resumeApplication ? 'auth-resume' : 'auth-nav')
     : 'guest-nav';
 
+  // Determine initial route based on resume application type
+  const getInitialRoute = () => {
+    if (resumeApplication) {
+      if (resumeApplicationType === 'intended_parent') {
+        return 'IntendedParentApplication';
+      }
+      return 'SurrogateApplication'; // default to surrogate
+    }
+    return 'MainTabs';
+  };
+
   return (
     <NavigationContainer linking={linking} key={navKey}>
       {isAuthenticated ? (
-        <AppStackNavigator initialRouteName={resumeApplication ? 'SurrogateApplication' : 'MainTabs'} />
+        <AppStackNavigator initialRouteName={getInitialRoute()} />
       ) : (
         <GuestStackNavigator />
       )}

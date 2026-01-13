@@ -138,7 +138,64 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     letterToSurrogate: '',
   });
 
-  // Load existing data if in edit mode
+  // Draft storage helpers
+  const getDraftKey = () => (user?.id ? `intended_parent_draft_${user.id}` : 'intended_parent_draft_guest');
+
+  const loadDraft = async (userIdOverride = null) => {
+    try {
+      const uid = userIdOverride || user?.id;
+      if (!uid) {
+        return;
+      }
+      
+      // 1) Try to load from Supabase
+      const { data: latest, error } = await supabase
+        .from('intended_parent_applications')
+        .select('form_data, status, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.log('⚠️ Load draft from Supabase failed:', error.message);
+      }
+
+      if (latest && latest.form_data) {
+        let parsed = {};
+        try {
+          parsed = JSON.parse(latest.form_data);
+        } catch (e) {
+          console.error('Error parsing form_data:', e);
+        }
+        
+        setApplicationData(prev => ({ ...prev, ...parsed }));
+        setTimeout(() => {
+          setFormVersion(Date.now());
+        }, 0);
+        return;
+      }
+
+      // 2) Fallback to local draft
+      const draftKey = `intended_parent_draft_${uid}`;
+      const localDraft = await AsyncStorageLib.getItem(draftKey);
+      if (localDraft) {
+        try {
+          const parsed = JSON.parse(localDraft);
+          setApplicationData(prev => ({ ...prev, ...parsed }));
+          setTimeout(() => {
+            setFormVersion(Date.now());
+          }, 0);
+        } catch (e) {
+          console.error('Error parsing local draft:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+    }
+  };
+
+  // Load existing data if in edit mode or restore draft
   useEffect(() => {
     if (editMode && existingData) {
       setApplicationData(existingData);
@@ -146,11 +203,23 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       // Pre-fill with user data if available
       setApplicationData(prev => ({
         ...prev,
-        parent1Email: user.email || '',
-        parent1PhoneNumber: user.phone || '',
+        parent1Email: user.email || prev.parent1Email || '',
+        parent1PhoneNumber: user.phone || prev.parent1PhoneNumber || '',
       }));
+      // Load draft for authenticated users
+      loadDraft();
     }
   }, [editMode, existingData, user]);
+
+  // Save draft periodically
+  useEffect(() => {
+    if (user && formVersion > 0) {
+      const draftKey = getDraftKey();
+      AsyncStorageLib.setItem(draftKey, JSON.stringify(applicationData)).catch(err => {
+        console.error('Error saving draft:', err);
+      });
+    }
+  }, [applicationData, formVersion, user]);
 
   // Check if user needs to sign up
   useEffect(() => {
@@ -354,6 +423,87 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       // Steps 5-9 validation can be added as needed
     }
     return true;
+  };
+
+  // Lazy sign-up for intended parents to save progress
+  const handleLazySignup = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    if (!authPasswordConfirm.trim()) {
+      Alert.alert('Error', 'Please confirm your password');
+      return;
+    }
+    if (authPassword !== authPasswordConfirm) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    
+    // Mark intent to resume intended parent application flow
+    console.log('🔖 pre-signup: setting resume_application_flow=intended_parent');
+    await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
+    await AsyncStorageLib.setItem('resume_application_type', 'intended_parent');
+    
+    setAuthLoading(true);
+    try {
+      const role = 'intended_parent';
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: authEmail.trim(),
+        password: authPassword,
+        options: {
+          data: {
+            role,
+            name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
+            phone: applicationData.parent1PhoneNumber || '',
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      const userId = authData?.user?.id;
+      if (userId) {
+        // Upsert profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
+            phone: applicationData.parent1PhoneNumber || '',
+            email: authEmail.trim(),
+            role: 'intended_parent',
+          }, { onConflict: 'id' });
+
+        if (profileError) {
+          console.error('Profile upsert error:', profileError);
+        }
+
+        // Save draft under the new user key
+        await AsyncStorageLib.setItem(`intended_parent_draft_${userId}`, JSON.stringify(applicationData));
+        
+        // Mark that we should stay on intended parent application flow after auth switch
+        console.log('🔖 setting resume_application_flow=intended_parent after lazy signup');
+        await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
+        await AsyncStorageLib.setItem('resume_application_type', 'intended_parent');
+
+        // Force state reapply immediately by reloading draft with the new user id
+        await loadDraft(userId);
+        const newVersion = Date.now();
+        setFormVersion(newVersion);
+        setCurrentStep(1);
+      }
+
+      setShowAuthPrompt(false);
+      Alert.alert('Success', 'Account created! Your progress has been saved. You can now continue with your application.');
+    } catch (error) {
+      console.error('Lazy signup error:', error);
+      Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
+      await AsyncStorageLib.removeItem('resume_application_flow');
+      await AsyncStorageLib.removeItem('resume_application_type');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -1723,30 +1873,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={async () => {
-                    if (!authEmail.trim() || !authPassword.trim()) {
-                      Alert.alert('Error', 'Please fill in all fields');
-                      return;
-                    }
-                    if (authPassword !== authPasswordConfirm) {
-                      Alert.alert('Error', 'Passwords do not match');
-                      return;
-                    }
-                    setAuthLoading(true);
-                    try {
-                      const { data, error } = await supabase.auth.signUp({
-                        email: authEmail,
-                        password: authPassword,
-                      });
-                      if (error) throw error;
-                      setShowAuthPrompt(false);
-                      Alert.alert('Success', 'Account created! You can now continue with your application.');
-                    } catch (error) {
-                      Alert.alert('Error', error.message);
-                    } finally {
-                      setAuthLoading(false);
-                    }
-                  }}
+                  onPress={handleLazySignup}
                   disabled={authLoading}
                 >
                   <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
