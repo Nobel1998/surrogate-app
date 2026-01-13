@@ -616,7 +616,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Blood Type *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.bloodType = ref; }}
+          ref={(ref) => { step1InputRefs.current.bloodType = ref; }}
           style={styles.input}
           placeholder="Enter blood type"
           value={applicationData.parent1BloodType}
@@ -626,7 +626,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Citizenship *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.citizenship = ref; }}
+          ref={(ref) => { step1InputRefs.current.citizenship = ref; }}
           style={styles.input}
           placeholder="Enter citizenship"
           value={applicationData.parent1Citizenship}
@@ -636,7 +636,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Country/State of Residence *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.countryState = ref; }}
+          ref={(ref) => { step1InputRefs.current.countryState = ref; }}
           style={styles.input}
           placeholder="Enter country/state"
           value={applicationData.parent1CountryState}
@@ -646,7 +646,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>Occupation: *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.occupation = ref; }}
+          ref={(ref) => { step1InputRefs.current.occupation = ref; }}
           style={styles.input}
           placeholder="Enter occupation"
           value={applicationData.parent1Occupation}
@@ -656,7 +656,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         <Text style={styles.label}>What languages do you speak? *</Text>
         <TextInput
-          ref={(ref) => { inputRefs.languages = ref; }}
+          ref={(ref) => { step1InputRefs.current.languages = ref; }}
           style={styles.input}
           placeholder="Enter languages"
           value={applicationData.parent1Languages}
