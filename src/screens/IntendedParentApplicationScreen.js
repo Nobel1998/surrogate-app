@@ -1812,15 +1812,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.preferComfortableWithAppointments === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
-      </ScrollView>
-    );
-  };
 
-  const renderStep7 = () => {
-    return (
-      <ScrollView style={styles.stepContent}>
-        <Text style={styles.sectionTitle}>Surrogate Preferences (Continued)</Text>
-        
         <Text style={styles.label}>Prefer surrogate who is comfortable with intended parents being present at birth? *</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
@@ -1839,6 +1831,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.preferComfortableWithBirth === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
+      </ScrollView>
+    );
+  };
+
+  const renderStep7 = () => {
+    return (
+      <ScrollView style={styles.stepContent}>
+        <Text style={styles.sectionTitle}>General Questions</Text>
+        
+        {/* Step 7 content will be added here */}
       </ScrollView>
     );
   };
