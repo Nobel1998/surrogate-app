@@ -1058,9 +1058,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           />
         </View>
 
+        <Text style={styles.label}>Email *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Email *"
+          placeholder="Enter email address"
           value={applicationData.parent2Email}
           onChangeText={(text) => updateField('parent2Email', text)}
           keyboardType="email-address"
