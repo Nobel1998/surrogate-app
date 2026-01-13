@@ -95,7 +95,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     childrenDetails: '', // ages, gender, IVF/surrogacy/natural birth
     
     // Step 4: Medical & Fertility History
-    reasonForSurrogacy: '', // infertility_diagnosis, medical_condition, same_sex_couple, single_parent
+    reasonForSurrogacy: [], // Array of: infertility_diagnosis, medical_condition, same_sex_couple, single_parent
     undergoneIVF: null, // true, false
     needDonorEggs: null, // true, false
     needDonorSperm: null, // true, false
@@ -386,8 +386,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         }
         break;
       case 4:
-        if (!applicationData.reasonForSurrogacy) {
-          Alert.alert('Required Field', 'Please select reason for pursuing surrogacy.');
+        if (!applicationData.reasonForSurrogacy || applicationData.reasonForSurrogacy.length === 0) {
+          Alert.alert('Required Field', 'Please select at least one reason for pursuing surrogacy.');
           return false;
         }
         if (applicationData.undergoneIVF === null) {
@@ -1121,24 +1121,36 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         <Text style={styles.sectionTitle}>Medical & Fertility History</Text>
         
         <Text style={styles.label}>Reason for pursuing surrogacy *</Text>
-        {['infertility_diagnosis', 'medical_condition', 'same_sex_couple', 'single_parent'].map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.radioOption,
-              applicationData.reasonForSurrogacy === option && styles.radioOptionSelected,
-            ]}
-            onPress={() => updateField('reasonForSurrogacy', option)}
-          >
-            <Text style={styles.radioText}>
-              {option === 'infertility_diagnosis' && 'Infertility diagnosis'}
-              {option === 'medical_condition' && 'Medical condition'}
-              {option === 'same_sex_couple' && 'Same-sex couple'}
-              {option === 'single_parent' && 'Single parent'}
-            </Text>
-            {applicationData.reasonForSurrogacy === option && <Text style={styles.radioCheck}>✓</Text>}
-          </TouchableOpacity>
-        ))}
+        {['infertility_diagnosis', 'medical_condition', 'same_sex_couple', 'single_parent'].map((option) => {
+          const isSelected = Array.isArray(applicationData.reasonForSurrogacy) && applicationData.reasonForSurrogacy.includes(option);
+          return (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.radioOption,
+                isSelected && styles.radioOptionSelected,
+              ]}
+              onPress={() => {
+                const currentReasons = Array.isArray(applicationData.reasonForSurrogacy) ? applicationData.reasonForSurrogacy : [];
+                if (isSelected) {
+                  // Remove from selection
+                  updateField('reasonForSurrogacy', currentReasons.filter(r => r !== option));
+                } else {
+                  // Add to selection
+                  updateField('reasonForSurrogacy', [...currentReasons, option]);
+                }
+              }}
+            >
+              <Text style={styles.radioText}>
+                {option === 'infertility_diagnosis' && 'Infertility diagnosis'}
+                {option === 'medical_condition' && 'Medical condition'}
+                {option === 'same_sex_couple' && 'Same-sex couple'}
+                {option === 'single_parent' && 'Single parent'}
+              </Text>
+              {isSelected && <Text style={styles.radioCheck}>✓</Text>}
+            </TouchableOpacity>
+          );
+        })}
 
         <Text style={styles.label}>Have you undergone IVF to get pregnant by yourself before? *</Text>
         {[true, false].map((option) => (
