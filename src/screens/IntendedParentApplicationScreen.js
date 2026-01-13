@@ -180,6 +180,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         let parsed = {};
         try {
           parsed = JSON.parse(latest.form_data);
+          // Ensure reasonForSurrogacy is an array (for backward compatibility)
+          if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
+            parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
+          }
         } catch (e) {
           console.error('Error parsing form_data:', e);
         }
@@ -197,6 +201,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       if (localDraft) {
         try {
           const parsed = JSON.parse(localDraft);
+          // Ensure reasonForSurrogacy is an array (for backward compatibility)
+          if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
+            parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
+          }
           setApplicationData(prev => ({ ...prev, ...parsed }));
           setTimeout(() => {
             setFormVersion(Date.now());
