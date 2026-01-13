@@ -1711,21 +1711,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is open to termination for medical reasons? *</Text>
-        {[true, false].map((option) => (
-          <TouchableOpacity
-            key={String(option)}
-            style={[
-              styles.radioOption,
-              applicationData.preferOpenToTerminationMedical === option && styles.radioOptionSelected,
-            ]}
-            onPress={() => updateField('preferOpenToTerminationMedical', option)}
-          >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
-            {applicationData.preferOpenToTerminationMedical === option && <Text style={styles.radioCheck}>✓</Text>}
-          </TouchableOpacity>
-        ))}
-
         <Text style={styles.label}>Prefer surrogate with previous surrogacy experience? *</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
@@ -1791,6 +1776,21 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           >
             <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
             {applicationData.preferStableIncome === option && <Text style={styles.radioCheck}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={styles.label}>Prefer surrogate who is open to termination for medical reasons? *</Text>
+        {[true, false].map((option) => (
+          <TouchableOpacity
+            key={String(option)}
+            style={[
+              styles.radioOption,
+              applicationData.preferOpenToTerminationMedical === option && styles.radioOptionSelected,
+            ]}
+            onPress={() => updateField('preferOpenToTerminationMedical', option)}
+          >
+            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            {applicationData.preferOpenToTerminationMedical === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
