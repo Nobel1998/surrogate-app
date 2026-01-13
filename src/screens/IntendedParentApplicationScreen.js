@@ -1344,12 +1344,15 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         ))}
 
         {applicationData.surrogateLocationPreference === 'specific_states' && (
-          <TextInput
-            style={styles.input}
-            placeholder="Please list which state *"
-            value={applicationData.specificStates}
-            onChangeText={(text) => updateField('specificStates', text)}
-          />
+          <>
+            <Text style={styles.label}>Please list which state *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter state name(s)"
+              value={applicationData.specificStates}
+              onChangeText={(text) => updateField('specificStates', text)}
+            />
+          </>
         )}
 
         <Text style={styles.label}>Accept a surrogate with previous C-sections? *</Text>
