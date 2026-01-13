@@ -1902,16 +1902,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </TouchableOpacity>
         ))}
 
+        <Text style={styles.label}>Please list the attorney you are working with *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Please list the attorney you are working with *"
+          placeholder="Enter attorney name"
           value={applicationData.attorneyName}
           onChangeText={(text) => updateField('attorneyName', text)}
         />
 
+        <Text style={styles.label}>Please list the Attorney's Email address below. *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Please list the Attorney's Email address below. *"
+          placeholder="Enter attorney email"
           value={applicationData.attorneyEmail}
           onChangeText={(text) => updateField('attorneyEmail', text)}
           keyboardType="email-address"
