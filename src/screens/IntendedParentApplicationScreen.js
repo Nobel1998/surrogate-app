@@ -1431,12 +1431,15 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         ))}
 
         {applicationData.haveDietPreference && (
-          <TextInput
-            style={styles.input}
-            placeholder="If yes, what is your preference *"
-            value={applicationData.dietPreference}
-            onChangeText={(text) => updateField('dietPreference', text)}
-          />
+          <>
+            <Text style={styles.label}>If yes, what is your preference *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter diet preference"
+              value={applicationData.dietPreference}
+              onChangeText={(text) => updateField('dietPreference', text)}
+            />
+          </>
         )}
 
         <Text style={styles.label}>Communication Preferences *</Text>
