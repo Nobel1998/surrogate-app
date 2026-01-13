@@ -1256,9 +1256,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       <ScrollView style={styles.stepContent}>
         <Text style={styles.sectionTitle}>Family Background</Text>
         
+        <Text style={styles.label}>How long have you been together? *</Text>
         <TextInput
           style={styles.input}
-          placeholder="How long have you been together? *"
+          placeholder="Enter duration (e.g., 5 years)"
           value={applicationData.howLongTogether}
           onChangeText={(text) => updateField('howLongTogether', text)}
         />
