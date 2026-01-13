@@ -118,8 +118,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     preferFlexibleSchedule: null, // true, false
     haveDietPreference: null, // true, false
     dietPreference: '',
-    communicationPreference: '', // weekly_updates, monthly_updates, major_medical_only, prefer_text, prefer_video, no_preference
-    relationshipStyle: '', // close_relationship, moderate_relationship, minimal_contact, no_preference
+    communicationPreference: [], // Array of: weekly_updates, monthly_updates, major_medical_only, prefer_text, prefer_video, no_preference
+    relationshipStyle: [], // Array of: close_relationship, moderate_relationship, minimal_contact, no_preference
     preferOBGYNGuidelines: null, // true, false
     
     // Step 6: More Surrogate Preferences
@@ -184,6 +184,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
             parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
           }
+          // Ensure communicationPreference is an array (for backward compatibility)
+          if (parsed.communicationPreference && !Array.isArray(parsed.communicationPreference)) {
+            parsed.communicationPreference = parsed.communicationPreference ? [parsed.communicationPreference] : [];
+          }
+          // Ensure relationshipStyle is an array (for backward compatibility)
+          if (parsed.relationshipStyle && !Array.isArray(parsed.relationshipStyle)) {
+            parsed.relationshipStyle = parsed.relationshipStyle ? [parsed.relationshipStyle] : [];
+          }
         } catch (e) {
           console.error('Error parsing form_data:', e);
         }
@@ -205,6 +213,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
             parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
           }
+          // Ensure communicationPreference is an array (for backward compatibility)
+          if (parsed.communicationPreference && !Array.isArray(parsed.communicationPreference)) {
+            parsed.communicationPreference = parsed.communicationPreference ? [parsed.communicationPreference] : [];
+          }
+          // Ensure relationshipStyle is an array (for backward compatibility)
+          if (parsed.relationshipStyle && !Array.isArray(parsed.relationshipStyle)) {
+            parsed.relationshipStyle = parsed.relationshipStyle ? [parsed.relationshipStyle] : [];
+          }
           setApplicationData(prev => ({ ...prev, ...parsed }));
           setTimeout(() => {
             setFormVersion(Date.now());
@@ -225,6 +241,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       const dataToSet = { ...existingData };
       if (dataToSet.reasonForSurrogacy && !Array.isArray(dataToSet.reasonForSurrogacy)) {
         dataToSet.reasonForSurrogacy = dataToSet.reasonForSurrogacy ? [dataToSet.reasonForSurrogacy] : [];
+      }
+      // Ensure communicationPreference is an array (for backward compatibility)
+      if (dataToSet.communicationPreference && !Array.isArray(dataToSet.communicationPreference)) {
+        dataToSet.communicationPreference = dataToSet.communicationPreference ? [dataToSet.communicationPreference] : [];
+      }
+      // Ensure relationshipStyle is an array (for backward compatibility)
+      if (dataToSet.relationshipStyle && !Array.isArray(dataToSet.relationshipStyle)) {
+        dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
       }
       setApplicationData(dataToSet);
     } else if (user) {
@@ -448,7 +472,101 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           return false;
         }
         break;
-      // Steps 5-9 validation can be added as needed
+      case 5:
+        if (!applicationData.preferredSurrogateAgeRange) {
+          Alert.alert('Required Field', 'Please enter preferred surrogate age range.');
+          return false;
+        }
+        if (!applicationData.surrogateLocationPreference) {
+          Alert.alert('Required Field', 'Please select surrogate location preference.');
+          return false;
+        }
+        if (applicationData.surrogateLocationPreference === 'specific_states' && !applicationData.specificStates) {
+          Alert.alert('Required Field', 'Please list which states.');
+          return false;
+        }
+        if (applicationData.acceptPreviousCSections === null) {
+          Alert.alert('Required Field', 'Please indicate if you accept a surrogate with previous C-sections.');
+          return false;
+        }
+        if (applicationData.preferNoWorkDuringPregnancy === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate who does not work during pregnancy.');
+          return false;
+        }
+        if (applicationData.preferStableHome === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate with stable home environment.');
+          return false;
+        }
+        if (applicationData.preferFlexibleSchedule === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate with flexible schedule.');
+          return false;
+        }
+        if (applicationData.haveDietPreference === null) {
+          Alert.alert('Required Field', 'Please indicate if you have diet preference during pregnancy.');
+          return false;
+        }
+        if (applicationData.haveDietPreference && !applicationData.dietPreference) {
+          Alert.alert('Required Field', 'Please enter your diet preference.');
+          return false;
+        }
+        if (!applicationData.communicationPreference || applicationData.communicationPreference.length === 0) {
+          Alert.alert('Required Field', 'Please select at least one communication preference.');
+          return false;
+        }
+        if (!applicationData.relationshipStyle || applicationData.relationshipStyle.length === 0) {
+          Alert.alert('Required Field', 'Please select at least one relationship style.');
+          return false;
+        }
+        if (applicationData.preferOBGYNGuidelines === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to follow specific OB/GYN guidelines.');
+          return false;
+        }
+        if (applicationData.preferAvoidHeavyLifting === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to avoid heavy lifting.');
+          return false;
+        }
+        if (applicationData.preferAvoidTravel === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to avoid travel during pregnancy.');
+          return false;
+        }
+        if (applicationData.comfortableLocalHospital === null) {
+          Alert.alert('Required Field', 'Please indicate if you are comfortable with surrogate delivering in her local hospital.');
+          return false;
+        }
+        if (applicationData.preferOpenToSelectiveReduction === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is open to selective reduction.');
+          return false;
+        }
+        if (applicationData.preferOpenToTerminationMedical === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is open to termination for medical reasons.');
+          return false;
+        }
+        if (!applicationData.preferPreviousSurrogacyExperience) {
+          Alert.alert('Required Field', 'Please indicate preference for surrogate with previous surrogacy experience.');
+          return false;
+        }
+        if (applicationData.preferStrongSupportSystem === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate with strong support system.');
+          return false;
+        }
+        if (applicationData.preferMarried === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is married.');
+          return false;
+        }
+        if (applicationData.preferStableIncome === null) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate with stable income.');
+          return false;
+        }
+        if (!applicationData.preferComfortableAttendingAppointments) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents attending appointments.');
+          return false;
+        }
+        if (!applicationData.preferComfortableAtBirth) {
+          Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents being present at birth.');
+          return false;
+        }
+        break;
+      // Steps 6-9 validation can be added as needed
     }
     return true;
   };
@@ -1443,46 +1561,70 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         )}
 
         <Text style={styles.label}>Communication Preferences *</Text>
-        {['weekly_updates', 'monthly_updates', 'major_medical_only', 'prefer_text', 'prefer_video', 'no_preference'].map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.radioOption,
-              applicationData.communicationPreference === option && styles.radioOptionSelected,
-            ]}
-            onPress={() => updateField('communicationPreference', option)}
-          >
-            <Text style={styles.radioText}>
-              {option === 'weekly_updates' && 'Weekly updates'}
-              {option === 'monthly_updates' && 'Monthly updates'}
-              {option === 'major_medical_only' && 'Only major medical updates'}
-              {option === 'prefer_text' && 'Prefer text messages'}
-              {option === 'prefer_video' && 'Prefer video calls'}
-              {option === 'no_preference' && 'No preference'}
-            </Text>
-            {applicationData.communicationPreference === option && <Text style={styles.radioCheck}>✓</Text>}
-          </TouchableOpacity>
-        ))}
+        {['weekly_updates', 'monthly_updates', 'major_medical_only', 'prefer_text', 'prefer_video', 'no_preference'].map((option) => {
+          const isSelected = Array.isArray(applicationData.communicationPreference) && applicationData.communicationPreference.includes(option);
+          return (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.radioOption,
+                isSelected && styles.radioOptionSelected,
+              ]}
+              onPress={() => {
+                const currentPreferences = Array.isArray(applicationData.communicationPreference) ? applicationData.communicationPreference : [];
+                if (isSelected) {
+                  // Remove from selection
+                  updateField('communicationPreference', currentPreferences.filter(p => p !== option));
+                } else {
+                  // Add to selection
+                  updateField('communicationPreference', [...currentPreferences, option]);
+                }
+              }}
+            >
+              <Text style={styles.radioText}>
+                {option === 'weekly_updates' && 'Weekly updates'}
+                {option === 'monthly_updates' && 'Monthly updates'}
+                {option === 'major_medical_only' && 'Only major medical updates'}
+                {option === 'prefer_text' && 'Prefer text messages'}
+                {option === 'prefer_video' && 'Prefer video calls'}
+                {option === 'no_preference' && 'No preference'}
+              </Text>
+              {isSelected && <Text style={styles.radioCheck}>✓</Text>}
+            </TouchableOpacity>
+          );
+        })}
 
         <Text style={styles.label}>Relationship Style With Surrogate *</Text>
-        {['close_relationship', 'moderate_relationship', 'minimal_contact', 'no_preference'].map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.radioOption,
-              applicationData.relationshipStyle === option && styles.radioOptionSelected,
-            ]}
-            onPress={() => updateField('relationshipStyle', option)}
-          >
-            <Text style={styles.radioText}>
-              {option === 'close_relationship' && 'Close relationship (frequent communication)'}
-              {option === 'moderate_relationship' && 'Moderate relationship (regular updates)'}
-              {option === 'minimal_contact' && 'Prefer minimal contact'}
-              {option === 'no_preference' && 'No preference'}
-            </Text>
-            {applicationData.relationshipStyle === option && <Text style={styles.radioCheck}>✓</Text>}
-          </TouchableOpacity>
-        ))}
+        {['close_relationship', 'moderate_relationship', 'minimal_contact', 'no_preference'].map((option) => {
+          const isSelected = Array.isArray(applicationData.relationshipStyle) && applicationData.relationshipStyle.includes(option);
+          return (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.radioOption,
+                isSelected && styles.radioOptionSelected,
+              ]}
+              onPress={() => {
+                const currentStyles = Array.isArray(applicationData.relationshipStyle) ? applicationData.relationshipStyle : [];
+                if (isSelected) {
+                  // Remove from selection
+                  updateField('relationshipStyle', currentStyles.filter(s => s !== option));
+                } else {
+                  // Add to selection
+                  updateField('relationshipStyle', [...currentStyles, option]);
+                }
+              }}
+            >
+              <Text style={styles.radioText}>
+                {option === 'close_relationship' && 'Close relationship (frequent communication)'}
+                {option === 'moderate_relationship' && 'Moderate relationship (regular updates)'}
+                {option === 'minimal_contact' && 'Prefer minimal contact'}
+                {option === 'no_preference' && 'No preference'}
+              </Text>
+              {isSelected && <Text style={styles.radioCheck}>✓</Text>}
+            </TouchableOpacity>
+          );
+        })}
 
         <Text style={styles.label}>Prefer surrogate to follow specific OB/GYN guidelines? *</Text>
         {[true, false].map((option) => (
