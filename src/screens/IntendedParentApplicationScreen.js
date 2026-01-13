@@ -1099,14 +1099,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         ))}
 
         {applicationData.haveChildren && (
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="If yes, please list ages, gender and whether they were born via IVF, surrogacy, or natural birth. *"
-            value={applicationData.childrenDetails}
-            onChangeText={(text) => updateField('childrenDetails', text)}
-            multiline
-            numberOfLines={4}
-          />
+          <>
+            <Text style={styles.label}>If yes, please list ages, gender and whether they were born via IVF, surrogacy, or natural birth. *</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Enter children details"
+              value={applicationData.childrenDetails}
+              onChangeText={(text) => updateField('childrenDetails', text)}
+              multiline
+              numberOfLines={4}
+            />
+          </>
         )}
       </ScrollView>
     );
