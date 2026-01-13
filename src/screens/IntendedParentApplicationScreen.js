@@ -1395,9 +1395,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         {applicationData.haveEmbryos && (
           <>
+            <Text style={styles.label}>Number of embryos *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Number of embryos *"
+              placeholder="Enter number of embryos"
               value={applicationData.numberOfEmbryos}
               onChangeText={(text) => updateField('numberOfEmbryos', text)}
               keyboardType="numeric"
