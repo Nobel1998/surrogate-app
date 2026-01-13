@@ -16,7 +16,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const existingData = route?.params?.existingData || null;
   
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 9;
+  const totalSteps = 8;
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
@@ -568,7 +568,56 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           return false;
         }
         break;
-      // Steps 7-9 validation can be added as needed
+      case 7:
+        // Step 7 validation (General Questions - previously Step 8)
+        if (applicationData.transferMoreThanOneEmbryo === null) {
+          Alert.alert('Required Field', 'Please indicate if you will transfer more than one embryo.');
+          return false;
+        }
+        if (!applicationData.attorneyName) {
+          Alert.alert('Required Field', 'Please enter attorney name.');
+          return false;
+        }
+        if (!applicationData.attorneyEmail) {
+          Alert.alert('Required Field', 'Please enter attorney email.');
+          return false;
+        }
+        if (applicationData.haveTranslator === null) {
+          Alert.alert('Required Field', 'Please indicate if you have a translator.');
+          return false;
+        }
+        if (applicationData.haveTranslator && !applicationData.translatorName) {
+          Alert.alert('Required Field', 'Please enter translator name.');
+          return false;
+        }
+        if (applicationData.haveTranslator && !applicationData.translatorEmail) {
+          Alert.alert('Required Field', 'Please enter translator email.');
+          return false;
+        }
+        if (applicationData.preparedForFailedTransfer === null) {
+          Alert.alert('Required Field', 'Please indicate if you are prepared for the possibility of a failed embryo transfer.');
+          return false;
+        }
+        if (applicationData.willingMultipleCycles === null) {
+          Alert.alert('Required Field', 'Please indicate if you are willing to attempt multiple cycles if needed.');
+          return false;
+        }
+        if (applicationData.emotionallyPrepared === null) {
+          Alert.alert('Required Field', 'Please indicate if you are emotionally prepared for the full surrogacy journey.');
+          return false;
+        }
+        if (applicationData.ableToHandleDelays === null) {
+          Alert.alert('Required Field', 'Please indicate if you are able to handle potential delays or medical risks.');
+          return false;
+        }
+        break;
+      case 8:
+        // Step 8 validation (Letter to Surrogate - previously Step 9)
+        if (!applicationData.letterToSurrogate || applicationData.letterToSurrogate.trim() === '') {
+          Alert.alert('Required Field', 'Please write a letter to the surrogate.');
+          return false;
+        }
+        break;
     }
     return true;
   };
@@ -776,10 +825,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       case 6:
         return renderStep6();
       case 7:
-        return renderStep7();
-      case 8:
         return renderStep8();
-      case 9:
+      case 8:
         return renderStep9();
       default:
         return null;
@@ -1831,16 +1878,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.preferComfortableWithBirth === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
-      </ScrollView>
-    );
-  };
-
-  const renderStep7 = () => {
-    return (
-      <ScrollView style={styles.stepContent}>
-        <Text style={styles.sectionTitle}>General Questions</Text>
-        
-        {/* Step 7 content will be added here */}
       </ScrollView>
     );
   };
