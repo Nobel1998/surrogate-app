@@ -1937,16 +1937,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         {applicationData.haveTranslator && (
           <>
+            <Text style={styles.label}>Please list the name of your translator *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Please list the name of your translator *"
+              placeholder="Enter translator name"
               value={applicationData.translatorName}
               onChangeText={(text) => updateField('translatorName', text)}
             />
 
+            <Text style={styles.label}>Please provide translator email *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Please provide translator email *"
+              placeholder="Enter translator email"
               value={applicationData.translatorEmail}
               onChangeText={(text) => updateField('translatorEmail', text)}
               keyboardType="email-address"
