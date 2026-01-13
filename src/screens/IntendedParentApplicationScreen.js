@@ -743,16 +743,61 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         if (error) throw error;
 
+        let navigated = false;
+        const navigateBack = () => {
+          if (!navigated) {
+            navigated = true;
+            setTimeout(() => {
+              try {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  // If can't go back and user is logged in, navigate to MainTabs (logged-in home)
+                  if (user) {
+                    navigation.navigate('MainTabs');
+                  } else {
+                    // If not logged in, try to navigate to LandingScreen
+                    navigation.navigate('LandingScreen');
+                  }
+                }
+              } catch (error) {
+                // Try MainTabs first (for logged-in users), then LandingScreen as fallback
+                try {
+                  if (user) {
+                    navigation.navigate('MainTabs');
+                  } else {
+                    navigation.navigate('LandingScreen');
+                  }
+                } catch (e) {
+                  // Last resort: try to reset navigation stack
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: user ? 'MainTabs' : 'LandingScreen' }],
+                  });
+                }
+              }
+            }, 100);
+          }
+        };
+
         Alert.alert(
           'Success',
           'Application updated successfully!',
           [
             {
               text: 'OK',
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                navigateBack();
+              },
             },
-          ]
+          ],
+          { cancelable: false }
         );
+        
+        // Fallback: navigate after a delay if Alert callback doesn't execute
+        setTimeout(() => {
+          navigateBack();
+        }, 2000);
       } else {
         // Create new application
         const { data, error } = await supabase
@@ -791,16 +836,61 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           console.error('Error saving application locally:', storageError);
         }
 
+        let navigated = false;
+        const navigateBack = () => {
+          if (!navigated) {
+            navigated = true;
+            setTimeout(() => {
+              try {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  // If can't go back and user is logged in, navigate to MainTabs (logged-in home)
+                  if (user) {
+                    navigation.navigate('MainTabs');
+                  } else {
+                    // If not logged in, try to navigate to LandingScreen
+                    navigation.navigate('LandingScreen');
+                  }
+                }
+              } catch (error) {
+                // Try MainTabs first (for logged-in users), then LandingScreen as fallback
+                try {
+                  if (user) {
+                    navigation.navigate('MainTabs');
+                  } else {
+                    navigation.navigate('LandingScreen');
+                  }
+                } catch (e) {
+                  // Last resort: try to reset navigation stack
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: user ? 'MainTabs' : 'LandingScreen' }],
+                  });
+                }
+              }
+            }, 100);
+          }
+        };
+
         Alert.alert(
           'Success',
           'Application submitted successfully! Our team will review and contact you within 5-7 business days.',
           [
             {
               text: 'OK',
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                navigateBack();
+              },
             },
-          ]
+          ],
+          { cancelable: false }
         );
+        
+        // Fallback: navigate after a delay if Alert callback doesn't execute
+        setTimeout(() => {
+          navigateBack();
+        }, 2000);
       }
     } catch (error) {
       console.error('Error submitting application:', error);
