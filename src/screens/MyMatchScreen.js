@@ -83,7 +83,7 @@ export default function MyMatchScreen({ navigation }) {
       if (isSurrogate) {
         const { data, error } = await supabase
           .from('surrogate_matches')
-          .select('*, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4')
+          .select('*')
           .eq('surrogate_id', user.id)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
@@ -93,7 +93,7 @@ export default function MyMatchScreen({ navigation }) {
       } else {
         const { data, error } = await supabase
           .from('surrogate_matches')
-          .select('*, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4')
+          .select('*')
           .eq('parent_id', user.id)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
