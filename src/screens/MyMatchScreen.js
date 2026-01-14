@@ -19,6 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
+import { TextInput } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +39,10 @@ export default function MyMatchScreen({ navigation }) {
   const [surrogateDetails, setSurrogateDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
+  // Pregnancy test dates (2nd and 3rd)
+  const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
+  const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
+  const [savingPregnancyTests, setSavingPregnancyTests] = useState(false);
 
   useEffect(() => {
     loadMatchData();
@@ -101,6 +106,27 @@ export default function MyMatchScreen({ navigation }) {
       console.log('[MyMatch] match:', match);
 
       if (match) {
+        // Load pregnancy test dates 2 and 3
+        if (match.pregnancy_test_date_2) {
+          const date = new Date(match.pregnancy_test_date_2);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate2(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate2('');
+        }
+        
+        if (match.pregnancy_test_date_3) {
+          const date = new Date(match.pregnancy_test_date_3);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate3(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate3('');
+        }
+        
         // 3) 对方资料
         if (isSurrogate && match.parent_id) {
           const { data: parentProfile, error: parentError } = await supabase
@@ -806,7 +832,7 @@ export default function MyMatchScreen({ navigation }) {
         </View>
 
         {/* Pregnancy Information */}
-        {(matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && (
+        {(matchData?.fetal_beat_confirm || matchData?.beta_confirm_date || userRole === 'surrogate') && (
           <View style={styles.pregnancyInfoSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('myMatch.pregnancyInformation')}</Text>
@@ -835,6 +861,62 @@ export default function MyMatchScreen({ navigation }) {
                     </Text>
                   </View>
                 </View>
+              )}
+              
+              {/* Additional Pregnancy Test Dates - Only for surrogates */}
+              {userRole === 'surrogate' && (
+                <>
+                  <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
+                    <View style={styles.pregnancyInfoIconContainer}>
+                      <Icon name="activity" size={24} color="#10B981" />
+                    </View>
+                    <View style={styles.pregnancyInfoContent}>
+                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 2 (MM/DD/YY)</Text>
+                      <View style={styles.pregnancyTestInputContainer}>
+                        <TextInput
+                          value={pregnancyTestDate2}
+                          onChangeText={setPregnancyTestDate2}
+                          placeholder="e.g. 12/15/25"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.pregnancyTestInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
+                    <View style={styles.pregnancyInfoIconContainer}>
+                      <Icon name="activity" size={24} color="#10B981" />
+                    </View>
+                    <View style={styles.pregnancyInfoContent}>
+                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 3 (MM/DD/YY)</Text>
+                      <View style={styles.pregnancyTestInputContainer}>
+                        <TextInput
+                          value={pregnancyTestDate3}
+                          onChangeText={setPregnancyTestDate3}
+                          placeholder="e.g. 12/20/25"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.pregnancyTestInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={[styles.savePregnancyTestButton, savingPregnancyTests && styles.savePregnancyTestButtonDisabled]}
+                    onPress={savePregnancyTestDates}
+                    disabled={savingPregnancyTests}
+                    activeOpacity={0.8}
+                  >
+                    {savingPregnancyTests ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.savePregnancyTestButtonText}>Save Pregnancy Test Dates</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           </View>
@@ -1667,6 +1749,38 @@ const styles = StyleSheet.create({
   pregnancyInfoValue: {
     fontSize: 18,
     color: '#1A1D1E',
+    fontWeight: '700',
+  },
+  pregnancyTestInputContainer: {
+    marginTop: 8,
+  },
+  pregnancyTestInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1A1D1E',
+    fontWeight: '600',
+  },
+  savePregnancyTestButton: {
+    backgroundColor: '#1F6FE0',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savePregnancyTestButtonDisabled: {
+    backgroundColor: '#94A3B8',
+    opacity: 0.6,
+  },
+  savePregnancyTestButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
   // Quick Actions
