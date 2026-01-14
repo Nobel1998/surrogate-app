@@ -2463,19 +2463,6 @@ export default function MatchesPage() {
             >
               {submitting ? 'Saving...' : 'Save Match'}
             </button>
-            <button
-              onClick={() => {
-                if (!selectedSurrogate) {
-                  alert('Please select a surrogate to update stage.');
-                  return;
-                }
-                updateStage(selectedSurrogate, stage);
-              }}
-              disabled={submitting || !selectedSurrogate}
-              className={`ml-3 px-4 py-2 rounded-md text-blue-700 font-medium border ${submitting || !selectedSurrogate ? 'border-gray-300 text-gray-400' : 'border-blue-300 hover:border-blue-500'}`}
-            >
-              Update Stage
-            </button>
           </div>
         </div>
 
