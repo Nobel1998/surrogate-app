@@ -23,10 +23,13 @@ export const generateApplicationPDF = (app: ApplicationData) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPosition = 20;
 
+  // Check application type
+  const isIntendedParent = app.applicationType === 'intended_parent';
+
   // Title
   doc.setFontSize(20);
   doc.setTextColor(102, 51, 153); // Purple color
-  doc.text('Surrogate Application', pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(isIntendedParent ? 'Intended Parent Application' : 'Surrogate Application', pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 10;
 
   // Applicant name and date
@@ -34,7 +37,8 @@ export const generateApplicationPDF = (app: ApplicationData) => {
   doc.setTextColor(100);
   doc.text(`Applicant: ${app.full_name || app.fullName || 'N/A'}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 6;
-  doc.text(`Application Date: ${app.created_at ? new Date(app.created_at).toLocaleDateString('en-US') : 'N/A'}`, pageWidth / 2, yPosition, { align: 'center' });
+  const applicationDate = app.submitted_at || app.created_at;
+  doc.text(`Application Date: ${applicationDate ? new Date(applicationDate).toLocaleDateString('en-US') : 'N/A'}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 6;
   doc.text(`Status: ${app.status ? app.status.toUpperCase() : 'PENDING'}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 15;
@@ -68,8 +72,146 @@ export const generateApplicationPDF = (app: ApplicationData) => {
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   };
 
-  // Step 1: Personal Information
-  addSection('Step 1: Personal Information', [
+  // Generate different PDF based on application type
+  if (isIntendedParent) {
+    // Intended Parent Application PDF
+    // Step 1: Family Structure & Basic Information
+    addSection('Step 1: Family Structure & Basic Information', [
+      ['Family Structure', formatValue(app.familyStructure)],
+      ['How Did You Hear About Us', formatValue(app.hearAboutUs)],
+    ], [0, 102, 204]);
+
+    // Intended Parent 1
+    addSection('Intended Parent 1', [
+      ['First Name', formatValue(app.parent1FirstName)],
+      ['Last Name', formatValue(app.parent1LastName)],
+      ['Date of Birth', app.parent1DateOfBirthMonth && app.parent1DateOfBirthDay && app.parent1DateOfBirthYear
+        ? `${app.parent1DateOfBirthMonth}/${app.parent1DateOfBirthDay}/${app.parent1DateOfBirthYear}`
+        : 'N/A'],
+      ['Gender', formatValue(app.parent1Gender)],
+      ['Blood Type', formatValue(app.parent1BloodType)],
+      ['Citizenship', formatValue(app.parent1Citizenship)],
+      ['Country/State of Residence', formatValue(app.parent1CountryState)],
+      ['Occupation', formatValue(app.parent1Occupation)],
+      ['Languages', formatValue(app.parent1Languages)],
+      ['Phone', app.parent1PhoneCountryCode && app.parent1PhoneAreaCode && app.parent1PhoneNumber
+        ? `+${app.parent1PhoneCountryCode} (${app.parent1PhoneAreaCode}) ${app.parent1PhoneNumber}`
+        : formatValue(app.parent1PhoneNumber)],
+      ['Email', formatValue(app.parent1Email)],
+      ['Emergency Contact', formatValue(app.parent1EmergencyContact)],
+      ['Address', [
+        app.parent1AddressStreet,
+        app.parent1AddressStreet2,
+        app.parent1AddressCity,
+        app.parent1AddressState,
+        app.parent1AddressZip
+      ].filter(Boolean).join(', ') || 'N/A'],
+    ], [34, 139, 34]);
+
+    // Intended Parent 2 (if applicable)
+    if (app.parent2FirstName || app.parent2LastName) {
+      addSection('Intended Parent 2', [
+        ['First Name', formatValue(app.parent2FirstName)],
+        ['Last Name', formatValue(app.parent2LastName)],
+        ['Date of Birth', app.parent2DateOfBirthMonth && app.parent2DateOfBirthDay && app.parent2DateOfBirthYear
+          ? `${app.parent2DateOfBirthMonth}/${app.parent2DateOfBirthDay}/${app.parent2DateOfBirthYear}`
+          : 'N/A'],
+        ['Gender', formatValue(app.parent2Gender)],
+        ['Blood Type', formatValue(app.parent2BloodType)],
+        ['Citizenship', formatValue(app.parent2Citizenship)],
+        ['Country/State of Residence', formatValue(app.parent2CountryState)],
+        ['Occupation', formatValue(app.parent2Occupation)],
+        ['Languages', formatValue(app.parent2Languages)],
+        ['Phone', app.parent2PhoneCountryCode && app.parent2PhoneAreaCode && app.parent2PhoneNumber
+          ? `+${app.parent2PhoneCountryCode} (${app.parent2PhoneAreaCode}) ${app.parent2PhoneNumber}`
+          : formatValue(app.parent2PhoneNumber)],
+        ['Email', formatValue(app.parent2Email)],
+      ], [75, 0, 130]);
+    }
+
+    // Step 3: Family Background
+    addSection('Step 3: Family Background', [
+      ['How Long Have You Been Together', formatValue(app.howLongTogether)],
+      ['Do You Have Any Children', formatBoolean(app.haveChildren)],
+      ['Children Details', formatValue(app.childrenDetails)],
+    ], [219, 112, 147]);
+
+    // Step 4: Medical & Fertility History
+    addSection('Step 4: Medical & Fertility History', [
+      ['Reason for Pursuing Surrogacy', Array.isArray(app.reasonForSurrogacy) 
+        ? app.reasonForSurrogacy.join(', ') 
+        : formatValue(app.reasonForSurrogacy)],
+      ['Have You Undergone IVF', formatBoolean(app.undergoneIVF)],
+      ['Do You Need Donor Eggs', formatBoolean(app.needDonorEggs)],
+      ['Do You Need Donor Sperm', formatBoolean(app.needDonorSperm)],
+      ['Do You Currently Have Embryos', formatBoolean(app.haveEmbryos)],
+      ['Number of Embryos', formatValue(app.numberOfEmbryos)],
+      ['PGT-A Tested', formatBoolean(app.pgtATested)],
+      ['Embryo Development Day', formatValue(app.embryoDevelopmentDay)],
+      ['Frozen at Which Clinic', formatValue(app.frozenAtClinic)],
+      ['Clinic Email', formatValue(app.clinicEmail)],
+      ['Fertility Doctor Name', formatValue(app.fertilityDoctorName)],
+      ['HIV/Hepatitis/STD Status', formatValue(app.hivHepatitisStdStatus)],
+    ], [34, 139, 34]);
+
+    // Step 5: Surrogate Preferences
+    addSection('Step 5: Surrogate Preferences', [
+      ['Preferred Surrogate Age Range', formatValue(app.preferredSurrogateAgeRange)],
+      ['Surrogate Location Preference', formatValue(app.surrogateLocationPreference)],
+      ['Specific States', formatValue(app.specificStates)],
+      ['Accept Surrogate with Previous C-sections', formatBoolean(app.acceptPreviousCsection)],
+      ['Prefer Surrogate Who Does Not Work During Pregnancy', formatBoolean(app.preferNoWorkDuringPregnancy)],
+      ['Prefer Surrogate with Stable Home Environment', formatBoolean(app.preferStableHome)],
+      ['Prefer Surrogate with Flexible Schedule', formatBoolean(app.preferFlexibleSchedule)],
+      ['Do You Have Diet Preference During Pregnancy', formatBoolean(app.dietPreferenceYes)],
+      ['Diet Preference', formatValue(app.dietPreference)],
+      ['Communication Preferences', Array.isArray(app.communicationPreference)
+        ? app.communicationPreference.join(', ')
+        : formatValue(app.communicationPreference)],
+      ['Relationship Style With Surrogate', Array.isArray(app.relationshipStyle)
+        ? app.relationshipStyle.join(', ')
+        : formatValue(app.relationshipStyle)],
+      ['Prefer Surrogate to Follow Specific OB/GYN Guidelines', formatBoolean(app.preferSpecificObGynGuidelines)],
+    ], [148, 103, 189]);
+
+    // Step 6: Additional Surrogate Preferences
+    addSection('Step 6: Additional Surrogate Preferences', [
+      ['Prefer Surrogate to Avoid Heavy Lifting', formatBoolean(app.preferAvoidHeavyLifting)],
+      ['Prefer Surrogate to Avoid Travel During Pregnancy', formatBoolean(app.preferAvoidTravel)],
+      ['Comfortable with Surrogate Delivering in Her Local Hospital', formatBoolean(app.comfortableWithLocalHospital)],
+      ['Prefer Surrogate Who is Open to Selective Reduction', formatBoolean(app.preferOpenToSelectiveReduction)],
+      ['Prefer Surrogate Who is Open to Termination for Medical Reasons', formatBoolean(app.preferOpenToTerminationMedical)],
+      ['Prefer Surrogate with Previous Surrogacy Experience', formatValue(app.preferPreviousSurrogacyExperience)],
+      ['Prefer Surrogate with Strong Support System', formatBoolean(app.preferStrongSupportSystem)],
+      ['Prefer Surrogate Who is Married', formatValue(app.preferMarried)],
+      ['Prefer Surrogate with Stable Income', formatBoolean(app.preferStableIncome)],
+      ['Prefer Surrogate Who is Comfortable with Intended Parents Attending Appointments', formatValue(app.preferComfortableWithAppointments)],
+      ['Prefer Surrogate Who is Comfortable with Intended Parents Being Present at Birth', formatValue(app.preferComfortableWithBirth)],
+    ], [218, 165, 32]);
+
+    // Step 7: General Questions
+    addSection('Step 7: General Questions', [
+      ['Will You Transfer More Than One Embryo', formatBoolean(app.willTransferMoreThanOneEmbryo)],
+      ['Attorney Name', formatValue(app.attorneyName)],
+      ['Attorney Email', formatValue(app.attorneyEmail)],
+      ['Do You Have a Translator', formatBoolean(app.haveTranslator)],
+      ['Translator Name', formatValue(app.translatorName)],
+      ['Translator Email', formatValue(app.translatorEmail)],
+      ['Are You Prepared for the Possibility of a Failed Embryo Transfer', formatBoolean(app.preparedForFailedTransfer)],
+      ['Are You Willing to Attempt Multiple Cycles if Needed', formatBoolean(app.willingToAttemptMultipleCycles)],
+      ['Are You Emotionally Prepared for the Full Surrogacy Journey', formatBoolean(app.emotionallyPrepared)],
+      ['Are You Able to Handle Potential Delays or Medical Risks', formatBoolean(app.ableToHandleDelaysOrRisks)],
+    ], [255, 140, 0]);
+
+    // Step 8: Letter to Surrogate
+    addSection('Step 8: Letter to Surrogate', [
+      ['Letter to Surrogate', formatValue(app.letterToSurrogate)],
+    ], [220, 20, 60]);
+
+  } else {
+    // Surrogate Application PDF
+    // Step 1: Personal Information
+    addSection('Step 1: Personal Information', [
     ['Full Name', formatValue(app.full_name || app.fullName)],
     ['First Name', formatValue(app.firstName)],
     ['Middle Name', formatValue(app.middleName)],
@@ -302,7 +444,8 @@ export const generateApplicationPDF = (app: ApplicationData) => {
   }
 
   // Save the PDF
-  const fileName = `Surrogate_Application_${(app.full_name || app.fullName || 'Unknown').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const appType = isIntendedParent ? 'Intended_Parent' : 'Surrogate';
+  const fileName = `${appType}_Application_${(app.full_name || app.fullName || 'Unknown').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 };
 
