@@ -980,6 +980,9 @@ export default function PaymentNodesPage() {
                     Reference
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Notes
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Receipt
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1054,6 +1057,11 @@ export default function PaymentNodesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{payment.payment_reference || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate" title={payment.notes || ''}>
+                        {payment.notes || '—'}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.receipt_image_url ? (
