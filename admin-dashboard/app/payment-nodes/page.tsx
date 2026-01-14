@@ -61,6 +61,7 @@ type ClientPayment = {
   payment_method: string | null;
   payment_reference: string | null;
   notes: string | null;
+  receipt_image_url: string | null;
   created_at: string;
   updated_at: string;
   match?: {
@@ -124,7 +125,10 @@ export default function PaymentNodesPage() {
     payment_method: '',
     payment_reference: '',
     notes: '',
+    receipt_image_url: '',
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -368,7 +372,9 @@ export default function PaymentNodesPage() {
       payment_method: '',
       payment_reference: '',
       notes: '',
+      receipt_image_url: '',
     });
+    setPreviewImage(null);
     setShowAddPaymentModal(true);
   };
 
@@ -390,7 +396,9 @@ export default function PaymentNodesPage() {
       payment_method: payment.payment_method || '',
       payment_reference: payment.payment_reference || '',
       notes: payment.notes || '',
+      receipt_image_url: payment.receipt_image_url || '',
     });
+    setPreviewImage(payment.receipt_image_url || null);
     setShowEditPaymentModal(true);
   };
 
@@ -423,6 +431,7 @@ export default function PaymentNodesPage() {
       setShowAddPaymentModal(false);
       setShowEditPaymentModal(false);
       setSelectedPayment(null);
+      setPreviewImage(null);
       
       setTimeout(async () => {
         try {
@@ -457,6 +466,55 @@ export default function PaymentNodesPage() {
       console.error('Error deleting payment:', error);
       alert(error.message || 'Failed to delete payment record');
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/client-payments/upload-receipt', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const result = await res.json();
+      setPaymentFormData({ ...paymentFormData, receipt_image_url: result.url });
+      setPreviewImage(result.url);
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      alert(error.message || 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPaymentFormData({ ...paymentFormData, receipt_image_url: '' });
+    setPreviewImage(null);
   };
 
   const getInstallmentColor = (installment: string) => {
@@ -520,6 +578,7 @@ export default function PaymentNodesPage() {
     notes?: string | null;
     // Client Payment fields
     payment_installment?: 'Installment 1' | 'Installment 2' | 'Installment 3' | 'Installment 4';
+    receipt_image_url?: string | null;
     // Common fields
     amount: number;
     created_at: string;
@@ -554,6 +613,7 @@ export default function PaymentNodesPage() {
       payment_method: payment.payment_method,
       payment_reference: payment.payment_reference,
       notes: payment.notes,
+      receipt_image_url: payment.receipt_image_url,
       amount: payment.amount,
       created_at: payment.created_at,
       updated_at: payment.updated_at,
@@ -841,6 +901,9 @@ export default function PaymentNodesPage() {
                     Reference
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Receipt
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -912,6 +975,24 @@ export default function PaymentNodesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{payment.payment_reference || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {payment.type === 'payment' && payment.receipt_image_url ? (
+                        <a
+                          href={payment.receipt_image_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block"
+                        >
+                          <img
+                            src={payment.receipt_image_url}
+                            alt="Payment receipt"
+                            className="w-16 h-16 object-cover rounded border border-gray-300 hover:opacity-75 cursor-pointer"
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       {payment.type === 'node' ? (
@@ -1298,6 +1379,45 @@ export default function PaymentNodesPage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Receipt Image
+                    </label>
+                    <div className="space-y-2">
+                      {previewImage || paymentFormData.receipt_image_url ? (
+                        <div className="relative">
+                          <img
+                            src={previewImage || paymentFormData.receipt_image_url || ''}
+                            alt="Receipt preview"
+                            className="w-full max-w-md h-48 object-contain border border-gray-300 rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : null}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {uploadingImage && (
+                          <span className="text-sm text-gray-500">Uploading...</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Upload a screenshot of the payment receipt (JPEG, PNG, GIF, WebP, max 5MB)
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-3 pt-4">
                     <button
                       type="button"
@@ -1305,6 +1425,7 @@ export default function PaymentNodesPage() {
                         setShowAddPaymentModal(false);
                         setShowEditPaymentModal(false);
                         setSelectedPayment(null);
+                        setPreviewImage(null);
                       }}
                       className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                     >

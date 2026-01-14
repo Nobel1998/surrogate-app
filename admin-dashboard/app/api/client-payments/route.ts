@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
       payment_method,
       payment_reference,
       notes,
+      receipt_image_url,
     } = body;
 
     if (!match_id || !payment_installment || !amount || !payment_date) {
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
         payment_method: payment_method || null,
         payment_reference: payment_reference || null,
         notes: notes || null,
+        receipt_image_url: receipt_image_url || null,
         updated_at: new Date().toISOString(),
       })
       .select()
