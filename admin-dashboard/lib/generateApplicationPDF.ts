@@ -428,6 +428,7 @@ export const generateApplicationPDF = (app: ApplicationData) => {
     ['Applicant Address', formatValue(app.applicantAddress)],
     ['Emergency Contact', formatValue(app.emergencyContact)],
   ], [220, 20, 60]);
+  }
 
   // Footer
   const pageCount = doc.getNumberOfPages();
