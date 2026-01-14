@@ -388,6 +388,26 @@ export default function PaymentNodesPage() {
       return dateStr.split('T')[0];
     };
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'payment-nodes/page.tsx:381',
+        message: 'handleEditPayment called',
+        data: {
+          paymentId: payment.id,
+          hasReceiptImageUrl: !!payment.receipt_image_url,
+          receiptImageUrl: payment.receipt_image_url,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A',
+      }),
+    }).catch(() => {});
+    // #endregion
+    
     setPaymentFormData({
       match_id: payment.match_id,
       payment_installment: payment.payment_installment,
@@ -1402,17 +1422,41 @@ export default function PaymentNodesPage() {
                     />
                   </div>
 
-                  <div className="border-t border-gray-200 pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Receipt Image
+                  <div className="border-t-2 border-blue-200 pt-6 mt-4 bg-blue-50 p-4 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">
+                      Payment Receipt Image {showEditPaymentModal && '(Edit Mode)'}
                     </label>
+                    {/* #region agent log */}
+                    {(() => {
+                      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          location: 'payment-nodes/page.tsx:1405',
+                          message: 'Receipt image section rendered',
+                          data: {
+                            showEditPaymentModal,
+                            showAddPaymentModal,
+                            hasPreviewImage: !!previewImage,
+                            hasReceiptImageUrl: !!paymentFormData.receipt_image_url,
+                            receiptImageUrl: paymentFormData.receipt_image_url,
+                          },
+                          timestamp: Date.now(),
+                          sessionId: 'debug-session',
+                          runId: 'run1',
+                          hypothesisId: 'B',
+                        }),
+                      }).catch(() => {});
+                      return null;
+                    })()}
+                    {/* #endregion */}
                     <div className="space-y-3">
                       {previewImage || paymentFormData.receipt_image_url ? (
                         <div className="relative inline-block">
                           <img
                             src={previewImage || paymentFormData.receipt_image_url || ''}
                             alt="Receipt preview"
-                            className="w-full max-w-md h-48 object-contain border-2 border-gray-300 rounded-lg bg-gray-50"
+                            className="w-full max-w-md h-48 object-contain border-2 border-gray-300 rounded-lg bg-white shadow-sm"
                           />
                           <button
                             type="button"
@@ -1423,7 +1467,11 @@ export default function PaymentNodesPage() {
                             ×
                           </button>
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">
+                          No receipt image uploaded yet
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <label className="flex-1 cursor-pointer">
                           <input
@@ -1438,8 +1486,10 @@ export default function PaymentNodesPage() {
                           <span className="text-sm text-blue-600 font-medium">Uploading...</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Upload a screenshot of the payment receipt (JPEG, PNG, GIF, WebP, max 5MB)
+                      <p className="text-xs text-gray-600 mt-1">
+                        {showEditPaymentModal 
+                          ? 'Upload or update the payment receipt screenshot (JPEG, PNG, GIF, WebP, max 5MB)'
+                          : 'Upload a screenshot of the payment receipt (JPEG, PNG, GIF, WebP, max 5MB)'}
                       </p>
                     </div>
                   </div>
