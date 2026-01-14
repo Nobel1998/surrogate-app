@@ -602,8 +602,25 @@ export async function POST(req: Request) {
 
     // Auto-populate case fields if match was created and doesn't have claim_id yet
     if (matchId && !existing) {
-      // Generate claim_id: MATCH-{matchId的前8位}
-      const claimId = `MATCH-${matchId.substring(0, 8).toUpperCase()}`;
+      // Get surrogate and parent profiles to extract first names
+      const { data: surrogateProfile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', surrogateId)
+        .single();
+      
+      const { data: parentProfile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', parentId)
+        .single();
+      
+      // Extract first names (first word of name, split by space)
+      const surrogateFirstName = surrogateProfile?.name?.split(' ')[0] || 'Surrogate';
+      const parentFirstName = parentProfile?.name?.split(' ')[0] || 'Parent';
+      
+      // Generate claim_id: 代母firstname + 客人first name
+      const claimId = `${surrogateFirstName}${parentFirstName}`;
       
       // Get branch_id from admin user if available
       let effectiveBranchId = branchId;
