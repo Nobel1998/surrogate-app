@@ -917,8 +917,14 @@ export default function PaymentNodesPage() {
                         <>
                           <button
                             onClick={() => {
+                              // Find the node from the original paymentNodes array
                               const node = paymentNodes.find(n => n.id === payment.id);
-                              if (node) handleEdit(node);
+                              if (node) {
+                                handleEdit(node);
+                              } else {
+                                console.error('Payment node not found:', payment.id);
+                                alert('Payment node not found. Please refresh the page.');
+                              }
                             }}
                             className="text-blue-600 hover:text-blue-900 mr-4"
                           >
@@ -936,7 +942,12 @@ export default function PaymentNodesPage() {
                           <button
                             onClick={() => {
                               const clientPayment = clientPayments.find(p => p.id === payment.id);
-                              if (clientPayment) handleEditPayment(clientPayment);
+                              if (clientPayment) {
+                                handleEditPayment(clientPayment);
+                              } else {
+                                console.error('Client payment not found:', payment.id);
+                                alert('Client payment not found. Please refresh the page.');
+                              }
                             }}
                             className="text-blue-600 hover:text-blue-900 mr-4"
                           >
