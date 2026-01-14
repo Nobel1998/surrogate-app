@@ -1269,6 +1269,29 @@ export default function PaymentNodesPage() {
                   {showEditPaymentModal ? 'Edit Payment Record' : 'Add Payment Record'}
                 </h2>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
+                  {/* #region agent log */}
+                  {(() => {
+                    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        location: 'payment-nodes/page.tsx:1271',
+                        message: 'Payment form rendered',
+                        data: {
+                          showAddPaymentModal,
+                          showEditPaymentModal,
+                          hasReceiptImageUrl: !!paymentFormData.receipt_image_url,
+                          hasPreviewImage: !!previewImage,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: 'debug-session',
+                        runId: 'run1',
+                        hypothesisId: 'A',
+                      }),
+                    }).catch(() => {});
+                    return null;
+                  })()}
+                  {/* #endregion */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Match *
@@ -1379,40 +1402,43 @@ export default function PaymentNodesPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="border-t border-gray-200 pt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Payment Receipt Image
                     </label>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {previewImage || paymentFormData.receipt_image_url ? (
-                        <div className="relative">
+                        <div className="relative inline-block">
                           <img
                             src={previewImage || paymentFormData.receipt_image_url || ''}
                             alt="Receipt preview"
-                            className="w-full max-w-md h-48 object-contain border border-gray-300 rounded-lg"
+                            className="w-full max-w-md h-48 object-contain border-2 border-gray-300 rounded-lg bg-gray-50"
                           />
                           <button
                             type="button"
                             onClick={handleRemoveImage}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 text-lg font-bold shadow-lg"
+                            title="Remove image"
                           >
                             ×
                           </button>
                         </div>
                       ) : null}
                       <div className="flex items-center gap-2">
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                          onChange={handleImageUpload}
-                          disabled={uploadingImage}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
+                        <label className="flex-1 cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            onChange={handleImageUpload}
+                            disabled={uploadingImage}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                          />
+                        </label>
                         {uploadingImage && (
-                          <span className="text-sm text-gray-500">Uploading...</span>
+                          <span className="text-sm text-blue-600 font-medium">Uploading...</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 mt-1">
                         Upload a screenshot of the payment receipt (JPEG, PNG, GIF, WebP, max 5MB)
                       </p>
                     </div>
