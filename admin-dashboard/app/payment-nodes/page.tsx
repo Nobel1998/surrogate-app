@@ -478,6 +478,16 @@ export default function PaymentNodesPage() {
 
   const totalPaymentAmount = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0);
 
+  const filteredNodes = paymentNodes.filter((node) => {
+    if (filterStatus !== 'all' && node.status !== filterStatus) return false;
+    if (filterMatchId !== 'all' && node.match_id !== filterMatchId) return false;
+    if (filterMatchStatus !== 'all') {
+      const match = matches.find((m) => m.id === node.match_id);
+      if (!match || match.status !== filterMatchStatus) return false;
+    }
+    return true;
+  });
+
   // Combined filtered data for unified view
   type UnifiedPayment = {
     id: string;
@@ -606,16 +616,6 @@ export default function PaymentNodesPage() {
       day: 'numeric',
     });
   };
-
-  const filteredNodes = paymentNodes.filter((node) => {
-    if (filterStatus !== 'all' && node.status !== filterStatus) return false;
-    if (filterMatchId !== 'all' && node.match_id !== filterMatchId) return false;
-    if (filterMatchStatus !== 'all') {
-      const match = matches.find((m) => m.id === node.match_id);
-      if (!match || match.status !== filterMatchStatus) return false;
-    }
-    return true;
-  });
 
   const totalAmount = filteredNodes.reduce((sum, node) => sum + node.amount, 0);
   const paidAmount = filteredNodes
