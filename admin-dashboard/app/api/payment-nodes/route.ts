@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
       due_date,
       status = 'pending',
       notes,
+      receipt_image_url,
     } = body;
 
     if (!match_id || !node_name || !node_type || !amount) {
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
         due_date: due_date || null,
         status,
         notes: notes || null,
+        receipt_image_url: receipt_image_url || null,
         updated_at: new Date().toISOString(),
       })
       .select()

@@ -15,6 +15,7 @@ type PaymentNode = {
   payment_method: string | null;
   payment_reference: string | null;
   notes: string | null;
+  receipt_image_url: string | null;
   created_at: string;
   updated_at: string;
   match?: {
@@ -114,7 +115,10 @@ export default function PaymentNodesPage() {
     payment_method: '',
     payment_reference: '',
     notes: '',
+    receipt_image_url: '',
   });
+  const [uploadingNodeImage, setUploadingNodeImage] = useState(false);
+  const [previewNodeImage, setPreviewNodeImage] = useState<string | null>(null);
 
   // Form state for client payments
   const [paymentFormData, setPaymentFormData] = useState({
@@ -256,7 +260,9 @@ export default function PaymentNodesPage() {
       payment_method: '',
       payment_reference: '',
       notes: '',
+      receipt_image_url: '',
     });
+    setPreviewNodeImage(null);
     setShowAddModal(true);
   };
 
@@ -282,7 +288,9 @@ export default function PaymentNodesPage() {
       payment_method: node.payment_method || '',
       payment_reference: node.payment_reference || '',
       notes: node.notes || '',
+      receipt_image_url: node.receipt_image_url || '',
     });
+    setPreviewNodeImage(node.receipt_image_url || null);
     setShowEditModal(true);
   };
 
@@ -322,6 +330,7 @@ export default function PaymentNodesPage() {
       setShowAddModal(false);
       setShowEditModal(false);
       setSelectedNode(null);
+      setPreviewNodeImage(null);
       
       // Reload data to get the latest payment nodes with match information
       // Use setTimeout to ensure modal is fully closed before reloading
@@ -537,6 +546,55 @@ export default function PaymentNodesPage() {
     setPreviewImage(null);
   };
 
+  const handleNodeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setUploadingNodeImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/client-payments/upload-receipt', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const result = await res.json();
+      setFormData({ ...formData, receipt_image_url: result.url });
+      setPreviewNodeImage(result.url);
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      alert(error.message || 'Failed to upload image');
+    } finally {
+      setUploadingNodeImage(false);
+    }
+  };
+
+  const handleRemoveNodeImage = () => {
+    setFormData({ ...formData, receipt_image_url: '' });
+    setPreviewNodeImage(null);
+  };
+
   const getInstallmentColor = (installment: string) => {
     switch (installment) {
       case 'Installment 1':
@@ -619,6 +677,7 @@ export default function PaymentNodesPage() {
       payment_method: node.payment_method,
       payment_reference: node.payment_reference,
       notes: node.notes,
+      receipt_image_url: node.receipt_image_url,
       amount: node.amount,
       created_at: node.created_at,
       updated_at: node.updated_at,
@@ -997,7 +1056,7 @@ export default function PaymentNodesPage() {
                       <div className="text-sm text-gray-900">{payment.payment_reference || '—'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {payment.type === 'payment' && payment.receipt_image_url ? (
+                      {payment.receipt_image_url ? (
                         <a
                           href={payment.receipt_image_url}
                           target="_blank"
@@ -1256,6 +1315,54 @@ export default function PaymentNodesPage() {
                   />
                 </div>
 
+                <div className="border-t-2 border-blue-200 pt-6 mt-4 bg-blue-50 p-4 rounded-lg">
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">
+                    Payment Receipt Image {showEditModal && '(Edit Mode)'}
+                  </label>
+                  <div className="space-y-3">
+                    {previewNodeImage || formData.receipt_image_url ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={previewNodeImage || formData.receipt_image_url || ''}
+                          alt="Receipt preview"
+                          className="w-full max-w-md h-48 object-contain border-2 border-gray-300 rounded-lg bg-white shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveNodeImage}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 text-lg font-bold shadow-lg"
+                          title="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        No receipt image uploaded yet
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          onChange={handleNodeImageUpload}
+                          disabled={uploadingNodeImage}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                        />
+                      </label>
+                      {uploadingNodeImage && (
+                        <span className="text-sm text-blue-600 font-medium">Uploading...</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {showEditModal 
+                        ? 'Upload or update the payment receipt screenshot (JPEG, PNG, GIF, WebP, max 5MB)'
+                        : 'Upload a screenshot of the payment receipt (JPEG, PNG, GIF, WebP, max 5MB)'}
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-4 pt-4">
                   <button
                     type="button"
@@ -1263,6 +1370,7 @@ export default function PaymentNodesPage() {
                       setShowAddModal(false);
                       setShowEditModal(false);
                       setSelectedNode(null);
+                      setPreviewNodeImage(null);
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
