@@ -22,6 +22,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/business-statistics', label: 'Business Statistics', icon: '📈' },
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
+    { href: '/branches', label: 'Branches', icon: '🏢', adminOnly: true },
     { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
   ];
 
