@@ -59,12 +59,24 @@ export default function Home() {
       ? `${formData.parent1FirstName} ${formData.parent1LastName}`
       : formData.parent1FirstName || formData.parent1LastName || 'Unknown';
     
+    // Format phone number: +{countryCode} ({areaCode}) {phoneNumber}
+    const formatPhone = () => {
+      if (formData.parent1PhoneCountryCode && formData.parent1PhoneAreaCode && formData.parent1PhoneNumber) {
+        return `+${formData.parent1PhoneCountryCode} (${formData.parent1PhoneAreaCode}) ${formData.parent1PhoneNumber}`;
+      } else if (formData.parent1PhoneNumber) {
+        return formData.parent1PhoneNumber;
+      } else if (formData.parent1PhoneCountryCode) {
+        return `+${formData.parent1PhoneCountryCode}`;
+      }
+      return 'N/A';
+    };
+    
     return {
       ...app,
       ...formData,
       applicationType: 'intended_parent',
       full_name: parent1Name,
-      phone: formData.parent1PhoneNumber || formData.parent1PhoneCountryCode || 'N/A',
+      phone: formatPhone(),
       email: formData.parent1Email || 'N/A',
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',

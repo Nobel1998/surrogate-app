@@ -619,8 +619,29 @@ export async function POST(req: Request) {
       const surrogateFirstName = surrogateProfile?.name?.split(' ')[0] || 'Surrogate';
       const parentFirstName = parentProfile?.name?.split(' ')[0] || 'Parent';
       
-      // Generate claim_id: 代母firstname + 客人first name
-      const claimId = `${surrogateFirstName}${parentFirstName}`;
+      // Generate base claim_id: 代母firstname + 客人first name
+      let baseClaimId = `${surrogateFirstName}${parentFirstName}`;
+      let claimId = baseClaimId;
+      let counter = 1;
+      
+      // Check if claim_id already exists, add numeric suffix if needed
+      while (true) {
+        const { data: existingMatch } = await supabase
+          .from('surrogate_matches')
+          .select('id')
+          .eq('claim_id', claimId)
+          .neq('id', matchId)
+          .maybeSingle();
+        
+        if (!existingMatch) {
+          // claim_id is unique, break the loop
+          break;
+        }
+        
+        // claim_id exists, add numeric suffix
+        counter++;
+        claimId = `${baseClaimId}${counter}`;
+      }
       
       // Get branch_id from admin user if available
       let effectiveBranchId = branchId;
