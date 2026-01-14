@@ -39,7 +39,8 @@ export default function MyMatchScreen({ navigation }) {
   const [surrogateDetails, setSurrogateDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
-  // Pregnancy test dates (2nd and 3rd)
+  // Pregnancy test dates (1st, 2nd and 3rd)
+  const [pregnancyTestDate1, setPregnancyTestDate1] = useState('');
   const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
   const [savingPregnancyTests, setSavingPregnancyTests] = useState(false);
@@ -106,7 +107,17 @@ export default function MyMatchScreen({ navigation }) {
       console.log('[MyMatch] match:', match);
 
       if (match) {
-        // Load pregnancy test dates 2 and 3
+        // Load pregnancy test dates 1, 2 and 3
+        if (match.pregnancy_test_date) {
+          const date = new Date(match.pregnancy_test_date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate1(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate1('');
+        }
+        
         if (match.pregnancy_test_date_2) {
           const date = new Date(match.pregnancy_test_date_2);
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -863,10 +874,26 @@ export default function MyMatchScreen({ navigation }) {
                 </View>
               )}
               
-              {/* Additional Pregnancy Test Dates - Only for surrogates */}
+              {/* Pregnancy Test Dates - Only for surrogates */}
               {userRole === 'surrogate' && (
                 <>
+                  {/* Pregnancy Test Date 1 */}
                   <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
+                    <View style={styles.pregnancyInfoIconContainer}>
+                      <Icon name="activity" size={24} color="#10B981" />
+                    </View>
+                    <View style={styles.pregnancyInfoContent}>
+                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 1 (MM/DD/YY)</Text>
+                      {pregnancyTestDate1 ? (
+                        <Text style={styles.pregnancyInfoValue}>{pregnancyTestDate1}</Text>
+                      ) : (
+                        <Text style={[styles.pregnancyInfoValue, { color: '#94A3B8', fontStyle: 'italic' }]}>Not set</Text>
+                      )}
+                    </View>
+                  </View>
+                  
+                  {/* Pregnancy Test Date 2 */}
+                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
                     <View style={styles.pregnancyInfoIconContainer}>
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
