@@ -634,8 +634,9 @@ export default function PaymentNodesPage() {
 
   // Combined statistics
   const combinedTotalRecords = finalFilteredPayments.length;
-  // Total Amount Due: All payment nodes (what customers should pay)
-  const totalAmountDue = totalNodeAmount;
+  // Total Amount Due: Payment nodes total minus actual payments made
+  // This shows the remaining amount that customers still need to pay
+  const totalAmountDue = Math.max(0, totalNodeAmount - totalPaymentAmount);
   // Paid Amount: Only Client Payments (actual payments made)
   // Payment Nodes are just records of amounts due, not actual payments
   const combinedPaidAmount = totalPaymentAmount;
@@ -682,7 +683,7 @@ export default function PaymentNodesPage() {
             <div className="text-sm text-gray-600">Total Amount Due</div>
             <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmountDue)}</div>
             <div className="text-xs text-gray-500 mt-1">
-              Payment nodes (amounts to be paid)
+              Payment nodes - Payments made
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
