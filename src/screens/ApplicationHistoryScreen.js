@@ -304,23 +304,78 @@ export default function ApplicationHistoryScreen({ navigation }) {
     return app.status === filter;
   });
 
+  const loadIntendedParentApplication = async (applicationId) => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        Alert.alert('Error', 'Please log in to edit your application.');
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('intended_parent_applications')
+        .select('*')
+        .eq('id', applicationId)
+        .eq('user_id', authUser.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading intended parent application:', error);
+        Alert.alert('Error', 'Failed to load application data.');
+        return null;
+      }
+
+      if (data) {
+        let formData = {};
+        try {
+          if (data.form_data) {
+            formData = typeof data.form_data === 'string' ? JSON.parse(data.form_data) : data.form_data;
+          }
+        } catch (e) {
+          console.error('Error parsing form_data:', e);
+        }
+
+        return formData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading application:', error);
+      Alert.alert('Error', 'Failed to load application data.');
+      return null;
+    }
+  };
+
+  const handleEditIntendedParentApplication = async (application) => {
+    if (!application.originalId) {
+      Alert.alert('Error', 'Application ID not found.');
+      return;
+    }
+
+    // Show loading indicator
+    Alert.alert('Loading', 'Loading application data...', [], { cancelable: false });
+
+    const formData = await loadIntendedParentApplication(application.originalId);
+    
+    if (formData) {
+      navigation.navigate('IntendedParentApplication', {
+        editMode: true,
+        applicationId: application.originalId,
+        existingData: formData
+      });
+    }
+  };
+
   const getApplicationDetails = (application) => {
     const actions = [
       { text: 'Close', style: 'cancel' },
       { text: 'View Documents', onPress: () => showDocuments(application) }
     ];
 
-    // If it's an Intended Parent Application, add option to view full application
+    // If it's an Intended Parent Application, add option to view/edit full application
     if (application.applicationType === 'intended_parent' && application.originalId) {
       actions.splice(1, 0, {
-        text: 'View Full Application',
-        onPress: () => {
-          navigation.navigate('IntendedParentApplication', {
-            editMode: true,
-            applicationId: application.originalId,
-            existingData: application.formData || {}
-          });
-        }
+        text: 'Edit Application',
+        onPress: () => handleEditIntendedParentApplication(application)
       });
     } else if (application.type === 'Surrogacy Application' && application.originalId) {
       // For Surrogate Application, navigate to ViewApplication
@@ -453,34 +508,48 @@ export default function ApplicationHistoryScreen({ navigation }) {
           ) : (
             <View style={styles.applicationsList}>
               {filteredApplications.map((application) => (
-                <TouchableOpacity
-                  key={application.id}
-                  style={styles.applicationCard}
-                  onPress={() => getApplicationDetails(application)}
-                >
-                  <View style={styles.applicationHeader}>
-                    <View style={styles.applicationInfo}>
-                      <Text style={styles.applicationId}>{application.id}</Text>
-                      <Text style={styles.applicationType}>{application.type}</Text>
+                <View key={application.id} style={styles.applicationCard}>
+                  <TouchableOpacity
+                    onPress={() => getApplicationDetails(application)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.applicationHeader}>
+                      <View style={styles.applicationInfo}>
+                        <Text style={styles.applicationId}>{application.id}</Text>
+                        <Text style={styles.applicationType}>{application.type}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(application.status) }]}>
+                        <Text style={styles.statusIcon}>{getStatusIcon(application.status)}</Text>
+                        <Text style={styles.statusText}>{getStatusText(application.status)}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(application.status) }]}>
-                      <Text style={styles.statusIcon}>{getStatusIcon(application.status)}</Text>
-                      <Text style={styles.statusText}>{getStatusText(application.status)}</Text>
+                    
+                    <Text style={styles.applicationDescription}>{application.description}</Text>
+                    
+                    <View style={styles.applicationFooter}>
+                      <Text style={styles.dateText}>Submitted: {application.submittedDate}</Text>
+                      <Text style={styles.dateText}>Updated: {application.lastUpdated}</Text>
                     </View>
-                  </View>
+                    
+                    <View style={styles.nextStepContainer}>
+                      <Text style={styles.nextStepLabel}>Next Step:</Text>
+                      <Text style={styles.nextStepText}>{application.nextStep}</Text>
+                    </View>
+                  </TouchableOpacity>
                   
-                  <Text style={styles.applicationDescription}>{application.description}</Text>
-                  
-                  <View style={styles.applicationFooter}>
-                    <Text style={styles.dateText}>Submitted: {application.submittedDate}</Text>
-                    <Text style={styles.dateText}>Updated: {application.lastUpdated}</Text>
-                  </View>
-                  
-                  <View style={styles.nextStepContainer}>
-                    <Text style={styles.nextStepLabel}>Next Step:</Text>
-                    <Text style={styles.nextStepText}>{application.nextStep}</Text>
-                  </View>
-                </TouchableOpacity>
+                  {/* Edit button for Intended Parent Applications */}
+                  {application.applicationType === 'intended_parent' && application.originalId && (
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => handleEditIntendedParentApplication(application)}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.editButtonText}>
+                        {isLoading ? 'Loading...' : '✏️ Edit'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               ))}
             </View>
           )}
@@ -674,5 +743,18 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 16,
     textAlign: 'center',
+  },
+  editButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#2A7BF6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

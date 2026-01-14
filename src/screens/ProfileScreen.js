@@ -271,10 +271,59 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const loadIntendedParentApplication = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'Please log in to view your application.');
+      return;
+    }
+
+    setLoadingIntendedParentApplication(true);
+    try {
+      const { data, error } = await supabase
+        .from('intended_parent_applications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading intended parent application:', error);
+        Alert.alert('Error', 'Failed to load application data.');
+        return;
+      }
+
+      if (data) {
+        let formData = {};
+        try {
+          if (data.form_data) {
+            formData = typeof data.form_data === 'string' ? JSON.parse(data.form_data) : data.form_data;
+          }
+        } catch (e) {
+          console.error('Error parsing form_data:', e);
+        }
+
+        navigation.navigate('IntendedParentApplication', {
+          editMode: true,
+          applicationId: data.id,
+          existingData: formData
+        });
+      } else {
+        // No application found, navigate to create new one
+        navigation.navigate('IntendedParentApplication');
+      }
+    } catch (error) {
+      console.error('Error loading application:', error);
+      Alert.alert('Error', 'Failed to load application data.');
+    } finally {
+      setLoadingIntendedParentApplication(false);
+    }
+  };
+
   const handleIntendedParentApplicationPress = () => {
     if (intendedParentApplicationStatus === 'submitted') {
-      // Navigate to Application History to view the application
-      navigation.navigate('ApplicationHistory');
+      // Load and navigate to edit the application
+      loadIntendedParentApplication();
     } else {
       // Navigate to submit intended parent application
       navigation.navigate('IntendedParentApplication');

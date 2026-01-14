@@ -234,6 +234,58 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     }
   };
 
+  // Load existing application data from database if in edit mode
+  const loadExistingApplication = async () => {
+    if (!editMode || !applicationId || !user?.id) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('intended_parent_applications')
+        .select('*')
+        .eq('id', applicationId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading application:', error);
+        Alert.alert('Error', 'Failed to load application data.');
+        return;
+      }
+
+      if (data) {
+        let formData = {};
+        try {
+          if (data.form_data) {
+            formData = typeof data.form_data === 'string' ? JSON.parse(data.form_data) : data.form_data;
+          }
+        } catch (e) {
+          console.error('Error parsing form_data:', e);
+        }
+
+        // Ensure arrays are properly formatted
+        if (formData.reasonForSurrogacy && !Array.isArray(formData.reasonForSurrogacy)) {
+          formData.reasonForSurrogacy = formData.reasonForSurrogacy ? [formData.reasonForSurrogacy] : [];
+        }
+        if (formData.communicationPreference && !Array.isArray(formData.communicationPreference)) {
+          formData.communicationPreference = formData.communicationPreference ? [formData.communicationPreference] : [];
+        }
+        if (formData.relationshipStyle && !Array.isArray(formData.relationshipStyle)) {
+          formData.relationshipStyle = formData.relationshipStyle ? [formData.relationshipStyle] : [];
+        }
+
+        setApplicationData(formData);
+      }
+    } catch (error) {
+      console.error('Error loading application:', error);
+      Alert.alert('Error', 'Failed to load application data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load existing data if in edit mode or restore draft
   useEffect(() => {
     if (editMode && existingData) {
@@ -251,6 +303,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
       }
       setApplicationData(dataToSet);
+    } else if (editMode && applicationId && user) {
+      // If in edit mode but no existingData provided, load from database
+      loadExistingApplication();
     } else if (user) {
       // Pre-fill with user data if available
       setApplicationData(prev => ({
@@ -261,7 +316,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       // Load draft for authenticated users
       loadDraft();
     }
-  }, [editMode, existingData, user]);
+  }, [editMode, existingData, applicationId, user]);
 
   // Save draft periodically
   useEffect(() => {
