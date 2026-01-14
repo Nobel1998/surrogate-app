@@ -1317,7 +1317,7 @@ export default function PaymentNodesPage() {
 
                 <div className="border-t-2 border-blue-200 pt-6 mt-4 bg-blue-50 p-4 rounded-lg">
                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                    Payment Receipt Image {showEditModal && '(Edit Mode)'}
+                    Payment Receipt Image
                   </label>
                   <div className="space-y-3">
                     {previewNodeImage || formData.receipt_image_url ? (
@@ -1532,7 +1532,7 @@ export default function PaymentNodesPage() {
 
                   <div className="border-t-2 border-blue-200 pt-6 mt-4 bg-blue-50 p-4 rounded-lg">
                     <label className="block text-sm font-semibold text-gray-900 mb-3">
-                      Payment Receipt Image {showEditPaymentModal && '(Edit Mode)'}
+                      Payment Receipt Image
                     </label>
                     {/* #region agent log */}
                     {(() => {
