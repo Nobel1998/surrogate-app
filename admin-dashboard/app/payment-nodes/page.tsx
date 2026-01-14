@@ -374,11 +374,19 @@ export default function PaymentNodesPage() {
 
   const handleEditPayment = (payment: ClientPayment) => {
     setSelectedPayment(payment);
+    
+    // Format date for input field (handle both DATE and TIMESTAMP formats)
+    const formatDateForInput = (dateStr: string) => {
+      if (!dateStr) return '';
+      // Extract date part if it's a full ISO string, otherwise use as-is
+      return dateStr.split('T')[0];
+    };
+    
     setPaymentFormData({
       match_id: payment.match_id,
       payment_installment: payment.payment_installment,
       amount: payment.amount.toString(),
-      payment_date: payment.payment_date.split('T')[0],
+      payment_date: formatDateForInput(payment.payment_date),
       payment_method: payment.payment_method || '',
       payment_reference: payment.payment_reference || '',
       notes: payment.notes || '',
