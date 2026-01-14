@@ -120,6 +120,7 @@ export default function HomeScreen() {
   const [pregnancyTestDate, setPregnancyTestDate] = useState('');
   const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
+  const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
   const [fetalBeatConfirm, setFetalBeatConfirm] = useState('None');
   const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
   const [loadingMedicalInfo, setLoadingMedicalInfo] = useState(false);
@@ -1321,7 +1322,7 @@ export default function HomeScreen() {
       // Find the match for this surrogate
       const { data: matchData, error: matchError } = await supabase
         .from('surrogate_matches')
-        .select('id, medication_start_date, pregnancy_test_date, pregnancy_test_date_2, pregnancy_test_date_3, fetal_beat_confirm')
+        .select('id, medication_start_date, pregnancy_test_date, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4, fetal_beat_confirm')
         .eq('surrogate_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -1380,6 +1381,16 @@ export default function HomeScreen() {
           setPregnancyTestDate3('');
         }
 
+        if (matchData.pregnancy_test_date_4) {
+          const date = new Date(matchData.pregnancy_test_date_4);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate4(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate4('');
+        }
+
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1365',message:'fetchMatchAndMedicalInfo state set',data:{pregnancyTestDate1:matchData.pregnancy_test_date?`${String(new Date(matchData.pregnancy_test_date).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date).getFullYear()).slice(-2)}`:'',pregnancyTestDate2:matchData.pregnancy_test_date_2?`${String(new Date(matchData.pregnancy_test_date_2).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_2).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_2).getFullYear()).slice(-2)}`:'',pregnancyTestDate3:matchData.pregnancy_test_date_3?`${String(new Date(matchData.pregnancy_test_date_3).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_3).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_3).getFullYear()).slice(-2)}`:''},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
@@ -1391,6 +1402,7 @@ export default function HomeScreen() {
         setPregnancyTestDate('');
         setPregnancyTestDate2('');
         setPregnancyTestDate3('');
+        setPregnancyTestDate4('');
         setFetalBeatConfirm('None');
       }
     } catch (error) {
@@ -1466,6 +1478,19 @@ export default function HomeScreen() {
         updateData.pregnancy_test_date_3 = null;
       }
 
+      // Parse and format pregnancy test date 4
+      if (pregnancyTestDate4.trim()) {
+        const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter pregnancy test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          setSavingMedicalInfo(false);
+          return;
+        }
+        updateData.pregnancy_test_date_4 = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date_4 = null;
+      }
+
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1465',message:'saveMedicalInfo updateData prepared',data:{hasPregnancyTestDate:!!updateData.pregnancy_test_date,hasPregnancyTestDate2:!!updateData.pregnancy_test_date_2,hasPregnancyTestDate3:!!updateData.pregnancy_test_date_3,currentMatchId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
@@ -1493,7 +1518,7 @@ export default function HomeScreen() {
     } finally {
       setSavingMedicalInfo(false);
     }
-  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, pregnancyTestDate2, pregnancyTestDate3, fetalBeatConfirm]);
+  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, pregnancyTestDate2, pregnancyTestDate3, pregnancyTestDate4, fetalBeatConfirm]);
 
   // Fetch medical reports on mount and when user/match changes
   useEffect(() => {
@@ -2316,6 +2341,26 @@ export default function HomeScreen() {
                         setPregnancyTestDate3(text);
                       }}
                       placeholder="e.g. 12/25/25"
+                      placeholderTextColor="#94A3B8"
+                      autoCapitalize="none"
+                      style={styles.fancyInput}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.medicalInfoSection}>
+                  <Text style={styles.sectionLabel}>Pregnancy Test Date 4 (MM/DD/YY)</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                      value={pregnancyTestDate4}
+                      onChangeText={(text) => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:2330',message:'pregnancyTestDate4 onChangeText',data:{text,currentValue:pregnancyTestDate4},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                        // #endregion
+                        setPregnancyTestDate4(text);
+                      }}
+                      placeholder="e.g. 12/30/25"
                       placeholderTextColor="#94A3B8"
                       autoCapitalize="none"
                       style={styles.fancyInput}

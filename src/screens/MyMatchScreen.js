@@ -39,10 +39,11 @@ export default function MyMatchScreen({ navigation }) {
   const [surrogateDetails, setSurrogateDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
-  // Pregnancy test dates (1st, 2nd and 3rd)
+  // Pregnancy test dates (1st, 2nd, 3rd and 4th)
   const [pregnancyTestDate1, setPregnancyTestDate1] = useState('');
   const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
+  const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
   const [savingPregnancyTests, setSavingPregnancyTests] = useState(false);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function MyMatchScreen({ navigation }) {
       if (isSurrogate) {
         const { data, error } = await supabase
           .from('surrogate_matches')
-          .select('*')
+          .select('*, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4')
           .eq('surrogate_id', user.id)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
@@ -92,7 +93,7 @@ export default function MyMatchScreen({ navigation }) {
       } else {
         const { data, error } = await supabase
           .from('surrogate_matches')
-          .select('*')
+          .select('*, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4')
           .eq('parent_id', user.id)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
@@ -136,6 +137,16 @@ export default function MyMatchScreen({ navigation }) {
           setPregnancyTestDate3(`${month}/${day}/${year}`);
         } else {
           setPregnancyTestDate3('');
+        }
+        
+        if (match.pregnancy_test_date_4) {
+          const date = new Date(match.pregnancy_test_date_4);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate4(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate4('');
         }
         
         // 3) 对方资料
@@ -500,6 +511,107 @@ export default function MyMatchScreen({ navigation }) {
     const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
     return `${month}-${day}-${year}`;
+  };
+
+  // Helper functions for date parsing and formatting
+  const parseMMDDYYToISO = (dateString) => {
+    // Parse MM/DD/YY format to Date object
+    const parts = dateString.split('/');
+    if (parts.length !== 3) return null;
+    
+    const month = parseInt(parts[0], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
+    
+    // Convert 2-digit year to 4-digit (assuming 2000-2099)
+    if (year < 100) {
+      year += 2000;
+    }
+    
+    const date = new Date(year, month, day);
+    if (isNaN(date.getTime())) return null;
+    return date;
+  };
+
+  const formatDateToISO = (date) => {
+    // Format Date object to YYYY-MM-DD ISO string
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const savePregnancyTestDates = async () => {
+    if (!user?.id || userRole !== 'surrogate' || !matchData?.id) {
+      Alert.alert('Error', 'You must be a surrogate with an active match to save pregnancy test dates.');
+      return;
+    }
+
+    setSavingPregnancyTests(true);
+    try {
+      const updateData = {};
+
+      // Parse and format pregnancy test date 2
+      if (pregnancyTestDate2.trim()) {
+        const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 2 in format: MM/DD/YY (e.g., 12/15/25).');
+          setSavingPregnancyTests(false);
+          return;
+        }
+        updateData.pregnancy_test_date_2 = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date_2 = null;
+      }
+
+      // Parse and format pregnancy test date 3
+      if (pregnancyTestDate3.trim()) {
+        const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 3 in format: MM/DD/YY (e.g., 12/20/25).');
+          setSavingPregnancyTests(false);
+          return;
+        }
+        updateData.pregnancy_test_date_3 = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date_3 = null;
+      }
+
+      // Parse and format pregnancy test date 4
+      if (pregnancyTestDate4.trim()) {
+        const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          setSavingPregnancyTests(false);
+          return;
+        }
+        updateData.pregnancy_test_date_4 = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date_4 = null;
+      }
+
+      updateData.updated_at = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('surrogate_matches')
+        .update(updateData)
+        .eq('id', matchData.id)
+        .eq('surrogate_id', user.id);
+
+      if (error) {
+        console.error('Error updating pregnancy test dates:', error);
+        Alert.alert('Error', 'Failed to save pregnancy test dates. Please try again.');
+        return;
+      }
+
+      Alert.alert('Success', 'Pregnancy test dates saved successfully.');
+      loadMatchData(); // Reload data to reflect changes
+    } catch (error) {
+      console.error('Error in savePregnancyTestDates:', error);
+      Alert.alert('Error', 'Failed to save pregnancy test dates. Please try again.');
+    } finally {
+      setSavingPregnancyTests(false);
+    }
   };
 
   // Render Unmatched State
@@ -923,6 +1035,25 @@ export default function MyMatchScreen({ navigation }) {
                           value={pregnancyTestDate3}
                           onChangeText={setPregnancyTestDate3}
                           placeholder="e.g. 12/20/25"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.pregnancyTestInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
+                    <View style={styles.pregnancyInfoIconContainer}>
+                      <Icon name="activity" size={24} color="#10B981" />
+                    </View>
+                    <View style={styles.pregnancyInfoContent}>
+                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 4 (MM/DD/YY)</Text>
+                      <View style={styles.pregnancyTestInputContainer}>
+                        <TextInput
+                          value={pregnancyTestDate4}
+                          onChangeText={setPregnancyTestDate4}
+                          placeholder="e.g. 12/25/25"
                           placeholderTextColor="#94A3B8"
                           style={styles.pregnancyTestInput}
                           keyboardType="numeric"
