@@ -566,12 +566,12 @@ export default function PaymentNodesPage() {
 
     setUploadingNodeImage(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
       const res = await fetch('/api/client-payments/upload-receipt', {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
       });
 
       if (!res.ok) {
@@ -580,7 +580,7 @@ export default function PaymentNodesPage() {
       }
 
       const result = await res.json();
-      setFormData({ ...formData, receipt_image_url: result.url });
+      setFormData((prev) => ({ ...prev, receipt_image_url: result.url }));
       setPreviewNodeImage(result.url);
     } catch (error: any) {
       console.error('Error uploading image:', error);
