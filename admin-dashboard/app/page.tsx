@@ -14,10 +14,11 @@ export default function Home() {
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent'
+  const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
 
-  // 解析申请数据的辅助函数
-  const parseApplicationData = (app: any) => {
+  // 解析 Surrogate 申请数据的辅助函数
+  const parseSurrogateApplicationData = (app: any) => {
     let formData: any = {};
     try {
       if (app.form_data) {
@@ -30,6 +31,7 @@ export default function Home() {
     return {
       ...app,
       ...formData,
+      applicationType: 'surrogate',
       // 确保基本字段存在
       full_name: app.full_name || formData.fullName || 'Unknown',
       phone: app.phone || formData.phoneNumber || 'N/A',
@@ -42,19 +44,63 @@ export default function Home() {
     };
   };
 
+  // 解析 Intended Parent 申请数据的辅助函数
+  const parseIntendedParentApplicationData = (app: any) => {
+    let formData: any = {};
+    try {
+      if (app.form_data) {
+        formData = typeof app.form_data === 'string' ? JSON.parse(app.form_data) : app.form_data;
+      }
+    } catch (e) {
+      console.error('Error parsing intended parent form_data:', e);
+    }
+    
+    const parent1Name = formData.parent1FirstName && formData.parent1LastName 
+      ? `${formData.parent1FirstName} ${formData.parent1LastName}`
+      : formData.parent1FirstName || formData.parent1LastName || 'Unknown';
+    
+    return {
+      ...app,
+      ...formData,
+      applicationType: 'intended_parent',
+      full_name: parent1Name,
+      phone: formData.parent1PhoneNumber || formData.parent1PhoneCountryCode || 'N/A',
+      email: formData.parent1Email || 'N/A',
+      location: formData.parent1CountryState || 'N/A',
+      address: formData.parent1AddressStreet || 'N/A',
+      submitted_at: app.submitted_at || app.created_at,
+    };
+  };
+
   const loadApplications = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
       
-      // 解析所有申请数据
-      const parsedApplications = (data || []).map(parseApplicationData);
-      setApplications(parsedApplications);
+      // 同时加载 Surrogate 和 Intended Parent 申请
+      const [surrogateRes, intendedParentRes] = await Promise.all([
+        supabase
+          .from('applications')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        fetch('/api/intended-parent-applications').then(res => res.json())
+      ]);
+
+      if (surrogateRes.error) throw surrogateRes.error;
+      
+      // 解析 Surrogate 申请
+      const parsedSurrogateApps = (surrogateRes.data || []).map(parseSurrogateApplicationData);
+      
+      // 解析 Intended Parent 申请
+      const parsedIntendedParentApps = (intendedParentRes.data || []).map(parseIntendedParentApplicationData);
+      
+      // 合并并排序（按提交日期，最新的在前）
+      const allApplications = [...parsedSurrogateApps, ...parsedIntendedParentApps].sort((a, b) => {
+        const dateA = new Date(a.submitted_at || a.created_at || 0).getTime();
+        const dateB = new Date(b.submitted_at || b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      setApplications(allApplications);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -76,28 +122,36 @@ export default function Home() {
       app.location?.toLowerCase().includes(searchLower) ||
       app.age?.toString().includes(searchTerm) ||
       app.employmentStatus?.toLowerCase().includes(searchLower) ||
-      app.previousPregnancies?.toLowerCase().includes(searchLower);
+      app.previousPregnancies?.toLowerCase().includes(searchLower) ||
+      (app.applicationType === 'intended_parent' && (
+        app.parent1FirstName?.toLowerCase().includes(searchLower) ||
+        app.parent1LastName?.toLowerCase().includes(searchLower) ||
+        app.parent2FirstName?.toLowerCase().includes(searchLower) ||
+        app.parent2LastName?.toLowerCase().includes(searchLower)
+      ));
     
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'pending' && (!app.status || app.status === 'pending')) ||
       app.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || app.applicationType === typeFilter;
+    
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredApplications.map(app => app.id));
+      setSelectedIds(filteredApplications.map(app => ({ id: app.id, type: app.applicationType })));
     } else {
       setSelectedIds([]);
     }
   };
 
-  const handleSelectOne = (id: number, checked: boolean) => {
+  const handleSelectOne = (id: string | number, type: string, checked: boolean) => {
     if (checked) {
-      setSelectedIds(prev => [...prev, id]);
+      setSelectedIds(prev => [...prev, { id, type }]);
     } else {
-      setSelectedIds(prev => prev.filter(appId => appId !== id));
+      setSelectedIds(prev => prev.filter(item => !(item.id === id && item.type === type)));
     }
   };
 
@@ -110,14 +164,22 @@ export default function Home() {
 
     try {
       setLoading(true);
-      for (const id of selectedIds) {
-        await supabase
-          .from('applications')
-          .update({ 
-            status: action,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id);
+      for (const item of selectedIds) {
+        if (item.type === 'surrogate') {
+          await supabase
+            .from('applications')
+            .update({ 
+              status: action,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.id);
+        } else if (item.type === 'intended_parent') {
+          await fetch('/api/intended-parent-applications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, status: action })
+          });
+        }
       }
       
       setSelectedIds([]);
@@ -130,19 +192,26 @@ export default function Home() {
     }
   };
 
-  const handleDeleteApplication = async (id: number, name: string) => {
+  const handleDeleteApplication = async (id: string | number, name: string, type: string) => {
     if (!confirm(`Are you sure you want to delete the application from "${name}"? This action cannot be undone.`)) {
       return;
     }
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('applications')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      if (type === 'surrogate') {
+        const { error } = await supabase
+          .from('applications')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+      } else if (type === 'intended_parent') {
+        const res = await fetch(`/api/intended-parent-applications?id=${id}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete intended parent application');
+      }
       
       loadApplications();
     } catch (error) {
@@ -162,11 +231,17 @@ export default function Home() {
 
     try {
       setLoading(true);
-      for (const id of selectedIds) {
-        await supabase
-          .from('applications')
-          .delete()
-          .eq('id', id);
+      for (const item of selectedIds) {
+        if (item.type === 'surrogate') {
+          await supabase
+            .from('applications')
+            .delete()
+            .eq('id', item.id);
+        } else if (item.type === 'intended_parent') {
+          await fetch(`/api/intended-parent-applications?id=${item.id}`, {
+            method: 'DELETE'
+          });
+        }
       }
       
       setSelectedIds([]);
@@ -200,7 +275,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage surrogate applications and events</p>
+          <p className="text-gray-600">Manage surrogate and intended parent applications</p>
         </div>
         
         <DashboardStats />
@@ -211,11 +286,22 @@ export default function Home() {
             <div className="flex-1">
               <input
                 type="text"
-                        placeholder="Search by name, email, phone, location, age, or employment status..."
+                placeholder="Search by name, email, phone, location, age, or employment status..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
+              >
+                <option value="all">All Types</option>
+                <option value="surrogate">Surrogate</option>
+                <option value="intended_parent">Intended Parent</option>
+              </select>
             </div>
             <div>
               <select
@@ -297,6 +383,7 @@ export default function Home() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
@@ -306,25 +393,43 @@ export default function Home() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredApplications?.map((app: any) => (
-                  <tr key={app.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={`${app.applicationType}-${app.id}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <input
                         type="checkbox"
-                        checked={selectedIds.includes(app.id)}
-                        onChange={(e) => handleSelectOne(app.id, e.target.checked)}
+                        checked={selectedIds.some(item => item.id === app.id && item.type === app.applicationType)}
+                        onChange={(e) => handleSelectOne(app.id, app.applicationType, e.target.checked)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
+                        app.applicationType === 'intended_parent' 
+                          ? 'bg-purple-100 text-purple-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {app.applicationType === 'intended_parent' ? 'Intended Parent' : 'Surrogate'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(app.created_at).toLocaleDateString()}
+                      {new Date(app.submitted_at || app.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{app.full_name}</div>
-                        <div className="text-sm text-gray-500">
-                          {app.age ? `Age: ${app.age}` : 'Age not provided'} 
-                          {app.previousSurrogacy && ' • Previous Surrogate'}
-                        </div>
+                        {app.applicationType === 'surrogate' ? (
+                          <div className="text-sm text-gray-500">
+                            {app.age ? `Age: ${app.age}` : 'Age not provided'} 
+                            {app.previousSurrogacy && ' • Previous Surrogate'}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">
+                            {app.parent2FirstName && app.parent2LastName 
+                              ? `Couple: ${app.parent1FirstName} ${app.parent1LastName} & ${app.parent2FirstName} ${app.parent2LastName}`
+                              : `Single: ${app.parent1FirstName} ${app.parent1LastName}`
+                            }
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -360,13 +465,39 @@ export default function Home() {
                         >
                           📄 PDF
                         </button>
-                        <ApproveButton 
-                          id={app.id} 
-                          currentStatus={app.status} 
-                          onUpdate={loadApplications}
-                        />
+                        {app.applicationType === 'surrogate' ? (
+                          <ApproveButton 
+                            id={app.id} 
+                            currentStatus={app.status} 
+                            onUpdate={loadApplications}
+                          />
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              const newStatus = app.status === 'approved' ? 'pending' : 'approved';
+                              try {
+                                await fetch('/api/intended-parent-applications', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: app.id, status: newStatus })
+                                });
+                                loadApplications();
+                              } catch (error) {
+                                console.error('Error updating status:', error);
+                                alert('Error updating status');
+                              }
+                            }}
+                            className={`text-xs font-medium px-2 py-1 rounded ${
+                              app.status === 'approved' 
+                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                                : 'bg-green-100 text-green-800 hover:bg-green-200'
+                            }`}
+                          >
+                            {app.status === 'approved' ? '⏳ Mark Pending' : '✅ Approve'}
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleDeleteApplication(app.id, app.full_name)}
+                          onClick={() => handleDeleteApplication(app.id, app.full_name, app.applicationType)}
                           className="text-gray-500 hover:text-red-600 text-xs font-medium"
                         >
                           🗑️
