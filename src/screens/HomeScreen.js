@@ -115,6 +115,13 @@ export default function HomeScreen() {
   const [isEditingTransferDate, setIsEditingTransferDate] = useState(false);
   const [userPoints, setUserPoints] = useState(0);
   const [loadingPoints, setLoadingPoints] = useState(false);
+  // Medical information states
+  const [medicationStartDate, setMedicationStartDate] = useState('');
+  const [pregnancyTestDate, setPregnancyTestDate] = useState('');
+  const [fetalBeatConfirm, setFetalBeatConfirm] = useState('None');
+  const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
+  const [loadingMedicalInfo, setLoadingMedicalInfo] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState(null);
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
     const normalized = normalizeStage(serverStage || 'pre');
@@ -1298,13 +1305,138 @@ export default function HomeScreen() {
     }
   }, [user?.id, isSurrogateRole]);
 
+  // Fetch match and medical information for surrogate
+  const fetchMatchAndMedicalInfo = useCallback(async () => {
+    if (!user?.id || !isSurrogateRole) {
+      return;
+    }
+
+    setLoadingMedicalInfo(true);
+    try {
+      // Find the match for this surrogate
+      const { data: matchData, error: matchError } = await supabase
+        .from('surrogate_matches')
+        .select('id, medication_start_date, pregnancy_test_date, fetal_beat_confirm')
+        .eq('surrogate_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (matchError) {
+        console.error('Error fetching match:', matchError);
+        return;
+      }
+
+      if (matchData) {
+        setCurrentMatchId(matchData.id);
+        // Format dates for display (YYYY-MM-DD to MM/DD/YY)
+        if (matchData.medication_start_date) {
+          const date = new Date(matchData.medication_start_date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setMedicationStartDate(`${month}/${day}/${year}`);
+        } else {
+          setMedicationStartDate('');
+        }
+
+        if (matchData.pregnancy_test_date) {
+          const date = new Date(matchData.pregnancy_test_date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setPregnancyTestDate(`${month}/${day}/${year}`);
+        } else {
+          setPregnancyTestDate('');
+        }
+
+        setFetalBeatConfirm(matchData.fetal_beat_confirm || 'None');
+      } else {
+        setCurrentMatchId(null);
+        setMedicationStartDate('');
+        setPregnancyTestDate('');
+        setFetalBeatConfirm('None');
+      }
+    } catch (error) {
+      console.error('Error in fetchMatchAndMedicalInfo:', error);
+    } finally {
+      setLoadingMedicalInfo(false);
+    }
+  }, [user?.id, isSurrogateRole]);
+
+  // Save medical information
+  const saveMedicalInfo = useCallback(async () => {
+    if (!user?.id || !isSurrogateRole || !currentMatchId) {
+      Alert.alert('Error', 'Please wait for match information to load.');
+      return;
+    }
+
+    setSavingMedicalInfo(true);
+    try {
+      const updateData = {};
+
+      // Parse and format medication start date
+      if (medicationStartDate.trim()) {
+        const parsed = parseMMDDYYToISO(medicationStartDate.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter medication start date in format: MM/DD/YY (e.g., 12/01/25).');
+          setSavingMedicalInfo(false);
+          return;
+        }
+        updateData.medication_start_date = formatDateToISO(parsed);
+      } else {
+        updateData.medication_start_date = null;
+      }
+
+      // Parse and format pregnancy test date
+      if (pregnancyTestDate.trim()) {
+        const parsed = parseMMDDYYToISO(pregnancyTestDate.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter pregnancy test date in format: MM/DD/YY (e.g., 12/01/25).');
+          setSavingMedicalInfo(false);
+          return;
+        }
+        updateData.pregnancy_test_date = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date = null;
+      }
+
+      // Fetal beat confirm
+      updateData.fetal_beat_confirm = fetalBeatConfirm || 'None';
+      updateData.updated_at = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('surrogate_matches')
+        .update(updateData)
+        .eq('id', currentMatchId)
+        .eq('surrogate_id', user.id);
+
+      if (error) {
+        console.error('Error updating medical info:', error);
+        Alert.alert('Error', 'Failed to save medical information. Please try again.');
+        return;
+      }
+
+      Alert.alert('Success', 'Medical information saved successfully.');
+    } catch (error) {
+      console.error('Error in saveMedicalInfo:', error);
+      Alert.alert('Error', 'Failed to save medical information. Please try again.');
+    } finally {
+      setSavingMedicalInfo(false);
+    }
+  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, fetalBeatConfirm]);
+
   // Fetch medical reports on mount and when user/match changes
   useEffect(() => {
     if (user?.id) {
       fetchMedicalReports();
       fetchUserPoints();
+      if (isSurrogateRole) {
+        fetchMatchAndMedicalInfo();
+      }
     }
-  }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints]);
+  }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, fetchMatchAndMedicalInfo]);
 
   // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分
   const onRefresh = useCallback(async () => {
@@ -2032,6 +2164,107 @@ export default function HomeScreen() {
       >
         {renderPregnancyDashboard()}
         {isSurrogateRole && (
+          <View style={styles.medicalInfoCard}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
+                <Icon name="activity" size={24} color="#F59E0B" />
+              </View>
+              <View>
+                <Text style={styles.cardTitle}>Medical Information</Text>
+                <Text style={styles.cardSubtitle}>Update your medical records</Text>
+              </View>
+            </View>
+
+            {loadingMedicalInfo ? (
+              <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 16 }} />
+            ) : (
+              <>
+                <View style={styles.medicalInfoSection}>
+                  <Text style={styles.sectionLabel}>Medication Start Date (MM/DD/YY)</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                      value={medicationStartDate}
+                      onChangeText={setMedicationStartDate}
+                      placeholder="e.g. 12/01/25"
+                      placeholderTextColor="#94A3B8"
+                      autoCapitalize="none"
+                      style={styles.fancyInput}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.medicalInfoSection}>
+                  <Text style={styles.sectionLabel}>Pregnancy Test Date (MM/DD/YY)</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                      value={pregnancyTestDate}
+                      onChangeText={setPregnancyTestDate}
+                      placeholder="e.g. 12/15/25"
+                      placeholderTextColor="#94A3B8"
+                      autoCapitalize="none"
+                      style={styles.fancyInput}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.medicalInfoSection}>
+                  <Text style={styles.sectionLabel}>Fetal Heartbeat Confirmation</Text>
+                  <View style={styles.radioGroup}>
+                    <TouchableOpacity
+                      style={[styles.radioOption, fetalBeatConfirm === 'None' && styles.radioOptionSelected]}
+                      onPress={() => setFetalBeatConfirm('None')}
+                    >
+                      <View style={[styles.radioCircle, fetalBeatConfirm === 'None' && styles.radioCircleSelected]}>
+                        {fetalBeatConfirm === 'None' && <View style={styles.radioInner} />}
+                      </View>
+                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'None' && styles.radioLabelSelected]}>
+                        None
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.radioOption, fetalBeatConfirm === 'Confirmed' && styles.radioOptionSelected]}
+                      onPress={() => setFetalBeatConfirm('Confirmed')}
+                    >
+                      <View style={[styles.radioCircle, fetalBeatConfirm === 'Confirmed' && styles.radioCircleSelected]}>
+                        {fetalBeatConfirm === 'Confirmed' && <View style={styles.radioInner} />}
+                      </View>
+                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'Confirmed' && styles.radioLabelSelected]}>
+                        Confirmed
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.radioOption, fetalBeatConfirm === 'Pending' && styles.radioOptionSelected]}
+                      onPress={() => setFetalBeatConfirm('Pending')}
+                    >
+                      <View style={[styles.radioCircle, fetalBeatConfirm === 'Pending' && styles.radioCircleSelected]}>
+                        {fetalBeatConfirm === 'Pending' && <View style={styles.radioInner} />}
+                      </View>
+                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'Pending' && styles.radioLabelSelected]}>
+                        Pending
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.fullWidthButton, savingMedicalInfo && styles.fullWidthButtonDisabled]}
+                  onPress={saveMedicalInfo}
+                  disabled={savingMedicalInfo}
+                  activeOpacity={0.8}
+                >
+                  {savingMedicalInfo ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Save Medical Information</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+        {isSurrogateRole && (
           <View style={styles.stageUpdateCard}>
             <Text style={styles.stageUpdateLabel}>{t('home.updateYourStage')}</Text>
             <View style={styles.stageChipRow}>
@@ -2541,6 +2774,71 @@ const styles = StyleSheet.create({
     elevation: 0,
     zIndex: 10,
     marginBottom: 16,
+  },
+  medicalInfoCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#1A1D1E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  medicalInfoSection: {
+    marginBottom: 20,
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 20,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  radioOptionSelected: {
+    borderColor: '#1F6FE0',
+    backgroundColor: '#EFF6FF',
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: '#1F6FE0',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#1F6FE0',
+  },
+  radioLabel: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  radioLabelSelected: {
+    color: '#1F6FE0',
+    fontWeight: '600',
   },
   pregDashboardCard: {
     backgroundColor: '#ffffff',
