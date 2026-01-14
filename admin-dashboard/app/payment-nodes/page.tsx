@@ -617,19 +617,22 @@ export default function PaymentNodesPage() {
     });
   };
 
-  const totalAmount = filteredNodes.reduce((sum, node) => sum + node.amount, 0);
-  const paidAmount = filteredNodes
-    .filter((node) => node.status === 'paid')
-    .reduce((sum, node) => sum + node.amount, 0);
-  const pendingAmount = filteredNodes
+  // Payment Nodes represent amounts that should be paid (not actual payments)
+  // They are just records of what customers should pay, regardless of status
+  const totalNodeAmount = filteredNodes.reduce((sum, node) => sum + node.amount, 0);
+  const pendingNodeAmount = filteredNodes
     .filter((node) => node.status === 'pending')
     .reduce((sum, node) => sum + node.amount, 0);
 
   // Combined statistics
-  const combinedTotalAmount = totalAmount + totalPaymentAmount;
   const combinedTotalRecords = finalFilteredPayments.length;
-  const combinedPaidAmount = paidAmount + totalPaymentAmount; // Client payments are always paid
-  const combinedPendingAmount = pendingAmount;
+  // Total Amount Due: All payment nodes (what customers should pay)
+  const totalAmountDue = totalNodeAmount;
+  // Paid Amount: Only Client Payments (actual payments made)
+  // Payment Nodes are just records of amounts due, not actual payments
+  const combinedPaidAmount = totalPaymentAmount;
+  // Pending Amount: Only pending payment nodes (amounts that should be paid but haven't been)
+  const combinedPendingAmount = pendingNodeAmount;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -668,16 +671,25 @@ export default function PaymentNodesPage() {
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Total Amount</div>
-            <div className="text-2xl font-bold text-gray-900">{formatCurrency(combinedTotalAmount)}</div>
+            <div className="text-sm text-gray-600">Total Amount Due</div>
+            <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmountDue)}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Payment nodes (amounts to be paid)
+            </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600">Paid Amount</div>
             <div className="text-2xl font-bold text-green-600">{formatCurrency(combinedPaidAmount)}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Client payments (actual payments)
+            </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600">Pending Amount</div>
             <div className="text-2xl font-bold text-yellow-600">{formatCurrency(combinedPendingAmount)}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Unpaid payment nodes
+            </div>
           </div>
         </div>
 
