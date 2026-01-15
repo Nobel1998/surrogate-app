@@ -39,7 +39,7 @@ export default function MyMatchScreen({ navigation }) {
   const [surrogateDetails, setSurrogateDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
-  // Pregnancy test dates (1st, 2nd, 3rd and 4th)
+  // HCG test dates (1st, 2nd, 3rd and 4th)
   const [pregnancyTestDate1, setPregnancyTestDate1] = useState('');
   const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
@@ -108,7 +108,7 @@ export default function MyMatchScreen({ navigation }) {
       console.log('[MyMatch] match:', match);
 
       if (match) {
-        // Load pregnancy test dates 1, 2 and 3
+        // Load HCG test dates 1, 2, 3 and 4
         if (match.pregnancy_test_date) {
           const date = new Date(match.pregnancy_test_date);
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -543,7 +543,7 @@ export default function MyMatchScreen({ navigation }) {
 
   const savePregnancyTestDates = async () => {
     if (!user?.id || userRole !== 'surrogate' || !matchData?.id) {
-      Alert.alert('Error', 'You must be a surrogate with an active match to save pregnancy test dates.');
+      Alert.alert('Error', 'You must be a surrogate with an active match to save HCG test dates.');
       return;
     }
 
@@ -551,11 +551,11 @@ export default function MyMatchScreen({ navigation }) {
     try {
       const updateData = {};
 
-      // Parse and format pregnancy test date 2
+      // Parse and format HCG test date 2
       if (pregnancyTestDate2.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 2 in format: MM/DD/YY (e.g., 12/15/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG Test Date 2 in format: MM/DD/YY (e.g., 12/15/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -564,11 +564,11 @@ export default function MyMatchScreen({ navigation }) {
         updateData.pregnancy_test_date_2 = null;
       }
 
-      // Parse and format pregnancy test date 3
+      // Parse and format HCG test date 3
       if (pregnancyTestDate3.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 3 in format: MM/DD/YY (e.g., 12/20/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG Test Date 3 in format: MM/DD/YY (e.g., 12/20/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -577,11 +577,11 @@ export default function MyMatchScreen({ navigation }) {
         updateData.pregnancy_test_date_3 = null;
       }
 
-      // Parse and format pregnancy test date 4
+      // Parse and format HCG test date 4
       if (pregnancyTestDate4.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter Pregnancy Test Date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG Test Date 4 in format: MM/DD/YY (e.g., 12/25/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -599,12 +599,12 @@ export default function MyMatchScreen({ navigation }) {
         .eq('surrogate_id', user.id);
 
       if (error) {
-        console.error('Error updating pregnancy test dates:', error);
-        Alert.alert('Error', 'Failed to save pregnancy test dates. Please try again.');
+        console.error('Error updating HCG test dates:', error);
+        Alert.alert('Error', 'Failed to save HCG test dates. Please try again.');
         return;
       }
 
-      Alert.alert('Success', 'Pregnancy test dates saved successfully.');
+      Alert.alert('Success', 'HCG test dates saved successfully.');
       loadMatchData(); // Reload data to reflect changes
     } catch (error) {
       console.error('Error in savePregnancyTestDates:', error);
@@ -986,7 +986,7 @@ export default function MyMatchScreen({ navigation }) {
                 </View>
               )}
               
-              {/* Pregnancy Test Dates - Only for surrogates */}
+              {/* HCG Test Dates - Only for surrogates */}
               {userRole === 'surrogate' && (
                 <>
                   {/* Pregnancy Test Date 1 */}
@@ -995,7 +995,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 1 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 1 (MM/DD/YY)</Text>
                       {pregnancyTestDate1 ? (
                         <Text style={styles.pregnancyInfoValue}>{pregnancyTestDate1}</Text>
                       ) : (
@@ -1004,13 +1004,13 @@ export default function MyMatchScreen({ navigation }) {
                     </View>
                   </View>
                   
-                  {/* Pregnancy Test Date 2 */}
+                  {/* HCG Test Date 2 */}
                   <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
                     <View style={styles.pregnancyInfoIconContainer}>
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 2 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 2 (MM/DD/YY)</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate2}
@@ -1029,7 +1029,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 3 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 3 (MM/DD/YY)</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate3}
@@ -1048,7 +1048,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>Pregnancy Test Date 4 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 4 (MM/DD/YY)</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate4}
@@ -1071,7 +1071,7 @@ export default function MyMatchScreen({ navigation }) {
                     {savingPregnancyTests ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.savePregnancyTestButtonText}>Save Pregnancy Test Dates</Text>
+                      <Text style={styles.savePregnancyTestButtonText}>Save HCG Test Dates</Text>
                     )}
                   </TouchableOpacity>
                 </>

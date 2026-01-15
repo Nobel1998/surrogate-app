@@ -958,16 +958,16 @@ export default function MatchesPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update Pregnancy Test Date');
+        throw new Error(errData.error || 'Failed to update HCG Test Date');
       }
 
       await loadData();
       setEditingPregnancyTestDate(null);
       setPregnancyTestDateValue('');
-      alert('Pregnancy Test Date updated successfully');
+      alert('HCG Test Date updated successfully');
     } catch (err: any) {
       console.error('[matches] Error updating Pregnancy Test Date:', err);
-      alert(err.message || 'Failed to update Pregnancy Test Date');
+      alert(err.message || 'Failed to update HCG Test Date');
     }
   };
 
@@ -3720,7 +3720,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Pregnancy Test Date</div>
+                            <div className="text-xs text-gray-500 mb-1">HCG Test Date</div>
                             {editingPregnancyTestDate === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3769,7 +3769,7 @@ export default function MatchesPage() {
                                   }
                                 }}
                                 className="px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
-                                title="Click to edit Pregnancy Test Date"
+                                title="Click to edit HCG Test Date"
                               >
                                 {m.pregnancy_test_date 
                                   ? formatDateOnly(m.pregnancy_test_date)

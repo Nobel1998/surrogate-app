@@ -1467,7 +1467,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter pregnancy test date in format: MM/DD/YY (e.g., 12/01/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG test date in format: MM/DD/YY (e.g., 12/01/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1480,7 +1480,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate2.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter pregnancy test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1493,7 +1493,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate3.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter pregnancy test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1506,7 +1506,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate4.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter pregnancy test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          Alert.alert('Invalid Format', 'Please enter HCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -2318,7 +2318,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Pregnancy Test Date 1 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>HCG Test Date 1 (MM/DD/YY)</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
@@ -2333,7 +2333,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Pregnancy Test Date 2 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>HCG Test Date 2 (MM/DD/YY)</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
@@ -2353,7 +2353,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Pregnancy Test Date 3 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>HCG Test Date 3 (MM/DD/YY)</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
@@ -2373,7 +2373,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Pregnancy Test Date 4 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>HCG Test Date 4 (MM/DD/YY)</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
