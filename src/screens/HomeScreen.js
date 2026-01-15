@@ -1310,19 +1310,25 @@ export default function HomeScreen() {
 
   // Fetch match and medical information for surrogate
   const fetchMatchAndMedicalInfo = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1312',message:'fetchMatchAndMedicalInfo called',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     if (!user?.id || !isSurrogateRole) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1309',message:'fetchMatchAndMedicalInfo skipped',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1314',message:'fetchMatchAndMedicalInfo skipped',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
+      setCurrentMatchId(null);
       return;
     }
 
     setLoadingMedicalInfo(true);
     try {
       // Find the match for this surrogate
+      // Use select('*') to avoid errors if columns don't exist yet (migration not run)
       const { data: matchData, error: matchError } = await supabase
         .from('surrogate_matches')
-        .select('id, medication_start_date, pregnancy_test_date, pregnancy_test_date_2, pregnancy_test_date_3, pregnancy_test_date_4, fetal_beat_confirm')
+        .select('*')
         .eq('surrogate_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -1335,10 +1341,17 @@ export default function HomeScreen() {
 
       if (matchError) {
         console.error('Error fetching match:', matchError);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1336',message:'fetchMatchAndMedicalInfo match error',data:{error:matchError.message,code:matchError.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        setCurrentMatchId(null);
         return;
       }
 
       if (matchData) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1341',message:'fetchMatchAndMedicalInfo match found',data:{matchId:matchData.id,hasMedicationDate:!!matchData.medication_start_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         setCurrentMatchId(matchData.id);
         // Format dates for display (YYYY-MM-DD to MM/DD/YY)
         if (matchData.medication_start_date) {
@@ -1397,6 +1410,9 @@ export default function HomeScreen() {
 
         setFetalBeatConfirm(matchData.fetal_beat_confirm || 'None');
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1399',message:'fetchMatchAndMedicalInfo no match found',data:{userId:user?.id,surrogateId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         setCurrentMatchId(null);
         setMedicationStartDate('');
         setPregnancyTestDate('');
@@ -1408,8 +1424,9 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error in fetchMatchAndMedicalInfo:', error);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1378',message:'fetchMatchAndMedicalInfo error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1418',message:'fetchMatchAndMedicalInfo error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
+      setCurrentMatchId(null);
     } finally {
       setLoadingMedicalInfo(false);
     }
@@ -1417,7 +1434,14 @@ export default function HomeScreen() {
 
   // Save medical information
   const saveMedicalInfo = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1419',message:'saveMedicalInfo called',data:{userId:user?.id,isSurrogateRole,currentMatchId,loadingMedicalInfo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    
     if (!user?.id || !isSurrogateRole || !currentMatchId) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1421',message:'saveMedicalInfo validation failed',data:{userId:user?.id,isSurrogateRole,currentMatchId,loadingMedicalInfo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       Alert.alert('Error', 'Please wait for match information to load.');
       return;
     }
