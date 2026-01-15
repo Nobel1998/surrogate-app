@@ -989,7 +989,7 @@ export default function MyMatchScreen({ navigation }) {
               {/* HCG Test Dates - Only for surrogates */}
               {userRole === 'surrogate' && (
                 <>
-                  {/* Pregnancy Test Date 1 */}
+                  {/* HCG Test Date 1 */}
                   <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
                     <View style={styles.pregnancyInfoIconContainer}>
                       <Icon name="activity" size={24} color="#10B981" />
