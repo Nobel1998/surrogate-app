@@ -441,16 +441,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     try {
       setUploadingPhoto(true);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:entry',message:'Starting photo upload',data:{uri,userId:user?.id,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       // Check user authentication
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:authCheck',message:'Auth check result',data:{hasAuthUser:!!authUser,authError:authError?.message,userId:authUser?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       if (authError || !authUser) {
         throw new Error('User not authenticated. Please log in again.');
@@ -464,10 +456,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       // Generate unique filename
       const fileName = `surrogate_${authUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `surrogate-photos/${fileName}`;
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:beforeUpload',message:'Before upload',data:{filePath,fileName,ext,contentType:`image/${ext === 'jpg' ? 'jpeg' : ext}`,bucket:'post-media'},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       
       // Create FormData
       const formData = new FormData();
@@ -486,10 +474,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           upsert: false,
         });
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:afterUpload',message:'Upload result',data:{hasData:!!data,error:error?.message,errorCode:error?.statusCode,errorDetails:error},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
       if (error) {
         console.error('Error uploading photo:', error);
         throw error;
@@ -500,15 +484,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         .from('post-media')
         .getPublicUrl(filePath);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:success',message:'Upload successful',data:{publicUrl:urlData.publicUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      
       return urlData.publicUrl;
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SurrogateApplicationScreen.js:uploadSurrogatePhoto:error',message:'Upload error caught',data:{errorMessage:error?.message,errorCode:error?.statusCode,errorDetails:error},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       console.error('Upload failed:', error);
       throw error;
     } finally {
@@ -1055,45 +1032,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           throw new Error(error.message);
         }
         
-        // #region agent log
-        const resultFormData = resultData?.[0]?.form_data;
-        const resultFormDataParsed = resultFormData ? JSON.parse(resultFormData) : null;
-        const logData3 = {
-          location: 'SurrogateApplicationScreen.js:handleSubmit:updateSuccess',
-          message: 'Update successful',
-          data: { resultData, resultFormData, resultFormDataParsed },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'E'
-        };
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(logData3)
-        }).catch(() => {});
-        // #endregion
-        
         resultData = data;
       } else {
         // Insert new application
         console.log('📝 Submitting new application for user:', authUser.id);
-        
-        // #region agent log
-        const formDataLen2 = payload.form_data ? payload.form_data.length : 0;
-        const logData4 = {
-          location: 'SurrogateApplicationScreen.js:handleSubmit:insert',
-          message: 'Inserting new application',
-          data: { userId: authUser.id, formDataLength: formDataLen2 },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'F'
-        };
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(logData4)
-        }).catch(() => {});
-        // #endregion
         
       const { data, error } = await supabase
         .from('applications')
@@ -1103,24 +1045,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       if (error) {
         throw new Error(error.message);
         }
-        
-        // #region agent log
-        const resultFormData2 = resultData?.[0]?.form_data;
-        const resultFormDataParsed2 = resultFormData2 ? JSON.parse(resultFormData2) : null;
-        const logDataInsertSuccess = {
-          location: 'SurrogateApplicationScreen.js:handleSubmit:insertSuccess',
-          message: 'Insert successful',
-          data: { resultData, resultFormData: resultFormData2, resultFormDataParsed: resultFormDataParsed2 },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'G'
-        };
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(logDataInsertSuccess)
-        }).catch(() => {});
-        // #endregion
         
         resultData = data;
       }

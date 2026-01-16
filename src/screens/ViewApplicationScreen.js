@@ -51,9 +51,6 @@ export default function ViewApplicationScreen({ navigation }) {
         // Parse form_data JSON
         try {
           const parsed = data.form_data ? JSON.parse(data.form_data) : {};
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ViewApplicationScreen.js:loadApplication:parsed',message:'Parsed form_data',data:{hasPhotoUrl:!!parsed.photoUrl,photoUrl:parsed.photoUrl,formDataKeys:Object.keys(parsed)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           setFormData(parsed);
         } catch (e) {
           console.error('Error parsing form_data:', e);
