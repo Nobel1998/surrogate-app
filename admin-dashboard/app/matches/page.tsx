@@ -104,7 +104,7 @@ type Contract = {
   created_at?: string | null;
 };
 
-const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending'];
+const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending', 'pregnant'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
   'pre': 'Pre-Transfer',
