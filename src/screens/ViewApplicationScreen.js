@@ -216,13 +216,17 @@ export default function ViewApplicationScreen({ navigation }) {
         {/* Step 1: Personal Information */}
         {renderSection('Personal Information', 'user', '#2196F3',
           <>
-            {/* Surrogate Lifestyle Photos */}
+            {/* Photos - Support both Surrogate and Intended Parent */}
             {(formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) || formData.photoUrl ? (
               <View style={styles.photoContainer}>
                 <Text style={styles.fieldLabel}>
-                  {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
-                    ? `Lifestyle Photos (${formData.photos.length} photos)`
-                    : 'Surrogate Photo'}
+                  {formData.applicationType === 'intended_parent'
+                    ? (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
+                        ? `Intended Parent Photos (${formData.photos.length} photos)`
+                        : 'Intended Parent Photo')
+                    : (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
+                        ? `Lifestyle Photos (${formData.photos.length} photos)`
+                        : 'Surrogate Photo')}
                 </Text>
                 {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0 ? (
                   <View style={styles.photosGrid}>
