@@ -175,17 +175,36 @@ export default function ViewApplicationScreen({ navigation }) {
         {/* Step 1: Personal Information */}
         {renderSection('Personal Information', 'user', '#2196F3',
           <>
-            {/* Surrogate Photo */}
-            {formData.photoUrl && (
+            {/* Surrogate Lifestyle Photos */}
+            {(formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) || formData.photoUrl ? (
               <View style={styles.photoContainer}>
-                <Text style={styles.fieldLabel}>Surrogate Photo</Text>
-                <Image
-                  source={{ uri: formData.photoUrl }}
-                  style={styles.photoPreview}
-                  resizeMode="cover"
-                />
+                <Text style={styles.fieldLabel}>
+                  {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
+                    ? `Lifestyle Photos (${formData.photos.length} photos)`
+                    : 'Surrogate Photo'}
+                </Text>
+                {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0 ? (
+                  <View style={styles.photosGrid}>
+                    {formData.photos.map((photoUrl, index) => (
+                      <View key={index} style={styles.photoItem}>
+                        <Image
+                          source={{ uri: photoUrl }}
+                          style={styles.photoThumbnail}
+                          resizeMode="cover"
+                        />
+                        <Text style={styles.photoLabel}>Photo {index + 1}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : formData.photoUrl ? (
+                  <Image
+                    source={{ uri: formData.photoUrl }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
+                  />
+                ) : null}
               </View>
-            )}
+            ) : null}
             {renderField('Full Name', application.full_name || formData.fullName)}
             {renderField('First Name', formData.firstName)}
             {renderField('Middle Name', formData.middleName)}
