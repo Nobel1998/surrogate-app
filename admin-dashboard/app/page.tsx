@@ -1010,7 +1010,7 @@ export default function Home() {
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Lifestyle Photos ({selectedApp.photos.length} photos)</label>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {selectedApp.photos.map((photoUrl, index) => (
+                            {selectedApp.photos.map((photoUrl: string, index: number) => (
                               <div key={index} className="relative">
                                 <img
                                   src={photoUrl}
