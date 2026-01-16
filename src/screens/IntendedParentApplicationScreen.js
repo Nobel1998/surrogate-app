@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { Feather as Icon } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
@@ -24,6 +26,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [photoUri, setPhotoUri] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   // Refs for Step 1 scroll view and input fields
   const step1ScrollViewRef = React.useRef(null);
@@ -277,6 +281,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         }
 
         setApplicationData(formData);
+        // Set photo URI if photoUrl exists
+        if (formData.photoUrl) {
+          setPhotoUri(formData.photoUrl);
+        }
       }
     } catch (error) {
       console.error('Error loading application:', error);
@@ -303,6 +311,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
       }
       setApplicationData(dataToSet);
+      // Set photo URI if photoUrl exists
+      if (dataToSet.photoUrl) {
+        setPhotoUri(dataToSet.photoUrl);
+      }
     } else if (editMode && applicationId && user) {
       // If in edit mode but no existingData provided, load from database
       loadExistingApplication();
@@ -341,6 +353,147 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       [field]: value,
     }));
     setFormVersion(prev => prev + 1);
+  };
+
+  // Upload intended parent photo to Supabase Storage
+  const uploadIntendedParentPhoto = async (uri) => {
+    try {
+      setUploadingPhoto(true);
+      
+      // Check user authentication
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !authUser) {
+        throw new Error('User not authenticated. Please log in again.');
+      }
+      
+      // Get file extension
+      const fileExtension = uri.split('.').pop().toLowerCase();
+      const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const ext = validExtensions.includes(fileExtension) ? fileExtension : 'jpg';
+      
+      // Generate unique filename
+      const fileName = `intended_parent_${authUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const filePath = `intended-parent-photos/${fileName}`;
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        name: fileName,
+      });
+      
+      // Upload to Supabase Storage - use post-media bucket (same as other uploads)
+      const { data, error } = await supabase.storage
+        .from('post-media')
+        .upload(filePath, formData, {
+          contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+          upsert: false,
+        });
+      
+      if (error) {
+        console.error('Error uploading photo:', error);
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('post-media')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw error;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Pick image from library
+  const pickPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'We need photo library permission to upload your photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        setPhotoUri(selectedUri);
+        
+        // Upload immediately
+        try {
+          const photoUrl = await uploadIntendedParentPhoto(selectedUri);
+          updateField('photoUrl', photoUrl);
+          Alert.alert('Success', 'Photo uploaded successfully!');
+        } catch (error) {
+          Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+          setPhotoUri(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking photo:', error);
+      Alert.alert('Error', 'Failed to pick photo. Please try again.');
+    }
+  };
+
+  // Take photo with camera
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'We need camera permission to take your photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        setPhotoUri(selectedUri);
+        
+        // Upload immediately
+        try {
+          const photoUrl = await uploadIntendedParentPhoto(selectedUri);
+          updateField('photoUrl', photoUrl);
+          Alert.alert('Success', 'Photo uploaded successfully!');
+        } catch (error) {
+          Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+          setPhotoUri(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  // Show image picker options
+  const showPhotoPicker = () => {
+    Alert.alert(
+      'Upload Intended Parent Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickPhoto },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const nextStep = () => {
@@ -2503,5 +2656,82 @@ const styles = StyleSheet.create({
   },
   modalButtonTextPrimary: {
     color: '#fff',
+  },
+  // Photo upload styles
+  photoContainer: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  photoUploadButton: {
+    borderWidth: 2,
+    borderColor: '#2A7BF6',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F9FB',
+  },
+  photoUploadText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: '#2A7BF6',
+    fontWeight: '600',
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingText: {
+    marginTop: 8,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changePhotoButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#2A7BF6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changePhotoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
