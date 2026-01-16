@@ -4214,6 +4214,70 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
+      {/* Surrogate Lifestyle Photos Upload (6 photos) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Please upload your 6 pictures *</Text>
+        <View style={styles.photosContainer}>
+          {[0, 1, 2, 3, 4, 5].map((index) => {
+            const photo = photos[index];
+            const photoUrl = photo?.url || (applicationData.photos && applicationData.photos[index]);
+            
+            return (
+              <View key={index} style={styles.photoItemContainer}>
+                {photoUrl || photo?.uri ? (
+                  <View style={styles.photoItem}>
+                    <Image
+                      source={{ uri: photo?.uri || photoUrl }}
+                      style={styles.photoThumbnail}
+                    />
+                    {photo?.uploading || uploadingPhotoIndex === index ? (
+                      <View style={styles.uploadingOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.uploadingText}>Uploading...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.photoInfo}>
+                          <Text style={styles.photoFileName} numberOfLines={1}>
+                            {photo?.fileName || `IMG_${index + 1}.jpeg`}
+                          </Text>
+                          {photo?.fileSize && (
+                            <Text style={styles.photoFileSize}>
+                              {formatFileSize(photo.fileSize)}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removePhotoButton}
+                          onPress={() => removePhoto(index)}
+                        >
+                          <Icon name="x" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.photoUploadSlot}
+                    onPress={() => showPhotoPicker(index)}
+                    disabled={uploadingPhotoIndex === index}
+                  >
+                    {uploadingPhotoIndex === index ? (
+                      <ActivityIndicator size="small" color="#2A7BF6" />
+                    ) : (
+                      <>
+                        <Icon name="camera" size={24} color="#2A7BF6" />
+                        <Text style={styles.photoUploadSlotText}>Upload</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={[styles.inputGroup, { marginTop: 20, padding: 15, backgroundColor: '#FFF3CD', borderRadius: 12 }]}>
         <Text style={{ color: '#856404', fontSize: 14, lineHeight: 20 }}>
           By submitting this application, you confirm that all information provided is true and accurate to the best of your knowledge.
