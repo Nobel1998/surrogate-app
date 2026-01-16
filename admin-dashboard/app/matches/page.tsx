@@ -2438,7 +2438,7 @@ export default function MatchesPage() {
               >
                 {STAGE_OPTIONS.map((s: string) => (
                   <option key={s} value={s}>
-                    {s.toUpperCase()}
+                    {STAGE_LABELS[s] || s.toUpperCase()}
                   </option>
                 ))}
               </select>
