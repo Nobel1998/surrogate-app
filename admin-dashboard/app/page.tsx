@@ -575,7 +575,14 @@ export default function Home() {
                           📋 View
                         </button>
                         <button
-                          onClick={() => generateApplicationPDF(app)}
+                          onClick={async () => {
+                            try {
+                              await generateApplicationPDF(app);
+                            } catch (error) {
+                              console.error('Error generating PDF:', error);
+                              alert('Error generating PDF. Please try again.');
+                            }
+                          }}
                           className="text-green-600 hover:text-green-900 text-xs font-medium"
                         >
                           📄 PDF

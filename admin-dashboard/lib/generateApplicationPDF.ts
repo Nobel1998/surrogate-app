@@ -18,7 +18,28 @@ const formatValue = (value: any): string => {
   return String(value);
 };
 
-export const generateApplicationPDF = (app: ApplicationData) => {
+// Helper function to load image as base64
+const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        resolve(base64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error loading image:', error);
+    return null;
+  }
+};
+
+export const generateApplicationPDF = async (app: ApplicationData) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPosition = 20;
@@ -430,18 +451,100 @@ export const generateApplicationPDF = (app: ApplicationData) => {
     ['Referral Code', formatValue(app.referralCode)],
   ];
 
-  // Add lifestyle photos information (6 photos)
+  addSection('Step 8: Authorization', authorizationData, [220, 20, 60]);
+
+  // Add lifestyle photos section with embedded images
   if (app.photos && Array.isArray(app.photos) && app.photos.length > 0) {
-    authorizationData.push(['Lifestyle Photos', `${app.photos.length} photo(s) uploaded`]);
-    app.photos.forEach((photoUrl: string, index: number) => {
-      authorizationData.push([`Photo ${index + 1}`, photoUrl || 'N/A']);
-    });
+    // Check if we need a new page
+    if (yPosition > 200) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(220, 20, 60);
+    doc.text('Lifestyle Photos', 14, yPosition);
+    yPosition += 8;
+
+    const photosPerRow = 2;
+    const photoWidth = (pageWidth - 40) / photosPerRow;
+    const photoHeight = 60;
+    const spacing = 10;
+
+    for (let i = 0; i < app.photos.length; i++) {
+      const photoUrl = app.photos[i];
+      if (!photoUrl) continue;
+
+      // Check if we need a new page
+      if (yPosition + photoHeight > doc.internal.pageSize.getHeight() - 30) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const col = i % photosPerRow;
+      const row = Math.floor(i / photosPerRow);
+      const x = 14 + col * (photoWidth + spacing);
+      const y = yPosition + row * (photoHeight + 25);
+
+      try {
+        // Try to load and embed the image
+        const base64Image = await loadImageAsBase64(photoUrl);
+        if (base64Image) {
+          doc.addImage(base64Image, 'JPEG', x, y, photoWidth, photoHeight);
+          doc.setFontSize(8);
+          doc.setTextColor(100);
+          doc.text(`Photo ${i + 1}`, x + photoWidth / 2, y + photoHeight + 5, { align: 'center' });
+        } else {
+          // If image can't be loaded, show URL as text
+          doc.setFontSize(8);
+          doc.setTextColor(0, 0, 255);
+          doc.text(`Photo ${i + 1}: ${photoUrl}`, x, y + photoHeight / 2, { maxWidth: photoWidth });
+        }
+      } catch (error) {
+        // If error, show URL as text
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 255);
+        doc.text(`Photo ${i + 1}: ${photoUrl}`, x, y + photoHeight / 2, { maxWidth: photoWidth });
+      }
+    }
+
+    // Update yPosition after photos
+    const totalRows = Math.ceil(app.photos.length / photosPerRow);
+    yPosition += totalRows * (photoHeight + 25) + 10;
   } else if (app.photoUrl) {
     // Backward compatibility: single photo
-    authorizationData.push(['Surrogate Photo', app.photoUrl]);
-  }
+    // Check if we need a new page
+    if (yPosition > 200) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
-  addSection('Step 8: Authorization & Lifestyle Photos', authorizationData, [220, 20, 60]);
+    doc.setFontSize(14);
+    doc.setTextColor(220, 20, 60);
+    doc.text('Surrogate Photo', 14, yPosition);
+    yPosition += 8;
+
+    const photoWidth = pageWidth - 40;
+    const photoHeight = 100;
+
+    try {
+      const base64Image = await loadImageAsBase64(app.photoUrl);
+      if (base64Image) {
+        doc.addImage(base64Image, 'JPEG', 14, yPosition, photoWidth, photoHeight);
+        yPosition += photoHeight + 10;
+      } else {
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 255);
+        doc.text(`Photo URL: ${app.photoUrl}`, 14, yPosition, { maxWidth: photoWidth });
+        yPosition += 15;
+      }
+    } catch (error) {
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 255);
+      doc.text(`Photo URL: ${app.photoUrl}`, 14, yPosition, { maxWidth: photoWidth });
+      yPosition += 15;
+    }
+  }
   }
 
   // Footer
