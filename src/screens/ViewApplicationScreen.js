@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -50,6 +51,9 @@ export default function ViewApplicationScreen({ navigation }) {
         // Parse form_data JSON
         try {
           const parsed = data.form_data ? JSON.parse(data.form_data) : {};
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ViewApplicationScreen.js:loadApplication:parsed',message:'Parsed form_data',data:{hasPhotoUrl:!!parsed.photoUrl,photoUrl:parsed.photoUrl,formDataKeys:Object.keys(parsed)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           setFormData(parsed);
         } catch (e) {
           console.error('Error parsing form_data:', e);
@@ -174,6 +178,17 @@ export default function ViewApplicationScreen({ navigation }) {
         {/* Step 1: Personal Information */}
         {renderSection('Personal Information', 'user', '#2196F3',
           <>
+            {/* Surrogate Photo */}
+            {formData.photoUrl && (
+              <View style={styles.photoContainer}>
+                <Text style={styles.fieldLabel}>Surrogate Photo</Text>
+                <Image
+                  source={{ uri: formData.photoUrl }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                />
+              </View>
+            )}
             {renderField('Full Name', application.full_name || formData.fullName)}
             {renderField('First Name', formData.firstName)}
             {renderField('Middle Name', formData.middleName)}
@@ -580,6 +595,18 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 30,
+  },
+  photoContainer: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 8,
   },
 });
 
