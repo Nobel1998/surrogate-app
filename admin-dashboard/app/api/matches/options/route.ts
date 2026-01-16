@@ -754,10 +754,33 @@ export async function PATCH(req: Request) {
         );
       }
 
-      const { error } = await supabase
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/matches/options/route.ts:757',message:'Before status update',data:{id:body.id,status:body.status,statusType:typeof body.status,defaultStatus:'matched',finalStatus:body.status || 'matched'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      // #region agent log
+      const { data: currentMatch } = await supabase
         .from('surrogate_matches')
-        .update({ status: body.status || 'matched', updated_at: new Date().toISOString() })
-        .eq('id', body.id);
+        .select('id, status, surrogate_id, parent_id')
+        .eq('id', body.id)
+        .single();
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/matches/options/route.ts:762',message:'Current match data',data:{currentMatch},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      const updateData = { status: body.status || 'matched', updated_at: new Date().toISOString() };
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/matches/options/route.ts:767',message:'Update data prepared',data:{updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+
+      const { error, data } = await supabase
+        .from('surrogate_matches')
+        .update(updateData)
+        .eq('id', body.id)
+        .select();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/matches/options/route.ts:775',message:'Update result',data:{error:error?.message,errorCode:error?.code,errorDetails:error?.details,updatedData:data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       if (error) throw error;
     }
