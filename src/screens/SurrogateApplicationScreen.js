@@ -1206,7 +1206,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Surrogate Photo Upload */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Surrogate Photo (代孕妈妈照片) *</Text>
+        <Text style={styles.label}>Surrogate Photo *</Text>
         <View style={styles.photoContainer}>
           {photoUri || applicationData.photoUrl ? (
             <View style={styles.photoPreviewContainer}>
