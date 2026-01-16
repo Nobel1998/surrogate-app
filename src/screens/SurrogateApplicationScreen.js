@@ -403,6 +403,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           ...prev,
           ...existingData,
         }));
+        // Set photo URI if photoUrl exists
+        if (existingData.photoUrl) {
+          setPhotoUri(existingData.photoUrl);
+        }
         // Parse dateOfBirth into components if available
         if (existingData.dateOfBirth && existingData.dateOfBirth.includes('/')) {
           const parts = existingData.dateOfBirth.split('/');
