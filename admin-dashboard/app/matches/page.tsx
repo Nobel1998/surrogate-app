@@ -164,7 +164,7 @@ export default function MatchesPage() {
 
   const [selectedSurrogate, setSelectedSurrogate] = useState<string>('');
   const [selectedParent, setSelectedParent] = useState<string>('');
-  const [status, setStatus] = useState<string>('active');
+  const [status, setStatus] = useState<string>('matched');
   const [stage, setStage] = useState<string>('pre');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
