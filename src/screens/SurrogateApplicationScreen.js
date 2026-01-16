@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { Feather as Icon } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
@@ -24,6 +26,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [photoUri, setPhotoUri] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [applicationData, setApplicationData] = useState({
     // Step 1: Personal Information (Extended)
     firstName: '',
@@ -225,6 +229,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     applicantAddress: '',
     applicantPhone: '',
     emergencyContact: '',
+    
+    // Surrogate Photo
+    photoUrl: '',
   });
 
   const updateField = (field, value) => {
@@ -413,6 +420,146 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    // Basic validation: at least 10 digits, allow separators like - . ( ) space
+    const phoneRegex = /^[\d\-.()+ ]{10,}$/;
+    return phoneRegex.test(phone);
+  };
+
+  // Upload surrogate photo to Supabase Storage
+  const uploadSurrogatePhoto = async (uri) => {
+    try {
+      setUploadingPhoto(true);
+      
+      // Get file extension
+      const fileExtension = uri.split('.').pop().toLowerCase();
+      const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const ext = validExtensions.includes(fileExtension) ? fileExtension : 'jpg';
+      
+      // Generate unique filename
+      const fileName = `surrogate_${user?.id || 'guest'}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const filePath = `surrogate-photos/${fileName}`;
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        name: fileName,
+      });
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('surrogate-photos')
+        .upload(filePath, formData, {
+          contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+          upsert: false,
+        });
+      
+      if (error) {
+        console.error('Error uploading photo:', error);
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('surrogate-photos')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw error;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Pick image from library
+  const pickPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'We need photo library permission to upload your photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        setPhotoUri(selectedUri);
+        
+        // Upload immediately
+        try {
+          const photoUrl = await uploadSurrogatePhoto(selectedUri);
+          updateField('photoUrl', photoUrl);
+          Alert.alert('Success', 'Photo uploaded successfully!');
+        } catch (error) {
+          Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+          setPhotoUri(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking photo:', error);
+      Alert.alert('Error', 'Failed to pick photo. Please try again.');
+    }
+  };
+
+  // Take photo with camera
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'We need camera permission to take your photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        setPhotoUri(selectedUri);
+        
+        // Upload immediately
+        try {
+          const photoUrl = await uploadSurrogatePhoto(selectedUri);
+          updateField('photoUrl', photoUrl);
+          Alert.alert('Success', 'Photo uploaded successfully!');
+        } catch (error) {
+          Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+          setPhotoUri(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  // Show image picker options
+  const showPhotoPicker = () => {
+    Alert.alert(
+      'Upload Surrogate Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickPhoto },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const validatePhone = (phone) => {
@@ -1053,6 +1200,59 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           onChangeText={(value) => updateField('fullName', value)}
           placeholder="Full Name (or auto-filled from above)"
         />
+      </View>
+
+      {/* Surrogate Photo Upload */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Surrogate Photo (代孕妈妈照片) *</Text>
+        <View style={styles.photoContainer}>
+          {photoUri || applicationData.photoUrl ? (
+            <View style={styles.photoPreviewContainer}>
+              <Image
+                source={{ uri: photoUri || applicationData.photoUrl }}
+                style={styles.photoPreview}
+              />
+              {uploadingPhoto && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.uploadingText}>Uploading...</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.removePhotoButton}
+                onPress={() => {
+                  setPhotoUri(null);
+                  updateField('photoUrl', '');
+                }}
+              >
+                <Icon name="x" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.changePhotoButton}
+                onPress={showPhotoPicker}
+                disabled={uploadingPhoto}
+              >
+                <Icon name="edit-2" size={16} color="#fff" />
+                <Text style={styles.changePhotoText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.photoUploadButton}
+              onPress={showPhotoPicker}
+              disabled={uploadingPhoto}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator size="small" color="#2A7BF6" />
+              ) : (
+                <>
+                  <Icon name="camera" size={32} color="#2A7BF6" />
+                  <Text style={styles.photoUploadText}>Upload Photo</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Date of Birth */}
@@ -4492,6 +4692,82 @@ const styles = StyleSheet.create({
   authSaveText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  // Photo upload styles
+  photoContainer: {
+    marginTop: 8,
+  },
+  photoUploadButton: {
+    borderWidth: 2,
+    borderColor: '#2A7BF6',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F9FB',
+  },
+  photoUploadText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: '#2A7BF6',
+    fontWeight: '600',
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingText: {
+    marginTop: 8,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changePhotoButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#2A7BF6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changePhotoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
