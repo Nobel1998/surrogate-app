@@ -26,8 +26,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
-  const [photoUri, setPhotoUri] = useState(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
+  const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
   
   // Refs for Step 1 scroll view and input fields
   const step1ScrollViewRef = React.useRef(null);
@@ -155,6 +155,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     
     // Step 9: Letter to Surrogate
     letterToSurrogate: '',
+    
+    // Photos (up to 3)
+    photos: [], // Array of photo URLs
+    photoUrl: '', // Backward compatibility: single photo
   });
 
   // Draft storage helpers
@@ -281,9 +285,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         }
 
         setApplicationData(formData);
-        // Set photo URI if photoUrl exists
-        if (formData.photoUrl) {
-          setPhotoUri(formData.photoUrl);
+        // Set photos array if photos exist
+        if (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) {
+          const photosArray = formData.photos.map((url, index) => ({
+            uri: null,
+            url: url,
+            fileName: `Photo_${index + 1}.jpg`,
+            fileSize: null,
+            uploading: false,
+          }));
+          setPhotos(photosArray);
+        } else if (formData.photoUrl) {
+          // Backward compatibility: single photo
+          setPhotos([{
+            uri: null,
+            url: formData.photoUrl,
+            fileName: 'Photo_1.jpg',
+            fileSize: null,
+            uploading: false,
+          }]);
         }
       }
     } catch (error) {
@@ -311,9 +331,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
       }
       setApplicationData(dataToSet);
-      // Set photo URI if photoUrl exists
-      if (dataToSet.photoUrl) {
-        setPhotoUri(dataToSet.photoUrl);
+      // Set photos array if photos exist
+      if (dataToSet.photos && Array.isArray(dataToSet.photos) && dataToSet.photos.length > 0) {
+        const photosArray = dataToSet.photos.map((url, index) => ({
+          uri: null,
+          url: url,
+          fileName: `Photo_${index + 1}.jpg`,
+          fileSize: null,
+          uploading: false,
+        }));
+        setPhotos(photosArray);
+      } else if (dataToSet.photoUrl) {
+        // Backward compatibility: single photo
+        setPhotos([{
+          uri: null,
+          url: dataToSet.photoUrl,
+          fileName: 'Photo_1.jpg',
+          fileSize: null,
+          uploading: false,
+        }]);
       }
     } else if (editMode && applicationId && user) {
       // If in edit mode but no existingData provided, load from database
@@ -356,10 +392,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   // Upload intended parent photo to Supabase Storage
-  const uploadIntendedParentPhoto = async (uri) => {
+  const uploadIntendedParentPhoto = async (uri, index) => {
+    setUploadingPhotoIndex(index);
     try {
-      setUploadingPhoto(true);
-      
       // Check user authentication
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
@@ -375,6 +410,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       // Generate unique filename
       const fileName = `intended_parent_${authUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `intended-parent-photos/${fileName}`;
+      
+      // Get file size (approximate)
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileSize = blob.size;
       
       // Create FormData
       const formData = new FormData();
@@ -402,17 +442,48 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         .from('post-media')
         .getPublicUrl(filePath);
       
-      return urlData.publicUrl;
+      return {
+        url: urlData.publicUrl,
+        fileName: fileName,
+        fileSize: fileSize,
+      };
     } catch (error) {
       console.error('Upload failed:', error);
       throw error;
     } finally {
-      setUploadingPhoto(false);
+      setUploadingPhotoIndex(null);
     }
   };
 
-  // Pick image from library
-  const pickPhoto = async () => {
+  // Format file size helper
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // Remove photo at index
+  const removePhoto = (index) => {
+    const newPhotos = [...photos];
+    newPhotos[index] = null;
+    setPhotos(newPhotos.filter(p => p !== null));
+    
+    // Update applicationData
+    const photoUrls = newPhotos.filter(p => p && p.url).map(p => p.url);
+    if (applicationData.photos && Array.isArray(applicationData.photos)) {
+      const updatedPhotos = [...applicationData.photos];
+      updatedPhotos[index] = null;
+      const filteredPhotos = updatedPhotos.filter(p => p !== null);
+      updateField('photos', filteredPhotos.length > 0 ? filteredPhotos : []);
+    } else {
+      updateField('photos', photoUrls.length > 0 ? photoUrls : []);
+    }
+  };
+
+  // Pick image from library (for a specific index)
+  const pickPhoto = async (index) => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -429,16 +500,44 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
-        setPhotoUri(selectedUri);
+        
+        // Create temporary photo object
+        const tempPhoto = {
+          uri: selectedUri,
+          url: null,
+          fileName: null,
+          fileSize: null,
+          uploading: true,
+        };
+        
+        // Update photos array
+        const newPhotos = [...photos];
+        newPhotos[index] = tempPhoto;
+        setPhotos(newPhotos);
         
         // Upload immediately
         try {
-          const photoUrl = await uploadIntendedParentPhoto(selectedUri);
-          updateField('photoUrl', photoUrl);
-          Alert.alert('Success', 'Photo uploaded successfully!');
+          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index);
+          const updatedPhoto = {
+            uri: selectedUri,
+            url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            fileSize: uploadResult.fileSize,
+            uploading: false,
+          };
+          
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = updatedPhoto;
+          setPhotos(updatedPhotos);
+          
+          // Update applicationData
+          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
+          updateField('photos', photoUrls);
         } catch (error) {
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          setPhotoUri(null);
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = null;
+          setPhotos(updatedPhotos.filter(p => p !== null));
         }
       }
     } catch (error) {
@@ -447,8 +546,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     }
   };
 
-  // Take photo with camera
-  const takePhoto = async () => {
+  // Take photo with camera (for a specific index)
+  const takePhoto = async (index) => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -465,16 +564,44 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
-        setPhotoUri(selectedUri);
+        
+        // Create temporary photo object
+        const tempPhoto = {
+          uri: selectedUri,
+          url: null,
+          fileName: null,
+          fileSize: null,
+          uploading: true,
+        };
+        
+        // Update photos array
+        const newPhotos = [...photos];
+        newPhotos[index] = tempPhoto;
+        setPhotos(newPhotos);
         
         // Upload immediately
         try {
-          const photoUrl = await uploadIntendedParentPhoto(selectedUri);
-          updateField('photoUrl', photoUrl);
-          Alert.alert('Success', 'Photo uploaded successfully!');
+          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index);
+          const updatedPhoto = {
+            uri: selectedUri,
+            url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            fileSize: uploadResult.fileSize,
+            uploading: false,
+          };
+          
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = updatedPhoto;
+          setPhotos(updatedPhotos);
+          
+          // Update applicationData
+          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
+          updateField('photos', photoUrls);
         } catch (error) {
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          setPhotoUri(null);
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = null;
+          setPhotos(updatedPhotos.filter(p => p !== null));
         }
       }
     } catch (error) {
@@ -483,14 +610,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     }
   };
 
-  // Show image picker options
-  const showPhotoPicker = () => {
+  // Show image picker options (for a specific index)
+  const showPhotoPicker = (index) => {
     Alert.alert(
       'Upload Intended Parent Photo',
       'Choose an option',
       [
-        { text: 'Take Photo', onPress: takePhoto },
-        { text: 'Choose from Library', onPress: pickPhoto },
+        { text: 'Take Photo', onPress: () => takePhoto(index) },
+        { text: 'Choose from Library', onPress: () => pickPhoto(index) },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
@@ -825,8 +952,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           Alert.alert('Required Field', 'Please write a letter to the surrogate.');
           return false;
         }
-        if (!applicationData.photoUrl || applicationData.photoUrl.trim() === '') {
-          Alert.alert('Required Field', 'Please upload an intended parent photo.');
+        if (!applicationData.photos || !Array.isArray(applicationData.photos) || applicationData.photos.length === 0) {
+          Alert.alert('Required Field', 'Please upload at least one intended parent photo.');
           return false;
         }
         break;
@@ -2339,55 +2466,66 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           numberOfLines={15}
         />
 
-        {/* Intended Parent Photo Upload */}
-        <Text style={[styles.label, { marginTop: 30 }]}>Intended Parent Photo *</Text>
-        <View style={styles.photoContainer}>
-          {photoUri || applicationData.photoUrl ? (
-            <View style={styles.photoPreviewContainer}>
-              <Image
-                source={{ uri: photoUri || applicationData.photoUrl }}
-                style={styles.photoPreview}
-              />
-              {uploadingPhoto && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={styles.uploadingText}>Uploading...</Text>
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={() => {
-                  setPhotoUri(null);
-                  updateField('photoUrl', '');
-                }}
-              >
-                <Icon name="x" size={20} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.changePhotoButton}
-                onPress={showPhotoPicker}
-                disabled={uploadingPhoto}
-              >
-                <Icon name="edit-2" size={16} color="#fff" />
-                <Text style={styles.changePhotoText}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.photoUploadButton}
-              onPress={showPhotoPicker}
-              disabled={uploadingPhoto}
-            >
-              {uploadingPhoto ? (
-                <ActivityIndicator size="small" color="#2A7BF6" />
-              ) : (
-                <>
-                  <Icon name="camera" size={32} color="#2A7BF6" />
-                  <Text style={styles.photoUploadText}>Upload Photo</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+        {/* Intended Parent Photos Upload (3 photos) */}
+        <Text style={[styles.label, { marginTop: 30 }]}>Intended Parent Photos (up to 3) *</Text>
+        <View style={styles.photosContainer}>
+          {[0, 1, 2].map((index) => {
+            const photo = photos[index];
+            const photoUrl = photo?.url || (applicationData.photos && applicationData.photos[index]);
+            
+            return (
+              <View key={index} style={styles.photoItemContainer}>
+                {photoUrl || photo?.uri ? (
+                  <View style={styles.photoItem}>
+                    <Image
+                      source={{ uri: photo?.uri || photoUrl }}
+                      style={styles.photoThumbnail}
+                    />
+                    {photo?.uploading || uploadingPhotoIndex === index ? (
+                      <View style={styles.uploadingOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.uploadingText}>Uploading...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.photoInfo}>
+                          <Text style={styles.photoFileName} numberOfLines={1}>
+                            {photo?.fileName || `Photo_${index + 1}.jpg`}
+                          </Text>
+                          {photo?.fileSize && (
+                            <Text style={styles.photoFileSize}>
+                              {formatFileSize(photo.fileSize)}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removePhotoButton}
+                          onPress={() => removePhoto(index)}
+                        >
+                          <Icon name="x" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.photoUploadSlot}
+                    onPress={() => showPhotoPicker(index)}
+                    disabled={uploadingPhotoIndex === index}
+                  >
+                    {uploadingPhotoIndex === index ? (
+                      <ActivityIndicator size="small" color="#2A7BF6" />
+                    ) : (
+                      <>
+                        <Icon name="camera" size={24} color="#2A7BF6" />
+                        <Text style={styles.photoUploadSlotText}>Upload</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     );
