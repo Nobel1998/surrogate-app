@@ -184,6 +184,10 @@ export default function Home() {
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',
       submitted_at: app.submitted_at || app.created_at,
+      // Photos array (for multiple photos, up to 3)
+      photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
+      // Backward compatibility: keep photoUrl if photos array is empty
+      photoUrl: formData.photoUrl || (formData.photos && formData.photos.length > 0 ? formData.photos[0] : null),
     };
   };
 
@@ -672,8 +676,36 @@ export default function Home() {
                     <div className="bg-green-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-green-900 mb-4">👤 Intended Parent 1</h3>
                       
-                      {/* Intended Parent Photo */}
-                      {selectedApp.photoUrl && (
+                      {/* Intended Parent Photos (up to 3) */}
+                      {selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photos ({selectedApp.photos.length} photos)</label>
+                          <div className="grid grid-cols-3 gap-4">
+                            {selectedApp.photos.map((photoUrl: string, index: number) => (
+                              <div key={index} className="relative">
+                                <img
+                                  src={photoUrl}
+                                  alt={`Intended Parent Photo ${index + 1}`}
+                                  className="w-full h-48 object-cover rounded-lg border border-gray-300 shadow-sm"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                                <a
+                                  href={photoUrl}
+                                  download
+                                  className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
+                                >
+                                  Download
+                                </a>
+                                <div className="mt-1 text-xs text-gray-500 text-center">Photo {index + 1}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Backward compatibility: single photoUrl */}
+                      {(!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photo</label>
                           <div className="relative">
