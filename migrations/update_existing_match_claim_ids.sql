@@ -28,7 +28,7 @@ BEGIN
          FROM profiles p_surrogate 
          WHERE p_surrogate.id = match_record.surrogate_id),
         'Surrogate'
-      ) ||
+      ) || '--' ||
       COALESCE(
         -- Extract first name from parent (first word, split by space)
         (SELECT SPLIT_PART(p_parent.name, ' ', 1) 
@@ -61,4 +61,4 @@ BEGIN
 END $$;
 
 -- Add comment for documentation
-COMMENT ON COLUMN surrogate_matches.claim_id IS 'Match identifier: surrogate firstname + parent firstname (e.g., AliceBob). If duplicate, numeric suffix is added (e.g., AliceBob2)';
+COMMENT ON COLUMN surrogate_matches.claim_id IS 'Match identifier: surrogate firstname--parent firstname (e.g., Alice--Bob). If duplicate, numeric suffix is added (e.g., Alice--Bob2)';

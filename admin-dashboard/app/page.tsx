@@ -641,7 +641,7 @@ export default function Home() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Application Details - {selectedApp.applicationType === 'intended_parent' ? 'Intended Parent' : 'Surrogate'}--{selectedApp.full_name}
+                  Application Details - {selectedApp.full_name}
                 </h2>
                 <button
                   onClick={() => setSelectedApp(null)}

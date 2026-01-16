@@ -619,8 +619,8 @@ export async function POST(req: Request) {
       const surrogateFirstName = surrogateProfile?.name?.split(' ')[0] || 'Surrogate';
       const parentFirstName = parentProfile?.name?.split(' ')[0] || 'Parent';
       
-      // Generate base claim_id: 代母firstname + 客人first name
-      let baseClaimId = `${surrogateFirstName}${parentFirstName}`;
+      // Generate base claim_id: 代母firstname--客人first name
+      let baseClaimId = `${surrogateFirstName}--${parentFirstName}`;
       let claimId = baseClaimId;
       let counter = 1;
       
