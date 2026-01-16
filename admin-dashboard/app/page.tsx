@@ -488,29 +488,11 @@ export default function Home() {
                             onUpdate={loadApplications}
                           />
                         ) : (
-                          <button
-                            onClick={async () => {
-                              const newStatus = app.status === 'approved' ? 'pending' : 'approved';
-                              try {
-                                await fetch('/api/intended-parent-applications', {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: app.id, status: newStatus })
-                                });
-                                loadApplications();
-                              } catch (error) {
-                                console.error('Error updating status:', error);
-                                alert('Error updating status');
-                              }
-                            }}
-                            className={`text-xs font-medium px-2 py-1 rounded ${
-                              app.status === 'approved' 
-                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
-                                : 'bg-green-100 text-green-800 hover:bg-green-200'
-                            }`}
-                          >
-                            {app.status === 'approved' ? '⏳ Mark Pending' : '✅ Approve'}
-                          </button>
+                          <IntendedParentApproveButton 
+                            id={app.id} 
+                            currentStatus={app.status} 
+                            onUpdate={loadApplications}
+                          />
                         )}
                         <button
                           onClick={() => handleDeleteApplication(app.id, app.full_name, app.applicationType)}
