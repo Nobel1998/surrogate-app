@@ -825,6 +825,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           Alert.alert('Required Field', 'Please write a letter to the surrogate.');
           return false;
         }
+        if (!applicationData.photoUrl || applicationData.photoUrl.trim() === '') {
+          Alert.alert('Required Field', 'Please upload an intended parent photo.');
+          return false;
+        }
         break;
     }
     return true;
