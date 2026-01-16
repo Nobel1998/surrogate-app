@@ -570,12 +570,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     );
   };
 
-  const validatePhone = (phone) => {
-    // Basic validation: at least 10 digits, allow separators like - . ( ) space
-    const phoneRegex = /^[\d\-.()+ ]{10,}$/;
-    return phoneRegex.test(phone);
-  };
-
   const calculateAgeFromDateOfBirth = (dateOfBirth) => {
     // Parse date in MM/DD/YYYY format
     const dateParts = dateOfBirth.split('/');
