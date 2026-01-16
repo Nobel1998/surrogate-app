@@ -1229,6 +1229,57 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           />
         </View>
 
+        {/* Intended Parent Photo Upload */}
+        <Text style={styles.label}>Intended Parent Photo *</Text>
+        <View style={styles.photoContainer}>
+          {photoUri || applicationData.photoUrl ? (
+            <View style={styles.photoPreviewContainer}>
+              <Image
+                source={{ uri: photoUri || applicationData.photoUrl }}
+                style={styles.photoPreview}
+              />
+              {uploadingPhoto && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.uploadingText}>Uploading...</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.removePhotoButton}
+                onPress={() => {
+                  setPhotoUri(null);
+                  updateField('photoUrl', '');
+                }}
+              >
+                <Icon name="x" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.changePhotoButton}
+                onPress={showPhotoPicker}
+                disabled={uploadingPhoto}
+              >
+                <Icon name="edit-2" size={16} color="#fff" />
+                <Text style={styles.changePhotoText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.photoUploadButton}
+              onPress={showPhotoPicker}
+              disabled={uploadingPhoto}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator size="small" color="#2A7BF6" />
+              ) : (
+                <>
+                  <Icon name="camera" size={32} color="#2A7BF6" />
+                  <Text style={styles.photoUploadText}>Upload Photo</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
         <Text style={styles.label}>Date of Birth *</Text>
         <View style={styles.row}>
           <TextInput
