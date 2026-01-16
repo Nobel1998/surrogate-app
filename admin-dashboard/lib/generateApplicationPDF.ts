@@ -423,11 +423,25 @@ export const generateApplicationPDF = (app: ApplicationData) => {
   ], [255, 140, 0]);
 
   // Step 8: Authorization
-  addSection('Step 8: Authorization', [
+  const authorizationData: [string, string][] = [
     ['Authorization Agreed', app.authorizationAgreed === true ? 'Yes - Agreed' : 'Not Agreed'],
     ['Applicant Address', formatValue(app.applicantAddress)],
     ['Emergency Contact', formatValue(app.emergencyContact)],
-  ], [220, 20, 60]);
+    ['Referral Code', formatValue(app.referralCode)],
+  ];
+
+  // Add lifestyle photos information (6 photos)
+  if (app.photos && Array.isArray(app.photos) && app.photos.length > 0) {
+    authorizationData.push(['Lifestyle Photos', `${app.photos.length} photo(s) uploaded`]);
+    app.photos.forEach((photoUrl: string, index: number) => {
+      authorizationData.push([`Photo ${index + 1}`, photoUrl || 'N/A']);
+    });
+  } else if (app.photoUrl) {
+    // Backward compatibility: single photo
+    authorizationData.push(['Surrogate Photo', app.photoUrl]);
+  }
+
+  addSection('Step 8: Authorization & Lifestyle Photos', authorizationData, [220, 20, 60]);
   }
 
   // Footer
