@@ -170,15 +170,23 @@ export default function ViewApplicationScreen({ navigation }) {
   }
 
   const handleEditApplication = () => {
-    navigation.navigate('SurrogateApplication', {
-      editMode: true,
-      applicationId: application.id,
-      existingData: {
-        ...formData,
-        fullName: application.full_name,
-        phoneNumber: application.phone,
-      }
-    });
+    if (formData.applicationType === 'intended_parent') {
+      navigation.navigate('IntendedParentApplication', {
+        editMode: true,
+        applicationId: application.id,
+        existingData: formData
+      });
+    } else {
+      navigation.navigate('SurrogateApplication', {
+        editMode: true,
+        applicationId: application.id,
+        existingData: {
+          ...formData,
+          fullName: application.full_name,
+          phoneNumber: application.phone,
+        }
+      });
+    }
   };
 
   return (
