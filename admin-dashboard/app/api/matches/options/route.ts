@@ -556,7 +556,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const status = body.status || 'active';
+    const status = body.status || 'matched';
     const notes = body.notes || null;
 
     // Manual upsert: check existing pair first
@@ -664,7 +664,7 @@ export async function POST(req: Request) {
           first_parent_id: parentId,
           case_type: 'Surrogacy',
           branch_id: effectiveBranchId,
-          status: status || 'active',
+          status: status || 'matched',
           created_by: adminUserId || null,
         })
         .eq('id', matchId);
