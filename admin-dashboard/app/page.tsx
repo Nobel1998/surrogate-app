@@ -7,6 +7,105 @@ import ApproveButton from '../components/ApproveButton';
 import DashboardStats from '../components/DashboardStats';
 import { generateApplicationPDF } from '../lib/generateApplicationPDF';
 
+// Intended Parent Approve/Reject Button Component
+function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
+  const [loading, setLoading] = useState(false);
+
+  const updateStatus = async (newStatus: 'approved' | 'rejected' | 'pending') => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/intended-parent-applications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+
+      if (onUpdate) {
+        onUpdate();
+      } else {
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error('Error updating intended parent application:', error);
+      alert(`Error updating application status: ${error.message || error.toString()}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = () => {
+    if (confirm('Are you sure you want to approve this application?')) {
+      updateStatus('approved');
+    }
+  };
+
+  const handleReject = () => {
+    if (confirm('Are you sure you want to reject this application?')) {
+      updateStatus('rejected');
+    }
+  };
+
+  const handlePending = () => {
+    if (confirm('Set this application back to pending status?')) {
+      updateStatus('pending');
+    }
+  };
+
+  if (currentStatus === 'approved') {
+    return (
+      <div className="flex space-x-2">
+        <span className="text-green-600 text-xs font-medium">✅ Approved</span>
+        <button
+          onClick={handleReject}
+          disabled={loading}
+          className="text-red-600 hover:text-red-800 text-xs disabled:opacity-50"
+        >
+          {loading ? '...' : 'Reject'}
+        </button>
+      </div>
+    );
+  }
+
+  if (currentStatus === 'rejected') {
+    return (
+      <div className="flex space-x-2">
+        <span className="text-red-600 text-xs font-medium">❌ Rejected</span>
+        <button
+          onClick={handleApprove}
+          disabled={loading}
+          className="text-green-600 hover:text-green-800 text-xs disabled:opacity-50"
+        >
+          {loading ? '...' : 'Approve'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex space-x-2">
+      <button
+        onClick={handleApprove}
+        disabled={loading}
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50"
+      >
+        {loading ? '...' : 'Approve'}
+      </button>
+      <button
+        onClick={handleReject}
+        disabled={loading}
+        className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50"
+      >
+        {loading ? '...' : 'Reject'}
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
