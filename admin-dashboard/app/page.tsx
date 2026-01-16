@@ -579,6 +579,32 @@ export default function Home() {
                     {/* Intended Parent 1 */}
                     <div className="bg-green-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-green-900 mb-4">👤 Intended Parent 1</h3>
+                      
+                      {/* Intended Parent Photo */}
+                      {selectedApp.photoUrl && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photo</label>
+                          <div className="relative">
+                            <img
+                              src={selectedApp.photoUrl}
+                              alt="Intended Parent Photo"
+                              className="w-full max-w-md h-auto rounded-lg border border-gray-300 shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <a
+                              href={selectedApp.photoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                            >
+                              View Full Size
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-500">First Name</label>
@@ -974,6 +1000,32 @@ export default function Home() {
                     {/* Step 1: Personal Information */}
                     <div className="bg-blue-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👤 Step 1: Personal Information</h3>
+                      
+                      {/* Surrogate Photo */}
+                      {selectedApp.photoUrl && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Surrogate Photo</label>
+                          <div className="relative">
+                            <img
+                              src={selectedApp.photoUrl}
+                              alt="Surrogate Photo"
+                              className="w-full max-w-md h-auto rounded-lg border border-gray-300 shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <a
+                              href={selectedApp.photoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                            >
+                              View Full Size
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Full Name</label>
