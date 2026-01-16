@@ -105,9 +105,10 @@ type Contract = {
 };
 
 const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending', 'pregnant'];
-const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
+const STAGE_OPTIONS = ['pre', 'matched', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
   'pre': 'Pre-Transfer',
+  'matched': 'Matched',
   'pregnancy': 'Post-Transfer',
   'ob_visit': 'OB Office Visit',
   'delivery': 'Delivery',
