@@ -104,11 +104,10 @@ type Contract = {
   created_at?: string | null;
 };
 
-const STATUS_OPTIONS = ['active', 'completed', 'cancelled', 'pending', 'pregnant'];
-const STAGE_OPTIONS = ['pre', 'matched', 'pregnancy', 'ob_visit', 'delivery'];
+const STATUS_OPTIONS = ['active', 'completed', 'matched', 'pending', 'pregnant'];
+const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
   'pre': 'Pre-Transfer',
-  'matched': 'Matched',
   'pregnancy': 'Post-Transfer',
   'ob_visit': 'OB Office Visit',
   'delivery': 'Delivery',
@@ -2645,8 +2644,8 @@ export default function MatchesPage() {
                                 ? 'bg-green-100 text-green-800'
                                 : m.status === 'completed'
                                   ? 'bg-blue-100 text-blue-800'
-                                  : m.status === 'cancelled'
-                                    ? 'bg-red-100 text-red-800'
+                                  : m.status === 'matched'
+                                    ? 'bg-purple-100 text-purple-800'
                                     : m.status === 'pregnant'
                                       ? 'bg-pink-100 text-pink-800'
                                       : 'bg-yellow-100 text-yellow-800'
