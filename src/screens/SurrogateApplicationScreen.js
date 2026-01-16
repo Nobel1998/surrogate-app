@@ -26,8 +26,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
-  const [photoUri, setPhotoUri] = useState(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
+  const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
   const [applicationData, setApplicationData] = useState({
     // Step 1: Personal Information (Extended)
     firstName: '',
@@ -230,8 +230,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     applicantPhone: '',
     emergencyContact: '',
     
-    // Surrogate Photo
-    photoUrl: '',
+    // Surrogate Photos (up to 6 lifestyle photos)
+    photos: [], // Array of photo URLs
   });
 
   const updateField = (field, value) => {
@@ -341,9 +341,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           referralCode: parsed.referralCode || applicationData.referralCode || '',
             ...parsed,
           };
-          // Set photo URI if photoUrl exists
-          if (merged.photoUrl) {
-            setPhotoUri(merged.photoUrl);
+          // Set photos array if photos exist
+          if (merged.photos && Array.isArray(merged.photos)) {
+            const loadedPhotos = merged.photos.map((url, idx) => ({
+              uri: null,
+              url: url,
+              fileName: `IMG_${idx + 1}.jpeg`,
+              fileSize: null,
+              uploading: false,
+            }));
+            setPhotos(loadedPhotos);
+          } else if (merged.photoUrl) {
+            // Backward compatibility: convert single photoUrl to photos array
+            setPhotos([{
+              uri: null,
+              url: merged.photoUrl,
+              fileName: 'IMG_1.jpeg',
+              fileSize: null,
+              uploading: false,
+            }]);
           }
           // ensure state updates flush before formVersion bump
           setApplicationData(prev => ({ ...prev, ...merged }));
@@ -403,9 +419,25 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           ...prev,
           ...existingData,
         }));
-        // Set photo URI if photoUrl exists
-        if (existingData.photoUrl) {
-          setPhotoUri(existingData.photoUrl);
+        // Set photos array if photos exist
+        if (existingData.photos && Array.isArray(existingData.photos)) {
+          const loadedPhotos = existingData.photos.map((url, idx) => ({
+            uri: null,
+            url: url,
+            fileName: `IMG_${idx + 1}.jpeg`,
+            fileSize: null,
+            uploading: false,
+          }));
+          setPhotos(loadedPhotos);
+        } else if (existingData.photoUrl) {
+          // Backward compatibility: convert single photoUrl to photos array
+          setPhotos([{
+            uri: null,
+            url: existingData.photoUrl,
+            fileName: 'IMG_1.jpeg',
+            fileSize: null,
+            uploading: false,
+          }]);
         }
         // Parse dateOfBirth into components if available
         if (existingData.dateOfBirth && existingData.dateOfBirth.includes('/')) {
@@ -437,9 +469,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   };
 
   // Upload surrogate photo to Supabase Storage
-  const uploadSurrogatePhoto = async (uri) => {
+  const uploadSurrogatePhoto = async (uri, index) => {
     try {
-      setUploadingPhoto(true);
+      setUploadingPhotoIndex(index);
       
       // Check user authentication
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -456,6 +488,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       // Generate unique filename
       const fileName = `surrogate_${authUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `surrogate-photos/${fileName}`;
+      
+      // Get file size (approximate)
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileSize = blob.size;
       
       // Create FormData
       const formData = new FormData();
@@ -484,18 +521,27 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         .from('post-media')
         .getPublicUrl(filePath);
       
-      return urlData.publicUrl;
+      return {
+        url: urlData.publicUrl,
+        fileName: fileName,
+        fileSize: fileSize,
+      };
     } catch (error) {
       console.error('Upload failed:', error);
       throw error;
     } finally {
-      setUploadingPhoto(false);
+      setUploadingPhotoIndex(null);
     }
   };
 
-  // Pick image from library
-  const pickPhoto = async () => {
+  // Pick image from library (for a specific index)
+  const pickPhoto = async (index) => {
     try {
+      if (photos.length >= 6 && !photos[index]) {
+        Alert.alert('Limit Reached', 'You can upload up to 6 photos.');
+        return;
+      }
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'We need photo library permission to upload your photo.');
@@ -507,20 +553,49 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        allowsMultipleSelection: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
-        setPhotoUri(selectedUri);
+        
+        // Create temporary photo object
+        const tempPhoto = {
+          uri: selectedUri,
+          url: null,
+          fileName: null,
+          fileSize: null,
+          uploading: true,
+        };
+        
+        // Update photos array
+        const newPhotos = [...photos];
+        newPhotos[index] = tempPhoto;
+        setPhotos(newPhotos);
         
         // Upload immediately
         try {
-          const photoUrl = await uploadSurrogatePhoto(selectedUri);
-          updateField('photoUrl', photoUrl);
-          Alert.alert('Success', 'Photo uploaded successfully!');
+          const uploadResult = await uploadSurrogatePhoto(selectedUri, index);
+          const updatedPhoto = {
+            uri: selectedUri,
+            url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            fileSize: uploadResult.fileSize,
+            uploading: false,
+          };
+          
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = updatedPhoto;
+          setPhotos(updatedPhotos);
+          
+          // Update applicationData
+          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
+          updateField('photos', photoUrls);
         } catch (error) {
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          setPhotoUri(null);
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = null;
+          setPhotos(updatedPhotos.filter(p => p !== null));
         }
       }
     } catch (error) {
@@ -529,9 +604,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     }
   };
 
-  // Take photo with camera
-  const takePhoto = async () => {
+  // Take photo with camera (for a specific index)
+  const takePhoto = async (index) => {
     try {
+      if (photos.length >= 6 && !photos[index]) {
+        Alert.alert('Limit Reached', 'You can upload up to 6 photos.');
+        return;
+      }
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'We need camera permission to take your photo.');
@@ -547,16 +627,44 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
-        setPhotoUri(selectedUri);
+        
+        // Create temporary photo object
+        const tempPhoto = {
+          uri: selectedUri,
+          url: null,
+          fileName: null,
+          fileSize: null,
+          uploading: true,
+        };
+        
+        // Update photos array
+        const newPhotos = [...photos];
+        newPhotos[index] = tempPhoto;
+        setPhotos(newPhotos);
         
         // Upload immediately
         try {
-          const photoUrl = await uploadSurrogatePhoto(selectedUri);
-          updateField('photoUrl', photoUrl);
-          Alert.alert('Success', 'Photo uploaded successfully!');
+          const uploadResult = await uploadSurrogatePhoto(selectedUri, index);
+          const updatedPhoto = {
+            uri: selectedUri,
+            url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            fileSize: uploadResult.fileSize,
+            uploading: false,
+          };
+          
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = updatedPhoto;
+          setPhotos(updatedPhotos);
+          
+          // Update applicationData
+          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
+          updateField('photos', photoUrls);
         } catch (error) {
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          setPhotoUri(null);
+          const updatedPhotos = [...photos];
+          updatedPhotos[index] = null;
+          setPhotos(updatedPhotos.filter(p => p !== null));
         }
       }
     } catch (error) {
@@ -565,17 +673,37 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     }
   };
 
-  // Show image picker options
-  const showPhotoPicker = () => {
+  // Show image picker options (for a specific index)
+  const showPhotoPicker = (index) => {
     Alert.alert(
-      'Upload Surrogate Photo',
+      'Upload Photo',
       'Choose an option',
       [
-        { text: 'Take Photo', onPress: takePhoto },
-        { text: 'Choose from Library', onPress: pickPhoto },
+        { text: 'Take Photo', onPress: () => takePhoto(index) },
+        { text: 'Choose from Library', onPress: () => pickPhoto(index) },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 KB';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  // Remove photo at index
+  const removePhoto = (index) => {
+    const newPhotos = [...photos];
+    newPhotos[index] = null;
+    const filteredPhotos = newPhotos.filter(p => p !== null);
+    setPhotos(filteredPhotos);
+    
+    // Update applicationData
+    const photoUrls = filteredPhotos.filter(p => p && p.url).map(p => p.url);
+    updateField('photos', photoUrls);
   };
 
   const calculateAgeFromDateOfBirth = (dateOfBirth) => {
@@ -1057,56 +1185,80 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         />
       </View>
 
-      {/* Surrogate Photo Upload */}
+      {/* Surrogate Lifestyle Photos Upload (6 photos) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Surrogate Photo *</Text>
-        <View style={styles.photoContainer}>
-          {photoUri || applicationData.photoUrl ? (
-            <View style={styles.photoPreviewContainer}>
-              <Image
-                source={{ uri: photoUri || applicationData.photoUrl }}
-                style={styles.photoPreview}
-              />
-              {uploadingPhoto && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={styles.uploadingText}>Uploading...</Text>
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={() => {
-                  setPhotoUri(null);
-                  updateField('photoUrl', '');
-                }}
-              >
-                <Icon name="x" size={20} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.changePhotoButton}
-                onPress={showPhotoPicker}
-                disabled={uploadingPhoto}
-              >
-                <Icon name="edit-2" size={16} color="#fff" />
-                <Text style={styles.changePhotoText}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.photoUploadButton}
-              onPress={showPhotoPicker}
-              disabled={uploadingPhoto}
-            >
-              {uploadingPhoto ? (
-                <ActivityIndicator size="small" color="#2A7BF6" />
-              ) : (
-                <>
-                  <Icon name="camera" size={32} color="#2A7BF6" />
-                  <Text style={styles.photoUploadText}>Upload Photo</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+        <Text style={styles.label}>Please upload your 6 pictures *</Text>
+        <View style={styles.photosContainer}>
+          {[0, 1, 2, 3, 4, 5].map((index) => {
+            const photo = photos[index];
+            const photoUrl = photo?.url || (applicationData.photos && applicationData.photos[index]);
+            
+            return (
+              <View key={index} style={styles.photoItemContainer}>
+                {photoUrl || photo?.uri ? (
+                  <View style={styles.photoItem}>
+                    <Image
+                      source={{ uri: photo?.uri || photoUrl }}
+                      style={styles.photoThumbnail}
+                    />
+                    {photo?.uploading || uploadingPhotoIndex === index ? (
+                      <View style={styles.uploadingOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.uploadingText}>Uploading...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.photoInfo}>
+                          <Text style={styles.photoFileName} numberOfLines={1}>
+                            {photo?.fileName || `IMG_${index + 1}.jpeg`}
+                          </Text>
+                          {photo?.fileSize && (
+                            <Text style={styles.photoFileSize}>
+                              {formatFileSize(photo.fileSize)}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removePhotoButton}
+                          onPress={() => removePhoto(index)}
+                        >
+                          <Icon name="x" size={16} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.downloadButton}
+                          onPress={() => {
+                            // Open photo in browser or download
+                            if (photoUrl) {
+                              // In React Native, we can't directly download, but we can show the URL
+                              Alert.alert('Photo URL', photoUrl);
+                            }
+                          }}
+                        >
+                          <Icon name="download" size={16} color="#fff" />
+                          <Text style={styles.downloadButtonText}>Download</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.photoUploadSlot}
+                    onPress={() => showPhotoPicker(index)}
+                    disabled={uploadingPhotoIndex === index}
+                  >
+                    {uploadingPhotoIndex === index ? (
+                      <ActivityIndicator size="small" color="#2A7BF6" />
+                    ) : (
+                      <>
+                        <Icon name="camera" size={24} color="#2A7BF6" />
+                        <Text style={styles.photoUploadSlotText}>Upload</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -4622,6 +4774,76 @@ const styles = StyleSheet.create({
   changePhotoText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // Multiple photos styles
+  photosContainer: {
+    marginTop: 8,
+    gap: 12,
+  },
+  photoItemContainer: {
+    marginBottom: 12,
+  },
+  photoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FB',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7EE',
+  },
+  photoThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+    resizeMode: 'cover',
+  },
+  photoInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  photoFileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1D1E',
+    marginBottom: 4,
+  },
+  photoFileSize: {
+    fontSize: 12,
+    color: '#6E7191',
+  },
+  photoUploadSlot: {
+    borderWidth: 2,
+    borderColor: '#2A7BF6',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F9FB',
+    minHeight: 80,
+  },
+  photoUploadSlotText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#2A7BF6',
+    fontWeight: '600',
+  },
+  downloadButton: {
+    backgroundColor: '#6E7191',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
   },
 });

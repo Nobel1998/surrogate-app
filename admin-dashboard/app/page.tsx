@@ -41,6 +41,10 @@ export default function Home() {
       // Use location for display (city/state), address for full address
       location: formData.location || app.location || 'N/A',
       address: formData.address || 'N/A',
+      // Photos array (for multiple lifestyle photos)
+      photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
+      // Backward compatibility: keep photoUrl if photos array is empty
+      photoUrl: formData.photoUrl || (formData.photos && formData.photos.length > 0 ? formData.photos[0] : null),
     };
   };
 
@@ -1001,8 +1005,36 @@ export default function Home() {
                     <div className="bg-blue-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👤 Step 1: Personal Information</h3>
                       
-                      {/* Surrogate Photo */}
-                      {selectedApp.photoUrl && (
+                      {/* Surrogate Lifestyle Photos (6 photos) */}
+                      {selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Lifestyle Photos ({selectedApp.photos.length} photos)</label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {selectedApp.photos.map((photoUrl, index) => (
+                              <div key={index} className="relative">
+                                <img
+                                  src={photoUrl}
+                                  alt={`Lifestyle Photo ${index + 1}`}
+                                  className="w-full h-auto rounded-lg border border-gray-300 shadow-sm"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                                <a
+                                  href={photoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                                >
+                                  View
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Backward compatibility: single photoUrl */}
+                      {(!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Surrogate Photo</label>
                           <div className="relative">
