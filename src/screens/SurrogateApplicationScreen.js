@@ -1224,19 +1224,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                         >
                           <Icon name="x" size={16} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.downloadButton}
-                          onPress={() => {
-                            // Open photo in browser or download
-                            if (photoUrl) {
-                              // In React Native, we can't directly download, but we can show the URL
-                              Alert.alert('Photo URL', photoUrl);
-                            }
-                          }}
-                        >
-                          <Icon name="download" size={16} color="#fff" />
-                          <Text style={styles.downloadButtonText}>Download</Text>
-                        </TouchableOpacity>
                       </>
                     )}
                   </View>
