@@ -680,11 +680,10 @@ export default function Home() {
                             />
                             <a
                               href={selectedApp.photoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              download
                               className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
                             >
-                              View Full Size
+                              Download
                             </a>
                           </div>
                         </div>
@@ -1103,11 +1102,10 @@ export default function Home() {
                                 />
                                 <a
                                   href={photoUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  download
                                   className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
                                 >
-                                  View
+                                  Download
                                 </a>
                               </div>
                             ))}
@@ -1129,11 +1127,10 @@ export default function Home() {
                             />
                             <a
                               href={selectedApp.photoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              download
                               className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                             >
-                              View Full Size
+                              Download
                             </a>
                           </div>
                         </div>
