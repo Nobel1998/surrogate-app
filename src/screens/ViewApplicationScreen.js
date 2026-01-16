@@ -36,25 +36,66 @@ export default function ViewApplicationScreen({ navigation }) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Try to load from both tables: applications (surrogate) and intended_parent_applications
+      const [surrogateResult, intendedParentResult] = await Promise.all([
+        supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('intended_parent_applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('submitted_at', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ]);
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading application:', error);
-      } else if (data) {
-        setApplication(data);
+      // Determine which application to show (prefer the most recent one)
+      let applicationData = null;
+      let applicationType = null;
+
+      if (surrogateResult.data && intendedParentResult.data) {
+        // Both exist, choose the most recent one
+        const surrogateDate = new Date(surrogateResult.data.created_at || 0);
+        const intendedParentDate = new Date(intendedParentResult.data.submitted_at || intendedParentResult.data.created_at || 0);
+        if (intendedParentDate > surrogateDate) {
+          applicationData = intendedParentResult.data;
+          applicationType = 'intended_parent';
+        } else {
+          applicationData = surrogateResult.data;
+          applicationType = 'surrogate';
+        }
+      } else if (surrogateResult.data) {
+        applicationData = surrogateResult.data;
+        applicationType = 'surrogate';
+      } else if (intendedParentResult.data) {
+        applicationData = intendedParentResult.data;
+        applicationType = 'intended_parent';
+      }
+
+      if (applicationData) {
+        setApplication({ ...applicationData, applicationType });
         // Parse form_data JSON
         try {
-          const parsed = data.form_data ? JSON.parse(data.form_data) : {};
-          setFormData(parsed);
+          const parsed = applicationData.form_data ? (typeof applicationData.form_data === 'string' ? JSON.parse(applicationData.form_data) : applicationData.form_data) : {};
+          setFormData({ ...parsed, applicationType });
         } catch (e) {
           console.error('Error parsing form_data:', e);
+          setFormData({ applicationType });
         }
+      }
+
+      // Log errors (but don't fail if one table has no data)
+      if (surrogateResult.error && surrogateResult.error.code !== 'PGRST116') {
+        console.error('Error loading surrogate application:', surrogateResult.error);
+      }
+      if (intendedParentResult.error && intendedParentResult.error.code !== 'PGRST116') {
+        console.error('Error loading intended parent application:', intendedParentResult.error);
       }
     } catch (error) {
       console.error('Failed to load application:', error);
