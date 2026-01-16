@@ -4818,20 +4818,5 @@ const styles = StyleSheet.create({
     color: '#2A7BF6',
     fontWeight: '600',
   },
-  downloadButton: {
-    backgroundColor: '#6E7191',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginRight: 8,
-  },
-  downloadButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
 });
 
