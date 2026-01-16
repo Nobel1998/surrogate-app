@@ -104,7 +104,7 @@ type Contract = {
   created_at?: string | null;
 };
 
-const STATUS_OPTIONS = ['active', 'completed', 'matched', 'pending', 'pregnant'];
+const STATUS_OPTIONS = ['matched', 'completed', 'cancelled', 'pending', 'pregnant'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
   'pre': 'Pre-Transfer',
@@ -2640,12 +2640,12 @@ export default function MatchesPage() {
                               {m.claim_id || `Match ${m.id?.substring(0, 8)}`}
                             </h3>
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                              m.status === 'active'
+                              m.status === 'matched'
                                 ? 'bg-green-100 text-green-800'
                                 : m.status === 'completed'
                                   ? 'bg-blue-100 text-blue-800'
-                                  : m.status === 'matched'
-                                    ? 'bg-purple-100 text-purple-800'
+                                  : m.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-800'
                                     : m.status === 'pregnant'
                                       ? 'bg-pink-100 text-pink-800'
                                       : 'bg-yellow-100 text-yellow-800'

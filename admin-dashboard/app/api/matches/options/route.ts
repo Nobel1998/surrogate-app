@@ -756,7 +756,7 @@ export async function PATCH(req: Request) {
 
       const { error } = await supabase
         .from('surrogate_matches')
-        .update({ status: body.status || 'active', updated_at: new Date().toISOString() })
+        .update({ status: body.status || 'matched', updated_at: new Date().toISOString() })
         .eq('id', body.id);
 
       if (error) throw error;
