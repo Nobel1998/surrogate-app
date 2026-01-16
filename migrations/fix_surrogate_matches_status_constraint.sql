@@ -19,11 +19,42 @@ UPDATE surrogate_matches
 SET status = 'pending'
 WHERE status NOT IN ('matched', 'completed', 'cancelled', 'pending', 'pregnant');
 
--- Step 2: Drop the existing CHECK constraint
+-- Step 2: Drop ALL possible CHECK constraints on status column
+-- Try to drop with different possible constraint names
 ALTER TABLE surrogate_matches
   DROP CONSTRAINT IF EXISTS surrogate_matches_status_check;
 
--- Step 3: Add the correct CHECK constraint with all valid statuses
+-- Also try dropping any constraint that might be named differently
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'surrogate_matches'::regclass
+        AND contype = 'c'
+        AND pg_get_constraintdef(oid) LIKE '%status%'
+    ) LOOP
+        EXECUTE 'ALTER TABLE surrogate_matches DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+    END LOOP;
+END $$;
+
+-- Step 3: Verify all existing rows have valid status values before adding constraint
+-- This ensures no existing data violates the new constraint
+DO $$
+BEGIN
+    -- Check if there are any rows with invalid status
+    IF EXISTS (
+        SELECT 1 FROM surrogate_matches 
+        WHERE status IS NOT NULL 
+        AND status NOT IN ('matched', 'completed', 'cancelled', 'pending', 'pregnant')
+    ) THEN
+        RAISE EXCEPTION 'Found rows with invalid status values. Please update them first.';
+    END IF;
+END $$;
+
+-- Step 4: Add the correct CHECK constraint with all valid statuses
 ALTER TABLE surrogate_matches
   ADD CONSTRAINT surrogate_matches_status_check 
   CHECK (status IN ('matched', 'completed', 'cancelled', 'pending', 'pregnant'));
