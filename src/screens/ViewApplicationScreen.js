@@ -624,5 +624,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
   },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 12,
+  },
+  photoItem: {
+    width: '48%',
+    marginBottom: 12,
+  },
+  photoThumbnail: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  photoLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
 });
 
