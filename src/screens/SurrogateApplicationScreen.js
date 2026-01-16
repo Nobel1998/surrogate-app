@@ -853,34 +853,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     setIsLoading(true);
     
     try {
-      // #region agent log
-      const logDataEntry = {
-        location: 'SurrogateApplicationScreen.js:handleSubmit:entry',
-        message: 'Submit started',
-        data: {
-          currentStep,
-          editMode,
-          applicationId,
-          applicationDataKeys: Object.keys(applicationData),
-          applicationDataSample: {
-            divorced: applicationData.divorced,
-            legalProblems: applicationData.legalProblems,
-            referralCode: applicationData.referralCode,
-            abnormalPapSmear: applicationData.abnormalPapSmear,
-            householdMarijuana: applicationData.householdMarijuana
-          }
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'A'
-      };
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logDataEntry)
-      }).catch(() => {});
-      // #endregion
-      
       // 获取当前认证用户ID
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
@@ -931,34 +903,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       // Construct payload for Supabase
       const { fullName, phoneNumber, ...otherFields } = applicationData;
       
-      // #region agent log
-      const logDataBefore = {
-        location: 'SurrogateApplicationScreen.js:handleSubmit:beforePayload',
-        message: 'Before payload construction',
-        data: {
-          fullName,
-          phoneNumber,
-          otherFieldsKeys: Object.keys(otherFields),
-          otherFieldsSample: {
-            divorced: otherFields.divorced,
-            legalProblems: otherFields.legalProblems,
-            referralCode: otherFields.referralCode,
-            abnormalPapSmear: otherFields.abnormalPapSmear,
-            householdMarijuana: otherFields.householdMarijuana,
-            tradeSchoolDetails: otherFields.tradeSchoolDetails
-          }
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'B'
-      };
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logDataBefore)
-      }).catch(() => {});
-      // #endregion
-      
       const payload = {
         full_name: fullName,
         phone: phoneNumber,
@@ -966,57 +910,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         user_id: authUser.id  // 添加用户ID
       };
       
-      // #region agent log
-      const parsedFormData = JSON.parse(payload.form_data);
-      const logDataAfter = {
-        location: 'SurrogateApplicationScreen.js:handleSubmit:afterPayload',
-        message: 'After payload construction',
-        data: {
-          payloadFormDataLength: payload.form_data.length,
-          formDataParsed: parsedFormData,
-          formDataKeys: Object.keys(parsedFormData),
-          formDataSample: {
-            divorced: parsedFormData.divorced,
-            legalProblems: parsedFormData.legalProblems,
-            referralCode: parsedFormData.referralCode,
-            abnormalPapSmear: parsedFormData.abnormalPapSmear,
-            householdMarijuana: parsedFormData.householdMarijuana,
-            tradeSchoolDetails: parsedFormData.tradeSchoolDetails
-          }
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'C'
-      };
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logDataAfter)
-      }).catch(() => {});
-      // #endregion
-
       let resultData;
       
       if (editMode && applicationId) {
         // Update existing application
         console.log('📝 Updating application:', applicationId);
-        
-        // #region agent log
-        const formDataLen = payload.form_data ? payload.form_data.length : 0;
-        const logData = {
-          location: 'SurrogateApplicationScreen.js:handleSubmit:update',
-          message: 'Updating application',
-          data: { applicationId: applicationId, formDataLength: formDataLen },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'D'
-        };
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(logData)
-        }).catch(() => {});
-        // #endregion
         
         const { data, error } = await supabase
           .from('applications')
