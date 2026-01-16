@@ -184,7 +184,7 @@ export default function Home() {
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',
       submitted_at: app.submitted_at || app.created_at,
-      // Photos array (for multiple photos, up to 3)
+      // Photos array (for multiple photos, up to 4)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
       photoUrl: formData.photoUrl || (formData.photos && formData.photos.length > 0 ? formData.photos[0] : null),
@@ -676,7 +676,7 @@ export default function Home() {
                     <div className="bg-green-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-green-900 mb-4">👤 Intended Parent 1</h3>
                       
-                      {/* Intended Parent Photos (up to 3) */}
+                      {/* Intended Parent Photos (up to 4) */}
                       {selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photos ({selectedApp.photos.length} photos)</label>

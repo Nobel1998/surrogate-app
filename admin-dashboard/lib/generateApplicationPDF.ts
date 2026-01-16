@@ -247,7 +247,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
       const photoHeight = 60;
       const spacing = 10;
 
-      for (let i = 0; i < app.photos.length && i < 3; i++) {
+      for (let i = 0; i < app.photos.length && i < 4; i++) {
         const photoUrl = app.photos[i];
         if (!photoUrl) continue;
 
@@ -285,7 +285,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
       }
 
       // Update yPosition after photos
-      const totalRows = Math.ceil(Math.min(app.photos.length, 3) / photosPerRow);
+      const totalRows = Math.ceil(Math.min(app.photos.length, 4) / photosPerRow);
       yPosition += totalRows * (photoHeight + 25) + 10;
     } else if (app.photoUrl) {
       // Backward compatibility: single photo

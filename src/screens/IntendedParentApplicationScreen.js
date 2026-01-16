@@ -156,7 +156,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     // Step 9: Letter to Surrogate
     letterToSurrogate: '',
     
-    // Photos (up to 3)
+    // Photos (up to 4)
     photos: [], // Array of photo URLs
     photoUrl: '', // Backward compatibility: single photo
   });
@@ -2494,10 +2494,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           numberOfLines={15}
         />
 
-        {/* Intended Parent Photos Upload (3 photos) */}
-        <Text style={[styles.label, { marginTop: 30 }]}>Intended Parent Photos (up to 3) *</Text>
+        {/* Intended Parent Photos Upload (4 photos) */}
+        <Text style={[styles.label, { marginTop: 30 }]}>Intended Parent Photos (up to 4) *</Text>
         <View style={styles.photosContainer}>
-          {[0, 1, 2].map((index) => {
+          {[0, 1, 2, 3].map((index) => {
             const photo = photos[index];
             const photoUrl = photo?.url || (applicationData.photos && applicationData.photos[index]);
             
