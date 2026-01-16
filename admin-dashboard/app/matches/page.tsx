@@ -2646,7 +2646,9 @@ export default function MatchesPage() {
                                   ? 'bg-blue-100 text-blue-800'
                                   : m.status === 'cancelled'
                                     ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
+                                    : m.status === 'pregnant'
+                                      ? 'bg-pink-100 text-pink-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                             }`}>
                             {m.status?.toUpperCase() || 'UNKNOWN'}
                             </span>
