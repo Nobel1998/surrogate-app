@@ -341,6 +341,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           referralCode: parsed.referralCode || applicationData.referralCode || '',
             ...parsed,
           };
+          // Set photo URI if photoUrl exists
+          if (merged.photoUrl) {
+            setPhotoUri(merged.photoUrl);
+          }
           // ensure state updates flush before formVersion bump
           setApplicationData(prev => ({ ...prev, ...merged }));
           setTimeout(() => {
