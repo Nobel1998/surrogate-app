@@ -229,6 +229,41 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
       ['Letter to Surrogate', formatValue(app.letterToSurrogate)],
     ], [220, 20, 60]);
 
+    // Add photo section at the end for intended parent applications
+    if (app.photoUrl) {
+      // Check if we need a new page
+      if (yPosition > 200) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(220, 20, 60);
+      doc.text('Intended Parent Photo', 14, yPosition);
+      yPosition += 8;
+
+      const photoWidth = pageWidth - 40;
+      const photoHeight = 100;
+
+      try {
+        const base64Image = await loadImageAsBase64(app.photoUrl);
+        if (base64Image) {
+          doc.addImage(base64Image, 'JPEG', 14, yPosition, photoWidth, photoHeight);
+          yPosition += photoHeight + 10;
+        } else {
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 255);
+          doc.text(`Photo URL: ${app.photoUrl}`, 14, yPosition, { maxWidth: photoWidth });
+          yPosition += 15;
+        }
+      } catch (error) {
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 255);
+        doc.text(`Photo URL: ${app.photoUrl}`, 14, yPosition, { maxWidth: photoWidth });
+        yPosition += 15;
+      }
+    }
+
   } else {
     // Surrogate Application PDF
     // Step 1: Personal Information
