@@ -4852,7 +4852,7 @@ export default function MatchesPage() {
 
                         {/* Shared Documents */}
                         <div>
-                          <div className="text-xs font-semibold text-gray-600 mb-2">Shared Documents</div>
+                          <div className="text-xs font-semibold text-gray-600 mb-2 pl-1">Shared Documents</div>
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => {
