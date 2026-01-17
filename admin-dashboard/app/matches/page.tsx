@@ -1560,34 +1560,18 @@ export default function MatchesPage() {
   };
 
   const updateMatchStatus = async (id: string, newStatus: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:1562',message:'updateMatchStatus called',data:{id,newStatus,newStatusType:typeof newStatus,newStatusLength:newStatus?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     try {
-      const requestBody = { id, status: newStatus };
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:1567',message:'Request body before fetch',data:{requestBody:JSON.stringify(requestBody)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       const res = await fetch('/api/matches/options', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ id, status: newStatus }),
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:1572',message:'Response received',data:{status:res.status,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (!res.ok) {
         const errText = await res.text();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:1574',message:'Response error',data:{status:res.status,errText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         throw new Error(`Update status failed: ${res.status} ${errText}`);
       }
       await loadData();
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:1580',message:'Error caught',data:{errorMessage:err?.message,errorStack:err?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.error('Error updating status:', err);
       alert(err.message || 'Failed to update status');
     }
@@ -2647,9 +2631,9 @@ export default function MatchesPage() {
                   }
                   
                   return (
-                    <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-4">
+                    <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
                       {/* Header Section */}
-                      <div className="flex items-start justify-between border-b pb-4">
+                      <div className="flex items-start justify-between border-b border-gray-100 bg-gray-50/50 px-6 py-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-4 mb-2">
                             <h3 className="text-lg font-semibold text-gray-900">
@@ -2688,7 +2672,7 @@ export default function MatchesPage() {
                       </div>
 
                       {/* Main Content Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                         {/* Basic Information */}
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Basic Information</h4>
