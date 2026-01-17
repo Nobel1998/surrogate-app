@@ -4800,6 +4800,7 @@ export default function MatchesPage() {
                       </div>
 
                       {/* Actions Section */}
+                      {isExpanded && (
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3 pl-1">Actions</h4>
                         
