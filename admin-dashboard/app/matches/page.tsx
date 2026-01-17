@@ -2633,39 +2633,42 @@ export default function MatchesPage() {
                   return (
                     <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
                       {/* Header Section */}
-                      <div className="flex items-start justify-between border-b border-gray-100 bg-gray-50/50 px-6 py-4">
+                      <div className="flex items-start justify-between bg-[#9333ea] px-6 py-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-4 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
                               {m.claim_id || `Match ${m.id?.substring(0, 8)}`}
                             </h3>
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm border ${
                               m.status === 'matched'
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-white text-green-700 border-green-200'
                                 : m.status === 'completed'
-                                  ? 'bg-blue-100 text-blue-800'
+                                  ? 'bg-white text-blue-700 border-blue-200'
                                   : m.status === 'cancelled'
-                                    ? 'bg-red-100 text-red-800'
+                                    ? 'bg-white text-red-700 border-red-200'
                                     : m.status === 'pregnant'
-                                      ? 'bg-pink-100 text-pink-800'
-                                      : 'bg-yellow-100 text-yellow-800'
+                                      ? 'bg-white text-pink-700 border-pink-200'
+                                      : 'bg-white text-yellow-700 border-yellow-200'
                             }`}>
                             {m.status?.toUpperCase() || 'UNKNOWN'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-4 text-sm text-purple-100 font-medium">
                             <Link
                               href={`/cases/${m.id}/step-status`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded transition-colors backdrop-blur-sm shadow-sm"
                             >
                               <span>📄</span>
                               Detail
                             </Link>
                             {m.updated_at && (
-                              <span>Updated: {new Date(m.updated_at).toLocaleString()}</span>
+                              <span className="opacity-90">Updated: {new Date(m.updated_at).toLocaleString()}</span>
                             )}
                             {m.created_at && (
-                              <span>Created: {new Date(m.created_at).toLocaleString()}</span>
+                              <span className="opacity-90">Created: {new Date(m.created_at).toLocaleString()}</span>
                             )}
                           </div>
                         </div>
