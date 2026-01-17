@@ -2530,13 +2530,65 @@ export default function MatchesPage() {
                       const surrogate = profileLookup[m.surrogate_id];
                       const parent = profileLookup[m.parent_id];
                       
+                      // Get names from multiple sources
                       const surrogateName = surrogate?.name?.toLowerCase() || '';
                       const parentName = parent?.name?.toLowerCase() || m.first_parent_name?.toLowerCase() || '';
+                      const claimId = (m.claim_id || '').toLowerCase();
                       
-                      // Check if search term matches surrogate name or parent name
-                      if (!surrogateName.includes(searchTerm) && !parentName.includes(searchTerm)) {
+                      // Normalize search term: remove spaces for flexible matching
+                      const normalizedSearchTerm = searchTerm.replace(/\s+/g, '');
+                      
+                      // Normalize names: remove spaces for flexible matching
+                      const normalizedSurrogateName = surrogateName.replace(/\s+/g, '');
+                      const normalizedParentName = parentName.replace(/\s+/g, '');
+                      const normalizedClaimId = claimId.replace(/\s+/g, '');
+                      
+                      // #region agent log
+                      console.log('[Name Search]', {
+                        searchTerm,
+                        normalizedSearchTerm,
+                        matchId: m.id,
+                        surrogateId: m.surrogate_id,
+                        parentId: m.parent_id,
+                        surrogateName,
+                        normalizedSurrogateName,
+                        parentName,
+                        normalizedParentName,
+                        claimId,
+                        normalizedClaimId,
+                        profileLookupHasSurrogate: !!surrogate,
+                        profileLookupHasParent: !!parent,
+                      });
+                      // #endregion
+                      
+                      // Check if search term matches:
+                      // 1. Surrogate name (with or without spaces)
+                      // 2. Parent name (with or without spaces)
+                      // 3. Claim ID (which may contain names)
+                      const matchesSurrogate = surrogateName.includes(searchTerm) || normalizedSurrogateName.includes(normalizedSearchTerm);
+                      const matchesParent = parentName.includes(searchTerm) || normalizedParentName.includes(normalizedSearchTerm);
+                      const matchesClaimId = claimId.includes(searchTerm) || normalizedClaimId.includes(normalizedSearchTerm);
+                      
+                      if (!matchesSurrogate && !matchesParent && !matchesClaimId) {
+                        // #region agent log
+                        console.log('[Name Search] Filtered out:', {
+                          searchTerm,
+                          surrogateName,
+                          parentName,
+                          claimId,
+                        });
+                        // #endregion
                         return false;
                       }
+                      // #region agent log
+                      console.log('[Name Search] Match passed:', {
+                        searchTerm,
+                        matched: true,
+                        matchesSurrogate,
+                        matchesParent,
+                        matchesClaimId,
+                      });
+                      // #endregion
                     }
                     
                     return true;
