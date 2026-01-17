@@ -4774,7 +4774,7 @@ export default function MatchesPage() {
 
                       {/* Actions Section */}
                       <div className="border-t pt-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Actions</h4>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3 pl-1">Actions</h4>
                         
                         {/* Single User Documents */}
                         <div className="mb-4">
