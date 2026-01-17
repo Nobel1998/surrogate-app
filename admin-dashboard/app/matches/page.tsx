@@ -229,6 +229,7 @@ export default function MatchesPage() {
   const [notesValue, setNotesValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
+  const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -2741,10 +2742,23 @@ export default function MatchesPage() {
                     });
                   }
                   
+                  const isExpanded = expandedMatches.has(m.id);
+                  
                   return (
                     <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
-                      {/* Header Section */}
-                      <div className="flex items-start justify-between bg-[#9333ea] px-6 py-4">
+                      {/* Header Section - Clickable */}
+                      <div 
+                        className="flex items-start justify-between bg-[#9333ea] px-6 py-4 cursor-pointer hover:bg-[#7e22ce] transition-colors"
+                        onClick={() => {
+                          const newExpanded = new Set(expandedMatches);
+                          if (isExpanded) {
+                            newExpanded.delete(m.id);
+                          } else {
+                            newExpanded.add(m.id);
+                          }
+                          setExpandedMatches(newExpanded);
+                        }}
+                      >
                         <div className="flex-1">
                           <div className="flex items-center gap-4 mb-2">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -2770,6 +2784,7 @@ export default function MatchesPage() {
                           <div className="flex items-center gap-4 text-sm text-purple-100 font-medium">
                             <Link
                               href={`/cases/${m.id}/step-status`}
+                              onClick={(e) => e.stopPropagation()}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded transition-colors backdrop-blur-sm shadow-sm"
                             >
                               <span>📄</span>
@@ -2783,9 +2798,21 @@ export default function MatchesPage() {
                             )}
                           </div>
                         </div>
+                        <div className="ml-4">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-white transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
                       </div>
 
-                      {/* Main Content Grid */}
+                      {/* Main Content Grid - Collapsible */}
+                      {isExpanded && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                         {/* Basic Information */}
                         <div className="space-y-3">
@@ -4888,6 +4915,7 @@ export default function MatchesPage() {
                           </p>
                         </div>
                       </div>
+                      )}
                     </div>
                   );
                 })}
