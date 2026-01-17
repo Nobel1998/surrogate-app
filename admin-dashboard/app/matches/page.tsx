@@ -4779,7 +4779,7 @@ export default function MatchesPage() {
                         {/* Single User Documents */}
                         <div className="mb-4">
                           <div className="text-xs font-semibold text-gray-600 mb-2 pl-1">Single User Documents</div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 pl-1">
                             <button
                               onClick={() => {
                                 setAgencyRetainerUserType('parent');
@@ -4853,7 +4853,7 @@ export default function MatchesPage() {
                         {/* Shared Documents */}
                         <div>
                           <div className="text-xs font-semibold text-gray-600 mb-2 pl-1">Shared Documents</div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 pl-1">
                             <button
                               onClick={() => {
                                 setSurrogacyContractSharedMatchId(m.id);
