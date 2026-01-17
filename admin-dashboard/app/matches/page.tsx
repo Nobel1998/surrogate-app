@@ -1115,6 +1115,31 @@ export default function MatchesPage() {
     }
   };
 
+  const handleUpdateNotes = async (matchId: string) => {
+    try {
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: notesValue.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Case Notes');
+      }
+
+      await loadData();
+      setEditingNotes(null);
+      setNotesValue('');
+      alert('Case Notes updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Case Notes:', err);
+      alert(err.message || 'Failed to update Case Notes');
+    }
+  };
+
   const handleAutoCalculateBMI = async (matchId: string, surrogateId: string) => {
     try {
       // #region agent log
