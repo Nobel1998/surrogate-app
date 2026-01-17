@@ -4845,7 +4845,7 @@ export default function MatchesPage() {
                               ✅ Upload Online Claims
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-gray-500">
+                          <p className="mt-2 text-xs text-gray-500 pl-1">
                             Upload documents for individual users. Each user will see their own document in User Center.
                           </p>
                         </div>
@@ -4883,7 +4883,7 @@ export default function MatchesPage() {
                               📋 Upload PBO
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-gray-500">
+                          <p className="mt-2 text-xs text-gray-500 pl-1">
                             Upload documents for this match. Both surrogate and parent(s) will see these documents in their My Match section.
                           </p>
                         </div>
