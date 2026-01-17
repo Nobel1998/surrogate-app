@@ -225,6 +225,8 @@ export default function MatchesPage() {
   const [secondParentBloodTypeValue, setSecondParentBloodTypeValue] = useState<string>('');
   const [editingSurrogateBMI, setEditingSurrogateBMI] = useState<string | null>(null);
   const [surrogateBMIValue, setSurrogateBMIValue] = useState<string>('');
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [notesValue, setNotesValue] = useState<string>('');
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   
@@ -2826,24 +2828,70 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Case Notes</div>
-                            {m.notes ? (
-                              <div className="text-sm text-gray-700 bg-yellow-50 p-2 rounded border border-yellow-200">
-                                {m.notes.length > 150 ? (
-                                  <>
-                                    <div className="whitespace-pre-wrap">{m.notes.substring(0, 150)}...</div>
-                                    <button
-                                      onClick={() => setNotesDetailModal({ matchId: m.id, notes: m.notes || '' })}
-                                      className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline"
-                                    >
-                                      View Full Notes →
-                                    </button>
-                                  </>
-                                ) : (
-                                  <div className="whitespace-pre-wrap">{m.notes}</div>
-                                )}
+                            {editingNotes === m.id ? (
+                              <div className="space-y-2">
+                                <textarea
+                                  value={notesValue}
+                                  onChange={(e) => setNotesValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                      setEditingNotes(null);
+                                      setNotesValue('');
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
+                                  placeholder="Enter case notes, background, client story, important milestones..."
+                                  rows={6}
+                                  autoFocus
+                                />
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleUpdateNotes(m.id)}
+                                    className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                  >
+                                    ✓ Save
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingNotes(null);
+                                      setNotesValue('');
+                                    }}
+                                    className="px-3 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                  >
+                                    ✕ Cancel
+                                  </button>
+                                </div>
                               </div>
                             ) : (
-                              <div className="text-xs text-gray-400 italic">No notes</div>
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 p-2 rounded text-sm text-gray-700 bg-yellow-50 border border-yellow-200 min-h-[40px]"
+                                onClick={() => {
+                                  setEditingNotes(m.id);
+                                  setNotesValue(m.notes || '');
+                                }}
+                                title="Click to edit Case Notes"
+                              >
+                                {m.notes ? (
+                                  m.notes.length > 150 ? (
+                                    <>
+                                      <div className="whitespace-pre-wrap">{m.notes.substring(0, 150)}...</div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNotesDetailModal({ matchId: m.id, notes: m.notes || '' });
+                                        }}
+                                        className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium underline"
+                                      >
+                                        View Full Notes →
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <div className="whitespace-pre-wrap">{m.notes}</div>
+                                  )
+                                ) : (
+                                  <span className="text-gray-400 italic">Click to add case notes</span>
+                                )}
+                              </div>
                             )}
                           </div>
                           <div>
