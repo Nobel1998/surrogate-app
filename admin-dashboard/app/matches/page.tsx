@@ -173,6 +173,7 @@ export default function MatchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [nameSearchFilter, setNameSearchFilter] = useState<string>('');
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
@@ -2477,6 +2478,17 @@ export default function MatchesPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              {/* Name Search Filter */}
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Search by Name</label>
+                <input
+                  type="text"
+                  value={nameSearchFilter}
+                  onChange={(e) => setNameSearchFilter(e.target.value)}
+                  placeholder="Search surrogate or parent name..."
+                  className="border rounded px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
               {/* Status Filter */}
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Filter by Status</label>
@@ -2507,8 +2519,27 @@ export default function MatchesPage() {
           <div className="space-y-4">
                 {matches
                   .filter((m) => {
-                    if (selectedStatusFilter === 'all') return true;
-                    return m.status === selectedStatusFilter;
+                    // Status filter
+                    if (selectedStatusFilter !== 'all' && m.status !== selectedStatusFilter) {
+                      return false;
+                    }
+                    
+                    // Name search filter
+                    if (nameSearchFilter.trim()) {
+                      const searchTerm = nameSearchFilter.trim().toLowerCase();
+                      const surrogate = profileLookup[m.surrogate_id];
+                      const parent = profileLookup[m.parent_id];
+                      
+                      const surrogateName = surrogate?.name?.toLowerCase() || '';
+                      const parentName = parent?.name?.toLowerCase() || m.first_parent_name?.toLowerCase() || '';
+                      
+                      // Check if search term matches surrogate name or parent name
+                      if (!surrogateName.includes(searchTerm) && !parentName.includes(searchTerm)) {
+                        return false;
+                      }
+                    }
+                    
+                    return true;
                   })
                   .map((m) => {
                   const surrogate = profileLookup[m.surrogate_id];
