@@ -2813,6 +2813,7 @@ export default function MatchesPage() {
 
                       {/* Main Content Grid - Collapsible */}
                       {isExpanded && (
+                      <>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                         {/* Basic Information */}
                         <div className="space-y-3">
@@ -4800,7 +4801,6 @@ export default function MatchesPage() {
                       </div>
 
                       {/* Actions Section */}
-                      {isExpanded && (
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3 pl-1">Actions</h4>
                         
@@ -4916,6 +4916,7 @@ export default function MatchesPage() {
                           </p>
                         </div>
                       </div>
+                      </>
                       )}
                     </div>
                   );
