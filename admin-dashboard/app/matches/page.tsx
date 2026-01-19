@@ -1175,8 +1175,23 @@ export default function MatchesPage() {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
+        let errData;
+        try {
+          const text = await res.text();
+          errData = text ? JSON.parse(text) : { error: `HTTP ${res.status}` };
+        } catch (e) {
+          errData = { error: `HTTP ${res.status}: ${res.statusText}` };
+        }
         throw new Error(errData.error || 'Failed to update medical info');
+      }
+
+      // Parse response only if successful
+      try {
+        const result = await res.json();
+        // Response is valid, continue
+      } catch (e) {
+        // Empty or invalid JSON response, but status was OK, so continue
+        console.warn('Empty or invalid JSON response, but request succeeded');
       }
 
       // Reload medical info for this surrogate
