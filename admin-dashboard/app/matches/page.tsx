@@ -230,6 +230,8 @@ export default function MatchesPage() {
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedDocTypes, setExpandedDocTypes] = useState<Set<string>>(new Set());
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
+  const [editingMedicalInfo, setEditingMedicalInfo] = useState<{ surrogateId: string; section: 'ivf' | 'obgyn' | 'hospital' } | null>(null);
+  const [medicalInfoForm, setMedicalInfoForm] = useState<any>({});
   
   // Contract upload state
   const [showContractModal, setShowContractModal] = useState(false);
@@ -1138,6 +1140,59 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Case Notes:', err);
       alert(err.message || 'Failed to update Case Notes');
+    }
+  };
+
+  const handleSaveMedicalInfo = async (surrogateId: string) => {
+    if (!editingMedicalInfo || editingMedicalInfo.surrogateId !== surrogateId) return;
+
+    try {
+      const updateData: any = { user_id: surrogateId };
+
+      if (editingMedicalInfo.section === 'ivf') {
+        updateData.ivf_clinic_name = medicalInfoForm.ivf_clinic_name?.trim() || null;
+        updateData.ivf_clinic_doctor_name = medicalInfoForm.ivf_clinic_doctor_name?.trim() || null;
+        updateData.ivf_clinic_address = medicalInfoForm.ivf_clinic_address?.trim() || null;
+        updateData.ivf_clinic_phone = medicalInfoForm.ivf_clinic_phone?.trim() || null;
+        updateData.ivf_clinic_email = medicalInfoForm.ivf_clinic_email?.trim() || null;
+      } else if (editingMedicalInfo.section === 'obgyn') {
+        updateData.obgyn_doctor_name = medicalInfoForm.obgyn_doctor_name?.trim() || null;
+        updateData.obgyn_clinic_name = medicalInfoForm.obgyn_clinic_name?.trim() || null;
+        updateData.obgyn_clinic_address = medicalInfoForm.obgyn_clinic_address?.trim() || null;
+        updateData.obgyn_clinic_phone = medicalInfoForm.obgyn_clinic_phone?.trim() || null;
+        updateData.obgyn_clinic_email = medicalInfoForm.obgyn_clinic_email?.trim() || null;
+      } else if (editingMedicalInfo.section === 'hospital') {
+        updateData.delivery_hospital_name = medicalInfoForm.delivery_hospital_name?.trim() || null;
+        updateData.delivery_hospital_address = medicalInfoForm.delivery_hospital_address?.trim() || null;
+        updateData.delivery_hospital_phone = medicalInfoForm.delivery_hospital_phone?.trim() || null;
+        updateData.delivery_hospital_email = medicalInfoForm.delivery_hospital_email?.trim() || null;
+      }
+
+      const res = await fetch('/api/surrogate-medical-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update medical info');
+      }
+
+      // Reload medical info for this surrogate
+      setMedicalInfoMap(prev => {
+        const newMap = { ...prev };
+        delete newMap[surrogateId];
+        return newMap;
+      });
+      await loadMedicalInfo(surrogateId);
+
+      setEditingMedicalInfo(null);
+      setMedicalInfoForm({});
+      alert('Medical info updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating medical info:', err);
+      alert(err.message || 'Failed to update medical info');
     }
   };
 
@@ -3559,14 +3614,110 @@ export default function MatchesPage() {
                               return <div className="text-xs text-gray-500">No medical information available</div>;
                             }
 
+                            const isEditingIVF = editingMedicalInfo?.surrogateId === m.surrogate_id && editingMedicalInfo?.section === 'ivf';
+                            const isEditingOBGYN = editingMedicalInfo?.surrogateId === m.surrogate_id && editingMedicalInfo?.section === 'obgyn';
+                            const isEditingHospital = editingMedicalInfo?.surrogateId === m.surrogate_id && editingMedicalInfo?.section === 'hospital';
+
                             return (
                               <div className="space-y-4">
                                 {/* IVF Clinic */}
-                                {(medicalInfo.ivf_clinic_name || medicalInfo.ivf_clinic_doctor_name) && (
-                                  <div className="border-l-2 border-blue-500 pl-3">
+                                {isEditingIVF ? (
+                                  <div className="border-l-2 border-blue-500 pl-3 space-y-2">
                                     <div className="text-xs font-semibold text-blue-700 mb-1">IVF Clinic</div>
-                                    {medicalInfo.ivf_clinic_name && (
+                                    <input
+                                      type="text"
+                                      placeholder="Clinic Name"
+                                      value={medicalInfoForm.ivf_clinic_name || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_name: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Doctor Name"
+                                      value={medicalInfoForm.ivf_clinic_doctor_name || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_doctor_name: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Address"
+                                      value={medicalInfoForm.ivf_clinic_address || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_address: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Phone"
+                                      value={medicalInfoForm.ivf_clinic_phone || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_phone: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <input
+                                      type="email"
+                                      placeholder="Email"
+                                      value={medicalInfoForm.ivf_clinic_email || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_email: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => handleSaveMedicalInfo(m.surrogate_id)}
+                                        className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                      >
+                                        ✓ Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingMedicalInfo(null);
+                                          setMedicalInfoForm({});
+                                        }}
+                                        className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                      >
+                                        ✕ Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className={`border-l-2 border-blue-500 pl-3 ${(medicalInfo.ivf_clinic_name || medicalInfo.ivf_clinic_doctor_name) ? '' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    onClick={() => {
+                                      if (!medicalInfo.ivf_clinic_name && !medicalInfo.ivf_clinic_doctor_name) {
+                                        setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'ivf' });
+                                        setMedicalInfoForm({
+                                          ivf_clinic_name: medicalInfo.ivf_clinic_name || '',
+                                          ivf_clinic_doctor_name: medicalInfo.ivf_clinic_doctor_name || '',
+                                          ivf_clinic_address: medicalInfo.ivf_clinic_address || '',
+                                          ivf_clinic_phone: medicalInfo.ivf_clinic_phone || '',
+                                          ivf_clinic_email: medicalInfo.ivf_clinic_email || '',
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-xs font-semibold text-blue-700">IVF Clinic</div>
+                                      {(medicalInfo.ivf_clinic_name || medicalInfo.ivf_clinic_doctor_name) && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'ivf' });
+                                            setMedicalInfoForm({
+                                              ivf_clinic_name: medicalInfo.ivf_clinic_name || '',
+                                              ivf_clinic_doctor_name: medicalInfo.ivf_clinic_doctor_name || '',
+                                              ivf_clinic_address: medicalInfo.ivf_clinic_address || '',
+                                              ivf_clinic_phone: medicalInfo.ivf_clinic_phone || '',
+                                              ivf_clinic_email: medicalInfo.ivf_clinic_email || '',
+                                            });
+                                          }}
+                                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                    {medicalInfo.ivf_clinic_name ? (
                                       <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.ivf_clinic_name}</div>
+                                    ) : (
+                                      <div className="text-xs text-gray-400 italic">Click to add</div>
                                     )}
                                     {medicalInfo.ivf_clinic_doctor_name && (
                                       <div className="text-xs text-gray-600 mb-0.5">Doctor: {medicalInfo.ivf_clinic_doctor_name}</div>
@@ -3584,11 +3735,103 @@ export default function MatchesPage() {
                                 )}
 
                                 {/* OB/GYN Doctor */}
-                                {(medicalInfo.obgyn_doctor_name || medicalInfo.obgyn_clinic_name) && (
-                                  <div className="border-l-2 border-green-500 pl-3">
+                                {isEditingOBGYN ? (
+                                  <div className="border-l-2 border-green-500 pl-3 space-y-2">
                                     <div className="text-xs font-semibold text-green-700 mb-1">OB/GYN Doctor</div>
-                                    {medicalInfo.obgyn_doctor_name && (
+                                    <input
+                                      type="text"
+                                      placeholder="Doctor Name"
+                                      value={medicalInfoForm.obgyn_doctor_name || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_doctor_name: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Clinic Name"
+                                      value={medicalInfoForm.obgyn_clinic_name || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_name: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Address"
+                                      value={medicalInfoForm.obgyn_clinic_address || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_address: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Phone"
+                                      value={medicalInfoForm.obgyn_clinic_phone || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_phone: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                    <input
+                                      type="email"
+                                      placeholder="Email"
+                                      value={medicalInfoForm.obgyn_clinic_email || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_email: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => handleSaveMedicalInfo(m.surrogate_id)}
+                                        className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded"
+                                      >
+                                        ✓ Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingMedicalInfo(null);
+                                          setMedicalInfoForm({});
+                                        }}
+                                        className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                      >
+                                        ✕ Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className={`border-l-2 border-green-500 pl-3 ${(medicalInfo.obgyn_doctor_name || medicalInfo.obgyn_clinic_name) ? '' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    onClick={() => {
+                                      if (!medicalInfo.obgyn_doctor_name && !medicalInfo.obgyn_clinic_name) {
+                                        setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'obgyn' });
+                                        setMedicalInfoForm({
+                                          obgyn_doctor_name: medicalInfo.obgyn_doctor_name || '',
+                                          obgyn_clinic_name: medicalInfo.obgyn_clinic_name || '',
+                                          obgyn_clinic_address: medicalInfo.obgyn_clinic_address || '',
+                                          obgyn_clinic_phone: medicalInfo.obgyn_clinic_phone || '',
+                                          obgyn_clinic_email: medicalInfo.obgyn_clinic_email || '',
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-xs font-semibold text-green-700">OB/GYN Doctor</div>
+                                      {(medicalInfo.obgyn_doctor_name || medicalInfo.obgyn_clinic_name) && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'obgyn' });
+                                            setMedicalInfoForm({
+                                              obgyn_doctor_name: medicalInfo.obgyn_doctor_name || '',
+                                              obgyn_clinic_name: medicalInfo.obgyn_clinic_name || '',
+                                              obgyn_clinic_address: medicalInfo.obgyn_clinic_address || '',
+                                              obgyn_clinic_phone: medicalInfo.obgyn_clinic_phone || '',
+                                              obgyn_clinic_email: medicalInfo.obgyn_clinic_email || '',
+                                            });
+                                          }}
+                                          className="text-xs text-green-600 hover:text-green-800 underline"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                    {medicalInfo.obgyn_doctor_name ? (
                                       <div className="text-xs text-gray-900 mb-0.5">Dr. {medicalInfo.obgyn_doctor_name}</div>
+                                    ) : (
+                                      <div className="text-xs text-gray-400 italic">Click to add</div>
                                     )}
                                     {medicalInfo.obgyn_clinic_name && (
                                       <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.obgyn_clinic_name}</div>
@@ -3606,10 +3849,95 @@ export default function MatchesPage() {
                                 )}
 
                                 {/* Delivery Hospital */}
-                                {medicalInfo.delivery_hospital_name && (
-                                  <div className="border-l-2 border-purple-500 pl-3">
+                                {isEditingHospital ? (
+                                  <div className="border-l-2 border-purple-500 pl-3 space-y-2">
                                     <div className="text-xs font-semibold text-purple-700 mb-1">Delivery Hospital</div>
-                                    <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.delivery_hospital_name}</div>
+                                    <input
+                                      type="text"
+                                      placeholder="Hospital Name"
+                                      value={medicalInfoForm.delivery_hospital_name || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, delivery_hospital_name: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Address"
+                                      value={medicalInfoForm.delivery_hospital_address || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, delivery_hospital_address: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Phone"
+                                      value={medicalInfoForm.delivery_hospital_phone || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, delivery_hospital_phone: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                    <input
+                                      type="email"
+                                      placeholder="Email"
+                                      value={medicalInfoForm.delivery_hospital_email || ''}
+                                      onChange={(e) => setMedicalInfoForm({...medicalInfoForm, delivery_hospital_email: e.target.value})}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => handleSaveMedicalInfo(m.surrogate_id)}
+                                        className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded"
+                                      >
+                                        ✓ Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingMedicalInfo(null);
+                                          setMedicalInfoForm({});
+                                        }}
+                                        className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                      >
+                                        ✕ Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className={`border-l-2 border-purple-500 pl-3 ${medicalInfo.delivery_hospital_name ? '' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    onClick={() => {
+                                      if (!medicalInfo.delivery_hospital_name) {
+                                        setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'hospital' });
+                                        setMedicalInfoForm({
+                                          delivery_hospital_name: medicalInfo.delivery_hospital_name || '',
+                                          delivery_hospital_address: medicalInfo.delivery_hospital_address || '',
+                                          delivery_hospital_phone: medicalInfo.delivery_hospital_phone || '',
+                                          delivery_hospital_email: medicalInfo.delivery_hospital_email || '',
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-xs font-semibold text-purple-700">Delivery Hospital</div>
+                                      {medicalInfo.delivery_hospital_name && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingMedicalInfo({ surrogateId: m.surrogate_id, section: 'hospital' });
+                                            setMedicalInfoForm({
+                                              delivery_hospital_name: medicalInfo.delivery_hospital_name || '',
+                                              delivery_hospital_address: medicalInfo.delivery_hospital_address || '',
+                                              delivery_hospital_phone: medicalInfo.delivery_hospital_phone || '',
+                                              delivery_hospital_email: medicalInfo.delivery_hospital_email || '',
+                                            });
+                                          }}
+                                          className="text-xs text-purple-600 hover:text-purple-800 underline"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                    {medicalInfo.delivery_hospital_name ? (
+                                      <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.delivery_hospital_name}</div>
+                                    ) : (
+                                      <div className="text-xs text-gray-400 italic">Click to add</div>
+                                    )}
                                     {medicalInfo.delivery_hospital_address && (
                                       <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.delivery_hospital_address}</div>
                                     )}
@@ -3622,8 +3950,8 @@ export default function MatchesPage() {
                                   </div>
                                 )}
 
-                                {!medicalInfo.ivf_clinic_name && !medicalInfo.obgyn_doctor_name && !medicalInfo.delivery_hospital_name && (
-                                  <div className="text-xs text-gray-500">No medical information provided</div>
+                                {!medicalInfo.ivf_clinic_name && !medicalInfo.obgyn_doctor_name && !medicalInfo.delivery_hospital_name && !isEditingIVF && !isEditingOBGYN && !isEditingHospital && (
+                                  <div className="text-xs text-gray-500">No medical information available. Click on sections above to add.</div>
                                 )}
                               </div>
                             );
