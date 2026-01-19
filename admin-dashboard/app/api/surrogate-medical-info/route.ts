@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       .from('surrogate_medical_info')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('[surrogate-medical-info] GET error:', error);
