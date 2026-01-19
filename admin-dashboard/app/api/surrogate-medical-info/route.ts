@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       .from('surrogate_medical_info')
       .select('*')
       .eq('user_id', userId)
-      .maybeSingle();
+      .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('[surrogate-medical-info] GET error:', error);
@@ -54,3 +54,89 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST/PUT: Create or update medical info for a surrogate user (admin only)
+export async function POST(req: NextRequest) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      { error: 'Missing Supabase env vars' },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const body = await req.json();
+    const { user_id, ...medicalData } = body;
+
+    if (!user_id) {
+      return NextResponse.json(
+        { error: 'Missing user_id' },
+        { status: 400 }
+      );
+    }
+
+    // Check if record exists
+    const { data: existing, error: checkError } = await supabase
+      .from('surrogate_medical_info')
+      .select('id')
+      .eq('user_id', user_id)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
+    }
+
+    const updateData: any = {
+      ...medicalData,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Remove undefined values and user_id (user_id is only for lookup, not for update)
+    delete updateData.user_id;
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      } else if (typeof updateData[key] === 'string') {
+        updateData[key] = updateData[key].trim() || null;
+      }
+    });
+
+    let result;
+    if (existing) {
+      // Update existing record
+      const { data, error } = await supabase
+        .from('surrogate_medical_info')
+        .update(updateData)
+        .eq('user_id', user_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = data;
+    } else {
+      // Insert new record
+      const { data, error } = await supabase
+        .from('surrogate_medical_info')
+        .insert({
+          user_id,
+          ...updateData,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = data;
+    }
+
+    return NextResponse.json({ data: result });
+  } catch (error: any) {
+    console.error('[surrogate-medical-info] POST error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to save medical info' },
+      { status: 500 }
+    );
+  }
+}
