@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { NavigationContainer, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Linking } from 'react-native';
@@ -48,47 +48,62 @@ function MainTabNavigator() {
   const [hasApplication, setHasApplication] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
-  // Check if user has submitted an application
-  useEffect(() => {
-    const checkApplication = async () => {
-      if (!user?.id) {
-        setIsChecking(false);
-        return;
-      }
+  const checkApplication = useCallback(async () => {
+    if (!user?.id) {
+      setIsChecking(false);
+      return;
+    }
 
-      try {
-        // Check if user is a surrogate
-        const isSurrogate = user.role === 'surrogate';
-        
-        if (isSurrogate) {
-          // Check if surrogate has submitted an application
-          const { data, error } = await supabase
-            .from('applications')
-            .select('id')
-            .eq('user_id', user.id)
-            .limit(1)
-            .maybeSingle();
+    try {
+      // Check if user is a surrogate
+      const isSurrogate = user.role === 'surrogate';
+      
+      if (isSurrogate) {
+        // Check if surrogate has submitted an application
+        const { data, error } = await supabase
+          .from('applications')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
 
-          if (error && error.code !== 'PGRST116') {
-            console.error('Error checking application:', error);
-            setHasApplication(false);
-          } else {
-            setHasApplication(!!data);
-          }
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking application:', error);
+          setHasApplication(false);
         } else {
-          // For non-surrogates (parents, etc.), show all tabs
-          setHasApplication(true);
+          setHasApplication(!!data);
         }
-      } catch (error) {
-        console.error('Failed to check application:', error);
-        setHasApplication(false);
-      } finally {
-        setIsChecking(false);
+      } else {
+        // For non-surrogates (parents, etc.), show all tabs
+        setHasApplication(true);
       }
-    };
-
-    checkApplication();
+    } catch (error) {
+      console.error('Failed to check application:', error);
+      setHasApplication(false);
+    } finally {
+      setIsChecking(false);
+    }
   }, [user?.id, user?.role]);
+
+  // Check application on mount and when user changes
+  useEffect(() => {
+    setIsChecking(true);
+    checkApplication();
+  }, [checkApplication]);
+
+  // Re-check application when MainTabs screen comes into focus
+  // This ensures tabs update after user submits an application
+  const navigation = useNavigation();
+  useFocusEffect(
+    useCallback(() => {
+      // Small delay to ensure database is updated
+      const timer = setTimeout(() => {
+        setIsChecking(true);
+        checkApplication();
+      }, 500);
+      return () => clearTimeout(timer);
+    }, [checkApplication])
+  );
 
   // Show loading state while checking
   if (isChecking) {
