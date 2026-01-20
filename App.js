@@ -47,6 +47,7 @@ function MainTabNavigator() {
   const { user } = useAuth();
   const [hasApplication, setHasApplication] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const refreshKey = useRef(0);
 
   const checkApplication = useCallback(async () => {
     if (!user?.id) {
@@ -71,7 +72,9 @@ function MainTabNavigator() {
           console.error('Error checking application:', error);
           setHasApplication(false);
         } else {
-          setHasApplication(!!data);
+          const hasApp = !!data;
+          setHasApplication(hasApp);
+          console.log('✅ Application check result:', hasApp ? 'Found application' : 'No application');
         }
       } else {
         // For non-surrogates (parents, etc.), show all tabs
@@ -91,34 +94,34 @@ function MainTabNavigator() {
     checkApplication();
   }, [checkApplication]);
 
-  // Re-check application when navigating back to MainTabs
+  // Re-check application periodically and when screen comes into focus
   // This ensures tabs update after user submits an application
-  const navigation = useNavigation();
-  const unsubscribeRef = useRef(null);
-
   useEffect(() => {
-    // Listen for navigation state changes
-    unsubscribeRef.current = navigation.addListener('state', (e) => {
-      // When navigating to MainTabs, re-check application status
-      const state = e.data.state;
-      const routes = state?.routes || [];
-      const currentRoute = routes[state?.index || 0];
-      
-      if (currentRoute?.name === 'MainTabs') {
-        // Small delay to ensure database is updated
-        setTimeout(() => {
-          setIsChecking(true);
-          checkApplication();
-        }, 500);
-      }
+    const navigation = useNavigation();
+    
+    // Listen for navigation focus events
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 MainTabs focused, re-checking application...');
+      setIsChecking(true);
+      // Small delay to ensure database is updated
+      setTimeout(() => {
+        checkApplication();
+      }, 500);
     });
 
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
+    // Also set up a periodic check (every 2 seconds) when screen is focused
+    // This helps catch cases where navigation listener doesn't fire
+    const interval = setInterval(() => {
+      if (user?.id && user?.role === 'surrogate') {
+        checkApplication();
       }
+    }, 2000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
     };
-  }, [navigation, checkApplication]);
+  }, [checkApplication, user?.id, user?.role]);
 
   // Show loading state while checking
   if (isChecking) {
@@ -288,16 +291,7 @@ function GuestStackNavigator() {
 // Main App Stack Navigator
 function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
   return (
-    <Stack.Navigator 
-      screenOptions={{ headerShown: false }} 
-      initialRouteName={initialRouteName}
-      screenListeners={{
-        focus: () => {
-          // Trigger re-check of application status when navigating to MainTabs
-          // This is handled by the MainTabNavigator's useFocusEffect
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
