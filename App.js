@@ -94,11 +94,10 @@ function MainTabNavigator() {
     checkApplication();
   }, [checkApplication]);
 
-  // Re-check application periodically and when screen comes into focus
+  // Re-check application when navigating back to MainTabs
   // This ensures tabs update after user submits an application
+  const navigation = useNavigation();
   useEffect(() => {
-    const navigation = useNavigation();
-    
     // Listen for navigation focus events
     const unsubscribe = navigation.addListener('focus', () => {
       console.log('🔄 MainTabs focused, re-checking application...');
@@ -109,19 +108,8 @@ function MainTabNavigator() {
       }, 500);
     });
 
-    // Also set up a periodic check (every 2 seconds) when screen is focused
-    // This helps catch cases where navigation listener doesn't fire
-    const interval = setInterval(() => {
-      if (user?.id && user?.role === 'surrogate') {
-        checkApplication();
-      }
-    }, 2000);
-
-    return () => {
-      unsubscribe();
-      clearInterval(interval);
-    };
-  }, [checkApplication, user?.id, user?.role]);
+    return unsubscribe;
+  }, [navigation, checkApplication]);
 
   // Show loading state while checking
   if (isChecking) {
