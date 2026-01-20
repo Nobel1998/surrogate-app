@@ -37,12 +37,72 @@ import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { Text, View, ActivityIndicator } from 'react-native';
+import { supabase } from './src/lib/supabase';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // Main App Navigator with Tabs
 function MainTabNavigator() {
+  const { user } = useAuth();
+  const [hasApplication, setHasApplication] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+
+  // Check if user has submitted an application
+  useEffect(() => {
+    const checkApplication = async () => {
+      if (!user?.id) {
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        // Check if user is a surrogate
+        const isSurrogate = user.role === 'surrogate';
+        
+        if (isSurrogate) {
+          // Check if surrogate has submitted an application
+          const { data, error } = await supabase
+            .from('applications')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error checking application:', error);
+            setHasApplication(false);
+          } else {
+            setHasApplication(!!data);
+          }
+        } else {
+          // For non-surrogates (parents, etc.), show all tabs
+          setHasApplication(true);
+        }
+      } catch (error) {
+        console.error('Failed to check application:', error);
+        setHasApplication(false);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkApplication();
+  }, [user?.id, user?.role]);
+
+  // Show loading state while checking
+  if (isChecking) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FB' }}>
+        <ActivityIndicator size="large" color="#2A7BF6" />
+      </View>
+    );
+  }
+
+  // Determine which tabs to show
+  const isSurrogateWithoutApp = user?.role === 'surrogate' && !hasApplication;
+  const showAllTabs = !isSurrogateWithoutApp;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -132,8 +192,8 @@ function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="My Journey" component={HomeScreen} />
-      <Tab.Screen name="My Match" component={MyMatchScreen} />
+      {showAllTabs && <Tab.Screen name="My Journey" component={HomeScreen} />}
+      {showAllTabs && <Tab.Screen name="My Match" component={MyMatchScreen} />}
       <Tab.Screen name="Blog" component={EventScreen} />
       <Tab.Screen name="User Center" component={ProfileScreen} />
     </Tab.Navigator>
