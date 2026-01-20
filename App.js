@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { NavigationContainer, useNavigation, useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Linking } from 'react-native';
@@ -91,19 +91,34 @@ function MainTabNavigator() {
     checkApplication();
   }, [checkApplication]);
 
-  // Re-check application when MainTabs screen comes into focus
+  // Re-check application when navigating back to MainTabs
   // This ensures tabs update after user submits an application
   const navigation = useNavigation();
-  useFocusEffect(
-    useCallback(() => {
-      // Small delay to ensure database is updated
-      const timer = setTimeout(() => {
-        setIsChecking(true);
-        checkApplication();
-      }, 500);
-      return () => clearTimeout(timer);
-    }, [checkApplication])
-  );
+  const unsubscribeRef = useRef(null);
+
+  useEffect(() => {
+    // Listen for navigation state changes
+    unsubscribeRef.current = navigation.addListener('state', (e) => {
+      // When navigating to MainTabs, re-check application status
+      const state = e.data.state;
+      const routes = state?.routes || [];
+      const currentRoute = routes[state?.index || 0];
+      
+      if (currentRoute?.name === 'MainTabs') {
+        // Small delay to ensure database is updated
+        setTimeout(() => {
+          setIsChecking(true);
+          checkApplication();
+        }, 500);
+      }
+    });
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, [navigation, checkApplication]);
 
   // Show loading state while checking
   if (isChecking) {
@@ -273,7 +288,16 @@ function GuestStackNavigator() {
 // Main App Stack Navigator
 function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+    <Stack.Navigator 
+      screenOptions={{ headerShown: false }} 
+      initialRouteName={initialRouteName}
+      screenListeners={{
+        focus: () => {
+          // Trigger re-check of application status when navigating to MainTabs
+          // This is handled by the MainTabNavigator's useFocusEffect
+        },
+      }}
+    >
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
