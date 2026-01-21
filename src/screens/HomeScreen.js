@@ -1281,6 +1281,28 @@ export default function HomeScreen() {
         return;
       }
       if (isSurrogateRole) {
+        // Check match status first
+        try {
+          const { data: surrogateMatches, error: matchError } = await supabase
+            .from('surrogate_matches')
+            .select('id')
+            .eq('surrogate_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (matchError && matchError.code !== 'PGRST116') {
+            console.log('Error loading match in refreshStageData (surrogate):', matchError.message);
+          }
+          
+          const hasMatch = !!surrogateMatches?.[0];
+          console.log('[HomeScreen] refreshStageData - checking match:', { hasMatch, matchId: surrogateMatches?.[0]?.id });
+          setHasSurrogateMatch(hasMatch);
+        } catch (matchErr) {
+          console.error('Error checking surrogate match in refreshStageData:', matchErr);
+          setHasSurrogateMatch(false);
+        }
+
         const { data } = await supabase
           .from('profiles')
           .select('progress_stage')
@@ -1660,10 +1682,23 @@ export default function HomeScreen() {
         },
         async (payload) => {
           console.log('[HomeScreen] ✅ Match updated via Realtime:', payload);
+          console.log('[HomeScreen] Payload details:', { 
+            eventType: payload.eventType, 
+            newStatus: payload.new?.status,
+            surrogateId: payload.new?.surrogate_id,
+            parentId: payload.new?.parent_id,
+            userId: user.id 
+          });
           
           // Only process active matches
           if (payload.new && payload.new.status === 'active') {
             console.log('[HomeScreen] ✅ Active match detected, refreshing data...');
+            
+            // Update match state immediately for surrogate
+            if (isSurrogate && payload.new.surrogate_id === user.id) {
+              console.log('[HomeScreen] Setting hasSurrogateMatch to true');
+              setHasSurrogateMatch(true);
+            }
             
             // Refresh match and stage data
             await refreshStageData();
@@ -1682,6 +1717,7 @@ export default function HomeScreen() {
             
             // Clear match state
             if (isSurrogate) {
+              console.log('[HomeScreen] Setting hasSurrogateMatch to false');
               setHasSurrogateMatch(false);
               setCurrentMatchId(null);
             }
