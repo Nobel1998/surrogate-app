@@ -1624,6 +1624,92 @@ export default function HomeScreen() {
     }
   }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, fetchMatchAndMedicalInfo]);
 
+  // Listen for match creation/updates in surrogate_matches table
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    const roleLower = (user?.role || '').toLowerCase();
+    const isSurrogate = roleLower === 'surrogate';
+    const isParent = roleLower === 'parent';
+
+    if (!isSurrogate && !isParent) {
+      return;
+    }
+
+    console.log('[HomeScreen] Setting up listener for match updates:', { userId: user.id, role: roleLower });
+
+    // Create filter based on role
+    let filter = '';
+    if (isSurrogate) {
+      filter = `surrogate_id=eq.${user.id}`;
+    } else if (isParent) {
+      filter = `parent_id=eq.${user.id}`;
+    }
+
+    const channel = supabase
+      .channel(`match-updates-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'surrogate_matches',
+          filter: filter,
+        },
+        async (payload) => {
+          console.log('[HomeScreen] ✅ Match updated via Realtime:', payload);
+          
+          // Only process active matches
+          if (payload.new && payload.new.status === 'active') {
+            console.log('[HomeScreen] ✅ Active match detected, refreshing data...');
+            
+            // Refresh match and stage data
+            await refreshStageData();
+            
+            // Refresh match and medical info for surrogate
+            if (isSurrogate) {
+              await fetchMatchAndMedicalInfo();
+            }
+            
+            // Refresh matched surrogate for parent
+            if (isParent) {
+              await fetchMatchedSurrogate();
+            }
+          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'active')) {
+            console.log('[HomeScreen] ⚠️ Match removed or deactivated, clearing match state...');
+            
+            // Clear match state
+            if (isSurrogate) {
+              setHasSurrogateMatch(false);
+              setCurrentMatchId(null);
+            }
+            if (isParent) {
+              setMatchedSurrogateId(null);
+              setMatchedProfile(null);
+            }
+            
+            // Refresh stage data
+            await refreshStageData();
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[HomeScreen] Match updates subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[HomeScreen] ✅ Successfully subscribed to match updates');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[HomeScreen] ⚠️ Match updates subscription failed');
+        }
+      });
+
+    return () => {
+      console.log('[HomeScreen] Cleaning up match updates listener');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.role, refreshStageData, fetchMatchAndMedicalInfo, fetchMatchedSurrogate]);
+
   // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

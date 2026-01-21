@@ -53,6 +53,77 @@ export default function MyMatchScreen({ navigation }) {
     loadMatchData();
   }, [user]);
 
+  // Listen for match creation/updates in surrogate_matches table
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    console.log('[MyMatch] Setting up listener for match updates:', { userId: user.id, role: userRole });
+
+    const isSurrogate = userRole === 'surrogate';
+    const isParent = userRole === 'parent';
+
+    if (!isSurrogate && !isParent) {
+      return;
+    }
+
+    // Create filter based on role
+    let filter = '';
+    if (isSurrogate) {
+      filter = `surrogate_id=eq.${user.id}`;
+    } else if (isParent) {
+      filter = `parent_id=eq.${user.id}`;
+    }
+
+    const channel = supabase
+      .channel(`match-updates-mymatch-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'surrogate_matches',
+          filter: filter,
+        },
+        async (payload) => {
+          console.log('[MyMatch] ✅ Match updated via Realtime:', payload);
+          
+          // Reload match data when match is created or updated
+          if (payload.new && payload.new.status === 'active') {
+            console.log('[MyMatch] ✅ Active match detected, reloading match data...');
+            await loadMatchData();
+            
+            // If parent and unmatched before, also refresh surrogates list
+            if (isParent && !matchData) {
+              await loadAvailableSurrogates();
+            }
+          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'active')) {
+            console.log('[MyMatch] ⚠️ Match removed or deactivated, reloading...');
+            await loadMatchData();
+            
+            // If parent, refresh surrogates list
+            if (isParent) {
+              await loadAvailableSurrogates();
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[MyMatch] Match updates subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[MyMatch] ✅ Successfully subscribed to match updates');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[MyMatch] ⚠️ Match updates subscription failed');
+        }
+      });
+
+    return () => {
+      console.log('[MyMatch] Cleaning up match updates listener');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, userRole]);
+
   const checkUserApplication = async () => {
     if (!user?.id) {
       setCheckingApplication(false);
