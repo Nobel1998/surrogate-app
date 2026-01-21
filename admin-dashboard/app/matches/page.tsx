@@ -5038,7 +5038,6 @@ export default function MatchesPage() {
                           </div>
                         </div>
                       </div>
-                      </div>
 
                       {/* Actions Section */}
                       <div className="border-t pt-4">
