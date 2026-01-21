@@ -147,10 +147,6 @@ export default function StepStatusPage() {
       const stepsData = await stepsRes.json();
       const updatesData = updatesRes.ok ? await updatesRes.json() : { updates: [] };
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:148',message:'loadData updates response',data:{updatesResOk:updatesRes.ok,updatesResStatus:updatesRes.status,updatesCount:updatesData.updates?.length||0,updates:updatesData.updates},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
       setCaseData(caseDataRes.case);
       setSteps(stepsData.steps || []);
       setUpdates(updatesData.updates || []);
@@ -283,9 +279,6 @@ export default function StepStatusPage() {
 
     setSaving(true);
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:274',message:'saveAdminUpdate called',data:{caseId,adminUpdate:adminUpdate.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const res = await fetch(`/api/cases/${caseId}/updates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -296,30 +289,14 @@ export default function StepStatusPage() {
         }),
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:288',message:'saveAdminUpdate response',data:{status:res.status,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       if (!res.ok) {
-        const errorText = await res.text();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:293',message:'saveAdminUpdate error response',data:{status:res.status,errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         throw new Error('Failed to save update');
       }
-
-      const responseData = await res.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:299',message:'saveAdminUpdate success response',data:{responseData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       setAdminUpdate('');
       await loadData();
       alert('Update saved successfully');
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:305',message:'saveAdminUpdate exception',data:{error:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       alert(err.message || 'Failed to save update');
     } finally {
       setSaving(false);
@@ -695,13 +672,6 @@ export default function StepStatusPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
           
           {/* Display existing updates */}
-          {/* #region agent log */}
-          {(() => {
-            const adminNotes = updates.filter((update: any) => update.update_type === 'admin_note');
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'step-status/page.tsx:673',message:'rendering updates',data:{updatesLength:updates.length,adminNotesCount:adminNotes.length,allUpdates:updates.map((u:any)=>({id:u.id,type:u.update_type,title:u.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            return null;
-          })()}
-          {/* #endregion */}
           {updates.length > 0 && (
             <div className="mb-6 space-y-4">
               {updates
