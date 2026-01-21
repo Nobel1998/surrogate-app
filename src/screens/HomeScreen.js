@@ -811,21 +811,36 @@ export default function HomeScreen() {
         if (isSurrogate) {
           // Check if surrogate has a match
           try {
+            console.log('[HomeScreen] fetchMatchAndStage - Querying matches for surrogate:', { userId: user.id });
             const { data: surrogateMatches, error: matchError } = await supabase
               .from('surrogate_matches')
-              .select('id')
+              .select('id, status, surrogate_id, parent_id, created_at')
               .eq('surrogate_id', user.id)
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(1);
+              .order('created_at', { ascending: false });
+            
+            console.log('[HomeScreen] fetchMatchAndStage - Match query result:', { 
+              matches: surrogateMatches, 
+              error: matchError,
+              matchCount: surrogateMatches?.length 
+            });
             
             if (matchError && matchError.code !== 'PGRST116') {
               console.log('Error loading match (surrogate):', matchError.message);
             }
             
-            const hasMatch = !!surrogateMatches?.[0];
+            // Find active match
+            const activeMatch = surrogateMatches?.find(m => m.status === 'active');
+            const hasMatch = !!activeMatch;
+            
+            console.log('[HomeScreen] fetchMatchAndStage - Match status check:', { 
+              hasMatch, 
+              activeMatchId: activeMatch?.id,
+              allMatches: surrogateMatches?.map(m => ({ id: m.id, status: m.status }))
+            });
+            
             if (!cancelled) {
               setHasSurrogateMatch(hasMatch);
+              console.log('[HomeScreen] fetchMatchAndStage - Updated hasSurrogateMatch to:', hasMatch);
             }
           } catch (matchErr) {
             console.error('Error checking surrogate match:', matchErr);
