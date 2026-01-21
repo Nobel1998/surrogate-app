@@ -111,19 +111,6 @@ function MainTabNavigator() {
     return unsubscribe;
   }, [navigation, checkApplication]);
 
-  // Show loading state while checking
-  if (isChecking) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FB' }}>
-        <ActivityIndicator size="large" color="#2A7BF6" />
-      </View>
-    );
-  }
-
-  // Determine which tabs to show
-  const isSurrogateWithoutApp = user?.role === 'surrogate' && !hasApplication;
-  const showAllTabs = !isSurrogateWithoutApp;
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -213,8 +200,8 @@ function MainTabNavigator() {
         },
       })}
     >
-      {showAllTabs && <Tab.Screen name="My Journey" component={HomeScreen} />}
-      {showAllTabs && <Tab.Screen name="My Match" component={MyMatchScreen} />}
+      <Tab.Screen name="My Journey" component={HomeScreen} />
+      <Tab.Screen name="My Match" component={MyMatchScreen} />
       <Tab.Screen name="Blog" component={EventScreen} />
       <Tab.Screen name="User Center" component={ProfileScreen} />
     </Tab.Navigator>

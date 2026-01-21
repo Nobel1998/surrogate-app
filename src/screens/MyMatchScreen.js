@@ -45,10 +45,47 @@ export default function MyMatchScreen({ navigation }) {
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
   const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
   const [savingPregnancyTests, setSavingPregnancyTests] = useState(false);
+  const [hasApplication, setHasApplication] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(true);
 
   useEffect(() => {
+    checkUserApplication();
     loadMatchData();
   }, [user]);
+
+  const checkUserApplication = async () => {
+    if (!user?.id) {
+      setCheckingApplication(false);
+      return;
+    }
+
+    try {
+      const role = (user?.role || '').toLowerCase();
+      if (role === 'surrogate') {
+        const { data, error } = await supabase
+          .from('applications')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking application:', error);
+          setHasApplication(false);
+        } else {
+          setHasApplication(!!data);
+        }
+      } else {
+        // For non-surrogates, always show content
+        setHasApplication(true);
+      }
+    } catch (error) {
+      console.error('Failed to check application:', error);
+      setHasApplication(false);
+    } finally {
+      setCheckingApplication(false);
+    }
+  };
 
   const loadMatchData = async () => {
     console.log('[MyMatch] loadMatchData start', { userId: user?.id });
@@ -1119,12 +1156,43 @@ export default function MyMatchScreen({ navigation }) {
     );
   };
 
-  if (loading) {
+  if (checkingApplication || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF8EA4" />
-        <Text style={styles.loadingText}>{t('myMatch.loadingMatchInfo')}</Text>
+        <Text style={styles.loadingText}>
+          {checkingApplication ? 'Checking application status...' : t('myMatch.loadingMatchInfo')}
+        </Text>
       </View>
+    );
+  }
+
+  // Check if surrogate user has submitted application
+  const isSurrogate = userRole === 'surrogate';
+  if (isSurrogate && !hasApplication) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView 
+          contentContainerStyle={styles.unmatchedContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <View style={styles.unmatchedContent}>
+            <View style={styles.unmatchedIconContainer}>
+              <Icon name="file-text" size={64} color="#FF8EA4" />
+            </View>
+            <Text style={styles.unmatchedTitle}>还没有匹配</Text>
+            <Text style={styles.unmatchedDescription}>
+              您还没有提交申请，所以无法显示匹配信息。请先提交申请。
+            </Text>
+            <TouchableOpacity 
+              style={styles.contactButton}
+              onPress={() => navigation.navigate('SurrogateApplication')}
+            >
+              <Text style={styles.contactButtonText}>提交申请</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 

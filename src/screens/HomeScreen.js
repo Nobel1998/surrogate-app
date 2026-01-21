@@ -125,6 +125,43 @@ export default function HomeScreen() {
   const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
   const [loadingMedicalInfo, setLoadingMedicalInfo] = useState(false);
   const [currentMatchId, setCurrentMatchId] = useState(null);
+  const [hasApplication, setHasApplication] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(true);
+
+  // Check if surrogate user has submitted application
+  useEffect(() => {
+    const checkApplication = async () => {
+      if (!user?.id || !isSurrogateRole) {
+        setCheckingApplication(false);
+        setHasApplication(true); // For non-surrogates, always show content
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking application:', error);
+          setHasApplication(false);
+        } else {
+          setHasApplication(!!data);
+        }
+      } catch (error) {
+        console.error('Failed to check application:', error);
+        setHasApplication(false);
+      } finally {
+        setCheckingApplication(false);
+      }
+    };
+
+    checkApplication();
+  }, [user?.id, isSurrogateRole]);
+
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
     const normalized = normalizeStage(serverStage || 'pre');
