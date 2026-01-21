@@ -603,7 +603,7 @@ export default function AmbassadorScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 
