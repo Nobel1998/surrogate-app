@@ -747,7 +747,7 @@ export default function AmbassadorScreen() {
       {renderCalculator()}
       {renderReferralModal()}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
