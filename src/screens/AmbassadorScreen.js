@@ -1041,6 +1041,35 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     backgroundColor: '#ccc'
   },
+  // Header Styles
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
+  },
+  backButtonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#2A7BF6',
+    minWidth: 80,
+    zIndex: 10,
+  },
+  backButtonTextHeader: {
+    color: '#2A7BF6',
+    fontSize: 16,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
   // Modal Styles
   modalContainer: {
     flex: 1,
