@@ -828,13 +828,14 @@ export default function HomeScreen() {
               console.log('Error loading match (surrogate):', matchError.message);
             }
             
-            // Find active match
-            const activeMatch = surrogateMatches?.find(m => m.status === 'active');
-            const hasMatch = !!activeMatch;
+            // Find matched match (status can be 'matched' or 'active')
+            const matchedMatch = surrogateMatches?.find(m => m.status === 'matched' || m.status === 'active');
+            const hasMatch = !!matchedMatch;
             
             console.log('[HomeScreen] fetchMatchAndStage - Match status check:', { 
               hasMatch, 
-              activeMatchId: activeMatch?.id,
+              matchedMatchId: matchedMatch?.id,
+              matchedMatchStatus: matchedMatch?.status,
               allMatches: surrogateMatches?.map(m => ({ id: m.id, status: m.status }))
             });
             
@@ -878,9 +879,9 @@ export default function HomeScreen() {
           try {
             const { data: parentMatches, error: parentMatchError } = await supabase
               .from('surrogate_matches')
-              .select('surrogate_id')
+              .select('surrogate_id, status')
               .eq('parent_id', user.id)
-              .eq('status', 'active')
+              .in('status', ['matched', 'active'])
               .order('created_at', { ascending: false })
               .limit(1);
             if (parentMatchError) {
@@ -1246,9 +1247,9 @@ export default function HomeScreen() {
     try {
       const { data: parentMatches, error: parentMatchError } = await supabase
         .from('surrogate_matches')
-        .select('surrogate_id')
+        .select('surrogate_id, status')
         .eq('parent_id', user.id)
-        .eq('status', 'active')
+        .in('status', ['matched', 'active'])
         .order('created_at', { ascending: false })
         .limit(1);
 
