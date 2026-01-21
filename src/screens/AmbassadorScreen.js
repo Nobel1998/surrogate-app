@@ -1033,6 +1033,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0'
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  backButtonText: {
+    color: '#2A7BF6',
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: '600',
+  },
   cancelButton: {
     fontSize: 16,
     color: '#666'
