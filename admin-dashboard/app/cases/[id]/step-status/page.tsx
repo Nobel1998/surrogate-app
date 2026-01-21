@@ -120,6 +120,8 @@ export default function StepStatusPage() {
   const [comments, setComments] = useState<any[]>([]);
   const [postLikes, setPostLikes] = useState<any[]>([]);
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
+  const [obAppointments, setObAppointments] = useState<any[]>([]);
+  const [ivfAppointments, setIvfAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,7 +189,7 @@ export default function StepStatusPage() {
           console.error('Error loading medical info:', e);
         }
 
-        // Load activity data (posts, comments, likes, medical reports)
+        // Load activity data (posts, comments, likes, medical reports, appointments)
         // We'll load this data from the matches/options API which already has this data
         try {
           const activityRes = await fetch('/api/matches/options');
@@ -197,6 +199,8 @@ export default function StepStatusPage() {
             const allComments = activityData.comments || [];
             const allLikes = activityData.postLikes || [];
             const allReports = activityData.medicalReports || [];
+            const allOBAppointments = activityData.obAppointments || [];
+            const allIVFAppointments = activityData.ivfAppointments || [];
             
             // Filter by surrogate_id
             const surrogatePosts = allPosts.filter((p: any) => p.user_id === caseDataRes.case.surrogate_id);
@@ -204,11 +208,15 @@ export default function StepStatusPage() {
             const surrogateComments = allComments.filter((c: any) => postIds.includes(c.post_id));
             const surrogateLikes = allLikes.filter((l: any) => postIds.includes(l.post_id));
             const surrogateReports = allReports.filter((r: any) => r.user_id === caseDataRes.case.surrogate_id);
+            const surrogateOBAppointments = allOBAppointments.filter((a: any) => a.user_id === caseDataRes.case.surrogate_id);
+            const surrogateIVFAppointments = allIVFAppointments.filter((a: any) => a.user_id === caseDataRes.case.surrogate_id);
             
             setPosts(surrogatePosts);
             setComments(surrogateComments);
             setPostLikes(surrogateLikes);
             setMedicalReports(surrogateReports);
+            setObAppointments(surrogateOBAppointments);
+            setIvfAppointments(surrogateIVFAppointments);
           }
         } catch (e) {
           console.error('Error loading activity data:', e);
@@ -802,6 +810,97 @@ export default function StepStatusPage() {
                         })}
                       </div>
                     )}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-gray-300">
+                    {(() => {
+                      const upcomingOBAppointments = obAppointments
+                        .filter((a) => a.status === 'scheduled')
+                        .slice(0, 5);
+                      const upcomingIVFAppointments = ivfAppointments
+                        .filter((a) => a.status === 'scheduled')
+                        .slice(0, 5);
+                      
+                      return (
+                        <>
+                          <div className="font-semibold text-sm text-blue-700 mb-2">
+                            OB Appointments: {obAppointments.length} total ({obAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                          </div>
+                          {upcomingOBAppointments.length === 0 ? (
+                            <div className="text-gray-500 text-xs">No upcoming OB appointments</div>
+                          ) : (
+                            <div className="space-y-2">
+                              {upcomingOBAppointments.map((appointment) => {
+                                const appointmentDate = formatDateOnly(appointment.appointment_date);
+                                const appointmentTime = appointment.appointment_time ? 
+                                  new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                                
+                                return (
+                                  <div key={appointment.id} className="p-2 rounded border border-blue-200 bg-blue-50">
+                                    <div className="text-[11px] text-gray-600 font-semibold">
+                                      {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
+                                    </div>
+                                    <div className="text-xs text-gray-700 mt-1">
+                                      {appointment.provider_name && `Dr. ${appointment.provider_name}`}
+                                      {appointment.clinic_name && ` · ${appointment.clinic_name}`}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      {appointment.status && (
+                                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
+                                          appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                                          appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                          'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                          {appointment.status}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <div className="font-semibold text-sm text-purple-700 mb-2 mt-3">
+                            IVF Appointments: {ivfAppointments.length} total ({ivfAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                          </div>
+                          {upcomingIVFAppointments.length === 0 ? (
+                            <div className="text-gray-500 text-xs">No upcoming IVF appointments</div>
+                          ) : (
+                            <div className="space-y-2">
+                              {upcomingIVFAppointments.map((appointment) => {
+                                const appointmentDate = formatDateOnly(appointment.appointment_date);
+                                const appointmentTime = appointment.appointment_time ? 
+                                  new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                                
+                                return (
+                                  <div key={appointment.id} className="p-2 rounded border border-purple-200 bg-purple-50">
+                                    <div className="text-[11px] text-gray-600 font-semibold">
+                                      {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
+                                    </div>
+                                    <div className="text-xs text-gray-700 mt-1">
+                                      {appointment.provider_name && `Dr. ${appointment.provider_name}`}
+                                      {appointment.clinic_name && ` · ${appointment.clinic_name}`}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      {appointment.status && (
+                                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
+                                          appointment.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
+                                          appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                          'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                          {appointment.status}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );
