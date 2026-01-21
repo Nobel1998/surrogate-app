@@ -115,6 +115,7 @@ export default function StepStatusPage() {
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [steps, setSteps] = useState<CaseStep[]>([]);
   const [adminUpdate, setAdminUpdate] = useState('');
+  const [updates, setUpdates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,9 +134,10 @@ export default function StepStatusPage() {
     setLoading(true);
     setError(null);
     try {
-      const [caseRes, stepsRes] = await Promise.all([
+      const [caseRes, stepsRes, updatesRes] = await Promise.all([
         fetch(`/api/cases/${caseId}`),
         fetch(`/api/cases/${caseId}/steps`),
+        fetch(`/api/cases/${caseId}/updates`),
       ]);
 
       if (!caseRes.ok) throw new Error('Failed to load case');
@@ -143,9 +145,11 @@ export default function StepStatusPage() {
 
       const caseDataRes = await caseRes.json();
       const stepsData = await stepsRes.json();
+      const updatesData = updatesRes.ok ? await updatesRes.json() : { updates: [] };
 
       setCaseData(caseDataRes.case);
       setSteps(stepsData.steps || []);
+      setUpdates(updatesData.updates || []);
 
       // Load surrogate application if surrogate exists
       if (caseDataRes.case?.surrogate_id) {
@@ -664,6 +668,30 @@ export default function StepStatusPage() {
         {/* Admin Updates Section */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Updates:</h2>
+          
+          {/* Display existing updates */}
+          {updates.length > 0 && (
+            <div className="mb-6 space-y-4">
+              {updates
+                .filter((update: any) => update.update_type === 'admin_note')
+                .map((update: any) => (
+                  <div key={update.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {update.created_at ? new Date(update.created_at).toLocaleString('en-US') : '—'}
+                          {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.content}</p>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Add new update */}
           <textarea
             value={adminUpdate}
             onChange={(e) => setAdminUpdate(e.target.value)}
@@ -679,7 +707,7 @@ export default function StepStatusPage() {
               {saving ? 'Saving...' : 'Save Update'}
             </button>
           </div>
-            </div>
+        </div>
           </>
         )}
 
