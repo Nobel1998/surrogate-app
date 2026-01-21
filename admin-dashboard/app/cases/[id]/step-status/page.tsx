@@ -116,6 +116,10 @@ export default function StepStatusPage() {
   const [steps, setSteps] = useState<CaseStep[]>([]);
   const [adminUpdate, setAdminUpdate] = useState('');
   const [updates, setUpdates] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [postLikes, setPostLikes] = useState<any[]>([]);
+  const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,6 +186,33 @@ export default function StepStatusPage() {
         } catch (e) {
           console.error('Error loading medical info:', e);
         }
+
+        // Load activity data (posts, comments, likes, medical reports)
+        // We'll load this data from the matches/options API which already has this data
+        try {
+          const activityRes = await fetch('/api/matches/options');
+          if (activityRes.ok) {
+            const activityData = await activityRes.json();
+            const allPosts = activityData.posts || [];
+            const allComments = activityData.comments || [];
+            const allLikes = activityData.postLikes || [];
+            const allReports = activityData.medicalReports || [];
+            
+            // Filter by surrogate_id
+            const surrogatePosts = allPosts.filter((p: any) => p.user_id === caseDataRes.case.surrogate_id);
+            const postIds = surrogatePosts.map((p: any) => p.id).filter(Boolean);
+            const surrogateComments = allComments.filter((c: any) => postIds.includes(c.post_id));
+            const surrogateLikes = allLikes.filter((l: any) => postIds.includes(l.post_id));
+            const surrogateReports = allReports.filter((r: any) => r.user_id === caseDataRes.case.surrogate_id);
+            
+            setPosts(surrogatePosts);
+            setComments(surrogateComments);
+            setPostLikes(surrogateLikes);
+            setMedicalReports(surrogateReports);
+          }
+        } catch (e) {
+          console.error('Error loading activity data:', e);
+        }
       }
     } catch (err: any) {
       console.error('Error loading data:', err);
@@ -202,6 +233,48 @@ export default function StepStatusPage() {
       return new Date(dateStr).toLocaleDateString('en-US');
     } catch {
       return dateStr;
+    }
+  };
+
+  const formatDateOnly = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    try {
+      const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        return `${month}/${day}/${year}`;
+      }
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      return `${month}/${day}/${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const deleteMedicalReport = async (reportId: string) => {
+    if (!confirm('Are you sure you want to delete this medical check-in? This action cannot be undone and will also remove associated points rewards.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/matches/medical-reports?id=${reportId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Delete failed: ${res.status} ${errText}`);
+      }
+
+      alert('Medical check-in deleted successfully!');
+      await loadData();
+    } catch (err: any) {
+      console.error('Error deleting medical report:', err);
+      alert(err.message || 'Failed to delete medical check-in');
     }
   };
 
@@ -621,6 +694,118 @@ export default function StepStatusPage() {
                 </div>
               )
             )}
+
+            {/* Activity Section */}
+            {caseData?.surrogate_id && (() => {
+              const surrogatePosts = posts.filter((p) => p.user_id === caseData.surrogate_id);
+              const latestPosts = surrogatePosts.slice(0, 3);
+              const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
+              const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
+              const surrogateReports = medicalReports.filter((r) => r.user_id === caseData.surrogate_id);
+              const latestReports = surrogateReports.slice(0, 3);
+
+              return renderDocumentSection('Activity', '📊',
+                <div className="space-y-4">
+                  <div className="text-xs text-gray-700">
+                    <div className="font-semibold mb-2">
+                      Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
+                    </div>
+                    {latestPosts.length === 0 ? (
+                      <div className="text-gray-500 text-xs">No posts</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {latestPosts.map((p) => (
+                          <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
+                            <div className="text-[11px] text-gray-500">
+                              {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
+                              {p.stage ? ` · ${p.stage}` : ''}
+                            </div>
+                            <div className="text-sm text-gray-900 line-clamp-2">
+                              {p.content || p.text || '(no text)'}
+                            </div>
+                            {((p.media_url || p.media_uri) && (
+                              <a
+                                href={String(p.media_url || p.media_uri || '#')}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                Media
+                              </a>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-gray-300">
+                    <div className="font-semibold text-sm text-green-700 mb-2">
+                      Medical Check-ins: {surrogateReports.length}
+                    </div>
+                    {latestReports.length === 0 ? (
+                      <div className="text-gray-500 text-xs">No medical reports</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {latestReports.map((r) => {
+                          const reportData = r.report_data || {};
+                          const visitDate = formatDateOnly(r.visit_date);
+                          let keyMetrics: string[] = [];
+                          
+                          if (r.stage === 'Pre-Transfer') {
+                            if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness}mm`);
+                            if (reportData.follicle_1_mm) keyMetrics.push(`Follicle: ${reportData.follicle_1_mm}mm`);
+                            if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
+                              keyMetrics.push(`Labs: ${reportData.labs.slice(0, 2).join(', ')}`);
+                            }
+                          } else if (r.stage === 'Post-Transfer') {
+                            if (reportData.fetal_heart_rate) keyMetrics.push(`HR: ${reportData.fetal_heart_rate}bpm`);
+                            if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter}mm`);
+                            if (reportData.beta_hcg) keyMetrics.push(`Beta HCG: ${reportData.beta_hcg}`);
+                          } else if (r.stage === 'OBGYN') {
+                            if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight}lbs`);
+                            if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
+                            if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats}bpm`);
+                          }
+                          
+                          return (
+                            <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50">
+                              <div className="text-[11px] text-gray-600 font-semibold">
+                                {r.stage} · {visitDate}
+                                {r.provider_name && ` · ${r.provider_name}`}
+                              </div>
+                              {keyMetrics.length > 0 && (
+                                <div className="text-xs text-gray-700 mt-1">
+                                  {keyMetrics.join(' · ')}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                {r.proof_image_url && (
+                                  <a
+                                    href={r.proof_image_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    📎 View Proof
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => deleteMedicalReport(r.id)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                                  title="Delete this medical report"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         ) : (
           <>

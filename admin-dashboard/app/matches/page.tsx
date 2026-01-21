@@ -2698,12 +2698,6 @@ export default function MatchesPage() {
                   const surrogateStageKey = surrogate?.progress_stage || 'pre';
                   const surrogateStage = STAGE_LABELS[surrogateStageKey] || surrogateStageKey.toUpperCase();
                   const stageUpdater = (surrogate?.stage_updated_by || 'admin').toUpperCase();
-                  const surrogatePosts = posts.filter((p) => p.user_id === m.surrogate_id);
-                  const latestPosts = surrogatePosts.slice(0, 3);
-                  const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
-                  const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
-                  const surrogateReports = medicalReports.filter((r) => r.user_id === m.surrogate_id);
-                  const latestReports = surrogateReports.slice(0, 3);
                   
                   // Match data now contains all case fields directly
                   // Calculate pregnancy weeks from transfer_date if available
@@ -4947,106 +4941,6 @@ export default function MatchesPage() {
                         </div>
 
 
-                        {/* Posts & Medical Reports */}
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Activity</h4>
-                          <div className="text-xs text-gray-700">
-                            <div className="font-semibold mb-2">
-                            Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
-                          </div>
-                          {latestPosts.length === 0 ? (
-                              <div className="text-gray-500 text-xs">No posts</div>
-                          ) : (
-                              <div className="space-y-2">
-                                {latestPosts.map((p) => (
-                              <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
-                                <div className="text-[11px] text-gray-500">
-                                  {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
-                                  {p.stage ? ` · ${p.stage}` : ''}
-                                </div>
-                                <div className="text-sm text-gray-900 line-clamp-2">
-                                  {p.content || p.text || '(no text)'}
-                                </div>
-                                    {((p.media_url || p.media_uri) && (
-                                  <a
-                                        href={String(p.media_url || p.media_uri || '#')}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs text-blue-600 hover:text-blue-800"
-                                  >
-                                    Media
-                                  </a>
-                                    ))}
-                                  </div>
-                                ))}
-                              </div>
-                                )}
-                              </div>
-                          <div className="mt-2 pt-2 border-t border-gray-300">
-                            <div className="font-semibold text-sm text-green-700 mb-2">
-                              Medical Check-ins: {surrogateReports.length}
-                            </div>
-                            {latestReports.length === 0 ? (
-                              <div className="text-gray-500 text-xs">No medical reports</div>
-                            ) : (
-                              <div className="space-y-2">
-                                {latestReports.map((r) => {
-                                  const reportData = r.report_data || {};
-                                  const visitDate = formatDateOnly(r.visit_date);
-                                  let keyMetrics: string[] = [];
-                                  
-                                  if (r.stage === 'Pre-Transfer') {
-                                    if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness}mm`);
-                                    if (reportData.follicle_1_mm) keyMetrics.push(`Follicle: ${reportData.follicle_1_mm}mm`);
-                                    if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
-                                      keyMetrics.push(`Labs: ${reportData.labs.slice(0, 2).join(', ')}`);
-                                    }
-                                  } else if (r.stage === 'Post-Transfer') {
-                                    if (reportData.fetal_heart_rate) keyMetrics.push(`HR: ${reportData.fetal_heart_rate}bpm`);
-                                    if (reportData.gestational_sac_diameter) keyMetrics.push(`Sac: ${reportData.gestational_sac_diameter}mm`);
-                                    if (reportData.beta_hcg) keyMetrics.push(`Beta HCG: ${reportData.beta_hcg}`);
-                                  } else if (r.stage === 'OBGYN') {
-                                    if (reportData.weight) keyMetrics.push(`Weight: ${reportData.weight}lbs`);
-                                    if (reportData.blood_pressure) keyMetrics.push(`BP: ${reportData.blood_pressure}`);
-                                    if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats}bpm`);
-                                  }
-                                  
-                                  return (
-                                    <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50">
-                                      <div className="text-[11px] text-gray-600 font-semibold">
-                                        {r.stage} · {visitDate}
-                                        {r.provider_name && ` · ${r.provider_name}`}
-                                      </div>
-                                      {keyMetrics.length > 0 && (
-                                        <div className="text-xs text-gray-700 mt-1">
-                                          {keyMetrics.join(' · ')}
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-2 mt-1">
-                                        {r.proof_image_url && (
-                                          <a
-                                            href={r.proof_image_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-xs text-blue-600 hover:text-blue-800"
-                                          >
-                                            📎 View Proof
-                                          </a>
-                                        )}
-                                        <button
-                                          onClick={() => deleteMedicalReport(r.id)}
-                                          className="text-xs text-red-600 hover:text-red-800 font-semibold"
-                                          title="Delete this medical report"
-                                        >
-                                          🗑️ Delete
-                                        </button>
-                        </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
                           <div className="mt-2 pt-2 border-t border-gray-300">
                             {(() => {
                               const surrogateOBAppointments = obAppointments.filter((a) => a.user_id === m.surrogate_id);
