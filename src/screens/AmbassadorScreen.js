@@ -557,11 +557,14 @@ export default function AmbassadorScreen() {
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => setShowReferralModal(false)}
+            activeOpacity={0.7}
           >
             <Icon name="arrow-left" size={24} color="#2A7BF6" />
             <Text style={styles.backButtonText}>{t('ambassador.back') || 'Back'}</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>{t('ambassador.shareReferralCodeTitle')}</Text>
+          <View style={styles.modalTitleContainer}>
+            <Text style={styles.modalTitle}>{t('ambassador.shareReferralCodeTitle')}</Text>
+          </View>
           <View style={{ width: 80 }} />
         </View>
         
@@ -1030,20 +1033,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    paddingTop: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0'
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
+    minHeight: 60,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A7BF6',
   },
   backButtonText: {
     color: '#2A7BF6',
     fontSize: 16,
-    marginLeft: 8,
+    marginLeft: 6,
     fontWeight: '600',
+  },
+  modalTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
     fontSize: 16,
