@@ -26,7 +26,12 @@ export async function GET(
   try {
     const { id: matchId } = await params;
 
-    const { data: updates, error: updatesError } = await supabase
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/cases/[id]/updates/route.ts:27',message:'GET updates called',data:{matchId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    // First try with the foreign key relation
+    let { data: updates, error: updatesError } = await supabase
       .from('match_updates')
       .select(`
         *,
@@ -35,11 +40,33 @@ export async function GET(
       .eq('match_id', matchId)
       .order('created_at', { ascending: false });
 
-    if (updatesError) throw updatesError;
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/cases/[id]/updates/route.ts:40',message:'GET updates query result',data:{updatesError:updatesError?.message,updatesCount:updates?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    // If foreign key query fails, try without it
+    if (updatesError) {
+      console.warn('[cases/[id]/updates] Foreign key query failed, trying without relation:', updatesError.message);
+      const { data: updatesWithoutRelation, error: updatesError2 } = await supabase
+        .from('match_updates')
+        .select('*')
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: false });
+
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/cases/[id]/updates/route.ts:50',message:'GET updates fallback query result',data:{updatesError2:updatesError2?.message,updatesCount:updatesWithoutRelation?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
+      if (updatesError2) throw updatesError2;
+      updates = updatesWithoutRelation;
+    }
 
     return NextResponse.json({ updates: updates || [] });
   } catch (error: any) {
     console.error('[cases/[id]/updates] GET error:', error);
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/cases/[id]/updates/route.ts:58',message:'GET updates exception',data:{error:error.message,stack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     return NextResponse.json(
       { error: error.message || 'Failed to load updates' },
       { status: 500 }
