@@ -89,16 +89,16 @@ export default function MyMatchScreen({ navigation }) {
         async (payload) => {
           console.log('[MyMatch] ✅ Match updated via Realtime:', payload);
           
-          // Reload match data when match is created or updated
-          if (payload.new && payload.new.status === 'active') {
-            console.log('[MyMatch] ✅ Active match detected, reloading match data...');
+          // Reload match data when match is created or updated (status can be 'matched' or 'active')
+          if (payload.new && (payload.new.status === 'matched' || payload.new.status === 'active')) {
+            console.log('[MyMatch] ✅ Matched match detected, reloading match data...');
             await loadMatchData();
             
             // If parent and unmatched before, also refresh surrogates list
             if (isParent && !matchData) {
               await loadAvailableSurrogates();
             }
-          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'active')) {
+          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
             console.log('[MyMatch] ⚠️ Match removed or deactivated, reloading...');
             await loadMatchData();
             
@@ -415,7 +415,7 @@ export default function MyMatchScreen({ navigation }) {
       const { data: allActiveMatches, error: allMatchesError } = await supabase
         .from('surrogate_matches')
         .select('surrogate_id, status, parent_id, first_parent_id')
-        .eq('status', 'active');
+        .in('status', ['matched', 'active']);
 
       let matchedSurrogateIds = new Set();
 
@@ -431,7 +431,7 @@ export default function MyMatchScreen({ navigation }) {
             .from('surrogate_matches')
             .select('id, status, surrogate_id')
             .eq('surrogate_id', surrogate.id)
-            .eq('status', 'active')
+            .in('status', ['matched', 'active'])
             .limit(1);
 
           if (matchError) {
