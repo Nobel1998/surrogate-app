@@ -2699,19 +2699,19 @@ export default function HomeScreen() {
           <View style={{ alignItems: 'center' }}>
             <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
-              还没有匹配
+              No Match Yet
             </Text>
             <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
               {shouldShowNoMatchMessage 
-                ? '您还没有提交申请，所以无法显示旅程信息。请先提交申请。'
-                : '我们正在为您寻找最合适的匹配。'}
+                ? "You haven't submitted an application yet, so we cannot display journey information. Please submit your application first."
+                : 'We are finding the perfect match for you.'}
             </Text>
             {shouldShowNoMatchMessage && (
               <TouchableOpacity 
                 style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 }}
                 onPress={() => navigation.navigate('SurrogateApplication')}
               >
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>提交申请</Text>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Submit Application</Text>
               </TouchableOpacity>
             )}
           </View>

@@ -1180,15 +1180,15 @@ export default function MyMatchScreen({ navigation }) {
             <View style={styles.unmatchedIconContainer}>
               <Icon name="file-text" size={64} color="#FF8EA4" />
             </View>
-            <Text style={styles.unmatchedTitle}>还没有匹配</Text>
+            <Text style={styles.unmatchedTitle}>No Match Yet</Text>
             <Text style={styles.unmatchedDescription}>
-              您还没有提交申请，所以无法显示匹配信息。请先提交申请。
+              You haven't submitted an application yet, so we cannot display match information. Please submit your application first.
             </Text>
             <TouchableOpacity 
               style={styles.contactButton}
               onPress={() => navigation.navigate('SurrogateApplication')}
             >
-              <Text style={styles.contactButtonText}>提交申请</Text>
+              <Text style={styles.contactButtonText}>Submit Application</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
