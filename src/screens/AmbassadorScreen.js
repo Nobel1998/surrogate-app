@@ -1045,12 +1045,15 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     backgroundColor: '#F0F7FF',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#2A7BF6',
+    minWidth: 80,
+    zIndex: 10,
   },
   backButtonText: {
     color: '#2A7BF6',
