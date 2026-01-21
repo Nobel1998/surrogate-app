@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard, SafeAreaView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function AmbassadorScreen() {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
@@ -637,7 +639,20 @@ export default function AmbassadorScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButtonHeader}
+          onPress={() => {
+            console.log('Back button pressed in AmbassadorScreen');
+            navigation.goBack();
+          }}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={24} color="#2A7BF6" />
+          <Text style={styles.backButtonTextHeader}>{t('ambassador.back') || 'Back'}</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView 
         ref={scrollViewRef}
         style={styles.scrollContainer}
