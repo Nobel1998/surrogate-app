@@ -193,7 +193,7 @@ export default function MyMatchScreen({ navigation }) {
           .from('surrogate_matches')
           .select('*')
           .eq('surrogate_id', user.id)
-          .eq('status', 'active')
+          .in('status', ['matched', 'active'])
           .order('created_at', { ascending: false })
           .limit(1);
         match = data?.[0];
@@ -203,7 +203,7 @@ export default function MyMatchScreen({ navigation }) {
           .from('surrogate_matches')
           .select('*')
           .eq('parent_id', user.id)
-          .eq('status', 'active')
+          .in('status', ['matched', 'active'])
           .order('created_at', { ascending: false })
           .limit(1);
         match = data?.[0];

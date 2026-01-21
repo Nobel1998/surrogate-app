@@ -1315,13 +1315,14 @@ export default function HomeScreen() {
             console.log('Error loading match in refreshStageData (surrogate):', matchError.message);
           }
           
-          // Find active match
-          const activeMatch = surrogateMatches?.find(m => m.status === 'active');
-          const hasMatch = !!activeMatch;
+          // Find matched match (status can be 'matched' or 'active')
+          const matchedMatch = surrogateMatches?.find(m => m.status === 'matched' || m.status === 'active');
+          const hasMatch = !!matchedMatch;
           
           console.log('[HomeScreen] refreshStageData - Match status check:', { 
             hasMatch, 
-            activeMatchId: activeMatch?.id,
+            matchedMatchId: matchedMatch?.id,
+            matchedMatchStatus: matchedMatch?.status,
             allMatches: surrogateMatches?.map(m => ({ id: m.id, status: m.status }))
           });
           
@@ -1468,13 +1469,13 @@ export default function HomeScreen() {
         return;
       }
 
-      // Find active match
-      const matchData = allMatches?.find(m => m.status === 'active');
+      // Find matched match (status can be 'matched' or 'active')
+      const matchData = allMatches?.find(m => m.status === 'matched' || m.status === 'active');
       
-      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Active match check:', { 
-        hasActiveMatch: !!matchData,
-        activeMatchId: matchData?.id,
-        activeMatchStatus: matchData?.status,
+      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Matched match check:', { 
+        hasMatchedMatch: !!matchData,
+        matchedMatchId: matchData?.id,
+        matchedMatchStatus: matchData?.status,
         allMatchesStatuses: allMatches?.map(m => ({ id: m.id, status: m.status }))
       });
 
@@ -1553,6 +1554,7 @@ export default function HomeScreen() {
         setPregnancyTestDate3('');
         setPregnancyTestDate4('');
         setFetalBeatConfirm('None');
+        console.log('[HomeScreen] fetchMatchAndMedicalInfo - No active match found, setting hasSurrogateMatch to false');
       }
     } catch (error) {
       console.error('Error in fetchMatchAndMedicalInfo:', error);
@@ -1561,6 +1563,7 @@ export default function HomeScreen() {
       // #endregion
       setCurrentMatchId(null);
       setHasSurrogateMatch(false);
+      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Error occurred, setting hasSurrogateMatch to false');
     } finally {
       setLoadingMedicalInfo(false);
     }
@@ -1733,9 +1736,9 @@ export default function HomeScreen() {
             userId: user.id 
           });
           
-          // Only process active matches
-          if (payload.new && payload.new.status === 'active') {
-            console.log('[HomeScreen] ✅ Active match detected, refreshing data...');
+          // Only process matched matches (status can be 'matched' or 'active')
+          if (payload.new && (payload.new.status === 'matched' || payload.new.status === 'active')) {
+            console.log('[HomeScreen] ✅ Matched match detected, refreshing data...');
             
             // Update match state immediately for surrogate
             if (isSurrogate && payload.new.surrogate_id === user.id) {
@@ -1755,7 +1758,7 @@ export default function HomeScreen() {
             if (isParent) {
               await fetchMatchedSurrogate();
             }
-          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'active')) {
+          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
             console.log('[HomeScreen] ⚠️ Match removed or deactivated, clearing match state...');
             
             // Clear match state
