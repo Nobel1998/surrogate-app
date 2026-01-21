@@ -4940,8 +4940,7 @@ export default function MatchesPage() {
                           })()}
                         </div>
 
-
-                          <div className="mt-2 pt-2 border-t border-gray-300">
+                        <div className="mt-2 pt-2 border-t border-gray-300">
                             {(() => {
                               const surrogateOBAppointments = obAppointments.filter((a) => a.user_id === m.surrogate_id);
                               const surrogateIVFAppointments = ivfAppointments.filter((a) => a.user_id === m.surrogate_id);
