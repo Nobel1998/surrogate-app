@@ -127,6 +127,8 @@ export default function HomeScreen() {
   const [currentMatchId, setCurrentMatchId] = useState(null);
   const [hasApplication, setHasApplication] = useState(false);
   const [checkingApplication, setCheckingApplication] = useState(true);
+  const [hasSurrogateMatch, setHasSurrogateMatch] = useState(false);
+  const [checkingMatch, setCheckingMatch] = useState(false);
 
   // Check if surrogate user has submitted application
   const checkApplication = useCallback(async () => {
@@ -805,8 +807,33 @@ export default function HomeScreen() {
       }
 
       try {
-        // Surrogate: read own profile.progress_stage
+        // Surrogate: check match first, then read own profile.progress_stage
         if (isSurrogate) {
+          // Check if surrogate has a match
+          try {
+            const { data: surrogateMatches, error: matchError } = await supabase
+              .from('surrogate_matches')
+              .select('id')
+              .eq('surrogate_id', user.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            if (matchError && matchError.code !== 'PGRST116') {
+              console.log('Error loading match (surrogate):', matchError.message);
+            }
+            
+            const hasMatch = !!surrogateMatches?.[0];
+            if (!cancelled) {
+              setHasSurrogateMatch(hasMatch);
+            }
+          } catch (matchErr) {
+            console.error('Error checking surrogate match:', matchErr);
+            if (!cancelled) {
+              setHasSurrogateMatch(false);
+            }
+          }
+
           const { data, error } = await supabase
             .from('profiles')
             .select('progress_stage')
@@ -1356,6 +1383,7 @@ export default function HomeScreen() {
       fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1314',message:'fetchMatchAndMedicalInfo skipped',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       setCurrentMatchId(null);
+      setHasSurrogateMatch(false);
       return;
     }
 
@@ -1382,6 +1410,7 @@ export default function HomeScreen() {
         fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1336',message:'fetchMatchAndMedicalInfo match error',data:{error:matchError.message,code:matchError.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         setCurrentMatchId(null);
+        setHasSurrogateMatch(false);
         return;
       }
 
@@ -1390,6 +1419,7 @@ export default function HomeScreen() {
         fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1341',message:'fetchMatchAndMedicalInfo match found',data:{matchId:matchData.id,hasMedicationDate:!!matchData.medication_start_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         setCurrentMatchId(matchData.id);
+        setHasSurrogateMatch(true);
         // Format dates for display (YYYY-MM-DD to MM/DD/YY)
         if (matchData.medication_start_date) {
           const date = new Date(matchData.medication_start_date);
@@ -1451,6 +1481,7 @@ export default function HomeScreen() {
         fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1399',message:'fetchMatchAndMedicalInfo no match found',data:{userId:user?.id,surrogateId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         setCurrentMatchId(null);
+        setHasSurrogateMatch(false);
         setMedicationStartDate('');
         setPregnancyTestDate('');
         setPregnancyTestDate2('');
@@ -1464,6 +1495,7 @@ export default function HomeScreen() {
       fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1418',message:'fetchMatchAndMedicalInfo error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
       setCurrentMatchId(null);
+      setHasSurrogateMatch(false);
     } finally {
       setLoadingMedicalInfo(false);
     }
@@ -2688,7 +2720,55 @@ export default function HomeScreen() {
 
   // Check if surrogate user has submitted application or has match
   const shouldShowNoMatchMessage = isSurrogateRole && !hasApplication;
+  const shouldShowMatchingInProgress = isSurrogateRole && hasApplication && !hasSurrogateMatch;
   const shouldShowNoMatchForParent = isParentRole && !matchedSurrogateId;
+
+  // Render Matching in Progress state (surrogate with application but no match)
+  const renderMatchingInProgress = () => {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView 
+          contentContainerStyle={styles.unmatchedContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A7BF6']}
+              tintColor="#2A7BF6"
+            />
+          }
+        >
+          <View style={styles.unmatchedContent}>
+            <View style={styles.unmatchedIconContainer}>
+              <Icon name="search" size={64} color="#FF8EA4" />
+            </View>
+            <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
+            <Text style={styles.unmatchedDescription}>
+              {t('myMatch.matchingDescription')}
+            </Text>
+            
+            <View style={styles.timelineSteps}>
+              <View style={styles.timelineStep}>
+                <View style={[styles.stepDot, styles.stepActive]} />
+                <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.timelineStep}>
+                <View style={[styles.stepDot, styles.stepPending]} />
+                <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.timelineStep}>
+                <View style={[styles.stepDot, styles.stepPending]} />
+                <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  };
 
   if (shouldShowNoMatchMessage || shouldShowNoMatchForParent) {
     return (
@@ -2727,6 +2807,10 @@ export default function HomeScreen() {
         </ScrollView>
       </SafeAreaView>
     );
+  }
+
+  if (shouldShowMatchingInProgress) {
+    return renderMatchingInProgress();
   }
   
   // Log when we're past loading
@@ -4559,5 +4643,82 @@ const styles = StyleSheet.create({
   },
   textCurrentLink: {
     color: '#2A7BF6',
-  }
+  },
+  unmatchedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  unmatchedContent: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 32,
+    padding: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  unmatchedIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF0F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  unmatchedTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1A1D1E',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  unmatchedDescription: {
+    fontSize: 16,
+    color: '#6E7191',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 40,
+  },
+  timelineSteps: {
+    width: '100%',
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  timelineStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 0,
+  },
+  stepDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  stepActive: {
+    backgroundColor: '#FF8EA4',
+    shadowColor: '#FF8EA4',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+  },
+  stepPending: {
+    backgroundColor: '#E0E7EE',
+  },
+  stepText: {
+    fontSize: 15,
+    color: '#4E5D78',
+    fontWeight: '600',
+  },
+  stepLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#E0E7EE',
+    marginLeft: 7,
+    marginVertical: 6,
+  },
 }); 
