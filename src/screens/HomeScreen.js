@@ -129,38 +129,38 @@ export default function HomeScreen() {
   const [checkingApplication, setCheckingApplication] = useState(true);
 
   // Check if surrogate user has submitted application
-  useEffect(() => {
-    const checkApplication = async () => {
-      if (!user?.id || !isSurrogateRole) {
-        setCheckingApplication(false);
-        setHasApplication(true); // For non-surrogates, always show content
-        return;
-      }
+  const checkApplication = useCallback(async () => {
+    if (!user?.id || !isSurrogateRole) {
+      setCheckingApplication(false);
+      setHasApplication(true); // For non-surrogates, always show content
+      return;
+    }
 
-      try {
-        const { data, error } = await supabase
-          .from('applications')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1)
-          .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error checking application:', error);
-          setHasApplication(false);
-        } else {
-          setHasApplication(!!data);
-        }
-      } catch (error) {
-        console.error('Failed to check application:', error);
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking application:', error);
         setHasApplication(false);
-      } finally {
-        setCheckingApplication(false);
+      } else {
+        setHasApplication(!!data);
       }
-    };
-
-    checkApplication();
+    } catch (error) {
+      console.error('Failed to check application:', error);
+      setHasApplication(false);
+    } finally {
+      setCheckingApplication(false);
+    }
   }, [user?.id, isSurrogateRole]);
+
+  useEffect(() => {
+    checkApplication();
+  }, [checkApplication]);
 
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
@@ -1592,7 +1592,7 @@ export default function HomeScreen() {
     }
   }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, fetchMatchAndMedicalInfo]);
 
-  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分
+  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -1601,13 +1601,14 @@ export default function HomeScreen() {
         refreshStageData(),
         fetchMedicalReports(),
         fetchUserPoints(),
+        checkApplication(),
       ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, refreshStageData, fetchMedicalReports, fetchUserPoints]);
+  }, [refreshData, refreshStageData, fetchMedicalReports, fetchUserPoints, checkApplication]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -2695,6 +2696,14 @@ export default function HomeScreen() {
         <StatusBar barStyle="dark-content" />
         <ScrollView 
           contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A7BF6']}
+              tintColor="#2A7BF6"
+            />
+          }
         >
           <View style={{ alignItems: 'center' }}>
             <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
@@ -2703,7 +2712,7 @@ export default function HomeScreen() {
             </Text>
             <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
               {shouldShowNoMatchMessage 
-                ? "You haven't submitted an application yet, so we cannot display journey information. Please submit your application first."
+                ? "You haven't submitted an application yet, so we cannot display match information. Please submit your application first."
                 : 'We are finding the perfect match for you.'}
             </Text>
             {shouldShowNoMatchMessage && (
