@@ -1440,19 +1440,22 @@ export default function HomeScreen() {
 
     setLoadingMedicalInfo(true);
     try {
-      // Find the match for this surrogate
-      // Use select('*') to avoid errors if columns don't exist yet (migration not run)
-      const { data: matchData, error: matchError } = await supabase
+      // Find the match for this surrogate - query all matches then filter for active
+      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Querying matches for surrogate:', { userId: user.id });
+      const { data: allMatches, error: matchError } = await supabase
         .from('surrogate_matches')
         .select('*')
         .eq('surrogate_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
+
+      console.log('[HomeScreen] fetchMatchAndMedicalInfo - All matches query result:', { 
+        matches: allMatches, 
+        error: matchError,
+        matchCount: allMatches?.length 
+      });
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1320',message:'fetchMatchAndMedicalInfo query result',data:{matchError:matchError?.message,matchDataExists:!!matchData,matchId:matchData?.id,hasPregnancyTestDate:!!matchData?.pregnancy_test_date,hasPregnancyTestDate2:!!matchData?.pregnancy_test_date_2,hasPregnancyTestDate3:!!matchData?.pregnancy_test_date_3},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1320',message:'fetchMatchAndMedicalInfo query result',data:{matchError:matchError?.message,allMatchesCount:allMatches?.length,allMatches:allMatches?.map(m => ({id:m.id,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
 
       if (matchError) {
@@ -1465,12 +1468,23 @@ export default function HomeScreen() {
         return;
       }
 
+      // Find active match
+      const matchData = allMatches?.find(m => m.status === 'active');
+      
+      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Active match check:', { 
+        hasActiveMatch: !!matchData,
+        activeMatchId: matchData?.id,
+        activeMatchStatus: matchData?.status,
+        allMatchesStatuses: allMatches?.map(m => ({ id: m.id, status: m.status }))
+      });
+
       if (matchData) {
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1341',message:'fetchMatchAndMedicalInfo match found',data:{matchId:matchData.id,hasMedicationDate:!!matchData.medication_start_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         setCurrentMatchId(matchData.id);
         setHasSurrogateMatch(true);
+        console.log('[HomeScreen] fetchMatchAndMedicalInfo - Updated hasSurrogateMatch to true');
         // Format dates for display (YYYY-MM-DD to MM/DD/YY)
         if (matchData.medication_start_date) {
           const date = new Date(matchData.medication_start_date);
