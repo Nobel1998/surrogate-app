@@ -1283,21 +1283,35 @@ export default function HomeScreen() {
       if (isSurrogateRole) {
         // Check match status first
         try {
+          console.log('[HomeScreen] refreshStageData - Querying matches for surrogate:', { userId: user.id });
           const { data: surrogateMatches, error: matchError } = await supabase
             .from('surrogate_matches')
-            .select('id')
+            .select('id, status, surrogate_id, parent_id, created_at')
             .eq('surrogate_id', user.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1);
+            .order('created_at', { ascending: false });
+          
+          console.log('[HomeScreen] refreshStageData - Match query result:', { 
+            matches: surrogateMatches, 
+            error: matchError,
+            matchCount: surrogateMatches?.length 
+          });
           
           if (matchError && matchError.code !== 'PGRST116') {
             console.log('Error loading match in refreshStageData (surrogate):', matchError.message);
           }
           
-          const hasMatch = !!surrogateMatches?.[0];
-          console.log('[HomeScreen] refreshStageData - checking match:', { hasMatch, matchId: surrogateMatches?.[0]?.id });
+          // Find active match
+          const activeMatch = surrogateMatches?.find(m => m.status === 'active');
+          const hasMatch = !!activeMatch;
+          
+          console.log('[HomeScreen] refreshStageData - Match status check:', { 
+            hasMatch, 
+            activeMatchId: activeMatch?.id,
+            allMatches: surrogateMatches?.map(m => ({ id: m.id, status: m.status }))
+          });
+          
           setHasSurrogateMatch(hasMatch);
+          console.log('[HomeScreen] refreshStageData - Updated hasSurrogateMatch to:', hasMatch);
         } catch (matchErr) {
           console.error('Error checking surrogate match in refreshStageData:', matchErr);
           setHasSurrogateMatch(false);
@@ -2843,6 +2857,16 @@ export default function HomeScreen() {
   // Check if surrogate user has submitted application or has match
   const shouldShowNoMatchMessage = isSurrogateRole && !hasApplication;
   const shouldShowMatchingInProgress = isSurrogateRole && hasApplication && !hasSurrogateMatch;
+  
+  // Debug log for display logic
+  console.log('[HomeScreen] Display logic check:', {
+    isSurrogateRole,
+    hasApplication,
+    hasSurrogateMatch,
+    shouldShowNoMatchMessage,
+    shouldShowMatchingInProgress,
+    checkingApplication
+  });
   const shouldShowNoMatchForParent = isParentRole && !matchedSurrogateId;
 
   // Render Matching in Progress state (surrogate with application but no match)
