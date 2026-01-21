@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard, SafeAreaView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -552,11 +552,14 @@ export default function AmbassadorScreen() {
 
   const renderReferralModal = () => (
     <Modal visible={showReferralModal} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.modalContainer}>
+      <SafeAreaView style={styles.modalContainer} edges={['top']}>
         <View style={styles.modalHeader}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => setShowReferralModal(false)}
+            onPress={() => {
+              console.log('Back button pressed');
+              setShowReferralModal(false);
+            }}
             activeOpacity={0.7}
           >
             <Icon name="arrow-left" size={24} color="#2A7BF6" />
