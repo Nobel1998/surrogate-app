@@ -2669,18 +2669,53 @@ export default function HomeScreen() {
     );
   };
 
-  // Show loading state while auth is loading OR stage is not yet loaded
-  if (authLoading || !stageLoaded) {
-    console.log('🔒 Showing loading screen', { authLoading, stageLoaded });
+  // Show loading state while auth is loading OR stage is not yet loaded OR checking application
+  if (authLoading || !stageLoaded || checkingApplication) {
+    console.log('🔒 Showing loading screen', { authLoading, stageLoaded, checkingApplication });
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color="#2A7BF6" />
           <Text style={styles.loadingText}>
-            {authLoading ? 'Loading user data...' : 'Loading journey stage...'}
+            {authLoading ? 'Loading user data...' : checkingApplication ? 'Checking application status...' : 'Loading journey stage...'}
           </Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Check if surrogate user has submitted application or has match
+  const shouldShowNoMatchMessage = isSurrogateRole && !hasApplication;
+  const shouldShowNoMatchForParent = isParentRole && !matchedSurrogateId;
+
+  if (shouldShowNoMatchMessage || shouldShowNoMatchForParent) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView 
+          contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}
+        >
+          <View style={{ alignItems: 'center' }}>
+            <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
+              还没有匹配
+            </Text>
+            <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
+              {shouldShowNoMatchMessage 
+                ? '您还没有提交申请，所以无法显示旅程信息。请先提交申请。'
+                : '我们正在为您寻找最合适的匹配。'}
+            </Text>
+            {shouldShowNoMatchMessage && (
+              <TouchableOpacity 
+                style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 }}
+                onPress={() => navigation.navigate('SurrogateApplication')}
+              >
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>提交申请</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
