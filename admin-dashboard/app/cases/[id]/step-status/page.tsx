@@ -303,6 +303,27 @@ export default function StepStatusPage() {
     }
   };
 
+  const deleteAdminUpdate = async (updateId: string) => {
+    if (!confirm('Are you sure you want to delete this update?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/cases/${caseId}/updates/${updateId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete update');
+      }
+
+      await loadData();
+      alert('Update deleted successfully');
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete update');
+    }
+  };
+
   const getStepStatus = (stageNumber: number, stepNumber: number): string => {
     const step = steps.find(
       s => s.stage_number === stageNumber && s.step_number === stepNumber
@@ -679,13 +700,20 @@ export default function StepStatusPage() {
                 .map((update: any) => (
                   <div key={update.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           {update.created_at ? new Date(update.created_at).toLocaleString('en-US') : '—'}
                           {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
                         </p>
                       </div>
+                      <button
+                        onClick={() => deleteAdminUpdate(update.id)}
+                        className="ml-4 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                        title="Delete this update"
+                      >
+                        Delete
+                      </button>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.content}</p>
                   </div>
