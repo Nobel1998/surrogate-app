@@ -808,19 +808,21 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         return true;
       
       case 2:
-        if (!applicationData.previousPregnancies.trim()) {
-          Alert.alert(t('common.error'), t('application.errorPreviousPregnancies'));
+        // Validate totalDeliveries field (the actual field used in the form)
+        if (!applicationData.totalDeliveries || (typeof applicationData.totalDeliveries === 'string' && !applicationData.totalDeliveries.trim())) {
+          Alert.alert(t('common.error'), 'Please enter the total number of delivery times.');
           return false;
         }
         return true;
       
       case 3:
+        // Step 3 is Health Information - validate health-related fields
         if (!applicationData.smokingStatus) {
           Alert.alert(t('common.error'), t('application.errorSmokingStatus'));
           return false;
         }
-        if (!applicationData.employmentStatus) {
-          Alert.alert(t('common.error'), t('application.errorEmploymentStatus'));
+        if (applicationData.healthInsurance === undefined || applicationData.healthInsurance === null) {
+          Alert.alert(t('common.error'), 'Please indicate if you have health insurance.');
           return false;
         }
         return true;
