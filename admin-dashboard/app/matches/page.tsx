@@ -4939,7 +4939,10 @@ export default function MatchesPage() {
                             );
                           })()}
                         </div>
+                      </div>
 
+                      {/* Appointments Section */}
+                      <div className="space-y-3">
                         <div className="mt-2 pt-2 border-t border-gray-300">
                             {(() => {
                               const surrogateOBAppointments = obAppointments.filter((a) => a.user_id === m.surrogate_id);
