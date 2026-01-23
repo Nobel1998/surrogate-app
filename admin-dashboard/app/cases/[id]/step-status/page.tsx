@@ -139,6 +139,14 @@ export default function StepStatusPage() {
     }
   }, [caseId]);
 
+  // Sync stepNote state when expanded step changes or steps data updates
+  useEffect(() => {
+    if (expandedStep) {
+      const note = getStepNote(expandedStep.stageNumber, expandedStep.stepNumber);
+      setStepNote(note || '');
+    }
+  }, [expandedStep, steps]);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -428,11 +436,30 @@ export default function StepStatusPage() {
       setExpandedStep(null);
       setStepNote('');
     } else {
-      const note = getStepNote(stageNumber, stepNumber);
-      setStepNote(note || '');
       setExpandedStep({ stageNumber, stepNumber });
+      // Note will be set by useEffect when expandedStep changes
     }
   };
+
+  // Sync stepNote with expanded step's note when expandedStep changes
+  useEffect(() => {
+    if (expandedStep) {
+      const note = getStepNote(expandedStep.stageNumber, expandedStep.stepNumber);
+      setStepNote(note || '');
+    } else {
+      setStepNote('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedStep]);
+  
+  // Also sync when steps data is loaded/updated (but only if a step is expanded)
+  useEffect(() => {
+    if (expandedStep) {
+      const note = getStepNote(expandedStep.stageNumber, expandedStep.stepNumber);
+      setStepNote(note || '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps]);
 
   const saveStepNote = async () => {
     if (!expandedStep) return;
@@ -1052,13 +1079,33 @@ export default function StepStatusPage() {
                       {isExpanded && (
                         <div className="border-t border-gray-200 bg-gray-50 p-4">
                           <div className="mb-4">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-2">Step Notes</h4>
-                            <textarea
-                              value={stepNote}
-                              onChange={(e) => setStepNote(e.target.value)}
-                              placeholder="Enter notes for this step... (e.g., required documents, interview results, email content, etc.)"
-                              className="w-full h-48 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
-                            />
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Step Notes</h4>
+                            
+                            {/* Display current note content (read-only) */}
+                            {stepNoteContent && stepNoteContent.trim() && (
+                              <div className="mb-4 p-4 bg-white border border-gray-200 rounded-md">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Current Note</p>
+                                </div>
+                                <div className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">
+                                  {stepNoteContent}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Editable textarea for adding/editing notes */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-2">
+                                {stepNoteContent && stepNoteContent.trim() ? 'Edit Note' : 'Add Note'}
+                              </label>
+                              <textarea
+                                value={stepNote || ''}
+                                onChange={(e) => setStepNote(e.target.value)}
+                                placeholder="Enter notes for this step... (e.g., required documents, interview results, email content, etc.)"
+                                className="w-full h-48 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                              />
+                            </div>
+                            
                             <div className="mt-2 text-xs text-gray-500">
                               <p>You can add notes such as:</p>
                               <ul className="list-disc list-inside mt-1 space-y-1">
