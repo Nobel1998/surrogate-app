@@ -129,6 +129,9 @@ export default function StepStatusPage() {
   const [formData, setFormData] = useState<any>({});
   const [medicalInfo, setMedicalInfo] = useState<MedicalInfo | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'steps'>('overview');
+  const [editingNoteStep, setEditingNoteStep] = useState<{ stageNumber: number; stepNumber: number } | null>(null);
+  const [stepNote, setStepNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (caseId) {
@@ -410,6 +413,57 @@ export default function StepStatusPage() {
       s => s.stage_number === stageNumber && s.step_number === stepNumber
     );
     return step?.status || 'pending';
+  };
+
+  const getStepNote = (stageNumber: number, stepNumber: number): string | null => {
+    const step = steps.find(
+      s => s.stage_number === stageNumber && s.step_number === stepNumber
+    );
+    return step?.notes || null;
+  };
+
+  const openNoteEditor = (stageNumber: number, stepNumber: number) => {
+    const note = getStepNote(stageNumber, stepNumber);
+    setStepNote(note || '');
+    setEditingNoteStep({ stageNumber, stepNumber });
+  };
+
+  const closeNoteEditor = () => {
+    setEditingNoteStep(null);
+    setStepNote('');
+  };
+
+  const saveStepNote = async () => {
+    if (!editingNoteStep) return;
+
+    setSavingNote(true);
+    try {
+      const stage = DEFAULT_STAGES.find(s => s.stage_number === editingNoteStep.stageNumber);
+      const step = stage?.steps.find(s => s.step_number === editingNoteStep.stepNumber);
+      const currentStatus = getStepStatus(editingNoteStep.stageNumber, editingNoteStep.stepNumber);
+
+      const res = await fetch(`/api/cases/${caseId}/steps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage_number: editingNoteStep.stageNumber,
+          stage_name: stage?.stage_name || `Stage ${editingNoteStep.stageNumber}`,
+          step_number: editingNoteStep.stepNumber,
+          step_name: step?.step_name || `Step ${editingNoteStep.stepNumber}`,
+          status: currentStatus,
+          notes: stepNote.trim() || null,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to save note');
+
+      await loadData();
+      closeNoteEditor();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save note');
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const getStepStatusColor = (status: string) => {
@@ -920,6 +974,7 @@ export default function StepStatusPage() {
               <div className="border-t border-gray-200 pt-3">
                 {stage.steps.map((step) => {
                   const currentStatus = getStepStatus(stage.stage_number, step.step_number);
+                  const hasNote = !!getStepNote(stage.stage_number, step.step_number);
                   return (
                     <div key={step.step_number} className="mb-3 last:mb-0">
                       <div className="flex items-center justify-between">
@@ -930,6 +985,28 @@ export default function StepStatusPage() {
                           <span className={`px-2 py-1 rounded text-xs border ${getStepStatusColor(currentStatus)}`}>
                             {currentStatus.replace('_', ' ').toUpperCase()}
                           </span>
+                          <button
+                            onClick={() => openNoteEditor(stage.stage_number, step.step_number)}
+                            className={`p-1.5 rounded hover:bg-gray-100 transition-colors ${
+                              hasNote ? 'text-blue-600' : 'text-gray-400'
+                            }`}
+                            title={hasNote ? 'View/Edit note' : 'Add note'}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -971,6 +1048,74 @@ export default function StepStatusPage() {
             </div>
           ))}
         </div>
+
+        {/* Note Editor Modal */}
+        {editingNoteStep && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {(() => {
+                    const stage = DEFAULT_STAGES.find(s => s.stage_number === editingNoteStep.stageNumber);
+                    const step = stage?.steps.find(s => s.step_number === editingNoteStep.stepNumber);
+                    return `Step ${editingNoteStep.stepNumber}: ${step?.step_name || 'Note'}`;
+                  })()}
+                </h3>
+                <button
+                  onClick={closeNoteEditor}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="px-6 py-4 flex-1 overflow-y-auto">
+                <textarea
+                  value={stepNote}
+                  onChange={(e) => setStepNote(e.target.value)}
+                  placeholder="Enter notes for this step... (e.g., required documents, interview results, email content, etc.)"
+                  className="w-full h-64 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <div className="mt-3 text-xs text-gray-500">
+                  <p>You can add notes such as:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Required documents or information</li>
+                    <li>Interview notes and results</li>
+                    <li>Email content from clinics</li>
+                    <li>Important reminders or instructions</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={closeNoteEditor}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveStepNote}
+                  disabled={savingNote}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingNote ? 'Saving...' : 'Save Note'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Admin Updates Section */}
         <div className="bg-white rounded-lg shadow p-6">
