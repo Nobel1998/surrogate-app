@@ -4950,29 +4950,77 @@ export default function MatchesPage() {
                                     {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {/* Online Claims: shared doc + surrogate reimbursement submissions */}
-                                    <div key="online_claims" className="space-y-1">
-                                      {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
-                                      {(() => {
-                                        const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
-                                        return surrogateSubmissions.length > 0 ? (
-                                          <div className="mt-2 pt-2 border-t border-gray-200">
-                                            <div className="text-[10px] font-semibold text-gray-600 mb-1.5">Reimbursement submissions</div>
-                                            <div className="space-y-1.5">
-                                              {surrogateSubmissions.map((s) => (
-                                                <div key={s.id} className="flex flex-wrap items-center gap-1.5 p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
-                                                  <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
-                                                  {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
-                                                  {s.description && <span className="text-gray-600 truncate max-w-[120px]" title={s.description}>{s.description}</span>}
-                                                  <span className={`px-1 py-0.5 rounded text-white font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
-                                                  <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
-                                                </div>
-                                              ))}
-                                            </div>
+                                    {/* Online Claims: header + expanded content = shared doc list + Reimbursement submissions inside */}
+                                    {(() => {
+                                      const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
+                                      const onlineClaimsMerged = mergeDuplicateFiles(surrogateOnlineClaimsContracts);
+                                      const hasOnlineClaimsFiles = onlineClaimsMerged.length > 0;
+                                      const hasSubmissions = surrogateSubmissions.length > 0;
+                                      const canExpand = hasOnlineClaimsFiles || hasSubmissions;
+                                      const isOnlineClaimsExpanded = expandedDocTypes.has(`${m.id}-online_claims`);
+                                      return (
+                                        <div key="online_claims" className="space-y-1">
+                                          <div
+                                            className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${canExpand ? '' : 'opacity-60'}`}
+                                            onClick={() => {
+                                              if (canExpand) {
+                                                const newExpanded = new Set(expandedDocTypes);
+                                                const key = `${m.id}-online_claims`;
+                                                if (newExpanded.has(key)) newExpanded.delete(key);
+                                                else newExpanded.add(key);
+                                                setExpandedDocTypes(newExpanded);
+                                              }
+                                            }}
+                                          >
+                                            <span className={canExpand ? 'text-green-600' : 'text-gray-400'}>{canExpand ? '✓' : '○'}</span>
+                                            <span className="text-gray-600 flex-1">Online Claims</span>
+                                            {canExpand && (
+                                              <span className="text-[10px] text-gray-400">
+                                                ({onlineClaimsMerged.length + surrogateSubmissions.length}) {isOnlineClaimsExpanded ? '▼' : '▶'}
+                                              </span>
+                                            )}
                                           </div>
-                                        ) : null;
-                                      })()}
-                                    </div>
+                                          {isOnlineClaimsExpanded && canExpand && (
+                                            <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
+                                              {hasOnlineClaimsFiles && onlineClaimsMerged.map((fileGroup, idx) => {
+                                                const earliestDate = fileGroup.uploaders.map(u => u.created_at).filter(d => d).sort()[0];
+                                                return (
+                                                  <div key={`${fileGroup.file_url}-${idx}`} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                                    <div className="flex items-start justify-between">
+                                                      <div className="flex-1 min-w-0">
+                                                        <div className="font-medium text-gray-900 truncate">{fileGroup.file_name}</div>
+                                                        <div className="text-gray-500 mt-0.5">{formatUploaders(fileGroup.uploaders)}</div>
+                                                        {earliestDate && <div className="text-gray-400 mt-0.5">{formatDateOnly(earliestDate.split('T')[0])}</div>}
+                                                      </div>
+                                                      <div className="flex items-center gap-1.5 ml-2">
+                                                        <a href={fileGroup.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800" title="Download">📥</a>
+                                                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete this file?`)) { fileGroup.uploaders.forEach(u => deleteContract(u.contract_id)); } }} className="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                              {hasSubmissions && (
+                                                <div className="pt-1">
+                                                  <div className="text-[10px] font-semibold text-gray-600 mb-1.5">Reimbursement submissions</div>
+                                                  <div className="space-y-1.5">
+                                                    {surrogateSubmissions.map((s) => (
+                                                      <div key={s.id} className="flex flex-wrap items-center gap-1.5 p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                                        <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
+                                                        {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
+                                                        {s.description && <span className="text-gray-600 truncate max-w-[120px]" title={s.description}>{s.description}</span>}
+                                                        <span className={`px-1 py-0.5 rounded text-white font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
+                                                        <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               </div>
