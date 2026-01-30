@@ -4950,7 +4950,29 @@ export default function MatchesPage() {
                                     {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
+                                    {/* Online Claims: shared doc + surrogate reimbursement submissions */}
+                                    <div key="online_claims" className="space-y-1">
+                                      {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
+                                      {(() => {
+                                        const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
+                                        return surrogateSubmissions.length > 0 ? (
+                                          <div className="mt-2 pt-2 border-t border-gray-200">
+                                            <div className="text-[10px] font-semibold text-gray-600 mb-1.5">Reimbursement submissions</div>
+                                            <div className="space-y-1.5">
+                                              {surrogateSubmissions.map((s) => (
+                                                <div key={s.id} className="flex flex-wrap items-center gap-1.5 p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
+                                                  <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
+                                                  {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
+                                                  {s.description && <span className="text-gray-600 truncate max-w-[120px]" title={s.description}>{s.description}</span>}
+                                                  <span className={`px-1 py-0.5 rounded text-white font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
+                                                  <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : null;
+                                      })()}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -4958,28 +4980,6 @@ export default function MatchesPage() {
                           })()}
                         </div>
                       </div>
-
-                      {/* Online Claim Submissions (Surrogate reimbursement - real-time) */}
-                      {(() => {
-                            const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
-                            return surrogateSubmissions.length > 0 ? (
-                              <div className="border-t pt-4 mt-2">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-2 pl-1">Online Claim Submissions (Surrogate)</h4>
-                                <p className="text-xs text-gray-500 mb-2 pl-1">Reimbursement submissions from the surrogate (invoice/receipt).</p>
-                                <div className="space-y-2 pl-1">
-                                  {surrogateSubmissions.map((s) => (
-                                    <div key={s.id} className="flex flex-wrap items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-xs">
-                                      <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
-                                      {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
-                                      {s.description && <span className="text-gray-600 truncate max-w-[200px]" title={s.description}>{s.description}</span>}
-                                      <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
-                                      <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null;
-                          })()}
 
                       {/* Actions Section */}
                       <div className="border-t pt-4">
@@ -5046,12 +5046,6 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               💰 Upload Trust Account
-                            </button>
-                            <button
-                              onClick={() => openClaimsModal(m)}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              ✅ Upload Online Claims
                             </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500 pl-1">
