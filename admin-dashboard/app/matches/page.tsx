@@ -104,6 +104,18 @@ type Contract = {
   created_at?: string | null;
 };
 
+type OnlineClaimSubmission = {
+  id: string;
+  user_id: string;
+  match_id?: string | null;
+  file_url: string;
+  file_name?: string | null;
+  amount?: number | null;
+  description?: string | null;
+  status: string;
+  created_at: string;
+};
+
 const STATUS_OPTIONS = ['matched', 'completed', 'cancelled', 'pending', 'pregnant'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
@@ -156,6 +168,7 @@ export default function MatchesPage() {
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [onlineClaimSubmissions, setOnlineClaimSubmissions] = useState<OnlineClaimSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [surrogateApplications, setSurrogateApplications] = useState<Map<string, any>>(new Map());
@@ -437,6 +450,17 @@ export default function MatchesPage() {
       setBranches(branchesData || []);
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
+
+      // Load online claim submissions (surrogate reimbursement submissions)
+      try {
+        const subRes = await fetch('/api/matches/online-claim-submissions');
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          setOnlineClaimSubmissions(Array.isArray(subData) ? subData : []);
+        }
+      } catch (e) {
+        console.error('Error loading online claim submissions:', e);
+      }
       
       // Load surrogate applications for BMI calculation
       await loadSurrogateApplications(surList.map((s: Profile) => s.id));
@@ -4934,6 +4958,28 @@ export default function MatchesPage() {
                           })()}
                         </div>
                       </div>
+
+                      {/* Online Claim Submissions (Surrogate reimbursement - real-time) */}
+                      {(() => {
+                            const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
+                            return surrogateSubmissions.length > 0 ? (
+                              <div className="border-t pt-4 mt-2">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2 pl-1">Online Claim Submissions (Surrogate)</h4>
+                                <p className="text-xs text-gray-500 mb-2 pl-1">Reimbursement submissions from the surrogate (invoice/receipt).</p>
+                                <div className="space-y-2 pl-1">
+                                  {surrogateSubmissions.map((s) => (
+                                    <div key={s.id} className="flex flex-wrap items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-xs">
+                                      <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
+                                      {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
+                                      {s.description && <span className="text-gray-600 truncate max-w-[200px]" title={s.description}>{s.description}</span>}
+                                      <span className={`px-1.5 py-0.5 rounded text-white text-[10px] font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
+                                      <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
 
                       {/* Actions Section */}
                       <div className="border-t pt-4">

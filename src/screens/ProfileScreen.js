@@ -781,7 +781,7 @@ export default function ProfileScreen({ navigation }) {
               {renderMenuItem(
                 t('myMatch.onlineClaims') || 'Online Claims',
                 'check-circle',
-                handleOnlineClaimsPress,
+                () => navigation.navigate('OnlineClaims'),
                 '#6C5CE7',
                 onlineClaimsDoc ? t('profile.available') : t('profile.notAvailable'),
                 loadingOnlineClaimsDoc
