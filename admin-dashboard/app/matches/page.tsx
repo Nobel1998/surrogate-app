@@ -5007,50 +5007,54 @@ export default function MatchesPage() {
                                                     <span className="text-[9px] font-normal text-gray-400">Total: {surrogateSubmissions.length}</span>
                                                   </div>
                                                   <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
-                                                    {/* Table Header */}
-                                                    <div className="flex bg-gray-50 border-b border-gray-200 py-1.5 px-2 text-[9px] font-semibold text-gray-500">
-                                                      <div className="w-20">Date</div>
-                                                      <div className="w-16">Amount</div>
-                                                      <div className="w-16">Status</div>
-                                                      <div className="flex-1">Description</div>
-                                                      <div className="w-10 text-right">File</div>
-                                                    </div>
-                                                    {/* Table Body */}
-                                                    <div className="divide-y divide-gray-100">
-                                                      {surrogateSubmissions.map((s) => (
-                                                        <div key={s.id} className="flex items-center py-2 px-2 text-[10px] hover:bg-gray-50 transition-colors">
-                                                          <div className="w-20 text-gray-500 shrink-0">
-                                                            {new Date(s.created_at).toLocaleDateString()}
-                                                          </div>
-                                                          <div className="w-16 font-medium text-gray-900 shrink-0">
-                                                            {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
-                                                          </div>
-                                                          <div className="w-16 shrink-0">
-                                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium border ${
-                                                              s.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
-                                                              s.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
-                                                              'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                                            }`}>
-                                                              {s.status}
-                                                            </span>
-                                                          </div>
-                                                          <div className="flex-1 min-w-0 pr-2">
-                                                            <p className="truncate text-gray-600" title={s.description || ''}>
-                                                              {s.description || <span className="text-gray-300 italic">No description</span>}
-                                                            </p>
-                                                          </div>
-                                                          <div className="w-10 text-right shrink-0">
-                                                            <a 
-                                                              href={s.file_url} 
-                                                              target="_blank" 
-                                                              rel="noopener noreferrer" 
-                                                              className="text-teal-600 hover:text-teal-800 font-medium text-[9px]"
-                                                            >
-                                                              VIEW
-                                                            </a>
-                                                          </div>
+                                                    <div className="overflow-x-auto">
+                                                      <div className="min-w-[400px]">
+                                                        {/* Table Header */}
+                                                        <div className="grid grid-cols-[70px_70px_70px_1fr_40px] gap-2 bg-gray-50 border-b border-gray-200 py-2 px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
+                                                          <div>Date</div>
+                                                          <div>Amount</div>
+                                                          <div>Status</div>
+                                                          <div>Description</div>
+                                                          <div className="text-right">File</div>
                                                         </div>
-                                                      ))}
+                                                        {/* Table Body */}
+                                                        <div className="divide-y divide-gray-100">
+                                                          {surrogateSubmissions.map((s) => (
+                                                            <div key={s.id} className="grid grid-cols-[70px_70px_70px_1fr_40px] gap-2 items-center py-2 px-3 text-[10px] hover:bg-gray-50 transition-colors">
+                                                              <div className="text-gray-500 truncate">
+                                                                {new Date(s.created_at).toLocaleDateString()}
+                                                              </div>
+                                                              <div className="font-medium text-gray-900 truncate">
+                                                                {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
+                                                              </div>
+                                                              <div>
+                                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium border ${
+                                                                  s.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                                                  s.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
+                                                                  'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                                                }`}>
+                                                                  {s.status}
+                                                                </span>
+                                                              </div>
+                                                              <div className="min-w-0">
+                                                                <p className="truncate text-gray-600" title={s.description || ''}>
+                                                                  {s.description || <span className="text-gray-300 italic">No description</span>}
+                                                                </p>
+                                                              </div>
+                                                              <div className="text-right">
+                                                                <a 
+                                                                  href={s.file_url} 
+                                                                  target="_blank" 
+                                                                  rel="noopener noreferrer" 
+                                                                  className="text-teal-600 hover:text-teal-800 font-medium text-[9px]"
+                                                                >
+                                                                  VIEW
+                                                                </a>
+                                                              </div>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                      </div>
                                                     </div>
                                                   </div>
                                                 </div>
