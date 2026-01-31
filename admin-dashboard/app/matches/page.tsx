@@ -5001,18 +5001,57 @@ export default function MatchesPage() {
                                                 );
                                               })}
                                               {hasSubmissions && (
-                                                <div className="pt-1">
-                                                  <div className="text-[10px] font-semibold text-gray-600 mb-1.5">Reimbursement submissions</div>
-                                                  <div className="space-y-1.5">
-                                                    {surrogateSubmissions.map((s) => (
-                                                      <div key={s.id} className="flex flex-wrap items-center gap-1.5 p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
-                                                        <span className="text-gray-500">{new Date(s.created_at).toLocaleString()}</span>
-                                                        {s.amount != null && <span className="font-medium">${Number(s.amount).toFixed(2)}</span>}
-                                                        {s.description && <span className="text-gray-600 truncate max-w-[120px]" title={s.description}>{s.description}</span>}
-                                                        <span className={`px-1 py-0.5 rounded text-white font-medium ${s.status === 'approved' ? 'bg-green-600' : s.status === 'rejected' ? 'bg-red-600' : 'bg-amber-500'}`}>{s.status}</span>
-                                                        <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline font-medium">View file</a>
-                                                      </div>
-                                                    ))}
+                                                <div className="pt-2">
+                                                  <div className="text-[10px] font-semibold text-gray-600 mb-2 px-1 flex justify-between items-end">
+                                                    <span>Reimbursement Submissions</span>
+                                                    <span className="text-[9px] font-normal text-gray-400">Total: {surrogateSubmissions.length}</span>
+                                                  </div>
+                                                  <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                                                    {/* Table Header */}
+                                                    <div className="flex bg-gray-50 border-b border-gray-200 py-1.5 px-2 text-[9px] font-semibold text-gray-500">
+                                                      <div className="w-20">Date</div>
+                                                      <div className="w-16">Amount</div>
+                                                      <div className="w-16">Status</div>
+                                                      <div className="flex-1">Description</div>
+                                                      <div className="w-10 text-right">File</div>
+                                                    </div>
+                                                    {/* Table Body */}
+                                                    <div className="divide-y divide-gray-100">
+                                                      {surrogateSubmissions.map((s) => (
+                                                        <div key={s.id} className="flex items-center py-2 px-2 text-[10px] hover:bg-gray-50 transition-colors">
+                                                          <div className="w-20 text-gray-500 shrink-0">
+                                                            {new Date(s.created_at).toLocaleDateString()}
+                                                          </div>
+                                                          <div className="w-16 font-medium text-gray-900 shrink-0">
+                                                            {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
+                                                          </div>
+                                                          <div className="w-16 shrink-0">
+                                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium border ${
+                                                              s.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                                              s.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
+                                                              'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                                            }`}>
+                                                              {s.status}
+                                                            </span>
+                                                          </div>
+                                                          <div className="flex-1 min-w-0 pr-2">
+                                                            <p className="truncate text-gray-600" title={s.description || ''}>
+                                                              {s.description || <span className="text-gray-300 italic">No description</span>}
+                                                            </p>
+                                                          </div>
+                                                          <div className="w-10 text-right shrink-0">
+                                                            <a 
+                                                              href={s.file_url} 
+                                                              target="_blank" 
+                                                              rel="noopener noreferrer" 
+                                                              className="text-teal-600 hover:text-teal-800 font-medium text-[9px]"
+                                                            >
+                                                              VIEW
+                                                            </a>
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
                                                   </div>
                                                 </div>
                                               )}
