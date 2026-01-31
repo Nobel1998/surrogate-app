@@ -290,6 +290,9 @@ export default function MatchesPage() {
   const [claimsSurrogateId, setClaimsSurrogateId] = useState<string>('');
   const [claimsFile, setClaimsFile] = useState<File | null>(null);
   const [uploadingClaims, setUploadingClaims] = useState(false);
+  // Online Claims detail modal (view submissions in popup)
+  const [showOnlineClaimsDetailModal, setShowOnlineClaimsDetailModal] = useState(false);
+  const [onlineClaimsDetailMatchId, setOnlineClaimsDetailMatchId] = useState<string | null>(null);
   
   // Agency Retainer Agreement upload state
   const [showAgencyRetainerModal, setShowAgencyRetainerModal] = useState(false);
@@ -4950,117 +4953,30 @@ export default function MatchesPage() {
                                     {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {/* Online Claims: header + expanded content = shared doc list + Reimbursement submissions inside */}
+                                    {/* Online Claims: click to open popup (no inline expand) */}
                                     {(() => {
                                       const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
                                       const onlineClaimsMerged = mergeDuplicateFiles(surrogateOnlineClaimsContracts);
                                       const hasOnlineClaimsFiles = onlineClaimsMerged.length > 0;
                                       const hasSubmissions = surrogateSubmissions.length > 0;
-                                      const canExpand = hasOnlineClaimsFiles || hasSubmissions;
-                                      const isOnlineClaimsExpanded = expandedDocTypes.has(`${m.id}-online_claims`);
+                                      const hasContent = hasOnlineClaimsFiles || hasSubmissions;
                                       return (
                                         <div key="online_claims" className="space-y-1">
                                           <div
-                                            className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${canExpand ? '' : 'opacity-60'}`}
+                                            className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${hasContent ? '' : 'opacity-60'}`}
                                             onClick={() => {
-                                              if (canExpand) {
-                                                const newExpanded = new Set(expandedDocTypes);
-                                                const key = `${m.id}-online_claims`;
-                                                if (newExpanded.has(key)) newExpanded.delete(key);
-                                                else newExpanded.add(key);
-                                                setExpandedDocTypes(newExpanded);
-                                              }
+                                              setOnlineClaimsDetailMatchId(m.id);
+                                              setShowOnlineClaimsDetailModal(true);
                                             }}
                                           >
-                                            <span className={canExpand ? 'text-green-600' : 'text-gray-400'}>{canExpand ? '✓' : '○'}</span>
+                                            <span className={hasContent ? 'text-green-600' : 'text-gray-400'}>{hasContent ? '✓' : '○'}</span>
                                             <span className="text-gray-600 flex-1">Online Claims</span>
-                                            {canExpand && (
+                                            {hasContent && (
                                               <span className="text-[10px] text-gray-400">
-                                                ({onlineClaimsMerged.length + surrogateSubmissions.length}) {isOnlineClaimsExpanded ? '▼' : '▶'}
+                                                ({onlineClaimsMerged.length + surrogateSubmissions.length}) ▶
                                               </span>
                                             )}
                                           </div>
-                                          {isOnlineClaimsExpanded && canExpand && (
-                                            <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-2">
-                                              {hasOnlineClaimsFiles && onlineClaimsMerged.map((fileGroup, idx) => {
-                                                const earliestDate = fileGroup.uploaders.map(u => u.created_at).filter(d => d).sort()[0];
-                                                return (
-                                                  <div key={`${fileGroup.file_url}-${idx}`} className="p-1.5 bg-gray-50 rounded border border-gray-200 text-[10px]">
-                                                    <div className="flex items-start justify-between">
-                                                      <div className="flex-1 min-w-0">
-                                                        <div className="font-medium text-gray-900 truncate">{fileGroup.file_name}</div>
-                                                        <div className="text-gray-500 mt-0.5">{formatUploaders(fileGroup.uploaders)}</div>
-                                                        {earliestDate && <div className="text-gray-400 mt-0.5">{formatDateOnly(earliestDate.split('T')[0])}</div>}
-                                                      </div>
-                                                      <div className="flex items-center gap-1.5 ml-2">
-                                                        <a href={fileGroup.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800" title="Download">📥</a>
-                                                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete this file?`)) { fileGroup.uploaders.forEach(u => deleteContract(u.contract_id)); } }} className="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}
-                                              {hasSubmissions && (
-                                                <div className="pt-2">
-                                                  <div className="text-[10px] font-semibold text-gray-600 mb-2 px-1 flex justify-between items-end">
-                                                    <span>Reimbursement Submissions</span>
-                                                    <span className="text-[9px] font-normal text-gray-400">Total: {surrogateSubmissions.length}</span>
-                                                  </div>
-                                                  <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
-                                                    <div className="overflow-x-auto">
-                                                      <div className="min-w-[400px]">
-                                                        {/* Table Header */}
-                                                        <div className="grid grid-cols-[70px_70px_70px_1fr_40px] gap-2 bg-gray-50 border-b border-gray-200 py-2 px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
-                                                          <div>Date</div>
-                                                          <div>Amount</div>
-                                                          <div>Status</div>
-                                                          <div>Description</div>
-                                                          <div className="text-right">File</div>
-                                                        </div>
-                                                        {/* Table Body */}
-                                                        <div className="divide-y divide-gray-100">
-                                                          {surrogateSubmissions.map((s) => (
-                                                            <div key={s.id} className="grid grid-cols-[70px_70px_70px_1fr_40px] gap-2 items-center py-2 px-3 text-[10px] hover:bg-gray-50 transition-colors">
-                                                              <div className="text-gray-500 truncate">
-                                                                {new Date(s.created_at).toLocaleDateString()}
-                                                              </div>
-                                                              <div className="font-medium text-gray-900 truncate">
-                                                                {s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}
-                                                              </div>
-                                                              <div>
-                                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium border ${
-                                                                  s.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
-                                                                  s.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
-                                                                  'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                                                }`}>
-                                                                  {s.status}
-                                                                </span>
-                                                              </div>
-                                                              <div className="min-w-0">
-                                                                <p className="truncate text-gray-600" title={s.description || ''}>
-                                                                  {s.description || <span className="text-gray-300 italic">No description</span>}
-                                                                </p>
-                                                              </div>
-                                                              <div className="text-right">
-                                                                <a 
-                                                                  href={s.file_url} 
-                                                                  target="_blank" 
-                                                                  rel="noopener noreferrer" 
-                                                                  className="text-teal-600 hover:text-teal-800 font-medium text-[9px]"
-                                                                >
-                                                                  VIEW
-                                                                </a>
-                                                              </div>
-                                                            </div>
-                                                          ))}
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
                                         </div>
                                       );
                                     })()}
@@ -5640,6 +5556,88 @@ export default function MatchesPage() {
           </div>
         </div>
       )}
+
+      {/* Online Claims Detail Modal - popup table */}
+      {showOnlineClaimsDetailModal && onlineClaimsDetailMatchId && (() => {
+        const detailMatch = matches.find((x) => x.id === onlineClaimsDetailMatchId);
+        if (!detailMatch) return null;
+        const detailContracts = contracts.filter((c) => c.user_id === detailMatch.surrogate_id && c.document_type === 'online_claims');
+        const detailSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === detailMatch.surrogate_id);
+        const surrogateName = profileLookup[detailMatch.surrogate_id]?.name || detailMatch.surrogate_id?.substring(0, 8) || 'Surrogate';
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">Online Claims — {surrogateName}</h3>
+                <button
+                  onClick={() => { setShowOnlineClaimsDetailModal(false); setOnlineClaimsDetailMatchId(null); }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+                {detailContracts.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Shared Document</h4>
+                    <ul className="space-y-2">
+                      {detailContracts.map((c) => (
+                        <li key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-gray-900 truncate block">{c.file_name || 'Unnamed'}</span>
+                            {c.created_at && <span className="text-xs text-gray-500">{formatDateOnly(c.created_at.split('T')[0])}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 ml-3">
+                            <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 text-sm font-medium">View</a>
+                            <button onClick={() => { if (confirm('Delete this file?')) deleteContract(c.id); }} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Reimbursement Submissions {detailSubmissions.length > 0 && `(Total: ${detailSubmissions.length})`}</h4>
+                  {detailSubmissions.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4">No submissions yet.</p>
+                  ) : (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-28">Date</th>
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-24">Amount</th>
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-24">Status</th>
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600 min-w-0">Description</th>
+                            <th className="text-right py-3 px-4 font-semibold text-gray-600 w-20">File</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailSubmissions.map((s) => (
+                            <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 last:border-0">
+                              <td className="py-3 px-4 text-gray-500">{new Date(s.created_at).toLocaleDateString()}</td>
+                              <td className="py-3 px-4 font-medium text-gray-900">{s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  s.status === 'approved' ? 'bg-green-100 text-green-800' : s.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                                }`}>{s.status}</span>
+                              </td>
+                              <td className="py-3 px-4 text-gray-600 max-w-xs truncate" title={s.description || ''}>{s.description || '—'}</td>
+                              <td className="py-3 px-4 text-right">
+                                <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 font-medium">View</a>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Agency Retainer Agreement Upload Modal */}
       {showAgencyRetainerModal && (
