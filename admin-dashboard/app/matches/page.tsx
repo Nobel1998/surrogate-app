@@ -2499,6 +2499,7 @@ export default function MatchesPage() {
             <p className="text-gray-500 mb-4">You have view-only access. Contact an admin to create or edit matches.</p>
           )}
           {canUpdate && (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Surrogate</label>
@@ -2591,6 +2592,7 @@ export default function MatchesPage() {
               {submitting ? 'Saving...' : 'Save Match'}
             </button>
           </div>
+          </>
           )}
         </div>
 
