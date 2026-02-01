@@ -1039,7 +1039,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         form_data: JSON.stringify(otherFields),
         user_id: authUser.id  // 添加用户ID
       };
-      
+
       let resultData;
       
       if (editMode && applicationId) {
@@ -1072,8 +1072,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       if (error) {
         throw new Error(error.message);
-        }
-        
+      }
+
         resultData = data;
       }
 
@@ -1273,14 +1273,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.previousSurrogacy && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>How many times have you been a surrogate before? *</Text>
-          <TextInput
-            style={styles.input}
+        <TextInput
+          style={styles.input}
             value={applicationData.previousSurrogacyCount || ''}
             onChangeText={(value) => updateField('previousSurrogacyCount', value)}
             placeholder="Number of times"
             keyboardType="numeric"
-          />
-        </View>
+        />
+      </View>
       )}
 
       {/* Blood Type */}
@@ -1399,15 +1399,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {!applicationData.usCitizen && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>If you are not a US Citizen, please specify your citizenship and current legal status in United States *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
             value={applicationData.citizenshipStatus || ''}
             onChangeText={(value) => updateField('citizenshipStatus', value)}
             placeholder="Citizenship and legal status"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+          multiline
+          numberOfLines={3}
+        />
+      </View>
       )}
 
       {/* Marital Status Section */}
@@ -1488,13 +1488,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>What was the date of your marriage? *</Text>
-                <TextInput
-                  style={styles.input}
+        <TextInput
+          style={styles.input}
                   value={applicationData.marriageDate || ''}
                   onChangeText={(value) => updateField('marriageDate', value)}
                   placeholder="MM/DD/YYYY"
-                />
-              </View>
+        />
+      </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>What is your spouse's name? *</Text>
@@ -1504,7 +1504,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   onChangeText={(value) => updateField('spouseName', value)}
                   placeholder="Spouse's full name"
                 />
-              </View>
+    </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>What is your spouse's date of birth? *</Text>
@@ -1515,8 +1515,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   placeholder="MM/DD/YYYY"
                 />
               </View>
-
-              <View style={styles.inputGroup}>
+      
+      <View style={styles.inputGroup}>
                 <Text style={styles.label}>Have you ever experienced marital problems? If yes, please explain. *</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
@@ -1592,15 +1592,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>When did your divorce occur? *</Text>
-                <TextInput
-                  style={styles.input}
+        <TextInput
+          style={styles.input}
                   value={applicationData.divorceDate || ''}
                   onChangeText={(value) => updateField('divorceDate', value)}
                   placeholder="MM/DD/YYYY"
-                />
-              </View>
+        />
+      </View>
 
-              <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
                 <Text style={styles.label}>What was the cause of your break up? *</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
@@ -1614,14 +1614,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Have you re-married? If yes, how long ago? *</Text>
-                <View style={styles.radioContainer}>
-                  <TouchableOpacity
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
                     style={[styles.radioButton, applicationData.remarried === true && styles.radioButtonSelected]}
                     onPress={() => updateField('remarried', true)}
-                  >
+          >
                     <Text style={[styles.radioText, applicationData.remarried === true && styles.radioTextSelected]}>YES</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
                     style={[styles.radioButton, applicationData.remarried === false && styles.radioButtonSelected]}
                     onPress={() => {
                       updateField('remarried', false);
@@ -1629,12 +1629,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                     }}
                   >
                     <Text style={[styles.radioText, applicationData.remarried === false && styles.radioTextSelected]}>NO</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
               {applicationData.remarried && (
-                <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
                   <Text style={styles.label}>When did you re-marry? *</Text>
                   <TextInput
                     style={styles.input}
@@ -1985,7 +1985,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           placeholder="Number of mother's siblings"
           keyboardType="numeric"
         />
-      </View>
+    </View>
     </ScrollView>
   );
 
@@ -2185,7 +2185,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Render delivery forms based on totalDeliveries */}
       {applicationData.deliveries && applicationData.deliveries.length > 0 && (
-        <View>
+    <View>
           {applicationData.deliveries.map((_, index) => renderDeliveryForm(index))}
         </View>
       )}
@@ -2201,12 +2201,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you have health insurance? *</Text>
         <View style={styles.radioContainer}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.radioButton, applicationData.healthInsurance === true && styles.radioButtonSelected]}
             onPress={() => updateField('healthInsurance', true)}
-          >
+            >
             <Text style={[styles.radioText, applicationData.healthInsurance === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.healthInsurance === false && styles.radioButtonSelected]}
             onPress={() => updateField('healthInsurance', false)}
@@ -2218,7 +2218,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {applicationData.healthInsurance && (
         <>
-          <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
             <Text style={styles.label}>Does it have maternity coverage? *</Text>
             <View style={styles.radioContainer}>
               <TouchableOpacity
@@ -2269,16 +2269,16 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           {applicationData.stateAgencyInsurance && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>What state agency or program?</Text>
-              <TextInput
-                style={styles.input}
+        <TextInput
+          style={styles.input}
                 value={applicationData.stateAgencyName || ''}
                 onChangeText={(value) => updateField('stateAgencyName', value)}
                 placeholder="State agency or program name"
-              />
-            </View>
+        />
+      </View>
           )}
 
-          <View style={styles.inputGroup}>
+      <View style={styles.inputGroup}>
             <Text style={styles.label}>Do you pay for your health insurance privately or is it provided by an employer?</Text>
             <View style={styles.radioContainer}>
               <TouchableOpacity
@@ -2422,8 +2422,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.infertilityDoctor && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>If yes, please explain *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
             value={applicationData.infertilityDetails || ''}
             onChangeText={(value) => updateField('infertilityDetails', value)}
             placeholder="Please explain"
@@ -2508,12 +2508,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Do you or any members of your household smoke or inject marijuana? *</Text>
         <View style={styles.radioContainer}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.radioButton, applicationData.householdMarijuana === true && styles.radioButtonSelected]}
             onPress={() => updateField('householdMarijuana', true)}
           >
             <Text style={[styles.radioText, applicationData.householdMarijuana === true && styles.radioTextSelected]}>YES</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, applicationData.householdMarijuana === false && styles.radioButtonSelected]}
             onPress={() => updateField('householdMarijuana', false)}
@@ -2622,7 +2622,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           >
             <Text style={[styles.radioText, applicationData.pregnancyProblems === false && styles.radioTextSelected]}>NO</Text>
           </TouchableOpacity>
-        </View>
+    </View>
       </View>
 
       {applicationData.pregnancyProblems && (
@@ -2700,13 +2700,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.breastfeeding && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>If so, when do you plan to stop?</Text>
-          <TextInput
-            style={styles.input}
+        <TextInput
+          style={styles.input}
             value={applicationData.breastfeedingStopDate || ''}
             onChangeText={(value) => updateField('breastfeedingStopDate', value)}
             placeholder="Expected stop date"
-          />
-        </View>
+        />
+      </View>
       )}
 
       {/* Surgeries & Illnesses */}
@@ -2732,7 +2732,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       <View style={styles.inputGroup}>
           <Text style={styles.label}>Reason and results?</Text>
         <TextInput
-            style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea]}
             value={applicationData.surgeryDetails || ''}
             onChangeText={(value) => updateField('surgeryDetails', value)}
             placeholder="Surgery details"
@@ -2764,7 +2764,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           multiline
           numberOfLines={2}
         />
-      </View>
+    </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>List all medications that you are presently taking and for what reason</Text>
@@ -3062,13 +3062,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <>
         <View style={styles.inputGroup}>
             <Text style={styles.label}>Which method do you use?</Text>
-            <TextInput
-              style={styles.input}
+        <TextInput
+          style={styles.input}
               value={applicationData.birthControlMethod || ''}
               onChangeText={(value) => updateField('birthControlMethod', value)}
               placeholder="Birth control method"
-            />
-          </View>
+        />
+      </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>How long have you been using this method?</Text>
             <TextInput
@@ -3204,15 +3204,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.stdHistory && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Please explain</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+        <TextInput
+          style={[styles.input, styles.textArea]}
             value={applicationData.stdDetails || ''}
             onChangeText={(value) => updateField('stdDetails', value)}
             placeholder="STD/STI details"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+          multiline
+          numberOfLines={3}
+        />
+      </View>
       )}
     </ScrollView>
   );
@@ -4274,7 +4274,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                     )}
                   </TouchableOpacity>
                 )}
-              </View>
+    </View>
             );
           })}
         </View>

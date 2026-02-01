@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         email,
         role,
         branch_id,
+        branch_manager_permission,
         created_at,
         updated_at,
         branches:branch_id (
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, username, email, password, branch_id } = body;
+    const { name, username, email, password, branch_id, branch_manager_permission } = body;
 
     // Validation
     if (!name || !username || !password || !branch_id) {
@@ -179,6 +180,8 @@ export async function POST(req: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const perm = branch_manager_permission === 'update' ? 'update' : 'view';
+
     // Insert new branch manager
     const { data: newManager, error: insertError } = await supabase
       .from('admin_users')
@@ -189,6 +192,7 @@ export async function POST(req: NextRequest) {
         password_hash: passwordHash,
         role: 'branch_manager',
         branch_id: branch_id,
+        branch_manager_permission: perm,
       })
       .select('id, name, username, email, role, branch_id, created_at')
       .single();

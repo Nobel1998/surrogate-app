@@ -188,6 +188,7 @@ export default function MatchesPage() {
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [notesDetailModal, setNotesDetailModal] = useState<{ matchId: string; notes: string } | null>(null);
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [assigningManager, setAssigningManager] = useState<string | null>(null);
@@ -362,6 +363,7 @@ export default function MatchesPage() {
           const canView = adminInfo.canViewAllBranches || false;
           console.log('🔍 canViewAllBranches:', canView, 'role:', adminInfo.role);
           setCanViewAllBranches(canView);
+          setCanUpdate(adminInfo.canUpdate !== false);
           if (adminInfo.branch_id) {
             setCurrentBranchFilter(adminInfo.branch_id);
             setSelectedBranchFilter(adminInfo.branch_id);
@@ -2493,6 +2495,10 @@ export default function MatchesPage() {
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>
+          {!canUpdate && (
+            <p className="text-gray-500 mb-4">You have view-only access. Contact an admin to create or edit matches.</p>
+          )}
+          {canUpdate && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Surrogate</label>
@@ -2585,6 +2591,7 @@ export default function MatchesPage() {
               {submitting ? 'Saving...' : 'Save Match'}
             </button>
           </div>
+          )}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
@@ -3135,7 +3142,7 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Manager</div>
-                            {canViewAllBranches ? (
+                            {canViewAllBranches && canUpdate ? (
                               <div className="flex items-center gap-2">
                                 {assigningManager === m.id ? (
                                   <div className="flex flex-col gap-2 w-full">

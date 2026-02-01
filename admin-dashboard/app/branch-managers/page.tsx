@@ -16,6 +16,7 @@ interface BranchManager {
   email: string | null;
   role: string;
   branch_id: string;
+  branch_manager_permission: 'view' | 'update' | null;
   created_at: string;
   updated_at: string;
   branches?: Branch;
@@ -36,6 +37,7 @@ export default function BranchManagersPage() {
     email: '',
     password: '',
     branch_id: '',
+    branch_manager_permission: 'view' as 'view' | 'update',
   });
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function BranchManagersPage() {
       email: '',
       password: '',
       branch_id: '',
+      branch_manager_permission: 'view',
     });
     setEditingId(null);
     setShowAddModal(true);
@@ -91,6 +94,7 @@ export default function BranchManagersPage() {
       email: manager.email || '',
       password: '', // Don't pre-fill password
       branch_id: manager.branch_id,
+      branch_manager_permission: (manager.branch_manager_permission === 'update' ? 'update' : 'view') as 'view' | 'update',
     });
     setEditingId(manager.id);
     setShowAddModal(true);
@@ -151,6 +155,7 @@ export default function BranchManagersPage() {
           email: formData.email || null,
           password: formData.password || undefined,
           branch_id: formData.branch_id,
+          branch_manager_permission: formData.branch_manager_permission,
         }),
       });
 
@@ -167,6 +172,7 @@ export default function BranchManagersPage() {
         email: '',
         password: '',
         branch_id: '',
+        branch_manager_permission: 'view',
       });
       setEditingId(null);
       setShowPassword(false);
@@ -233,6 +239,9 @@ export default function BranchManagersPage() {
                   Branch
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Permission
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -243,7 +252,7 @@ export default function BranchManagersPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {branchManagers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                     No branch managers found. Click "Add Branch Manager" to create one.
                   </td>
                 </tr>
@@ -261,6 +270,11 @@ export default function BranchManagersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {manager.branches?.name || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={manager.branch_manager_permission === 'update' ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                        {manager.branch_manager_permission === 'update' ? 'Can update' : 'View only'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(manager.created_at).toLocaleDateString()}
@@ -303,6 +317,7 @@ export default function BranchManagersPage() {
                       email: '',
                       password: '',
                       branch_id: '',
+                      branch_manager_permission: 'view',
                     });
                     setEditingId(null);
                     setShowPassword(false);
@@ -409,6 +424,20 @@ export default function BranchManagersPage() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Permission
+                  </label>
+                  <select
+                    value={formData.branch_manager_permission}
+                    onChange={(e) => setFormData({ ...formData, branch_manager_permission: e.target.value as 'view' | 'update' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="view">View only (cannot create/update/delete)</option>
+                    <option value="update">Can update (can create/update/delete)</option>
+                  </select>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
@@ -420,6 +449,7 @@ export default function BranchManagersPage() {
                         email: '',
                         password: '',
                         branch_id: '',
+                        branch_manager_permission: 'view',
                       });
                       setEditingId(null);
                       setShowPassword(false);

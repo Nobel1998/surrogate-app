@@ -24,9 +24,7 @@ const DOCUMENTS_BUCKET = 'documents';
 export default function OnlineClaimsScreen({ navigation }) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [sharedDoc, setSharedDoc] = useState(null);
   const [submissions, setSubmissions] = useState([]);
-  const [loadingDoc, setLoadingDoc] = useState(true);
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [amount, setAmount] = useState('');
@@ -34,26 +32,6 @@ export default function OnlineClaimsScreen({ navigation }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [matchId, setMatchId] = useState(null);
-
-  const loadSharedDoc = useCallback(async () => {
-    if (!user?.id) return;
-    setLoadingDoc(true);
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('document_type', 'online_claims')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!error) setSharedDoc(data);
-    } catch (e) {
-      console.error('Error loading online claims doc:', e);
-    } finally {
-      setLoadingDoc(false);
-    }
-  }, [user?.id]);
 
   const loadSubmissions = useCallback(async () => {
     if (!user?.id) return;
@@ -90,16 +68,15 @@ export default function OnlineClaimsScreen({ navigation }) {
   }, [user?.id]);
 
   useEffect(() => {
-    loadSharedDoc();
     loadSubmissions();
     loadMatchId();
-  }, [loadSharedDoc, loadSubmissions, loadMatchId]);
+  }, [loadSubmissions, loadMatchId]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadSharedDoc(), loadSubmissions(), loadMatchId()]);
+    await Promise.all([loadSubmissions(), loadMatchId()]);
     setRefreshing(false);
-  }, [loadSharedDoc, loadSubmissions, loadMatchId]);
+  }, [loadSubmissions, loadMatchId]);
 
   const pickFile = async () => {
     try {
@@ -207,19 +184,6 @@ export default function OnlineClaimsScreen({ navigation }) {
     }
   };
 
-  const openSharedDoc = () => {
-    if (!sharedDoc?.file_url) {
-      Alert.alert(
-        t('documents.noDocument') || 'No document',
-        t('documents.notUploaded', { document: t('myMatch.onlineClaims') || 'Online Claims' })
-      );
-      return;
-    }
-    Linking.openURL(sharedDoc.file_url).catch(() =>
-      Alert.alert(t('common.error') || 'Error', t('documents.cannotOpen') || 'Cannot open link')
-    );
-  };
-
   const formatDate = (iso) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -239,25 +203,6 @@ export default function OnlineClaimsScreen({ navigation }) {
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('myMatch.onlineClaims') || 'Online Claims'}</Text>
-      </View>
-
-      {/* 共享文档：展示用 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('onlineClaims.sharedDocument') || 'Shared document (view only)'}</Text>
-        {loadingDoc ? (
-          <ActivityIndicator size="small" color="#6C5CE7" style={styles.loader} />
-        ) : (
-          <TouchableOpacity style={styles.docCard} onPress={openSharedDoc} disabled={!sharedDoc?.file_url}>
-            <Icon name="file-text" size={28} color="#6C5CE7" />
-            <View style={styles.docInfo}>
-              <Text style={styles.docLabel}>
-                {sharedDoc?.file_url ? (t('profile.available') || 'Available') : (t('profile.notAvailable') || 'Not uploaded yet')}
-              </Text>
-              <Text style={styles.docHint}>{t('onlineClaims.viewSharedDocHint') || 'Tap to view the document shared by admin.'}</Text>
-            </View>
-            {sharedDoc?.file_url && <Icon name="external-link" size={20} color="#999" />}
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* 我的报销提交列表 */}
@@ -350,21 +295,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 12 },
   loader: { marginVertical: 12 },
-  docCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  docInfo: { flex: 1, marginLeft: 12 },
-  docLabel: { fontSize: 16, fontWeight: '600', color: '#333' },
-  docHint: { fontSize: 12, color: '#666', marginTop: 4 },
   emptyText: { fontSize: 14, color: '#666', fontStyle: 'italic' },
   submissionCard: {
     backgroundColor: '#fff',

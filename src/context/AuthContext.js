@@ -490,6 +490,9 @@ export const AuthProvider = ({ children }) => {
         }
 
         console.log(`🔐 Starting login attempt ${attempts}/${maxAttempts} for:`, email);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:492',message:'Login attempt started',data:{attempt:attempts,maxAttempts,email:email.substring(0,10)+'...'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
         // 添加登录超时机制 - 增加到60秒以适应慢网络
         const loginTimeout = new Promise((_, reject) => {
@@ -498,6 +501,10 @@ export const AuthProvider = ({ children }) => {
 
         // Use Supabase Auth to sign in with timeout
         console.log('🔑 Attempting Supabase authentication...');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:500',message:'Calling Supabase signInWithPassword',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        const authStartTime = Date.now();
         const loginPromise = supabase.auth.signInWithPassword({
           email: email.toLowerCase().trim(),
           password: password,
@@ -507,6 +514,10 @@ export const AuthProvider = ({ children }) => {
           loginPromise,
           loginTimeout
         ]);
+        const authEndTime = Date.now();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:509',message:'Supabase auth response received',data:{authDuration:authEndTime-authStartTime,hasUser:!!authData?.user,hasError:!!authError,errorMessage:authError?.message,errorCode:authError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
         if (authError) {
           console.error('🚨 Detailed Supabase login error:', {
@@ -551,6 +562,9 @@ export const AuthProvider = ({ children }) => {
         }
 
         console.log('✅ Supabase login successful');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:553',message:'Auth successful, fetching profile',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
 
         // Fetch user profile from profiles table with timeout - 增加到30秒
         const profileTimeout = new Promise((_, reject) => {
@@ -559,6 +573,10 @@ export const AuthProvider = ({ children }) => {
 
         let profileData = null;
         try {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:562',message:'Starting profile fetch',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          const profileStartTime = Date.now();
           const profilePromise = supabase
             .from('profiles')
             .select('*')
@@ -569,6 +587,10 @@ export const AuthProvider = ({ children }) => {
             profilePromise,
             profileTimeout
           ]);
+          const profileEndTime = Date.now();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:571',message:'Profile fetch completed',data:{profileDuration:profileEndTime-profileStartTime,hasData:!!data,hasError:!!profileError,errorMessage:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
 
           if (profileError) {
             console.log('⚠️ Profile fetch failed, using basic user data:', profileError.message);
@@ -623,10 +645,15 @@ export const AuthProvider = ({ children }) => {
           userId: userData.id,
         });
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:626',message:'Setting user state and authentication',data:{userId:userData.id,userEmail:userData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         setUser(userData);
         setIsAuthenticated(true);
         await storeUser(userData);
-        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:630',message:'Login completed successfully',data:{userId:userData.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         console.log('🎉 Login completed successfully');
         return { success: true, user: userData };
         
