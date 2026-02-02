@@ -1,33 +1,37 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Linking, ActivityIndicator, Alert } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../lib/supabase';
+
+const BENEFIT_PACKAGE_TYPE = 'benefit_package';
 
 export default function BenefitsScreen({ navigation }) {
   const { t, language } = useLanguage();
-  const [calculatorVisible, setCalculatorVisible] = useState(false);
-  const [baseCompensation, setBaseCompensation] = useState('60000');
-  const [additionalPayments, setAdditionalPayments] = useState('0');
-  const [estimatedTotal, setEstimatedTotal] = useState(60000);
-  
-  // Debug: Log translation test
-  React.useEffect(() => {
-    console.log('[BenefitsScreen] Language:', language);
-    console.log('[BenefitsScreen] Test translation:', t('benefits.title'));
-  }, [language, t]);
+  const [benefitPdfUrl, setBenefitPdfUrl] = useState(null);
+  const [benefitPdfLoading, setBenefitPdfLoading] = useState(true);
 
-  const calculateTotal = () => {
-    const base = parseFloat(baseCompensation) || 0;
-    const additional = parseFloat(additionalPayments) || 0;
-    const total = base + additional;
-    setEstimatedTotal(total);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('global_documents')
+          .select('file_url')
+          .eq('document_type', BENEFIT_PACKAGE_TYPE)
+          .maybeSingle();
+        if (!cancelled && !error && data?.file_url) setBenefitPdfUrl(data.file_url);
+      } catch (_) {}
+      if (!cancelled) setBenefitPdfLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const showCalculator = () => {
-    setCalculatorVisible(true);
-  };
-
-  const hideCalculator = () => {
-    setCalculatorVisible(false);
+  const openBenefitPdf = () => {
+    if (benefitPdfUrl) {
+      Linking.openURL(benefitPdfUrl).catch(() => {
+        Alert.alert(t('common.error'), t('benefits.benefitPackageOpenError'));
+      });
+    }
   };
 
   return (
@@ -141,65 +145,20 @@ export default function BenefitsScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Income Calculator */}
+      {/* Benefit Package PDF */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('benefits.incomeCalculator')}</Text>
-        <Text style={styles.calculatorDescription}>
-          {t('benefits.calculatorDescription')}
+        <Text style={styles.sectionTitle}>{t('benefits.benefitPackagePdf')}</Text>
+        <Text style={styles.benefitPdfDescription}>
+          {t('benefits.benefitPackagePdfDescription')}
         </Text>
-        
-        <TouchableOpacity style={styles.calculatorButton} onPress={showCalculator}>
-          <Text style={styles.calculatorButtonText}>{t('benefits.openCalculator')}</Text>
-        </TouchableOpacity>
-
-        {calculatorVisible && (
-          <View style={styles.calculatorContainer}>
-            <View style={styles.calculatorHeader}>
-              <Text style={styles.calculatorTitle}>{t('benefits.calculatorTitle')}</Text>
-              <TouchableOpacity onPress={hideCalculator}>
-                <Text style={styles.closeButton}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('benefits.baseSurrogacyFeeLabel')}</Text>
-              <TextInput
-                style={styles.input}
-                value={baseCompensation}
-                onChangeText={setBaseCompensation}
-                keyboardType="numeric"
-                placeholder="60000"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('benefits.additionalBonuses')}</Text>
-              <TextInput
-                style={styles.input}
-                value={additionalPayments}
-                onChangeText={setAdditionalPayments}
-                keyboardType="numeric"
-                placeholder="0"
-              />
-            </View>
-
-            <TouchableOpacity style={styles.calculateButton} onPress={calculateTotal}>
-              <Text style={styles.calculateButtonText}>{t('benefits.calculateTotal')}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.resultContainer}>
-              <Text style={styles.resultLabel}>{t('benefits.estimatedTotalIncome')}</Text>
-              <Text style={styles.resultAmount}>${estimatedTotal.toLocaleString()}</Text>
-            </View>
-
-            <View style={styles.breakdownContainer}>
-              <Text style={styles.breakdownTitle}>{t('benefits.incomeBreakdown')}</Text>
-              <Text style={styles.breakdownItem}>{t('benefits.baseFee')}: ${baseCompensation}</Text>
-              <Text style={styles.breakdownItem}>{t('benefits.additionalBonusesLabel')}: ${additionalPayments}</Text>
-              <Text style={styles.breakdownItem}>{t('benefits.monthlyAllowanceBreakdown')}: $1,800 (9 months)</Text>
-              <Text style={styles.breakdownItem}>{t('benefits.medicalBenefitsCovered')}</Text>
-            </View>
-          </View>
+        {benefitPdfLoading ? (
+          <ActivityIndicator size="small" color="#2A7BF6" style={{ marginVertical: 12 }} />
+        ) : benefitPdfUrl ? (
+          <TouchableOpacity style={styles.benefitPdfButton} onPress={openBenefitPdf}>
+            <Text style={styles.benefitPdfButtonText}>{t('benefits.viewBenefitPackagePdf')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.benefitPdfUnavailable}>{t('benefits.benefitPackageNotAvailable')}</Text>
         )}
       </View>
 
@@ -357,26 +316,12 @@ const styles = StyleSheet.create({
   benefitCategoryTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
   benefitItem: { fontSize: 14, color: '#666', marginBottom: 4, marginLeft: 8 },
   
-  // Calculator styles
-  calculatorDescription: { fontSize: 14, color: '#666', marginBottom: 12 },
-  calculatorButton: { backgroundColor: '#2A7BF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center' },
-  calculatorButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  calculatorContainer: { backgroundColor: '#F8F9FB', borderRadius: 8, padding: 16, marginTop: 12 },
-  calculatorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  calculatorTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
-  closeButton: { fontSize: 20, color: '#666' },
-  inputGroup: { marginBottom: 16 },
-  inputLabel: { fontSize: 14, color: '#333', marginBottom: 8 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
-  calculateButton: { backgroundColor: '#28A745', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
-  calculateButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  resultContainer: { backgroundColor: '#E8F4FD', padding: 16, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
-  resultLabel: { fontSize: 16, color: '#333', marginBottom: 4 },
-  resultAmount: { fontSize: 24, fontWeight: 'bold', color: '#2A7BF6' },
-  breakdownContainer: { backgroundColor: '#fff', padding: 12, borderRadius: 8 },
-  breakdownTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
-  breakdownItem: { fontSize: 14, color: '#666', marginBottom: 4 },
-  
+  // Benefit Package PDF styles
+  benefitPdfDescription: { fontSize: 14, color: '#666', marginBottom: 12 },
+  benefitPdfButton: { backgroundColor: '#2A7BF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center' },
+  benefitPdfButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  benefitPdfUnavailable: { fontSize: 14, color: '#999', fontStyle: 'italic' },
+
   // Payment schedule styles
   paymentSchedule: { marginTop: 8 },
   paymentItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
