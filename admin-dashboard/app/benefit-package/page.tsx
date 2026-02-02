@@ -77,7 +77,7 @@ export default function BenefitPackagePage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Benefit Package PDF</h1>
       <p className="text-gray-600 mb-6">
-        Upload the Benefit Package PDF. This file will be shown to app users on the Benefits screen instead of the income calculator.
+        Upload the Benefit Package PDF.
       </p>
 
       {loading && <p className="text-gray-500">Loading...</p>}
