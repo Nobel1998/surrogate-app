@@ -23,6 +23,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { href: '/reward-requests', label: 'Reward Requests', icon: '🎁' },
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄' },
+    { href: '/referral-submissions', label: 'Referral Submissions', icon: '👤' },
     { href: '/branches', label: 'Branches', icon: '🏢', adminOnly: true },
     { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
   ];
