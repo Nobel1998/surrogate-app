@@ -43,9 +43,9 @@ export default function ReferralSubmissionsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">推荐人信息 / Referral Submissions</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Referral Submissions</h1>
       <p className="text-gray-600 mb-6">
-        用户从 App「用户中心 → 登记介绍的孕妈信息」提交的介绍的孕妈信息，在此查看。
+        Submissions from app users (User Center → Register Referred Surrogate). View referred surrogate info here.
       </p>
 
       {error && (
@@ -57,19 +57,19 @@ export default function ReferralSubmissionsPage() {
       {loading ? (
         <p className="text-gray-500">Loading...</p>
       ) : list.length === 0 ? (
-        <p className="text-gray-500">暂无提交记录。</p>
+        <p className="text-gray-500">No submissions yet.</p>
       ) : (
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">提交时间</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">推荐人</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">推荐人邮箱</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">介绍的孕妈姓名</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">介绍的孕妈电话</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">介绍的孕妈邮箱</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Submitted At</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referrer</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referrer Email</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referred Surrogate Name</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referred Surrogate Phone</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referred Surrogate Email</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
