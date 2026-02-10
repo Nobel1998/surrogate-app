@@ -121,7 +121,7 @@ export default function HomeScreen() {
   const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
   const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
   const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
-  const [fetalBeatConfirm, setFetalBeatConfirm] = useState('None');
+  const [fetalBeatDate, setFetalBeatDate] = useState('');
   const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
   const [loadingMedicalInfo, setLoadingMedicalInfo] = useState(false);
   const [currentMatchId, setCurrentMatchId] = useState(null);
@@ -1427,14 +1427,7 @@ export default function HomeScreen() {
 
   // Fetch match and medical information for surrogate
   const fetchMatchAndMedicalInfo = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1312',message:'fetchMatchAndMedicalInfo called',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     if (!user?.id || !isSurrogateRole) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1314',message:'fetchMatchAndMedicalInfo skipped',data:{userId:user?.id,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       setCurrentMatchId(null);
       setHasSurrogateMatch(false);
       return;
@@ -1456,15 +1449,8 @@ export default function HomeScreen() {
         matchCount: allMatches?.length 
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1320',message:'fetchMatchAndMedicalInfo query result',data:{matchError:matchError?.message,allMatchesCount:allMatches?.length,allMatches:allMatches?.map(m => ({id:m.id,status:m.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
       if (matchError) {
         console.error('Error fetching match:', matchError);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1336',message:'fetchMatchAndMedicalInfo match error',data:{error:matchError.message,code:matchError.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setCurrentMatchId(null);
         setHasSurrogateMatch(false);
         return;
@@ -1481,9 +1467,6 @@ export default function HomeScreen() {
       });
 
       if (matchData) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1341',message:'fetchMatchAndMedicalInfo match found',data:{matchId:matchData.id,hasMedicationDate:!!matchData.medication_start_date},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setCurrentMatchId(matchData.id);
         setHasSurrogateMatch(true);
         console.log('[HomeScreen] fetchMatchAndMedicalInfo - Updated hasSurrogateMatch to true');
@@ -1538,15 +1521,16 @@ export default function HomeScreen() {
           setPregnancyTestDate4('');
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1365',message:'fetchMatchAndMedicalInfo state set',data:{pregnancyTestDate1:matchData.pregnancy_test_date?`${String(new Date(matchData.pregnancy_test_date).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date).getFullYear()).slice(-2)}`:'',pregnancyTestDate2:matchData.pregnancy_test_date_2?`${String(new Date(matchData.pregnancy_test_date_2).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_2).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_2).getFullYear()).slice(-2)}`:'',pregnancyTestDate3:matchData.pregnancy_test_date_3?`${String(new Date(matchData.pregnancy_test_date_3).getMonth()+1).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_3).getDate()).padStart(2,'0')}/${String(new Date(matchData.pregnancy_test_date_3).getFullYear()).slice(-2)}`:''},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-
-        setFetalBeatConfirm(matchData.fetal_beat_confirm || 'None');
+        if (matchData.fetal_beat_date) {
+          const date = new Date(matchData.fetal_beat_date);
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = String(date.getFullYear()).slice(-2);
+          setFetalBeatDate(`${month}/${day}/${year}`);
+        } else {
+          setFetalBeatDate('');
+        }
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1399',message:'fetchMatchAndMedicalInfo no match found',data:{userId:user?.id,surrogateId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setCurrentMatchId(null);
         setHasSurrogateMatch(false);
         setMedicationStartDate('');
@@ -1554,14 +1538,11 @@ export default function HomeScreen() {
         setPregnancyTestDate2('');
         setPregnancyTestDate3('');
         setPregnancyTestDate4('');
-        setFetalBeatConfirm('None');
+        setFetalBeatDate('');
         console.log('[HomeScreen] fetchMatchAndMedicalInfo - No active match found, setting hasSurrogateMatch to false');
       }
     } catch (error) {
       console.error('Error in fetchMatchAndMedicalInfo:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1418',message:'fetchMatchAndMedicalInfo error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       setCurrentMatchId(null);
       setHasSurrogateMatch(false);
       console.log('[HomeScreen] fetchMatchAndMedicalInfo - Error occurred, setting hasSurrogateMatch to false');
@@ -1572,14 +1553,7 @@ export default function HomeScreen() {
 
   // Save medical information
   const saveMedicalInfo = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1419',message:'saveMedicalInfo called',data:{userId:user?.id,isSurrogateRole,currentMatchId,loadingMedicalInfo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-    
     if (!user?.id || !isSurrogateRole || !currentMatchId) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1421',message:'saveMedicalInfo validation failed',data:{userId:user?.id,isSurrogateRole,currentMatchId,loadingMedicalInfo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       Alert.alert('Error', 'Please wait for match information to load.');
       return;
     }
@@ -1605,7 +1579,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG test date in format: MM/DD/YY (e.g., 12/01/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date in format: MM/DD/YY (e.g., 12/01/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1618,7 +1592,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate2.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1631,7 +1605,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate3.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1644,7 +1618,7 @@ export default function HomeScreen() {
       if (pregnancyTestDate4.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
           setSavingMedicalInfo(false);
           return;
         }
@@ -1653,12 +1627,20 @@ export default function HomeScreen() {
         updateData.pregnancy_test_date_4 = null;
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:1465',message:'saveMedicalInfo updateData prepared',data:{hasPregnancyTestDate:!!updateData.pregnancy_test_date,hasPregnancyTestDate2:!!updateData.pregnancy_test_date_2,hasPregnancyTestDate3:!!updateData.pregnancy_test_date_3,currentMatchId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-
-      // Fetal beat confirm
-      updateData.fetal_beat_confirm = fetalBeatConfirm || 'None';
+      // Fetal heartbeat confirmation date
+      if (fetalBeatDate.trim()) {
+        const parsed = parseMMDDYYToISO(fetalBeatDate.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter Fetal Heartbeat Confirmation date in format: MM/DD/YY (e.g., 12/01/25).');
+          setSavingMedicalInfo(false);
+          return;
+        }
+        updateData.fetal_beat_date = formatDateToISO(parsed);
+        updateData.fetal_beat_confirm = 'Confirmed';
+      } else {
+        updateData.fetal_beat_date = null;
+        updateData.fetal_beat_confirm = 'None';
+      }
       updateData.updated_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -1680,7 +1662,7 @@ export default function HomeScreen() {
     } finally {
       setSavingMedicalInfo(false);
     }
-  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, pregnancyTestDate2, pregnancyTestDate3, pregnancyTestDate4, fetalBeatConfirm]);
+  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, pregnancyTestDate2, pregnancyTestDate3, pregnancyTestDate4, fetalBeatDate]);
 
   // Fetch medical reports on mount and when user/match changes
   useEffect(() => {
@@ -2535,12 +2517,6 @@ export default function HomeScreen() {
               <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 16 }} />
             ) : (
               <>
-                {/* #region agent log */}
-                {(() => {
-                  fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:2249',message:'rendering medicalInfoCard UI',data:{pregnancyTestDate,pregnancyTestDate2,pregnancyTestDate3,isSurrogateRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-                  return null;
-                })()}
-                {/* #endregion */}
                 <View style={styles.medicalInfoSection}>
                   <Text style={styles.sectionLabel}>Medication Start Date (MM/DD/YY)</Text>
                   <View style={styles.inputContainer}>
@@ -2557,7 +2533,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>HCG Test Date 1 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate1')}</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
@@ -2572,17 +2548,12 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>HCG Test Date 2 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate2')}</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
                       value={pregnancyTestDate2}
-                      onChangeText={(text) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:2286',message:'pregnancyTestDate2 onChangeText',data:{text,currentValue:pregnancyTestDate2},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
-                        setPregnancyTestDate2(text);
-                      }}
+                      onChangeText={setPregnancyTestDate2}
                       placeholder="e.g. 12/20/25"
                       placeholderTextColor="#94A3B8"
                       autoCapitalize="none"
@@ -2592,17 +2563,12 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>HCG Test Date 3 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate3')}</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
                       value={pregnancyTestDate3}
-                      onChangeText={(text) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:2312',message:'pregnancyTestDate3 onChangeText',data:{text,currentValue:pregnancyTestDate3},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
-                        setPregnancyTestDate3(text);
-                      }}
+                      onChangeText={setPregnancyTestDate3}
                       placeholder="e.g. 12/25/25"
                       placeholderTextColor="#94A3B8"
                       autoCapitalize="none"
@@ -2612,17 +2578,12 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>HCG Test Date 4 (MM/DD/YY)</Text>
+                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate4')}</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
                       value={pregnancyTestDate4}
-                      onChangeText={(text) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeScreen.js:2330',message:'pregnancyTestDate4 onChangeText',data:{text,currentValue:pregnancyTestDate4},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
-                        setPregnancyTestDate4(text);
-                      }}
+                      onChangeText={setPregnancyTestDate4}
                       placeholder="e.g. 12/30/25"
                       placeholderTextColor="#94A3B8"
                       autoCapitalize="none"
@@ -2632,41 +2593,17 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Fetal Heartbeat Confirmation</Text>
-                  <View style={styles.radioGroup}>
-                    <TouchableOpacity
-                      style={[styles.radioOption, fetalBeatConfirm === 'None' && styles.radioOptionSelected]}
-                      onPress={() => setFetalBeatConfirm('None')}
-                    >
-                      <View style={[styles.radioCircle, fetalBeatConfirm === 'None' && styles.radioCircleSelected]}>
-                        {fetalBeatConfirm === 'None' && <View style={styles.radioInner} />}
-                      </View>
-                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'None' && styles.radioLabelSelected]}>
-                        None
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.radioOption, fetalBeatConfirm === 'Confirmed' && styles.radioOptionSelected]}
-                      onPress={() => setFetalBeatConfirm('Confirmed')}
-                    >
-                      <View style={[styles.radioCircle, fetalBeatConfirm === 'Confirmed' && styles.radioCircleSelected]}>
-                        {fetalBeatConfirm === 'Confirmed' && <View style={styles.radioInner} />}
-                      </View>
-                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'Confirmed' && styles.radioLabelSelected]}>
-                        Confirmed
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.radioOption, fetalBeatConfirm === 'Pending' && styles.radioOptionSelected]}
-                      onPress={() => setFetalBeatConfirm('Pending')}
-                    >
-                      <View style={[styles.radioCircle, fetalBeatConfirm === 'Pending' && styles.radioCircleSelected]}>
-                        {fetalBeatConfirm === 'Pending' && <View style={styles.radioInner} />}
-                      </View>
-                      <Text style={[styles.radioLabel, fetalBeatConfirm === 'Pending' && styles.radioLabelSelected]}>
-                        Pending
-                      </Text>
-                    </TouchableOpacity>
+                  <Text style={styles.sectionLabel}>{t('home.fetalHeartbeatConfirmDate')}</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                      value={fetalBeatDate}
+                      onChangeText={setFetalBeatDate}
+                      placeholder="e.g. 12/01/25"
+                      placeholderTextColor="#94A3B8"
+                      autoCapitalize="none"
+                      style={styles.fancyInput}
+                    />
                   </View>
                 </View>
 
@@ -2855,14 +2792,6 @@ export default function HomeScreen() {
                 <Text style={[styles.timelineDescText, isCurrent && styles.textCurrentSub]}>
                   {stage.description}
                 </Text>
-                
-                {!isLocked && (
-                  <View style={styles.cardFooter}>
-                    <Text style={[styles.viewDetailsText, isCurrent && styles.textCurrentLink]}>
-                      {t('home.viewUpdates')} &rarr;
-                    </Text>
-                  </View>
-                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -2873,7 +2802,6 @@ export default function HomeScreen() {
 
   // Show loading state while auth is loading OR stage is not yet loaded OR checking application
   if (authLoading || !stageLoaded || checkingApplication) {
-    console.log('🔒 Showing loading screen', { authLoading, stageLoaded, checkingApplication });
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" />
@@ -3012,17 +2940,6 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           {renderTimelineView()}
-          {isSurrogateRole && (
-            <TouchableOpacity 
-              style={styles.fabLarge} 
-              onPress={() => {
-                setPostStage(getCurrentStageKey()); // Default to current stage (backend-controlled)
-                showImagePicker();
-              }}
-            >
-              <Icon name="plus" size={32} color="#fff" />
-            </TouchableOpacity>
-          )}
         </>
       ) : (
         <>
@@ -3067,25 +2984,6 @@ export default function HomeScreen() {
               />
             )}
           </View>
-          
-          <TouchableOpacity 
-            style={styles.fab} 
-            onPress={() => {
-              if (isParentRole) {
-                Alert.alert('Restricted', 'Only surrogates can create posts.');
-                return;
-              }
-              const filterStatus = stageFilter === 'all' ? 'current' : getStageStatus(stageFilter);
-              if (filterStatus !== 'current') {
-                Alert.alert('Posting restricted', 'You can only post in the current stage (e.g., Pregnancy).');
-                return;
-              }
-              setPostStage(getCurrentStageKey());
-              showImagePicker();
-            }}
-          >
-            <Text style={styles.fabText}>+</Text>
-          </TouchableOpacity>
         </>
       )}
 

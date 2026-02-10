@@ -286,9 +286,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         setApplicationData(formData);
         // Set photos array if photos exist
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:289',message:'Loading photos from formData',data:{hasPhotos:!!formData.photos,photosIsArray:Array.isArray(formData.photos),photosLength:formData.photos?.length,photos:formData.photos,hasPhotoUrl:!!formData.photoUrl,photoUrl:formData.photoUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) {
           const photosArray = formData.photos.map((url, index) => ({
             uri: null,
@@ -297,9 +294,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             fileSize: null,
             uploading: false,
           }));
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:296',message:'Setting photos array',data:{photosArrayLength:photosArray.length,photosArray:photosArray},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           setPhotos(photosArray);
         } else if (formData.photoUrl) {
           // Backward compatibility: single photo
@@ -310,14 +304,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             fileSize: null,
             uploading: false,
           }];
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:305',message:'Setting single photoUrl',data:{singlePhoto},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           setPhotos(singlePhoto);
-        } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:308',message:'No photos found in formData',data:{formDataKeys:Object.keys(formData)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
         }
       }
     } catch (error) {
@@ -346,9 +333,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       }
       setApplicationData(dataToSet);
       // Set photos array if photos exist
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:333',message:'Loading photos from existingData',data:{hasPhotos:!!dataToSet.photos,photosIsArray:Array.isArray(dataToSet.photos),photosLength:dataToSet.photos?.length,photos:dataToSet.photos,hasPhotoUrl:!!dataToSet.photoUrl,photoUrl:dataToSet.photoUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (dataToSet.photos && Array.isArray(dataToSet.photos) && dataToSet.photos.length > 0) {
         const photosArray = dataToSet.photos.map((url, index) => ({
           uri: null,
@@ -357,9 +341,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           fileSize: null,
           uploading: false,
         }));
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:340',message:'Setting photos from existingData',data:{photosArrayLength:photosArray.length,photosArray:photosArray},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         setPhotos(photosArray);
       } else if (dataToSet.photoUrl) {
         // Backward compatibility: single photo
@@ -370,14 +351,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           fileSize: null,
           uploading: false,
         }];
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:349',message:'Setting single photoUrl from existingData',data:{singlePhoto},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         setPhotos(singlePhoto);
-      } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:354',message:'No photos in existingData',data:{dataToSetKeys:Object.keys(dataToSet)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
       }
     } else if (editMode && applicationId && user) {
       // If in edit mode but no existingData provided, load from database
@@ -2501,10 +2475,6 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             const photo = photos[index];
             const photoUrl = photo?.url || (applicationData.photos && applicationData.photos[index]);
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:2474',message:'Photo rendering check',data:{index,hasPhoto:!!photo,photoUrl:photoUrl,photosStateLength:photos.length,applicationDataPhotosLength:applicationData.photos?.length,applicationDataPhotos:applicationData.photos},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-            
             return (
               <View key={index} style={styles.photoItemContainer}>
                 {photoUrl || photo?.uri ? (
@@ -2513,15 +2483,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                       source={{ uri: photo?.uri || photoUrl }}
                       style={styles.photoThumbnail}
                       onError={(error) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:2514',message:'Image load error',data:{index,photoUri:photo?.uri,photoUrl:photoUrl,error:error.nativeEvent?.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
                         console.error('Image load error:', error);
-                      }}
-                      onLoad={() => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntendedParentApplicationScreen.js:2520',message:'Image loaded successfully',data:{index,photoUri:photo?.uri,photoUrl:photoUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
                       }}
                     />
                     {photo?.uploading || uploadingPhotoIndex === index ? (

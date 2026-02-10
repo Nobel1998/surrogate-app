@@ -14,7 +14,7 @@ export default function ProfileScreen({ navigation }) {
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [photoReleaseDoc, setPhotoReleaseDoc] = useState(null);
   const [trustAccountDoc, setTrustAccountDoc] = useState(null);
-  const [hasOnlineClaimsSubmission, setHasOnlineClaimsSubmission] = useState(false);
+  const [onlineClaimsDoc, setOnlineClaimsDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
   const [loadingPhotoDoc, setLoadingPhotoDoc] = useState(false);
@@ -37,7 +37,7 @@ export default function ProfileScreen({ navigation }) {
       if (userRole === 'surrogate') {
         loadHipaaReleaseDoc();
         loadPhotoReleaseDoc();
-        loadOnlineClaimsSubmissionStatus();
+        loadOnlineClaimsDoc();
         loadApplicationStatus();
       }
       // Only load Trust Account and Intended Parent Application for parents
@@ -175,25 +175,27 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const loadOnlineClaimsSubmissionStatus = async () => {
+  const loadOnlineClaimsDoc = async () => {
     if (!user?.id) return;
     
     setLoadingOnlineClaimsDoc(true);
     try {
       const { data, error } = await supabase
-        .from('online_claim_submissions')
-        .select('id')
+        .from('documents')
+        .select('*')
         .eq('user_id', user.id)
+        .eq('document_type', 'online_claims')
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading online claims submission status:', error);
+        console.error('Error loading online claims doc:', error);
       } else {
-        setHasOnlineClaimsSubmission(!!data);
+        setOnlineClaimsDoc(data);
       }
     } catch (error) {
-      console.error('Failed to load online claims submission status:', error);
+      console.error('Failed to load online claims doc:', error);
     } finally {
       setLoadingOnlineClaimsDoc(false);
     }
@@ -360,7 +362,7 @@ export default function ProfileScreen({ navigation }) {
       const refreshPromises = [loadAgencyRetainerDoc()];
       
       if (userRole === 'surrogate') {
-        refreshPromises.push(loadHipaaReleaseDoc(), loadPhotoReleaseDoc(), loadOnlineClaimsSubmissionStatus());
+        refreshPromises.push(loadHipaaReleaseDoc(), loadPhotoReleaseDoc(), loadOnlineClaimsDoc());
       }
       
       if (userRole === 'parent') {
@@ -438,6 +440,31 @@ export default function ProfileScreen({ navigation }) {
 
     try {
       const url = trustAccountDoc.file_url;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(t('common.error'), t('documents.cannotOpen'));
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      Alert.alert(t('common.error'), t('documents.openError'));
+    }
+  };
+
+  const handleOnlineClaimsPress = async () => {
+    if (loadingOnlineClaimsDoc) return;
+    
+    if (!onlineClaimsDoc || !onlineClaimsDoc.file_url) {
+      Alert.alert(
+        t('documents.noDocument'),
+        t('documents.notUploaded', { document: t('myMatch.onlineClaims') || 'Online Claims' })
+      );
+      return;
+    }
+
+    try {
+      const url = onlineClaimsDoc.file_url;
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);
@@ -754,9 +781,9 @@ export default function ProfileScreen({ navigation }) {
               {renderMenuItem(
                 t('myMatch.onlineClaims') || 'Online Claims',
                 'check-circle',
-                () => navigation.navigate('OnlineClaims'),
+                handleOnlineClaimsPress,
                 '#6C5CE7',
-                hasOnlineClaimsSubmission ? t('profile.available') : t('profile.notAvailable'),
+                onlineClaimsDoc ? t('profile.available') : t('profile.notAvailable'),
                 loadingOnlineClaimsDoc
               )}
             </>

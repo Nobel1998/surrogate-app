@@ -104,18 +104,6 @@ type Contract = {
   created_at?: string | null;
 };
 
-type OnlineClaimSubmission = {
-  id: string;
-  user_id: string;
-  match_id?: string | null;
-  file_url: string;
-  file_name?: string | null;
-  amount?: number | null;
-  description?: string | null;
-  status: string;
-  created_at: string;
-};
-
 const STATUS_OPTIONS = ['matched', 'completed', 'cancelled', 'pending', 'pregnant'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
@@ -168,7 +156,6 @@ export default function MatchesPage() {
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [onlineClaimSubmissions, setOnlineClaimSubmissions] = useState<OnlineClaimSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [surrogateApplications, setSurrogateApplications] = useState<Map<string, any>>(new Map());
@@ -188,7 +175,6 @@ export default function MatchesPage() {
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [notesDetailModal, setNotesDetailModal] = useState<{ matchId: string; notes: string } | null>(null);
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
-  const [canUpdate, setCanUpdate] = useState(true);
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [assigningManager, setAssigningManager] = useState<string | null>(null);
@@ -291,9 +277,6 @@ export default function MatchesPage() {
   const [claimsSurrogateId, setClaimsSurrogateId] = useState<string>('');
   const [claimsFile, setClaimsFile] = useState<File | null>(null);
   const [uploadingClaims, setUploadingClaims] = useState(false);
-  // Online Claims detail modal (view submissions in popup)
-  const [showOnlineClaimsDetailModal, setShowOnlineClaimsDetailModal] = useState(false);
-  const [onlineClaimsDetailMatchId, setOnlineClaimsDetailMatchId] = useState<string | null>(null);
   
   // Agency Retainer Agreement upload state
   const [showAgencyRetainerModal, setShowAgencyRetainerModal] = useState(false);
@@ -363,7 +346,6 @@ export default function MatchesPage() {
           const canView = adminInfo.canViewAllBranches || false;
           console.log('🔍 canViewAllBranches:', canView, 'role:', adminInfo.role);
           setCanViewAllBranches(canView);
-          setCanUpdate(adminInfo.canUpdate !== false);
           if (adminInfo.branch_id) {
             setCurrentBranchFilter(adminInfo.branch_id);
             setSelectedBranchFilter(adminInfo.branch_id);
@@ -455,17 +437,6 @@ export default function MatchesPage() {
       setBranches(branchesData || []);
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
-
-      // Load online claim submissions (surrogate reimbursement submissions)
-      try {
-        const subRes = await fetch('/api/matches/online-claim-submissions');
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          setOnlineClaimSubmissions(Array.isArray(subData) ? subData : []);
-        }
-      } catch (e) {
-        console.error('Error loading online claim submissions:', e);
-      }
       
       // Load surrogate applications for BMI calculation
       await loadSurrogateApplications(surList.map((s: Profile) => s.id));
@@ -2495,11 +2466,6 @@ export default function MatchesPage() {
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>
-          {!canUpdate && (
-            <p className="text-gray-500 mb-4">You have view-only access. Contact an admin to create or edit matches.</p>
-          )}
-          {canUpdate && (
-          <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Surrogate</label>
@@ -2592,8 +2558,6 @@ export default function MatchesPage() {
               {submitting ? 'Saving...' : 'Save Match'}
             </button>
           </div>
-          </>
-          )}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
@@ -3144,7 +3108,7 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Manager</div>
-                            {canViewAllBranches && canUpdate ? (
+                            {canViewAllBranches ? (
                               <div className="flex items-center gap-2">
                                 {assigningManager === m.id ? (
                                   <div className="flex flex-col gap-2 w-full">
@@ -4962,33 +4926,7 @@ export default function MatchesPage() {
                                     {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {/* Online Claims: click to open popup (no inline expand) */}
-                                    {(() => {
-                                      const surrogateSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === m.surrogate_id);
-                                      const onlineClaimsMerged = mergeDuplicateFiles(surrogateOnlineClaimsContracts);
-                                      const hasOnlineClaimsFiles = onlineClaimsMerged.length > 0;
-                                      const hasSubmissions = surrogateSubmissions.length > 0;
-                                      const hasContent = hasOnlineClaimsFiles || hasSubmissions;
-                                      return (
-                                        <div key="online_claims" className="space-y-1">
-                                          <div
-                                            className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${hasContent ? '' : 'opacity-60'}`}
-                                            onClick={() => {
-                                              setOnlineClaimsDetailMatchId(m.id);
-                                              setShowOnlineClaimsDetailModal(true);
-                                            }}
-                                          >
-                                            <span className={hasContent ? 'text-green-600' : 'text-gray-400'}>{hasContent ? '✓' : '○'}</span>
-                                            <span className="text-gray-600 flex-1">Online Claims</span>
-                                            {hasContent && (
-                                              <span className="text-[10px] text-gray-400">
-                                                ({onlineClaimsMerged.length + surrogateSubmissions.length}) ▶
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
+                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
                                   </div>
                                 </div>
                               </div>
@@ -5062,6 +5000,12 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               💰 Upload Trust Account
+                            </button>
+                            <button
+                              onClick={() => openClaimsModal(m)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              ✅ Upload Online Claims
                             </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500 pl-1">
@@ -5565,88 +5509,6 @@ export default function MatchesPage() {
           </div>
         </div>
       )}
-
-      {/* Online Claims Detail Modal - popup table */}
-      {showOnlineClaimsDetailModal && onlineClaimsDetailMatchId && (() => {
-        const detailMatch = matches.find((x) => x.id === onlineClaimsDetailMatchId);
-        if (!detailMatch) return null;
-        const detailContracts = contracts.filter((c) => c.user_id === detailMatch.surrogate_id && c.document_type === 'online_claims');
-        const detailSubmissions = onlineClaimSubmissions.filter((s) => s.user_id === detailMatch.surrogate_id);
-        const surrogateName = profileLookup[detailMatch.surrogate_id]?.name || detailMatch.surrogate_id?.substring(0, 8) || 'Surrogate';
-        return (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900">Online Claims — {surrogateName}</h3>
-                <button
-                  onClick={() => { setShowOnlineClaimsDetailModal(false); setOnlineClaimsDetailMatchId(null); }}
-                  className="text-gray-400 hover:text-gray-600 p-1"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-                {detailContracts.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Shared Document</h4>
-                    <ul className="space-y-2">
-                      {detailContracts.map((c) => (
-                        <li key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="min-w-0 flex-1">
-                            <span className="font-medium text-gray-900 truncate block">{c.file_name || 'Unnamed'}</span>
-                            {c.created_at && <span className="text-xs text-gray-500">{formatDateOnly(c.created_at.split('T')[0])}</span>}
-                          </div>
-                          <div className="flex items-center gap-2 ml-3">
-                            <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 text-sm font-medium">View</a>
-                            <button onClick={() => { if (confirm('Delete this file?')) deleteContract(c.id); }} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Reimbursement Submissions {detailSubmissions.length > 0 && `(Total: ${detailSubmissions.length})`}</h4>
-                  {detailSubmissions.length === 0 ? (
-                    <p className="text-sm text-gray-500 py-4">No submissions yet.</p>
-                  ) : (
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-28">Date</th>
-                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-24">Amount</th>
-                            <th className="text-left py-3 px-4 font-semibold text-gray-600 w-24">Status</th>
-                            <th className="text-left py-3 px-4 font-semibold text-gray-600 min-w-0">Description</th>
-                            <th className="text-right py-3 px-4 font-semibold text-gray-600 w-20">File</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detailSubmissions.map((s) => (
-                            <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 last:border-0">
-                              <td className="py-3 px-4 text-gray-500">{new Date(s.created_at).toLocaleDateString()}</td>
-                              <td className="py-3 px-4 font-medium text-gray-900">{s.amount != null ? `$${Number(s.amount).toFixed(2)}` : '—'}</td>
-                              <td className="py-3 px-4">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                  s.status === 'approved' ? 'bg-green-100 text-green-800' : s.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                                }`}>{s.status}</span>
-                              </td>
-                              <td className="py-3 px-4 text-gray-600 max-w-xs truncate" title={s.description || ''}>{s.description || '—'}</td>
-                              <td className="py-3 px-4 text-right">
-                                <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 font-medium">View</a>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Agency Retainer Agreement Upload Modal */}
       {showAgencyRetainerModal && (

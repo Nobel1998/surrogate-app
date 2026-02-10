@@ -83,12 +83,20 @@ export async function GET(req: NextRequest) {
     const medicationStartDateTo = searchParams.get('medication_start_date_to');
     const pregnancyTestDateFrom = searchParams.get('pregnancy_test_date_from');
     const pregnancyTestDateTo = searchParams.get('pregnancy_test_date_to');
+    const pregnancyTestDate2From = searchParams.get('pregnancy_test_date_2_from');
+    const pregnancyTestDate2To = searchParams.get('pregnancy_test_date_2_to');
+    const transferDateFrom = searchParams.get('transfer_date_from');
+    const transferDateTo = searchParams.get('transfer_date_to');
+    const fetalHeartbeatCount = searchParams.get('fetal_heartbeat_count'); // exact number
+    const clientName = searchParams.get('client_name'); // text search
+    const surrogateName = searchParams.get('surrogate_name'); // text search
+    const medicalExamResult = searchParams.get('medical_exam_result'); // text search in report_data
     const embryoCount = searchParams.get('embryo_count'); // Number of embryos transferred
 
     // First, get all matches with surrogate and parent info
     const { data: allMatches, error: allMatchesError } = await supabase
       .from('surrogate_matches')
-      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel, medication_start_date, pregnancy_test_date')
+      .select('id, claim_id, transfer_date, beta_confirm_date, embryos, parent_id, first_parent_id, second_parent_id, status, surrogate_id, clinic, egg_donation, sperm_donation, sign_date, fetal_beat_confirm, fetal_heartbeat_count, due_date, number_of_fetuses, surrogate_bmi, legal_clearance_date, transfer_hotel, medication_start_date, pregnancy_test_date, pregnancy_test_date_2')
       .limit(1000);
 
     if (allMatchesError) throw allMatchesError;
@@ -114,7 +122,7 @@ export async function GET(req: NextRequest) {
 
     const { data: surrogateProfiles, error: surrogateProfilesError } = await supabase
       .from('profiles')
-      .select('id, date_of_birth, location, race')
+      .select('id, date_of_birth, location, race, name')
       .in('id', Array.from(surrogateIds));
 
     if (surrogateProfilesError) throw surrogateProfilesError;
@@ -148,7 +156,7 @@ export async function GET(req: NextRequest) {
     // This ensures we get all reports even if RLS might filter some
     const { data: allMedicalReports, error: allMedicalReportsError } = await supabase
       .from('medical_reports')
-      .select('user_id, visit_date, stage')
+      .select('user_id, visit_date, stage, report_data')
       .in('user_id', Array.from(surrogateIds));
 
     if (allMedicalReportsError) {
@@ -223,7 +231,7 @@ export async function GET(req: NextRequest) {
 
     const { data: parentProfilesForFilter, error: parentProfilesError } = await supabase
       .from('profiles')
-      .select('id, location')
+      .select('id, location, name')
       .in('id', Array.from(parentIds));
 
     if (parentProfilesError) throw parentProfilesError;
@@ -262,7 +270,9 @@ export async function GET(req: NextRequest) {
     // Apply filters
     if (surrogateAgeRange || clientAgeRange || embryoGrade || surrogateLocation || surrogateRace || ivfClinic || eggDonation || spermDonation || clientLocation || 
         signDateFrom || signDateTo || betaConfirmDateFrom || betaConfirmDateTo || fetalBeatDateFrom || fetalBeatDateTo || 
-        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || medicationStartDateFrom || medicationStartDateTo || pregnancyTestDateFrom || pregnancyTestDateTo || embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
+        deliveryDateFrom || deliveryDateTo || legalClearanceDateFrom || legalClearanceDateTo || medicationStartDateFrom || medicationStartDateTo || pregnancyTestDateFrom || pregnancyTestDateTo || pregnancyTestDate2From || pregnancyTestDate2To ||
+        transferDateFrom || transferDateTo || fetalHeartbeatCount || clientName || surrogateName || medicalExamResult ||
+        embryoCount || surrogateBMI || surrogateBloodType || surrogateMaritalStatus || 
         surrogateDeliveryHistory || surrogateMiscarriageHistory || previousSurrogacyExperience || clientMaritalStatus || clientBloodType || applicationStatus ||
         obgynDoctor || deliveryHospital || transferHotel || medicalExamDateFrom || medicalExamDateTo) {
       matches = matches.filter(match => {
@@ -677,6 +687,61 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Filter by transfer date range (移植时间)
+        if (transferDateFrom || transferDateTo) {
+          if (!match.transfer_date) return false;
+          const transferDate = new Date(match.transfer_date);
+          if (transferDateFrom && transferDate < new Date(transferDateFrom + 'T00:00:00')) return false;
+          if (transferDateTo && transferDate > new Date(transferDateTo + 'T23:59:59')) return false;
+        }
+
+        // Filter by second pregnancy test date range (二次验孕时间)
+        const matchAny = match as { pregnancy_test_date_2?: string | null };
+        if (pregnancyTestDate2From || pregnancyTestDate2To) {
+          if (!matchAny.pregnancy_test_date_2) return false;
+          const d2Match = String(matchAny.pregnancy_test_date_2).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          let d2Only: Date;
+          if (d2Match) {
+            const [, y, m, d] = d2Match;
+            d2Only = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+          } else {
+            d2Only = new Date(matchAny.pregnancy_test_date_2);
+            d2Only.setHours(0, 0, 0, 0);
+          }
+          if (pregnancyTestDate2From && d2Only < new Date(pregnancyTestDate2From + 'T00:00:00')) return false;
+          if (pregnancyTestDate2To && d2Only > new Date(pregnancyTestDate2To + 'T23:59:59')) return false;
+        }
+
+        // Filter by fetal heartbeat count (胎心次数)
+        const matchFhb = match as { fetal_heartbeat_count?: number | null };
+        if (fetalHeartbeatCount !== null && fetalHeartbeatCount !== '') {
+          const wanted = parseInt(fetalHeartbeatCount, 10);
+          if (matchFhb.fetal_heartbeat_count == null || matchFhb.fetal_heartbeat_count !== wanted) return false;
+        }
+
+        // Filter by client name (客户名字)
+        if (clientName && clientName.trim()) {
+          const parentId = match.parent_id || match.first_parent_id;
+          const parent = parentId ? parentProfilesMap.get(parentId) : null;
+          const pName = (parent as { name?: string } | null)?.name || '';
+          if (!pName.toLowerCase().includes(clientName.trim().toLowerCase())) return false;
+        }
+
+        // Filter by surrogate name (代母名字)
+        if (surrogateName && surrogateName.trim()) {
+          const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
+          const sName = (surrogate as { name?: string } | null)?.name || '';
+          if (!sName.toLowerCase().includes(surrogateName.trim().toLowerCase())) return false;
+        }
+
+        // Filter by medical exam result (体检结果) - search in Pre-Transfer report_data
+        if (medicalExamResult && medicalExamResult.trim()) {
+          const key = medicalExamResult.trim().toLowerCase();
+          const reportsForUser = allMedicalReports?.filter(r => r.user_id === match.surrogate_id) || [];
+          const reportDataStr = reportsForUser.map(r => JSON.stringify((r as { report_data?: unknown }).report_data || {})).join(' ').toLowerCase();
+          if (!reportDataStr.includes(key)) return false;
+        }
+
         return true;
       });
     }
@@ -907,6 +972,14 @@ export async function GET(req: NextRequest) {
           medicationStartDateTo: medicationStartDateTo || null,
           pregnancyTestDateFrom: pregnancyTestDateFrom || null,
           pregnancyTestDateTo: pregnancyTestDateTo || null,
+          transferDateFrom: transferDateFrom || null,
+          transferDateTo: transferDateTo || null,
+          pregnancyTestDate2From: pregnancyTestDate2From || null,
+          pregnancyTestDate2To: pregnancyTestDate2To || null,
+          fetalHeartbeatCount: fetalHeartbeatCount || null,
+          clientName: clientName || null,
+          surrogateName: surrogateName || null,
+          medicalExamResult: medicalExamResult || null,
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],

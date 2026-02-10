@@ -154,9 +154,6 @@ export const AppProvider = ({ children }) => {
       }
 
       // 加载云端 events
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:157',message:'Starting events query',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.log('Loading events from cloud...');
       const queryStartTime = Date.now();
       const { data: eventsData, error: eventsError } = await supabase
@@ -165,9 +162,6 @@ export const AppProvider = ({ children }) => {
         .eq('status', 'active')
         .order('created_at', { ascending: false }); // 改为按创建时间倒序，最新的在前面
       const queryEndTime = Date.now();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:165',message:'Events query completed',data:{queryDuration:queryEndTime-queryStartTime,dataCount:eventsData?.length||0,hasError:!!eventsError,errorMessage:eventsError?.message,errorCode:eventsError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       console.log('📊 Raw events query result:', { 
         count: eventsData?.length || 0, 
@@ -176,27 +170,15 @@ export const AppProvider = ({ children }) => {
       });
 
       if (eventsError) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:170',message:'Events query error occurred',data:{errorMessage:eventsError?.message,errorCode:eventsError?.code,errorStatus:eventsError?.status,errorDetails:eventsError?.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         console.error('Error loading events:', eventsError);
         // 回退到本地存储的events
         const storedEvents = await AsyncStorageLib.getItem('community_events');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:174',message:'Checking local storage fallback',data:{hasStoredEvents:!!storedEvents,storedEventsLength:storedEvents?JSON.parse(storedEvents)?.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         if (storedEvents) {
           setEvents(JSON.parse(storedEvents));
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:177',message:'No local events found, setting empty array',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           setEvents([]);
         }
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:180',message:'Events query successful, formatting data',data:{rawDataCount:eventsData?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const formattedEvents = (eventsData || []).map(event => ({
           id: event.id,
           title: event.title,
@@ -219,9 +201,6 @@ export const AppProvider = ({ children }) => {
           eventDate: event.event_date,
           createdAt: event.created_at
         }));
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppContext.js:200',message:'Formatted events ready to set',data:{formattedCount:formattedEvents.length,firstEventId:formattedEvents[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setEvents(formattedEvents);
         
         // 同时保存到本地存储作为缓存
@@ -231,7 +210,6 @@ export const AppProvider = ({ children }) => {
 
     } catch (error) {
       console.error('Error loading data from cloud:', error);
-      
       if (error.message === 'Data loading timeout') {
         console.log('⚠️ Cloud data loading timed out');
       }

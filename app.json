@@ -10,13 +10,16 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.surrogateagencyusa",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take photos for sharing your surrogacy journey.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select photos for sharing your surrogacy journey."
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select photos for sharing your surrogacy journey.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.surrogateagencyusa",
       "backgroundColor": "#2A7BF6",
       "permissions": [
         "android.permission.CAMERA",

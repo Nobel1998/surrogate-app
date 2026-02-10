@@ -58,6 +58,14 @@ type Filters = {
     medicationStartDateTo: string | null;
     pregnancyTestDateFrom: string | null;
     pregnancyTestDateTo: string | null;
+    transferDateFrom: string | null;
+    transferDateTo: string | null;
+    pregnancyTestDate2From: string | null;
+    pregnancyTestDate2To: string | null;
+    fetalHeartbeatCount: string | null;
+    clientName: string | null;
+    surrogateName: string | null;
+    medicalExamResult: string | null;
   };
   available: {
     surrogateAgeRanges: string[];
@@ -138,6 +146,16 @@ export default function BusinessStatisticsPage() {
   const [selectedPregnancyTestDateFrom, setSelectedPregnancyTestDateFrom] = useState<string>('');
   const [selectedPregnancyTestDateTo, setSelectedPregnancyTestDateTo] = useState<string>('');
   
+  // Filter state - Transfer Date, Second Pregnancy Test, Fetal Heartbeat, Names, Medical Exam Result
+  const [selectedTransferDateFrom, setSelectedTransferDateFrom] = useState<string>('');
+  const [selectedTransferDateTo, setSelectedTransferDateTo] = useState<string>('');
+  const [selectedPregnancyTestDate2From, setSelectedPregnancyTestDate2From] = useState<string>('');
+  const [selectedPregnancyTestDate2To, setSelectedPregnancyTestDate2To] = useState<string>('');
+  const [selectedFetalHeartbeatCount, setSelectedFetalHeartbeatCount] = useState<string>('');
+  const [selectedClientName, setSelectedClientName] = useState<string>('');
+  const [selectedSurrogateName, setSelectedSurrogateName] = useState<string>('');
+  const [selectedMedicalExamResult, setSelectedMedicalExamResult] = useState<string>('');
+  
   // UI state for collapsible sections
   const [showBasicFilters, setShowBasicFilters] = useState<boolean>(true);
   const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
@@ -189,6 +207,14 @@ export default function BusinessStatisticsPage() {
       if (selectedMedicationStartDateTo) params.append('medication_start_date_to', selectedMedicationStartDateTo);
       if (selectedPregnancyTestDateFrom) params.append('pregnancy_test_date_from', selectedPregnancyTestDateFrom);
       if (selectedPregnancyTestDateTo) params.append('pregnancy_test_date_to', selectedPregnancyTestDateTo);
+      if (selectedTransferDateFrom) params.append('transfer_date_from', selectedTransferDateFrom);
+      if (selectedTransferDateTo) params.append('transfer_date_to', selectedTransferDateTo);
+      if (selectedPregnancyTestDate2From) params.append('pregnancy_test_date_2_from', selectedPregnancyTestDate2From);
+      if (selectedPregnancyTestDate2To) params.append('pregnancy_test_date_2_to', selectedPregnancyTestDate2To);
+      if (selectedFetalHeartbeatCount) params.append('fetal_heartbeat_count', selectedFetalHeartbeatCount);
+      if (selectedClientName.trim()) params.append('client_name', selectedClientName.trim());
+      if (selectedSurrogateName.trim()) params.append('surrogate_name', selectedSurrogateName.trim());
+      if (selectedMedicalExamResult.trim()) params.append('medical_exam_result', selectedMedicalExamResult.trim());
       if (selectedClientMaritalStatus) params.append('client_marital_status', selectedClientMaritalStatus);
       if (selectedClientBloodType) params.append('client_blood_type', selectedClientBloodType);
       
@@ -247,6 +273,14 @@ export default function BusinessStatisticsPage() {
     setSelectedMedicationStartDateTo('');
     setSelectedPregnancyTestDateFrom('');
     setSelectedPregnancyTestDateTo('');
+    setSelectedTransferDateFrom('');
+    setSelectedTransferDateTo('');
+    setSelectedPregnancyTestDate2From('');
+    setSelectedPregnancyTestDate2To('');
+    setSelectedFetalHeartbeatCount('');
+    setSelectedClientName('');
+    setSelectedSurrogateName('');
+    setSelectedMedicalExamResult('');
     setSelectedClientMaritalStatus('');
     setSelectedClientBloodType('');
     // Statistics will reload automatically via useEffect
@@ -276,7 +310,9 @@ export default function BusinessStatisticsPage() {
     selectedSurrogateDeliveryHistory, selectedSurrogateMiscarriageHistory, selectedPreviousSurrogacyExperience, selectedApplicationStatus,
     selectedObgynDoctor, selectedDeliveryHospital, selectedTransferHotel, selectedClientMaritalStatus, selectedClientBloodType,
     selectedMedicalExamDateFrom, selectedMedicalExamDateTo, selectedLegalClearanceDateFrom, selectedLegalClearanceDateTo,
-    selectedMedicationStartDateFrom, selectedMedicationStartDateTo, selectedPregnancyTestDateFrom, selectedPregnancyTestDateTo
+    selectedMedicationStartDateFrom, selectedMedicationStartDateTo, selectedPregnancyTestDateFrom, selectedPregnancyTestDateTo,
+    selectedTransferDateFrom, selectedTransferDateTo, selectedPregnancyTestDate2From, selectedPregnancyTestDate2To,
+    selectedFetalHeartbeatCount, selectedClientName, selectedSurrogateName, selectedMedicalExamResult
   ]);
 
   const exportToCSV = () => {
@@ -472,10 +508,10 @@ export default function BusinessStatisticsPage() {
               </select>
             </div>
 
-            {/* Embryo Grade Filter */}
+            {/* Embryo Grade Filter 胚胎质量 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Embryo Grade
+                胚胎质量 (Embryo Grade)
               </label>
               <select
                 value={selectedEmbryoGrade}
@@ -617,6 +653,25 @@ export default function BusinessStatisticsPage() {
             </button>
             {showDateFilters && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* Transfer Date Range 移植时间 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">移植时间 From (Transfer Date)</label>
+                  <input
+                    type="date"
+                    value={selectedTransferDateFrom}
+                    onChange={(e) => setSelectedTransferDateFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">移植时间 To (Transfer Date)</label>
+                  <input
+                    type="date"
+                    value={selectedTransferDateTo}
+                    onChange={(e) => setSelectedTransferDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
                 {/* Sign Date Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Sign Date From</label>
@@ -636,9 +691,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Beta Confirm Date Range */}
+                {/* Beta Confirm Date Range 验孕时间 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date From</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">验孕时间 From (Beta Confirm)</label>
                   <input
                     type="date"
                     value={selectedBetaConfirmDateFrom}
@@ -647,11 +702,30 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date To</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">验孕时间 To (Beta Confirm)</label>
                   <input
                     type="date"
                     value={selectedBetaConfirmDateTo}
                     onChange={(e) => setSelectedBetaConfirmDateTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Second Pregnancy Test Date Range 二次验孕时间 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">二次验孕时间 From</label>
+                  <input
+                    type="date"
+                    value={selectedPregnancyTestDate2From}
+                    onChange={(e) => setSelectedPregnancyTestDate2From(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">二次验孕时间 To</label>
+                  <input
+                    type="date"
+                    value={selectedPregnancyTestDate2To}
+                    onChange={(e) => setSelectedPregnancyTestDate2To(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -674,9 +748,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Delivery Date Range */}
+                {/* Delivery Date Range 生产时间 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date From</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">生产时间 From (Delivery Date)</label>
                   <input
                     type="date"
                     value={selectedDeliveryDateFrom}
@@ -685,7 +759,7 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date To</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">生产时间 To (Delivery Date)</label>
                   <input
                     type="date"
                     value={selectedDeliveryDateTo}
@@ -708,6 +782,43 @@ export default function BusinessStatisticsPage() {
             </button>
             {showSurrogateFilters && (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* 体检结果 Medical Exam Result */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">体检结果 (Medical Exam Result)</label>
+                  <input
+                    type="text"
+                    value={selectedMedicalExamResult}
+                    onChange={(e) => setSelectedMedicalExamResult(e.target.value)}
+                    placeholder="Search in report data"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* 代母名字 Surrogate Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">代母名字 (Surrogate Name)</label>
+                  <input
+                    type="text"
+                    value={selectedSurrogateName}
+                    onChange={(e) => setSelectedSurrogateName(e.target.value)}
+                    placeholder="Partial name match"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* 胎心次数 Fetal Heartbeat Count */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">胎心次数 (Fetal Heartbeat Count)</label>
+                  <select
+                    value={selectedFetalHeartbeatCount}
+                    onChange={(e) => setSelectedFetalHeartbeatCount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </select>
+                </div>
                 {/* Surrogate BMI */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate BMI</label>
@@ -819,9 +930,9 @@ export default function BusinessStatisticsPage() {
                     <option value="4">4+</option>
                   </select>
                 </div>
-                {/* OB/GYN Doctor */}
+                {/* OB/GYN Doctor 妇产科医生 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">OB/GYN Doctor</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">妇产科医生 (OB/GYN Doctor)</label>
                   <select
                     value={selectedObgynDoctor}
                     onChange={(e) => setSelectedObgynDoctor(e.target.value)}
@@ -833,9 +944,9 @@ export default function BusinessStatisticsPage() {
                     ))}
                   </select>
                 </div>
-                {/* Delivery Hospital */}
+                {/* Delivery Hospital 生产医院 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Hospital</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">生产医院 (Delivery Hospital)</label>
                   <select
                     value={selectedDeliveryHospital}
                     onChange={(e) => setSelectedDeliveryHospital(e.target.value)}
@@ -952,6 +1063,17 @@ export default function BusinessStatisticsPage() {
             </button>
             {showClientFilters && (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
+                {/* 客户名字 Client Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">客户名字 (Client Name)</label>
+                  <input
+                    type="text"
+                    value={selectedClientName}
+                    onChange={(e) => setSelectedClientName(e.target.value)}
+                    placeholder="Partial name match"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
                 {/* Client Marital Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Client Marital Status</label>

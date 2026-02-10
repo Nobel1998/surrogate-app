@@ -651,7 +651,7 @@ export default function MyMatchScreen({ navigation }) {
 
   const savePregnancyTestDates = async () => {
     if (!user?.id || userRole !== 'surrogate' || !matchData?.id) {
-      Alert.alert('Error', 'You must be a surrogate with an active match to save HCG test dates.');
+      Alert.alert('Error', 'You must be a surrogate with an active match to save β‑hCG test dates.');
       return;
     }
 
@@ -663,7 +663,7 @@ export default function MyMatchScreen({ navigation }) {
       if (pregnancyTestDate2.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG Test Date 2 in format: MM/DD/YY (e.g., 12/15/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -676,7 +676,7 @@ export default function MyMatchScreen({ navigation }) {
       if (pregnancyTestDate3.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG Test Date 3 in format: MM/DD/YY (e.g., 12/20/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -689,7 +689,7 @@ export default function MyMatchScreen({ navigation }) {
       if (pregnancyTestDate4.trim()) {
         const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter HCG Test Date 4 in format: MM/DD/YY (e.g., 12/25/25).');
+          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
           setSavingPregnancyTests(false);
           return;
         }
@@ -708,11 +708,11 @@ export default function MyMatchScreen({ navigation }) {
 
       if (error) {
         console.error('Error updating HCG test dates:', error);
-        Alert.alert('Error', 'Failed to save HCG test dates. Please try again.');
+        Alert.alert('Error', 'Failed to save β‑hCG test dates. Please try again.');
         return;
       }
 
-      Alert.alert('Success', 'HCG test dates saved successfully.');
+      Alert.alert('Success', 'β‑hCG test dates saved successfully.');
       loadMatchData(); // Reload data to reflect changes
     } catch (error) {
       console.error('Error in savePregnancyTestDates:', error);
@@ -1063,25 +1063,27 @@ export default function MyMatchScreen({ navigation }) {
         </View>
 
         {/* Pregnancy Information */}
-        {(matchData?.fetal_beat_confirm || matchData?.beta_confirm_date || userRole === 'surrogate') && (
+        {(matchData?.fetal_beat_date || matchData?.fetal_beat_confirm || matchData?.beta_confirm_date || userRole === 'surrogate') && (
           <View style={styles.pregnancyInfoSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('myMatch.pregnancyInformation')}</Text>
             </View>
             <View style={styles.pregnancyInfoCard}>
-              {matchData?.fetal_beat_confirm && (
+              {(matchData?.fetal_beat_date || matchData?.fetal_beat_confirm) && (
                 <View style={styles.pregnancyInfoItem}>
                   <View style={styles.pregnancyInfoIconContainer}>
                     <Icon name="heart" size={24} color="#FF8EA4" />
                   </View>
                   <View style={styles.pregnancyInfoContent}>
                     <Text style={styles.pregnancyInfoLabel}>{t('myMatch.fetalBeatConfirm')}</Text>
-                    <Text style={styles.pregnancyInfoValue}>{matchData.fetal_beat_confirm}</Text>
+                    <Text style={styles.pregnancyInfoValue}>
+                      {matchData.fetal_beat_date ? formatMatchDate(matchData.fetal_beat_date) : matchData.fetal_beat_confirm}
+                    </Text>
                   </View>
                 </View>
               )}
               {matchData?.beta_confirm_date && (
-                <View style={[styles.pregnancyInfoItem, matchData?.fetal_beat_confirm && styles.pregnancyInfoItemWithMargin]}>
+                <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_date || matchData?.fetal_beat_confirm) && styles.pregnancyInfoItemWithMargin]}>
                   <View style={styles.pregnancyInfoIconContainer}>
                     <Icon name="calendar" size={24} color="#2A7BF6" />
                   </View>
@@ -1098,12 +1100,12 @@ export default function MyMatchScreen({ navigation }) {
               {userRole === 'surrogate' && (
                 <>
                   {/* HCG Test Date 1 */}
-                  <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
+                  <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_date || matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
                     <View style={styles.pregnancyInfoIconContainer}>
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 1 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate1')}</Text>
                       {pregnancyTestDate1 ? (
                         <Text style={styles.pregnancyInfoValue}>{pregnancyTestDate1}</Text>
                       ) : (
@@ -1118,7 +1120,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 2 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate2')}</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate2}
@@ -1137,7 +1139,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 3 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate3')}</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate3}
@@ -1156,7 +1158,7 @@ export default function MyMatchScreen({ navigation }) {
                       <Icon name="activity" size={24} color="#10B981" />
                     </View>
                     <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>HCG Test Date 4 (MM/DD/YY)</Text>
+                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate4')}</Text>
                       <View style={styles.pregnancyTestInputContainer}>
                         <TextInput
                           value={pregnancyTestDate4}
@@ -1179,7 +1181,7 @@ export default function MyMatchScreen({ navigation }) {
                     {savingPregnancyTests ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.savePregnancyTestButtonText}>Save HCG Test Dates</Text>
+                      <Text style={styles.savePregnancyTestButtonText}>{t('myMatch.saveBetaHcgTestDates')}</Text>
                     )}
                   </TouchableOpacity>
                 </>
@@ -1806,14 +1808,14 @@ const styles = StyleSheet.create({
   loadingIndicator: {
     marginVertical: 20,
   },
-  // Premium Header with Gradient Effect
+  // Premium Header with Gradient Effect (purple)
   gradientHeader: {
-    backgroundColor: '#FF8EA4',
+    backgroundColor: '#8B5CF6',
     paddingTop: 20,
     paddingBottom: 40,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
-    shadowColor: '#FF8EA4',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,

@@ -49,15 +49,7 @@ export default function LoginScreen({ navigation }) {
         setLoginProgress('This may take a while on slower connections...');
       }, 5000);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginScreen.js:52',message:'Calling login function',data:{email:email.substring(0,10)+'...'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      const loginStartTime = Date.now();
       const result = await login(email.trim(), password);
-      const loginEndTime = Date.now();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginScreen.js:54',message:'Login function returned',data:{totalDuration:loginEndTime-loginStartTime,success:result.success,hasError:!!result.error,errorMessage:result.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       clearTimeout(cancelTimeout);
       setShowCancelButton(false);

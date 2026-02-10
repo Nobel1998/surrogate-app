@@ -114,7 +114,6 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async (retryCount = 0) => {
     const maxRetries = 3;
-    
     try {
       console.log(`🔍 Checking auth status... (attempt ${retryCount + 1}/${maxRetries + 1})`);
       
@@ -149,7 +148,7 @@ export const AuthProvider = ({ children }) => {
         sessionPromise,
         timeoutPromise
       ]);
-      
+
       if (error) {
         console.error('🚨 Supabase session error details:', {
           message: error.message,
@@ -162,7 +161,6 @@ export const AuthProvider = ({ children }) => {
         
         if (error.message === 'Auth check timeout') {
           console.log('⏱️ Auth check timed out');
-          
           // 如果还有重试次数，进行重试
           if (retryCount < maxRetries) {
             console.log(`🔄 Retrying auth check in 2 seconds... (${retryCount + 1}/${maxRetries})`);
@@ -367,7 +365,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.message === 'Auth check timeout') {
         console.log('⏱️ Auth check timed out');
-        
         // 如果还有重试次数，进行重试
         if (retryCount < maxRetries) {
           console.log(`🔄 Retrying auth check due to timeout in 3 seconds... (${retryCount + 1}/${maxRetries})`);
@@ -399,30 +396,37 @@ export const AuthProvider = ({ children }) => {
     // Initialize storage and check if user is already logged in
     initializeStorage();
     
-    // 检查是否是通过深度链接打开的app
+    const emergencyTimeoutRef = { current: null };
+    const fireEmergency = () => {
+      console.log('🚨 Auth emergency timeout: forcing auth loading completion');
+      setIsLoading(false);
+    };
+
+    // 先取 initialUrl，再决定应急超时时间：扫码/链接打开用 2 秒，冷启动用 12 秒，避免扫码后长时间 loading
     const checkDeepLinkAndAuth = async () => {
       try {
-        // 检查初始URL
         const initialUrl = await Linking.getInitialURL();
         console.log('🔗 App opened with URL:', initialUrl);
-        
+        const delayMs = initialUrl ? 2000 : 12000;
+        emergencyTimeoutRef.current = setTimeout(fireEmergency, delayMs);
+
         if (initialUrl) {
-          console.log('📱 App opened via deep link, adjusting auth check strategy');
-          // 如果是通过深度链接打开，给更多时间进行认证检查
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒让深度链接处理完成
+          console.log('📱 App opened via link/QR, using short loading timeout (2s)');
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        
-        // 进行认证状态检查
         checkAuthStatus();
       } catch (error) {
         console.error('Error checking deep link:', error);
-        // 即使深度链接检查失败，也要进行认证检查
+        emergencyTimeoutRef.current = setTimeout(fireEmergency, 12000);
         checkAuthStatus();
       }
     };
-    
+
     checkDeepLinkAndAuth();
-    
+    return () => { if (emergencyTimeoutRef.current) clearTimeout(emergencyTimeoutRef.current); };
+  }, []);
+
+  useEffect(() => {
     // 监听 Supabase 认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
@@ -490,9 +494,6 @@ export const AuthProvider = ({ children }) => {
         }
 
         console.log(`🔐 Starting login attempt ${attempts}/${maxAttempts} for:`, email);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:492',message:'Login attempt started',data:{attempt:attempts,maxAttempts,email:email.substring(0,10)+'...'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
 
         // 添加登录超时机制 - 增加到60秒以适应慢网络
         const loginTimeout = new Promise((_, reject) => {
@@ -501,9 +502,6 @@ export const AuthProvider = ({ children }) => {
 
         // Use Supabase Auth to sign in with timeout
         console.log('🔑 Attempting Supabase authentication...');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:500',message:'Calling Supabase signInWithPassword',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         const authStartTime = Date.now();
         const loginPromise = supabase.auth.signInWithPassword({
           email: email.toLowerCase().trim(),
@@ -515,9 +513,6 @@ export const AuthProvider = ({ children }) => {
           loginTimeout
         ]);
         const authEndTime = Date.now();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:509',message:'Supabase auth response received',data:{authDuration:authEndTime-authStartTime,hasUser:!!authData?.user,hasError:!!authError,errorMessage:authError?.message,errorCode:authError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
 
         if (authError) {
           console.error('🚨 Detailed Supabase login error:', {
@@ -562,9 +557,6 @@ export const AuthProvider = ({ children }) => {
         }
 
         console.log('✅ Supabase login successful');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:553',message:'Auth successful, fetching profile',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
 
         // Fetch user profile from profiles table with timeout - 增加到30秒
         const profileTimeout = new Promise((_, reject) => {
@@ -573,9 +565,6 @@ export const AuthProvider = ({ children }) => {
 
         let profileData = null;
         try {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:562',message:'Starting profile fetch',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           const profileStartTime = Date.now();
           const profilePromise = supabase
             .from('profiles')
@@ -588,9 +577,6 @@ export const AuthProvider = ({ children }) => {
             profileTimeout
           ]);
           const profileEndTime = Date.now();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:571',message:'Profile fetch completed',data:{profileDuration:profileEndTime-profileStartTime,hasData:!!data,hasError:!!profileError,errorMessage:profileError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
 
           if (profileError) {
             console.log('⚠️ Profile fetch failed, using basic user data:', profileError.message);
@@ -645,15 +631,9 @@ export const AuthProvider = ({ children }) => {
           userId: userData.id,
         });
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:626',message:'Setting user state and authentication',data:{userId:userData.id,userEmail:userData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         setUser(userData);
         setIsAuthenticated(true);
         await storeUser(userData);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.js:630',message:'Login completed successfully',data:{userId:userData.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         console.log('🎉 Login completed successfully');
         return { success: true, user: userData };
         

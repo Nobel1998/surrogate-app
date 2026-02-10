@@ -6,7 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas:build": "eas build --profile preview --platform all",
+    "eas:build:ios": "eas build --profile preview --platform ios",
+    "eas:build:android": "eas build --profile preview --platform android",
+    "eas:update": "eas update --branch preview --message \"Latest update\"",
+    "eas:update:auto": "EAS_SKIP_AUTO_FINGERPRINT=1 eas update --branch preview --non-interactive"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { getAdminCanUpdate } from '@/lib/adminAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -39,19 +38,16 @@ export async function GET(req: NextRequest) {
     let isBranchManager = false;
     let isCaseManager = false;
     
-    let canUpdate = true;
     if (adminUserId) {
       // Fetch admin user to check permissions
       const { data: adminUser, error: adminError } = await supabase
         .from('admin_users')
-        .select('id, role, branch_id, branch_manager_permission')
+        .select('id, role, branch_id')
         .eq('id', adminUserId)
         .single();
 
       if (!adminError && adminUser) {
         const role = (adminUser.role || '').toLowerCase();
-        const perm = (adminUser.branch_manager_permission || 'view') as string;
-        canUpdate = role === 'admin' || (role === 'branch_manager' && perm === 'update');
         if (role === 'admin') {
           // Admin can see all branches and all matches
           isSuperAdmin = true;
@@ -524,7 +520,6 @@ export async function GET(req: NextRequest) {
       branches: branches || [],
       currentBranchFilter: branchFilter,
       canViewAllBranches,
-      canUpdate,
     });
   } catch (error: any) {
     console.error('Error loading match options:', error);
@@ -550,16 +545,6 @@ export async function POST(req: Request) {
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
-    const perm = await getAdminCanUpdate(adminUserId);
-    if (!perm.canUpdate && 'error' in perm) {
-      return NextResponse.json({ error: perm.error }, { status: 401 });
-    }
-    if (!perm.canUpdate) {
-      return NextResponse.json(
-        { error: 'View-only branch managers cannot create or update matches.' },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
     const surrogateId = body.surrogate_id;
@@ -707,19 +692,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
       { status: 500 }
-    );
-  }
-
-  const cookieStore = await cookies();
-  const adminUserId = cookieStore.get('admin_user_id')?.value;
-  const perm = await getAdminCanUpdate(adminUserId);
-  if (!perm.canUpdate && 'error' in perm) {
-    return NextResponse.json({ error: perm.error }, { status: 401 });
-  }
-  if (!perm.canUpdate) {
-    return NextResponse.json(
-      { error: 'View-only branch managers cannot create or update matches.' },
-      { status: 403 }
     );
   }
 

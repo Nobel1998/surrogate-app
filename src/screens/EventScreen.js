@@ -16,12 +16,6 @@ export default function EventScreen() {
     isLoading 
   } = useAppContext();
   
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventScreen.js:18',message:'EventScreen rendered with events data',data:{eventsCount:events?.length||0,isLoading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }, [events, isLoading]);
-  // #endregion
-  
   const [refreshing, setRefreshing] = React.useState(false);
 
   // 下拉刷新

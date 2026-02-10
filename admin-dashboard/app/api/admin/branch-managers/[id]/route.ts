@@ -57,7 +57,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, username, email, password, branch_id, branch_manager_permission } = body;
+    const { name, username, email, password, branch_id } = body;
 
     // Check if branch manager exists
     const { data: existingManager, error: fetchError } = await supabase
@@ -102,10 +102,6 @@ export async function PUT(
         );
       }
       updateData.branch_id = branch_id;
-    }
-
-    if (branch_manager_permission !== undefined) {
-      updateData.branch_manager_permission = branch_manager_permission === 'update' ? 'update' : 'view';
     }
 
     // Check username uniqueness if changed
@@ -157,7 +153,6 @@ export async function PUT(
         email,
         role,
         branch_id,
-        branch_manager_permission,
         created_at,
         updated_at,
         branches:branch_id (

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { getAdminCanUpdate } from '@/lib/adminAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -282,24 +281,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const cookieStore = await cookies();
-  const adminUserId = cookieStore.get('admin_user_id')?.value;
-  const perm = await getAdminCanUpdate(adminUserId);
-  if (!perm.canUpdate && 'error' in perm) {
-    return NextResponse.json({ error: perm.error }, { status: 401 });
-  }
-  if (!perm.canUpdate) {
-    return NextResponse.json(
-      { error: 'View-only branch managers cannot create cases.' },
-      { status: 403 }
-    );
-  }
-
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+
     const body = await req.json();
     const {
       claim_id,

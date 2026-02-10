@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Linking, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Linking, ActivityIndicator } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
-const BENEFIT_PACKAGE_TYPE = 'benefit_package';
+const BENEFIT_PACKAGE_DOC_TYPE = 'benefit_package';
 
 export default function BenefitsScreen({ navigation }) {
   const { t, language } = useLanguage();
@@ -17,21 +17,20 @@ export default function BenefitsScreen({ navigation }) {
         const { data, error } = await supabase
           .from('global_documents')
           .select('file_url')
-          .eq('document_type', BENEFIT_PACKAGE_TYPE)
+          .eq('document_type', BENEFIT_PACKAGE_DOC_TYPE)
           .maybeSingle();
         if (!cancelled && !error && data?.file_url) setBenefitPdfUrl(data.file_url);
-      } catch (_) {}
-      if (!cancelled) setBenefitPdfLoading(false);
+      } catch (e) {
+        if (!cancelled) console.warn('[BenefitsScreen] benefit package PDF load failed', e);
+      } finally {
+        if (!cancelled) setBenefitPdfLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
 
   const openBenefitPdf = () => {
-    if (benefitPdfUrl) {
-      Linking.openURL(benefitPdfUrl).catch(() => {
-        Alert.alert(t('common.error'), t('benefits.benefitPackageOpenError'));
-      });
-    }
+    if (benefitPdfUrl) Linking.openURL(benefitPdfUrl).catch(() => {});
   };
 
   return (
@@ -145,20 +144,20 @@ export default function BenefitsScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Benefit Package PDF */}
+      {/* Benefit Package PDF (admin-uploaded) */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('benefits.benefitPackagePdf')}</Text>
-        <Text style={styles.benefitPdfDescription}>
+        <Text style={styles.calculatorDescription}>
           {t('benefits.benefitPackagePdfDescription')}
         </Text>
         {benefitPdfLoading ? (
           <ActivityIndicator size="small" color="#2A7BF6" style={{ marginVertical: 12 }} />
         ) : benefitPdfUrl ? (
-          <TouchableOpacity style={styles.benefitPdfButton} onPress={openBenefitPdf}>
-            <Text style={styles.benefitPdfButtonText}>{t('benefits.viewBenefitPackagePdf')}</Text>
+          <TouchableOpacity style={styles.calculatorButton} onPress={openBenefitPdf}>
+            <Text style={styles.calculatorButtonText}>{t('benefits.viewBenefitPackagePdf')}</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={styles.benefitPdfUnavailable}>{t('benefits.benefitPackageNotAvailable')}</Text>
+          <Text style={styles.pdfNotAvailable}>{t('benefits.benefitPackagePdfNotAvailable')}</Text>
         )}
       </View>
 
@@ -316,12 +315,27 @@ const styles = StyleSheet.create({
   benefitCategoryTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
   benefitItem: { fontSize: 14, color: '#666', marginBottom: 4, marginLeft: 8 },
   
-  // Benefit Package PDF styles
-  benefitPdfDescription: { fontSize: 14, color: '#666', marginBottom: 12 },
-  benefitPdfButton: { backgroundColor: '#2A7BF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center' },
-  benefitPdfButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  benefitPdfUnavailable: { fontSize: 14, color: '#999', fontStyle: 'italic' },
-
+  // Calculator styles
+  calculatorDescription: { fontSize: 14, color: '#666', marginBottom: 12 },
+  calculatorButton: { backgroundColor: '#2A7BF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center' },
+  calculatorButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  pdfNotAvailable: { fontSize: 14, color: '#666', fontStyle: 'italic', marginTop: 8 },
+  calculatorContainer: { backgroundColor: '#F8F9FB', borderRadius: 8, padding: 16, marginTop: 12 },
+  calculatorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  calculatorTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
+  closeButton: { fontSize: 20, color: '#666' },
+  inputGroup: { marginBottom: 16 },
+  inputLabel: { fontSize: 14, color: '#333', marginBottom: 8 },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+  calculateButton: { backgroundColor: '#28A745', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
+  calculateButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  resultContainer: { backgroundColor: '#E8F4FD', padding: 16, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
+  resultLabel: { fontSize: 16, color: '#333', marginBottom: 4 },
+  resultAmount: { fontSize: 24, fontWeight: 'bold', color: '#2A7BF6' },
+  breakdownContainer: { backgroundColor: '#fff', padding: 12, borderRadius: 8 },
+  breakdownTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
+  breakdownItem: { fontSize: 14, color: '#666', marginBottom: 4 },
+  
   // Payment schedule styles
   paymentSchedule: { marginTop: 8 },
   paymentItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },

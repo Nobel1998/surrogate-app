@@ -37,20 +37,41 @@ export default function BlogManagement() {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      // Use API with service role so event_registrations are visible (RLS blocks anon client from seeing other users' registrations)
-      const res = await fetch('/api/events');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'events/page.tsx:loadEvents',message:'fetch response',data:{ok:res.ok,status:res.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to load events: ${res.status}`);
-      }
-      const data = await res.json();
-      const eventsWithStats = data.events || [];
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'events/page.tsx:loadEvents',message:'parsed data',data:{eventsLength:eventsWithStats.length,firstRegistrationCount:eventsWithStats[0]?.registration_count},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
+      
+      // Use a filter that always returns true to bypass cache
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .not('id', 'is', null)  // This filter always returns all records but bypasses cache
+        .order('created_at', { ascending: false });
+
+      if (eventsError) throw eventsError;
+      
+
+      // Get registration counts
+      const { data: registrations, error: regError } = await supabase
+        .from('event_registrations')
+        .select('event_id')
+        .eq('status', 'registered');
+
+      // Get likes counts  
+      const { data: likes, error: likesError } = await supabase
+        .from('event_likes')
+        .select('event_id');
+
+      // Combine data
+      const eventsWithStats = (eventsData || []).map(event => {
+        const registrationCount = registrations?.filter(r => r.event_id === event.id).length || 0;
+        const likesCount = likes?.filter(l => l.event_id === event.id).length || 0;
+        
+        return {
+          ...event,
+          registration_count: registrationCount,
+          likes_count: likesCount,
+          current_participants: registrationCount
+        };
+      });
+
       setEvents(eventsWithStats);
     } catch (err: any) {
       console.error('Error loading events:', err);
