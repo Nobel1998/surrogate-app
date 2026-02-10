@@ -323,12 +323,12 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Filter by embryo quality (PGS): passed_pgs | no_pgs
+        // Filter by embryo quality (PGS): pgs_tested | untested
         if (embryoGrade) {
           const embryoStr = (match.embryos && match.embryos.toString().toUpperCase()) || '';
           const hasPgs = embryoStr.includes('PGS');
-          if (embryoGrade === 'passed_pgs' && !hasPgs) return false;
-          if (embryoGrade === 'no_pgs' && hasPgs) return false;
+          if (embryoGrade === 'pgs_tested' && !hasPgs) return false;
+          if (embryoGrade === 'untested' && hasPgs) return false;
         }
 
         // Filter by surrogate location
@@ -782,13 +782,13 @@ export async function GET(req: NextRequest) {
     });
 
     // Extract embryo quality (PGS): two categories
-    const embryoGrades: Record<string, number> = { 'Passed PGS': 0, 'Did not pass PGS': 0 };
+    const embryoGrades: Record<string, number> = { 'PGS-tested': 0, 'Untested': 0 };
     matches?.forEach(match => {
       const embryoStr = (match.embryos && match.embryos.toString().toUpperCase()) || '';
       if (embryoStr.includes('PGS')) {
-        embryoGrades['Passed PGS'] = (embryoGrades['Passed PGS'] || 0) + 1;
+        embryoGrades['PGS-tested'] = (embryoGrades['PGS-tested'] || 0) + 1;
       } else {
-        embryoGrades['Did not pass PGS'] = (embryoGrades['Did not pass PGS'] || 0) + 1;
+        embryoGrades['Untested'] = (embryoGrades['Untested'] || 0) + 1;
       }
     });
 
@@ -960,7 +960,7 @@ export async function GET(req: NextRequest) {
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
-          embryoGrades: ['Passed PGS', 'Did not pass PGS'],
+          embryoGrades: ['PGS-tested', 'Untested'],
           surrogateLocations: Array.from(surrogateLocations).sort(),
           surrogateRaces: Array.from(surrogateRaces).sort(),
           ivfClinics: Array.from(ivfClinics).sort(),
