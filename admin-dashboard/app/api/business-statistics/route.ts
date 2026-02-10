@@ -687,7 +687,7 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Filter by transfer date range (移植时间)
+        // Filter by transfer date range
         if (transferDateFrom || transferDateTo) {
           if (!match.transfer_date) return false;
           const transferDate = new Date(match.transfer_date);
@@ -695,7 +695,7 @@ export async function GET(req: NextRequest) {
           if (transferDateTo && transferDate > new Date(transferDateTo + 'T23:59:59')) return false;
         }
 
-        // Filter by second pregnancy test date range (二次验孕时间)
+        // Filter by second pregnancy test date range
         const matchAny = match as { pregnancy_test_date_2?: string | null };
         if (pregnancyTestDate2From || pregnancyTestDate2To) {
           if (!matchAny.pregnancy_test_date_2) return false;
@@ -712,14 +712,14 @@ export async function GET(req: NextRequest) {
           if (pregnancyTestDate2To && d2Only > new Date(pregnancyTestDate2To + 'T23:59:59')) return false;
         }
 
-        // Filter by fetal heartbeat count (胎心次数)
+        // Filter by fetal heartbeat count
         const matchFhb = match as { fetal_heartbeat_count?: number | null };
         if (fetalHeartbeatCount !== null && fetalHeartbeatCount !== '') {
           const wanted = parseInt(fetalHeartbeatCount, 10);
           if (matchFhb.fetal_heartbeat_count == null || matchFhb.fetal_heartbeat_count !== wanted) return false;
         }
 
-        // Filter by client name (客户名字)
+        // Filter by client name
         if (clientName && clientName.trim()) {
           const parentId = match.parent_id || match.first_parent_id;
           const parent = parentId ? parentProfilesMap.get(parentId) : null;
@@ -727,14 +727,14 @@ export async function GET(req: NextRequest) {
           if (!pName.toLowerCase().includes(clientName.trim().toLowerCase())) return false;
         }
 
-        // Filter by surrogate name (代母名字)
+        // Filter by surrogate name
         if (surrogateName && surrogateName.trim()) {
           const surrogate = match.surrogate_id ? surrogateProfilesMap.get(match.surrogate_id) : null;
           const sName = (surrogate as { name?: string } | null)?.name || '';
           if (!sName.toLowerCase().includes(surrogateName.trim().toLowerCase())) return false;
         }
 
-        // Filter by medical exam result (体检结果) - search in Pre-Transfer report_data
+        // Filter by medical exam result - search in Pre-Transfer report_data
         if (medicalExamResult && medicalExamResult.trim()) {
           const key = medicalExamResult.trim().toLowerCase();
           const reportsForUser = allMedicalReports?.filter(r => r.user_id === match.surrogate_id) || [];

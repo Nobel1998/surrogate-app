@@ -508,10 +508,10 @@ export default function BusinessStatisticsPage() {
               </select>
             </div>
 
-            {/* Embryo Grade Filter 胚胎质量 */}
+            {/* Embryo Grade Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                胚胎质量 (Embryo Grade)
+                Embryo Grade
               </label>
               <select
                 value={selectedEmbryoGrade}
@@ -653,9 +653,9 @@ export default function BusinessStatisticsPage() {
             </button>
             {showDateFilters && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
-                {/* Transfer Date Range 移植时间 */}
+                {/* Transfer Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">移植时间 From (Transfer Date)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Transfer Date From</label>
                   <input
                     type="date"
                     value={selectedTransferDateFrom}
@@ -664,7 +664,7 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">移植时间 To (Transfer Date)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Transfer Date To</label>
                   <input
                     type="date"
                     value={selectedTransferDateTo}
@@ -691,9 +691,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Beta Confirm Date Range 验孕时间 */}
+                {/* Beta Confirm Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">验孕时间 From (Beta Confirm)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date From</label>
                   <input
                     type="date"
                     value={selectedBetaConfirmDateFrom}
@@ -702,7 +702,7 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">验孕时间 To (Beta Confirm)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Beta Confirm Date To</label>
                   <input
                     type="date"
                     value={selectedBetaConfirmDateTo}
@@ -710,9 +710,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Second Pregnancy Test Date Range 二次验孕时间 */}
+                {/* Second Pregnancy Test Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">二次验孕时间 From</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Second Pregnancy Test Date From</label>
                   <input
                     type="date"
                     value={selectedPregnancyTestDate2From}
@@ -721,7 +721,7 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">二次验孕时间 To</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Second Pregnancy Test Date To</label>
                   <input
                     type="date"
                     value={selectedPregnancyTestDate2To}
@@ -748,9 +748,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Delivery Date Range 生产时间 */}
+                {/* Delivery Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">生产时间 From (Delivery Date)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date From</label>
                   <input
                     type="date"
                     value={selectedDeliveryDateFrom}
@@ -759,7 +759,7 @@ export default function BusinessStatisticsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">生产时间 To (Delivery Date)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date To</label>
                   <input
                     type="date"
                     value={selectedDeliveryDateTo}
@@ -782,9 +782,9 @@ export default function BusinessStatisticsPage() {
             </button>
             {showSurrogateFilters && (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
-                {/* 体检结果 Medical Exam Result */}
+                {/* Medical Exam Result */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">体检结果 (Medical Exam Result)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical Exam Result</label>
                   <input
                     type="text"
                     value={selectedMedicalExamResult}
@@ -793,9 +793,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* 代母名字 Surrogate Name */}
+                {/* Surrogate Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">代母名字 (Surrogate Name)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surrogate Name</label>
                   <input
                     type="text"
                     value={selectedSurrogateName}
@@ -804,9 +804,9 @@ export default function BusinessStatisticsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* 胎心次数 Fetal Heartbeat Count */}
+                {/* Fetal Heartbeat Count */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">胎心次数 (Fetal Heartbeat Count)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fetal Heartbeat Count</label>
                   <select
                     value={selectedFetalHeartbeatCount}
                     onChange={(e) => setSelectedFetalHeartbeatCount(e.target.value)}
@@ -930,9 +930,9 @@ export default function BusinessStatisticsPage() {
                     <option value="4">4+</option>
                   </select>
                 </div>
-                {/* OB/GYN Doctor 妇产科医生 */}
+                {/* OB/GYN Doctor */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">妇产科医生 (OB/GYN Doctor)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">OB/GYN Doctor</label>
                   <select
                     value={selectedObgynDoctor}
                     onChange={(e) => setSelectedObgynDoctor(e.target.value)}
@@ -944,9 +944,9 @@ export default function BusinessStatisticsPage() {
                     ))}
                   </select>
                 </div>
-                {/* Delivery Hospital 生产医院 */}
+                {/* Delivery Hospital */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">生产医院 (Delivery Hospital)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Hospital</label>
                   <select
                     value={selectedDeliveryHospital}
                     onChange={(e) => setSelectedDeliveryHospital(e.target.value)}
@@ -1063,9 +1063,9 @@ export default function BusinessStatisticsPage() {
             </button>
             {showClientFilters && (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded">
-                {/* 客户名字 Client Name */}
+                {/* Client Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">客户名字 (Client Name)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Client Name</label>
                   <input
                     type="text"
                     value={selectedClientName}
