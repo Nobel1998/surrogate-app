@@ -323,21 +323,12 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Filter by embryo grade
+        // Filter by embryo quality (PGS): passed_pgs | no_pgs
         if (embryoGrade) {
-          if (!match.embryos) return false;
-          const embryoStr = match.embryos.toString().toUpperCase();
-          let matchesGrade = false;
-          
-          if (embryoGrade === 'AA' && embryoStr.includes('AA')) matchesGrade = true;
-          else if (embryoGrade === 'AB/BA' && (embryoStr.includes('AB') || embryoStr.includes('BA'))) matchesGrade = true;
-          else if (embryoGrade === 'BB' && embryoStr.includes('BB')) matchesGrade = true;
-          else if (embryoGrade === 'AC/CA' && (embryoStr.includes('AC') || embryoStr.includes('CA'))) matchesGrade = true;
-          else if (embryoGrade === 'BC/CB' && (embryoStr.includes('BC') || embryoStr.includes('CB'))) matchesGrade = true;
-          else if (embryoGrade === 'CC' && embryoStr.includes('CC')) matchesGrade = true;
-          else if (embryoGrade === 'Other' && !embryoStr.match(/AA|AB|BA|BB|AC|CA|BC|CB|CC/)) matchesGrade = true;
-          
-          if (!matchesGrade) return false;
+          const embryoStr = (match.embryos && match.embryos.toString().toUpperCase()) || '';
+          const hasPgs = embryoStr.includes('PGS');
+          if (embryoGrade === 'passed_pgs' && !hasPgs) return false;
+          if (embryoGrade === 'no_pgs' && hasPgs) return false;
         }
 
         // Filter by surrogate location
@@ -790,28 +781,14 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Extract embryo grades
-    const embryoGrades: Record<string, number> = {};
+    // Extract embryo quality (PGS): two categories
+    const embryoGrades: Record<string, number> = { 'Passed PGS': 0, 'Did not pass PGS': 0 };
     matches?.forEach(match => {
-      if (match.embryos) {
-        // Try to extract grade from embryos field (could be "Grade 5AA", "5AA", "AA", etc.)
-        const embryoStr = match.embryos.toString().toUpperCase();
-        // Look for common patterns
-        if (embryoStr.includes('AA')) {
-          embryoGrades['AA'] = (embryoGrades['AA'] || 0) + 1;
-        } else if (embryoStr.includes('AB') || embryoStr.includes('BA')) {
-          embryoGrades['AB/BA'] = (embryoGrades['AB/BA'] || 0) + 1;
-        } else if (embryoStr.includes('BB')) {
-          embryoGrades['BB'] = (embryoGrades['BB'] || 0) + 1;
-        } else if (embryoStr.includes('AC') || embryoStr.includes('CA')) {
-          embryoGrades['AC/CA'] = (embryoGrades['AC/CA'] || 0) + 1;
-        } else if (embryoStr.includes('BC') || embryoStr.includes('CB')) {
-          embryoGrades['BC/CB'] = (embryoGrades['BC/CB'] || 0) + 1;
-        } else if (embryoStr.includes('CC')) {
-          embryoGrades['CC'] = (embryoGrades['CC'] || 0) + 1;
-        } else {
-          embryoGrades['Other'] = (embryoGrades['Other'] || 0) + 1;
-        }
+      const embryoStr = (match.embryos && match.embryos.toString().toUpperCase()) || '';
+      if (embryoStr.includes('PGS')) {
+        embryoGrades['Passed PGS'] = (embryoGrades['Passed PGS'] || 0) + 1;
+      } else {
+        embryoGrades['Did not pass PGS'] = (embryoGrades['Did not pass PGS'] || 0) + 1;
       }
     });
 
@@ -983,7 +960,7 @@ export async function GET(req: NextRequest) {
         },
         available: {
           surrogateAgeRanges: ['20-25', '26-30', '31-35', '36-40', '41-45', '46+'],
-          embryoGrades: ['AA', 'AB/BA', 'BB', 'AC/CA', 'BC/CB', 'CC', 'Other'],
+          embryoGrades: ['Passed PGS', 'Did not pass PGS'],
           surrogateLocations: Array.from(surrogateLocations).sort(),
           surrogateRaces: Array.from(surrogateRaces).sort(),
           ivfClinics: Array.from(ivfClinics).sort(),

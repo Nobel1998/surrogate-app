@@ -361,8 +361,8 @@ export default function BusinessStatisticsPage() {
     rows.push(['Total', getTotalForRecord(statistics.clientAgeRanges).toString()]);
     rows.push([]);
 
-    // Embryo Grades
-    rows.push(['Embryo Grades Distribution']);
+    // Embryo Quality (PGS)
+    rows.push(['Embryo Quality (PGS) Distribution']);
     rows.push(['Grade', 'Count']);
     const sortedGrades = Object.entries(statistics.embryoGrades).sort(([, a], [, b]) => b - a);
     sortedGrades.forEach(([grade, count]) => {
@@ -508,10 +508,10 @@ export default function BusinessStatisticsPage() {
               </select>
             </div>
 
-            {/* Embryo Grade Filter */}
+            {/* Embryo Quality (PGS) Filter - two categories only */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Embryo Grade
+                Embryo Quality (PGS)
               </label>
               <select
                 value={selectedEmbryoGrade}
@@ -521,9 +521,8 @@ export default function BusinessStatisticsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">All</option>
-                {filters?.available.embryoGrades.map(grade => (
-                  <option key={grade} value={grade}>{grade}</option>
-                ))}
+                <option value="passed_pgs">Passed PGS</option>
+                <option value="no_pgs">Did not pass PGS</option>
               </select>
             </div>
 
@@ -1230,10 +1229,10 @@ export default function BusinessStatisticsPage() {
           </div>
         )}
 
-        {/* Embryo Grades Table */}
+        {/* Embryo Quality (PGS) Table */}
         <div className="border-b">
           <div className="px-6 py-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">Embryo Grades Distribution</h2>
+            <h2 className="text-xl font-semibold">Embryo Quality (PGS) Distribution</h2>
           </div>
           {Object.keys(statistics.embryoGrades).length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">No embryo grade data available</div>
