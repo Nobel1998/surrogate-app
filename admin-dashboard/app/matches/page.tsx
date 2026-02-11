@@ -104,6 +104,18 @@ type Contract = {
   created_at?: string | null;
 };
 
+type OnlineClaimSubmission = {
+  id: string;
+  user_id: string;
+  match_id?: string | null;
+  file_url: string;
+  file_name?: string | null;
+  amount?: number | null;
+  description?: string | null;
+  status: string;
+  created_at?: string | null;
+};
+
 const STATUS_OPTIONS = ['matched', 'completed', 'cancelled', 'pending', 'pregnant'];
 const STAGE_OPTIONS = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 const STAGE_LABELS: Record<string, string> = {
@@ -156,6 +168,7 @@ export default function MatchesPage() {
   const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [onlineClaimSubmissionsBySurrogate, setOnlineClaimSubmissionsBySurrogate] = useState<Record<string, OnlineClaimSubmission[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [surrogateApplications, setSurrogateApplications] = useState<Map<string, any>>(new Map());
@@ -271,7 +284,9 @@ export default function MatchesPage() {
   const [pboFile, setPBOFile] = useState<File | null>(null);
   const [uploadingPBO, setUploadingPBO] = useState(false);
   
-  // Online Claims upload state
+  // Online Claims: view surrogate submissions modal (match whose submissions to show)
+  const [onlineClaimsViewMatch, setOnlineClaimsViewMatch] = useState<Match | null>(null);
+  // Legacy upload state (kept for possible reuse; Upload button removed per requirement)
   const [showClaimsModal, setShowClaimsModal] = useState(false);
   const [claimsMatchId, setClaimsMatchId] = useState<string | null>(null);
   const [claimsSurrogateId, setClaimsSurrogateId] = useState<string>('');
@@ -437,6 +452,23 @@ export default function MatchesPage() {
       setBranches(branchesData || []);
       setCurrentBranchFilter(branchFilter || null);
       setCanViewAllBranches(canViewAll !== false);
+
+      // Load online claim submissions (user-uploaded receipts) and group by surrogate
+      try {
+        const subsRes = await fetch('/api/matches/online-claim-submissions');
+        if (subsRes.ok) {
+          const subsList: OnlineClaimSubmission[] = await subsRes.json();
+          const bySurrogate: Record<string, OnlineClaimSubmission[]> = {};
+          for (const s of subsList) {
+            const uid = s.user_id;
+            if (!bySurrogate[uid]) bySurrogate[uid] = [];
+            bySurrogate[uid].push(s);
+          }
+          setOnlineClaimSubmissionsBySurrogate(bySurrogate);
+        }
+      } catch (_) {
+        setOnlineClaimSubmissionsBySurrogate({});
+      }
       
       // Load surrogate applications for BMI calculation
       await loadSurrogateApplications(surList.map((s: Profile) => s.id));
@@ -4896,12 +4928,6 @@ export default function MatchesPage() {
                               c.document_type === 'trust_account'
                             );
                             
-                            // Filter contracts for surrogate only (for Online Claims)
-                            const surrogateOnlineClaimsContracts = contracts.filter(c => 
-                              c.user_id === m.surrogate_id &&
-                              c.document_type === 'online_claims'
-                            );
-                            
                             return (
                               <div className="space-y-3">
                                 {/* Shared Documents - visible to both parties */}
@@ -4926,7 +4952,23 @@ export default function MatchesPage() {
                                     {renderFileList('attorney_retainer_surrogate', ['attorney_retainer'], 'Attorney Retainer (Surrogate)', true, surrogateAttorneyRetainerContracts)}
                                     {renderFileList('hipaa_release', ['hipaa_release'], 'HIPAA Release', true)}
                                     {renderFileList('photo_release', ['photo_release'], 'Photo Release', true)}
-                                    {renderFileList('online_claims', ['online_claims'], 'Online Claims', true, surrogateOnlineClaimsContracts)}
+                                    {/* Online Claims: 仅代母在 app 提交的收据，点击弹出表格弹窗 */}
+                                    {(() => {
+                                      const submissions = onlineClaimSubmissionsBySurrogate[m.surrogate_id] ?? [];
+                                      const count = submissions.length;
+                                      return (
+                                        <div className="space-y-1">
+                                          <div
+                                            className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded ${count > 0 ? '' : 'opacity-60'}`}
+                                            onClick={() => setOnlineClaimsViewMatch(m)}
+                                          >
+                                            <span className={count > 0 ? 'text-green-600' : 'text-gray-400'}>{count > 0 ? '✓' : '○'}</span>
+                                            <span className="text-gray-600 flex-1">Online Claims</span>
+                                            {count > 0 && <span className="text-[10px] text-gray-400">({count})</span>}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               </div>
@@ -5000,12 +5042,6 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               💰 Upload Trust Account
-                            </button>
-                            <button
-                              onClick={() => openClaimsModal(m)}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              ✅ Upload Online Claims
                             </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500 pl-1">
@@ -5441,6 +5477,95 @@ export default function MatchesPage() {
           </div>
         </div>
       )}
+
+      {/* Online Claims — 代母提交的收据表格弹窗 */}
+      {onlineClaimsViewMatch && (() => {
+        const m = onlineClaimsViewMatch;
+        const surrogateName = profileLookup[m.surrogate_id]?.name || profileLookup[m.surrogate_id]?.phone || m.surrogate_id?.slice(0, 8) || 'Surrogate';
+        const submissions = onlineClaimSubmissionsBySurrogate[m.surrogate_id] ?? [];
+        const formatTableDate = (dateStr: string | null | undefined) => {
+          if (!dateStr) return '—';
+          try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+          } catch {
+            return dateStr;
+          }
+        };
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Online Claims — {surrogateName}</h3>
+                <button
+                  onClick={() => setOnlineClaimsViewMatch(null)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Reimbursement Submissions (Total: {submissions.length})</h4>
+              <div className="overflow-auto flex-1 border border-gray-200 rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="text-left py-2 px-3 font-semibold text-gray-700">Date</th>
+                      <th className="text-left py-2 px-3 font-semibold text-gray-700">Amount</th>
+                      <th className="text-left py-2 px-3 font-semibold text-gray-700">Status</th>
+                      <th className="text-left py-2 px-3 font-semibold text-gray-700">Description</th>
+                      <th className="text-left py-2 px-3 font-semibold text-gray-700">File</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-gray-500">No submissions yet.</td>
+                      </tr>
+                    ) : (
+                      submissions.map((sub) => (
+                        <tr key={sub.id} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-700">{formatTableDate(sub.created_at)}</td>
+                          <td className="py-2 px-3 text-gray-700">
+                            {sub.amount != null ? `$${Number(sub.amount).toFixed(2)}` : '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                                sub.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : sub.status === 'approved'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {sub.status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-gray-700 max-w-[200px] truncate" title={sub.description || ''}>
+                            {sub.description || '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            <a
+                              href={sub.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              View
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Online Claims Upload Modal */}
       {showClaimsModal && (
