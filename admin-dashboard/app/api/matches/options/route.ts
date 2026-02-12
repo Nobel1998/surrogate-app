@@ -598,6 +598,19 @@ export async function POST(req: Request) {
         .single();
       if (insertError) throw insertError;
       matchId = newMatch?.id || null;
+
+      // Set surrogate to not available when they are matched
+      const { error: availError } = await supabase
+        .from('profiles')
+        .update({ available: false })
+        .eq('id', surrogateId);
+      if (availError) {
+        console.error('[matches/options] Failed to set surrogate available=false after match create:', availError);
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard/app/api/matches/options/route.ts:POST:afterSetAvailableFalse',message:'Set surrogate available=false after new match',data:{surrogateId,matchId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+      }
     }
 
     // Auto-populate case fields if match was created and doesn't have claim_id yet

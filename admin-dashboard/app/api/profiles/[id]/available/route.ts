@@ -67,6 +67,28 @@ export async function PATCH(
       );
     }
 
+    // When setting to available, reject if surrogate has an active match
+    if (available === true) {
+      const { data: activeMatch, error: matchError } = await supabase
+        .from('surrogate_matches')
+        .select('id')
+        .eq('surrogate_id', id)
+        .in('status', ['matched', 'pending', 'pregnant'])
+        .limit(1)
+        .maybeSingle();
+      if (matchError) {
+        console.error('[profiles/available] Error checking match:', matchError);
+      } else if (activeMatch) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard/app/api/profiles/[id]/available/route.ts:PATCH:rejectAlreadyMatched',message:'Reject Set Available: surrogate has active match',data:{profileId:id},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        return NextResponse.json(
+          { error: 'This surrogate is already matched. They cannot be set to Available.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Update the available status
     const { error: updateError } = await supabase
       .from('profiles')

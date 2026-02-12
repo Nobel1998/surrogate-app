@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 type Profile = {
@@ -348,6 +348,10 @@ export default function MatchesPage() {
     });
     return map;
   }, [surrogates, parents]);
+
+  // Active match = not cancelled and not completed; matched surrogates show as Not Available
+  const hasActiveMatch = useCallback((surrogateId: string) => matches.some((m) => m.surrogate_id === surrogateId && !['cancelled', 'completed'].includes(m.status ?? '')), [matches]);
+  const getEffectiveAvailable = useCallback((s: Profile) => Boolean(s.available) && !hasActiveMatch(s.id), [hasActiveMatch]);
 
   // Load admin user info on mount
   useEffect(() => {
@@ -2455,7 +2459,9 @@ export default function MatchesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {surrogates.map((s: Profile) => (
+                {surrogates.map((s: Profile) => {
+                  const effectiveAvailable = getEffectiveAvailable(s);
+                  return (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {s.name || s.id.substring(0, 8)}
@@ -2465,25 +2471,36 @@ export default function MatchesPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
-                        s.available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        effectiveAvailable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {s.available ? 'Available' : 'Not Available'}
+                        {effectiveAvailable ? 'Available' : 'Not Available'}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <button
-                        onClick={() => updateSurrogateAvailable(s.id, !s.available)}
+                        onClick={() => {
+                          const nextAvailable = !effectiveAvailable;
+                          if (nextAvailable && hasActiveMatch(s.id)) {
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:SetAvailable:blocked',message:'Frontend blocked Set Available: surrogate has active match',data:{surrogateId:s.id,surrogateName:s.name},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                            // #endregion
+                            alert('This surrogate is already matched. They cannot be set to Available.');
+                            return;
+                          }
+                          updateSurrogateAvailable(s.id, nextAvailable);
+                        }}
                         className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                          s.available
+                          effectiveAvailable
                             ? 'bg-red-100 text-red-700 hover:bg-red-200'
                             : 'bg-green-100 text-green-700 hover:bg-green-200'
                         }`}
                       >
-                        {s.available ? 'Set Unavailable' : 'Set Available'}
+                        {effectiveAvailable ? 'Set Unavailable' : 'Set Available'}
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {surrogates.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -2512,13 +2529,13 @@ export default function MatchesPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a surrogate</option>
-                {surrogates.filter((s: Profile) => s.available).map((s: Profile) => (
+                {surrogates.filter((s: Profile) => getEffectiveAvailable(s)).map((s: Profile) => (
                   <option key={s.id} value={s.id}>
                     {s.name || s.id} {s.phone ? `• ${s.phone}` : ''}
                   </option>
                 ))}
               </select>
-              {surrogates.filter((s: Profile) => s.available).length === 0 && (
+              {surrogates.filter((s: Profile) => getEffectiveAvailable(s)).length === 0 && (
                 <p className="text-xs text-gray-500 mt-1">No available surrogates. Please set surrogates as "Available" above.</p>
               )}
             </div>
