@@ -396,13 +396,9 @@ export default function StepStatusPage() {
           </div>
           <h1 className="text-3xl font-bold mb-2">📋 Case Document</h1>
           <p className="text-purple-200">Complete case overview and status tracking</p>
-          
-          {/* Tab Buttons */}
-          </div>
         </div>
 
-        <>
-            {/* Case Summary */}
+        {/* Case Summary */}
             {renderDocumentSection('Case Summary', '📊',
               <div className="grid grid-cols-2 gap-x-8">
                 {renderField('Case Status', caseData?.status?.toUpperCase() || 'ACTIVE', true)}
@@ -843,7 +839,6 @@ export default function StepStatusPage() {
             </button>
           </div>
         </div>
-        </>
 
         {/* Footer */}
         <div className="text-center text-gray-400 text-sm py-6">
