@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, SafeAreaView, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, SafeAreaView, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Linking } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
@@ -105,6 +105,7 @@ export default function HomeScreen() {
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [selectedMedicalReport, setSelectedMedicalReport] = useState(null);
   const [stageUpdateLoading, setStageUpdateLoading] = useState(false);
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
@@ -679,20 +680,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          style={styles.fullWidthButton}
-          onPress={() => {
-            if (isParentRole) {
-              Alert.alert(t('home.restricted'), t('home.onlySurrogatesCanPost'));
-              return;
-            }
-            showImagePicker();
-          }}
-          activeOpacity={0.85}
-        >
-          <Icon name="upload" size={20} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.buttonText}>{t('home.uploadWeeklyReport')}</Text>
-        </TouchableOpacity>
       </View>
     );
   };
@@ -2438,7 +2425,12 @@ export default function HomeScreen() {
     }
 
     return (
-      <View key={report.id} style={styles.medicalReportCard}>
+      <TouchableOpacity
+        key={report.id}
+        style={styles.medicalReportCard}
+        onPress={() => setSelectedMedicalReport(report)}
+        activeOpacity={0.85}
+      >
         <View style={styles.medicalReportHeader}>
           <View style={styles.medicalReportIconContainer}>
             <Icon name="file-text" size={20} color="#1F6FE0" />
@@ -2467,24 +2459,152 @@ export default function HomeScreen() {
             ))}
           </View>
         )}
-        {report.proof_image_url && (
-          <TouchableOpacity
-            style={styles.medicalReportImageContainer}
-            onPress={() => {
-              // Could open image in full screen
-              Alert.alert('Proof Image', 'Image available');
-            }}
-          >
-            <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportImage} />
-            <View style={styles.medicalReportImageOverlay}>
-              <Icon name="eye" size={16} color="#fff" />
-              <Text style={styles.medicalReportImageText}>View Proof</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
+{report.proof_image_url && (
+            <TouchableOpacity
+              style={styles.medicalReportImageContainer}
+              onPress={(e) => { e?.stopPropagation?.(); setSelectedMedicalReport(report); }}
+            >
+              <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportImage} />
+              <View style={styles.medicalReportImageOverlay}>
+                <Icon name="eye" size={16} color="#fff" />
+                <Text style={styles.medicalReportImageText}>View Proof</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+      </TouchableOpacity>
     );
   }, [transferDateStr, transferEmbryoDayStr, calculatePregnancyWeeksAtVisit, t]);
+
+  // Label map for report_data keys (snake_case) -> readable labels (medicalReport.*)
+  const reportDataLabelMap = useMemo(() => ({
+    provider_contact: t('medicalReport.providerContact'),
+    endometrial_thickness: t('medicalReport.endometrialThickness'),
+    endometrial_type: t('medicalReport.endometrialType'),
+    follicle_1_mm: `${t('medicalReport.follicle')} 1 (mm)`,
+    follicle_2_mm: `${t('medicalReport.follicle')} 2 (mm)`,
+    follicle_3_mm: `${t('medicalReport.follicle')} 3 (mm)`,
+    follicle_4_mm: `${t('medicalReport.follicle')} 4 (mm)`,
+    top_4_follicles: t('medicalReport.top4Follicles'),
+    labs: t('medicalReport.labs'),
+    lab_test_date: t('medicalReport.labTestDate'),
+    ultrasound_test_date: t('medicalReport.ultrasoundTestDate'),
+    notes: t('medicalReport.notes'),
+    additional_notes: t('medicalReport.additionalNotes'),
+    beta_hcg: t('medicalReport.betaHcg'),
+    gestational_sac_diameter: t('medicalReport.gestationalSacDiameter'),
+    yolk_sac_diameter: t('medicalReport.yolkSacDiameter'),
+    crown_rump_length: t('medicalReport.crownRumpLength'),
+    fetal_heart_rate: t('medicalReport.fetalHeartRate'),
+    gestational_age: t('medicalReport.gestationalAge'),
+    edd: t('medicalReport.edd'),
+    weight: t('medicalReport.surrogateWeight'),
+    blood_pressure: t('medicalReport.bloodPressure'),
+    stomach_measurement: t('medicalReport.stomachMeasurement'),
+    fetal_heartbeats: t('medicalReport.fhr'),
+    next_appointment_date: t('medicalReport.nextAppointmentDate'),
+    nt_screen: t('medicalReport.ntScreen'),
+    quad_screen: t('medicalReport.quadScreen'),
+    anatomy_scan: t('medicalReport.anatomyScan'),
+    glucose_screening: t('medicalReport.glucoseScreening'),
+    gbs_testing: t('medicalReport.gbsTesting'),
+    nipt_cvs_amniocentesis: t('medicalReport.niptCvsAmniocentesis'),
+    test_date: t('medicalReport.testDate'),
+  }), [t]);
+
+  const renderMedicalReportDetailModal = () => {
+    if (!selectedMedicalReport) return null;
+    const report = selectedMedicalReport;
+    const reportData = report.report_data || {};
+    const visitDate = report.visit_date ? parseISODateOnlyToLocalMidnight(report.visit_date) : null;
+    const formattedDate = visitDate
+      ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}/${String(visitDate.getDate()).padStart(2, '0')}/${visitDate.getFullYear()}`
+      : 'N/A';
+    const pregnancyWeeks = (report.stage === 'Post-Transfer' || report.stage === 'OBGYN')
+      ? calculatePregnancyWeeksAtVisit(report.visit_date, transferDateStr, transferEmbryoDayStr)
+      : null;
+
+    const formatValue = (v) => {
+      if (v == null || v === '') return '—';
+      if (Array.isArray(v)) return v.join(', ');
+      if (typeof v === 'object') return JSON.stringify(v);
+      return String(v);
+    };
+
+    return (
+      <Modal
+        visible={!!selectedMedicalReport}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectedMedicalReport(null)}
+      >
+        <View style={styles.medicalReportDetailOverlay}>
+          <View style={styles.medicalReportDetailModal}>
+            <View style={styles.medicalReportDetailHeader}>
+              <Text style={styles.medicalReportDetailTitle}>{t('medicalReport.title')}</Text>
+              <TouchableOpacity onPress={() => setSelectedMedicalReport(null)} hitSlop={16}>
+                <Icon name="x" size={24} color="#1A1D1E" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.medicalReportDetailScroll}
+              contentContainerStyle={styles.medicalReportDetailContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.medicalReportDetailSection}>
+                <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.visitDate')}</Text>
+                <Text style={styles.medicalReportDetailValue}>{formattedDate}</Text>
+              </View>
+              {pregnancyWeeks && (
+                <View style={styles.medicalReportDetailSection}>
+                  <Text style={styles.medicalReportDetailSectionTitle}>{t('home.weeks')} / {t('home.days')}</Text>
+                  <Text style={styles.medicalReportDetailValue}>{pregnancyWeeks.weeks} {t('home.weeks')} {pregnancyWeeks.days} {t('home.days')}</Text>
+                </View>
+              )}
+              {report.provider_name && (
+                <View style={styles.medicalReportDetailSection}>
+                  <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.providerName')}</Text>
+                  <Text style={styles.medicalReportDetailValue}>{report.provider_name}</Text>
+                </View>
+              )}
+              {reportData.provider_contact != null && reportData.provider_contact !== '' && (
+                <View style={styles.medicalReportDetailSection}>
+                  <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.providerContact')}</Text>
+                  <Text style={styles.medicalReportDetailValue}>{formatValue(reportData.provider_contact)}</Text>
+                </View>
+              )}
+              {Object.entries(reportData)
+                .filter(([k]) => k !== 'provider_contact')
+                .map(([key, value]) => {
+                  if (value == null || value === '') return null;
+                  const label = reportDataLabelMap[key] || key.replace(/_/g, ' ');
+                  return (
+                    <View key={key} style={styles.medicalReportDetailSection}>
+                      <Text style={styles.medicalReportDetailSectionTitle}>{label}</Text>
+                      <Text style={styles.medicalReportDetailValue}>{formatValue(value)}</Text>
+                    </View>
+                  );
+                })}
+              {report.proof_image_url && (
+                <View style={styles.medicalReportDetailSection}>
+                  <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.uploadProof')}</Text>
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(report.proof_image_url)}
+                    style={styles.medicalReportDetailImageWrap}
+                  >
+                    <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportDetailImage} resizeMode="cover" />
+                    <View style={styles.medicalReportImageOverlay}>
+                      <Icon name="eye" size={18} color="#fff" />
+                      <Text style={styles.medicalReportImageText}>View</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   const renderTimelineView = () => {
     return (
@@ -2695,45 +2815,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Medical Reports Section - Hide in delivery stage */}
-        {medicalReports.length > 0 && getCurrentStageKey() !== 'delivery' && (
-          <View style={styles.medicalReportsSection}>
-            <Text style={styles.medicalReportsSectionTitle}>{t('home.medicalCheckins')}</Text>
-            {medicalReports
-              .filter((report) => {
-                // Filter out OBGYN reports when in delivery stage
-                const currentStage = getCurrentStageKey();
-                if (currentStage === 'delivery' && report.stage === 'OBGYN') {
-                  return false;
-                }
-                return true;
-              })
-              .map((report) => renderMedicalReport(report))}
-          </View>
-        )}
-
-        {/* Add Medical Check-in Button - Hide in delivery stage */}
-        {isSurrogateRole && getCurrentStageKey() !== 'delivery' && (
-          <TouchableOpacity
-            style={styles.addMedicalReportButton}
-            onPress={() => {
-              const currentStage = getCurrentStageKey();
-              const medicalStage = getMedicalReportStage(currentStage);
-              navigation.navigate('MedicalReportForm', { 
-                stage: medicalStage,
-                onSubmit: () => {
-                  fetchMedicalReports();
-                  fetchUserPoints(); // Refresh points after submitting report
-                },
-              });
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="plus-circle" size={20} color="#1F6FE0" />
-            <Text style={styles.addMedicalReportButtonText}>{t('home.addMedicalCheckin')}</Text>
-          </TouchableOpacity>
-        )}
-
         {STAGE_OPTIONS.map((stage, index) => {
           const status = getStageStatus(stage.key); // past | current | future
           const isLocked = status === 'future';
@@ -2792,6 +2873,21 @@ export default function HomeScreen() {
                 <Text style={[styles.timelineDescText, isCurrent && styles.textCurrentSub]}>
                   {stage.description}
                 </Text>
+                {isSurrogateRole && !isLocked && (
+                  <View style={styles.cardFooter}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setStageFilter(stage.key);
+                        setViewMode('stageDetail');
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <Text style={[styles.viewDetailsText, isCurrent && styles.textCurrentLink]}>
+                        {t('home.viewDetail') || 'View Detail'} →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -2940,6 +3036,65 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           {renderTimelineView()}
+        </>
+      ) : viewMode === 'stageDetail' ? (
+        <>
+          <View style={styles.feedHeader}>
+            <TouchableOpacity onPress={() => setViewMode('timeline')} style={styles.backButton}>
+              <Icon name="chevron-left" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.feedTitle}>
+              {STAGE_OPTIONS.find(s => s.key === stageFilter)?.label || t('home.allStages')} — {t('home.medicalCheckins')}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView
+            style={styles.feedContainer}
+            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#2A7BF6']}
+                tintColor="#2A7BF6"
+              />
+            }
+          >
+            {stageFilter !== 'delivery' && (
+              <TouchableOpacity
+                style={styles.addMedicalReportButton}
+                onPress={() => {
+                  const medicalStage = getMedicalReportStage(stageFilter);
+                  navigation.navigate('MedicalReportForm', {
+                    stage: medicalStage,
+                    onSubmit: () => {
+                      fetchMedicalReports();
+                      fetchUserPoints();
+                    },
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <Icon name="plus-circle" size={20} color="#1F6FE0" />
+                <Text style={styles.addMedicalReportButtonText}>{t('home.addMedicalCheckin')}</Text>
+              </TouchableOpacity>
+            )}
+            {medicalReports
+              .filter((report) => {
+                const reportStageForFilter = getMedicalReportStage(stageFilter);
+                if (stageFilter === 'delivery' && report.stage === 'OBGYN') return false;
+                return report.stage === reportStageForFilter;
+              })
+              .map((report) => renderMedicalReport(report))}
+            {renderMedicalReportDetailModal()}
+            {medicalReports.filter((r) => r.stage === getMedicalReportStage(stageFilter)).length === 0 && (
+              <View style={styles.emptyState}>
+                <Icon name="file-text" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>{t('home.noMedicalCheckins') || 'No medical check-ins in this stage yet'}</Text>
+                <Text style={styles.emptySubtext}>{t('home.addMedicalCheckin')}</Text>
+              </View>
+            )}
+          </ScrollView>
         </>
       ) : (
         <>
@@ -4348,6 +4503,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
+  },
+  medicalReportDetailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  medicalReportDetailModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+  },
+  medicalReportDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  medicalReportDetailTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1D1E',
+  },
+  medicalReportDetailScroll: {
+    flexGrow: 1,
+    maxHeight: 500,
+  },
+  medicalReportDetailContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  medicalReportDetailSection: {
+    marginBottom: 16,
+  },
+  medicalReportDetailSectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6E7191',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  medicalReportDetailValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1A1D1E',
+  },
+  medicalReportDetailImageWrap: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    marginTop: 4,
+  },
+  medicalReportDetailImage: {
+    width: '100%',
+    height: 200,
   },
   addMedicalReportButton: {
     flexDirection: 'row',

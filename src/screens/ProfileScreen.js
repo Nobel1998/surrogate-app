@@ -13,11 +13,9 @@ export default function ProfileScreen({ navigation }) {
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
   const [hipaaReleaseDoc, setHipaaReleaseDoc] = useState(null);
   const [photoReleaseDoc, setPhotoReleaseDoc] = useState(null);
-  const [trustAccountDoc, setTrustAccountDoc] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
   const [loadingPhotoDoc, setLoadingPhotoDoc] = useState(false);
-  const [loadingTrustAccountDoc, setLoadingTrustAccountDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
   const [loadingApplication, setLoadingApplication] = useState(false);
@@ -37,9 +35,8 @@ export default function ProfileScreen({ navigation }) {
         loadPhotoReleaseDoc();
         loadApplicationStatus();
       }
-      // Only load Trust Account and Intended Parent Application for parents
+      // Only load Intended Parent Application for parents
       if (userRole === 'parent') {
-        loadTrustAccountDoc();
         loadIntendedParentApplicationStatus();
       }
     }
@@ -143,32 +140,6 @@ export default function ProfileScreen({ navigation }) {
       console.error('Failed to load photo release doc:', error);
     } finally {
       setLoadingPhotoDoc(false);
-    }
-  };
-
-  const loadTrustAccountDoc = async () => {
-    if (!user?.id) return;
-    
-    setLoadingTrustAccountDoc(true);
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('document_type', 'trust_account')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading trust account doc:', error);
-      } else {
-        setTrustAccountDoc(data);
-      }
-    } catch (error) {
-      console.error('Failed to load trust account doc:', error);
-    } finally {
-      setLoadingTrustAccountDoc(false);
     }
   };
 
@@ -337,7 +308,7 @@ export default function ProfileScreen({ navigation }) {
       }
       
       if (userRole === 'parent') {
-        refreshPromises.push(loadTrustAccountDoc(), loadIntendedParentApplicationStatus());
+        refreshPromises.push(loadIntendedParentApplicationStatus());
       }
       
       await Promise.all(refreshPromises);
@@ -386,31 +357,6 @@ export default function ProfileScreen({ navigation }) {
 
     try {
       const url = photoReleaseDoc.file_url;
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert(t('common.error'), t('documents.cannotOpen'));
-      }
-    } catch (error) {
-      console.error('Error opening document:', error);
-      Alert.alert(t('common.error'), t('documents.openError'));
-    }
-  };
-
-  const handleTrustAccountPress = async () => {
-    if (loadingTrustAccountDoc) return;
-    
-    if (!trustAccountDoc || !trustAccountDoc.file_url) {
-      Alert.alert(
-        t('documents.noDocument'),
-        t('documents.notUploaded', { document: 'Trust Account' })
-      );
-      return;
-    }
-
-    try {
-      const url = trustAccountDoc.file_url;
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);
@@ -737,7 +683,7 @@ export default function ProfileScreen({ navigation }) {
               )}
             </>
           )}
-          {/* Only show Trust Account and Intended Parent Application for parents */}
+          {/* Only show Intended Parent Application for parents */}
           {userRole === 'parent' && (
             <>
               {renderMenuItem(
@@ -747,14 +693,6 @@ export default function ProfileScreen({ navigation }) {
                 intendedParentApplicationStatus === 'submitted' ? '#4CAF50' : '#E91E63',
                 intendedParentApplicationStatus === 'submitted' ? 'Submitted' : 'Not Submitted',
                 loadingIntendedParentApplication
-              )}
-              {renderMenuItem(
-                'Trust Account',
-                'dollar-sign',
-                handleTrustAccountPress,
-                '#00B894',
-                trustAccountDoc ? t('profile.available') : t('profile.notAvailable'),
-                loadingTrustAccountDoc
               )}
             </>
           )}

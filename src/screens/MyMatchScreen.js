@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -337,7 +338,6 @@ export default function MyMatchScreen({ navigation }) {
 
         // Build document types list based on role
         // Surrogates see: agency_retainer, hipaa_release (but not in My Match, only in Profile)
-        // Parents see: trust_account (but not in My Match, only in Profile)
         const documentTypes = [
           'surrogacy_contract',
           'attorney_retainer',
@@ -349,7 +349,7 @@ export default function MyMatchScreen({ navigation }) {
           'parent_contract',
           'surrogate_contract',
           // 'online_claims', // Moved to User Center (ProfileScreen)
-          'trust_account', // Add trust_account for parents to see in My Match
+          // trust_account removed for parent app
         ];
 
         const { data: docs, error: docsError } = await supabase
@@ -388,7 +388,7 @@ export default function MyMatchScreen({ navigation }) {
   const loadAvailableSurrogates = async () => {
     try {
       setLoadingSurrogates(true);
-      
+
       // Get all available surrogates first
       const { data: allSurrogates, error: surrogatesError } = await supabase
         .from('profiles')
@@ -410,43 +410,38 @@ export default function MyMatchScreen({ navigation }) {
         return;
       }
 
+      // Active match statuses (exclude cancelled/completed)
+      const activeStatuses = ['matched', 'pending', 'pregnant', 'active'];
+
       // Try to query all active matches at once
       // If RLS blocks this, we'll get an error and handle it
       const { data: allActiveMatches, error: allMatchesError } = await supabase
         .from('surrogate_matches')
         .select('surrogate_id, status, parent_id, first_parent_id')
-        .in('status', ['matched', 'active']);
+        .in('status', activeStatuses);
 
       let matchedSurrogateIds = new Set();
 
       if (allMatchesError) {
         console.log('[MyMatch] Cannot query all matches (RLS restriction):', allMatchesError.message);
         console.log('[MyMatch] Checking each surrogate individually...');
-        
-        // RLS restriction - check each surrogate individually
-        // Even if we can't see other parent's matches, we can still check if a surrogate is matched
-        // by trying to query their matches (RLS might allow this)
+
+        // Per-surrogate check: only exclude when we actually see a match.
+        // When we get an error (e.g. RLS), do NOT exclude - show the surrogate so the list stays complete.
         for (const surrogate of allSurrogates) {
           const { data: matches, error: matchError } = await supabase
             .from('surrogate_matches')
             .select('id, status, surrogate_id')
             .eq('surrogate_id', surrogate.id)
-            .in('status', ['matched', 'active'])
+            .in('status', activeStatuses)
             .limit(1);
 
           if (matchError) {
-            // If we get an error, it might be RLS blocking us
-            // But if the surrogate is matched to us, we should see it
-            // If matched to someone else, we might not see it
-            // For safety, if we can't verify, we'll exclude the surrogate
-            console.log(`[MyMatch] Cannot verify match status for ${surrogate.id} (${surrogate.name}), excluding for safety`);
-            matchedSurrogateIds.add(surrogate.id);
+            // RLS or other error: we can't verify, so include surrogate to avoid incomplete list
+            console.log(`[MyMatch] Cannot verify match for ${surrogate.id} (${surrogate.name}), including in list`);
           } else if (matches && matches.length > 0) {
             matchedSurrogateIds.add(surrogate.id);
             console.log(`[MyMatch] Excluding matched surrogate: ${surrogate.id} (${surrogate.name})`);
-          } else {
-            // No matches found - surrogate is available
-            console.log(`[MyMatch] Surrogate ${surrogate.id} (${surrogate.name}) has no active matches`);
           }
         }
       } else {
@@ -458,14 +453,13 @@ export default function MyMatchScreen({ navigation }) {
         );
         console.log('[MyMatch] Found', matchedSurrogateIds.size, 'matched surrogates from bulk query');
         console.log('[MyMatch] Matched surrogate IDs:', Array.from(matchedSurrogateIds));
-        console.log('[MyMatch] All active matches:', allActiveMatches);
       }
 
       // Filter out matched surrogates
       const availableSurrogates = allSurrogates.filter(
         surrogate => !matchedSurrogateIds.has(surrogate.id)
       );
-      
+
       console.log('[MyMatch] Final available surrogates after filtering:', availableSurrogates.length);
       console.log('[MyMatch] Excluded', matchedSurrogateIds.size, 'matched surrogates');
       console.log('[MyMatch] Matched surrogate IDs:', Array.from(matchedSurrogateIds));
@@ -865,14 +859,7 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'parental_rights',
       },
       // Online Claims moved to User Center (ProfileScreen)
-      // Trust Account - only visible to parents
-      ...(isSurrogate ? [] : [{
-        key: 'trust_account',
-        label: t('myMatch.trustAccount'),
-        icon: 'dollar-sign',
-        iconColor: '#00B894',
-        documentType: 'trust_account',
-      }]),
+      // Trust Account removed for parent app
     ];
     
     return (
@@ -1406,6 +1393,30 @@ export default function MyMatchScreen({ navigation }) {
                 contentContainerStyle={styles.modalScrollContent}
                 showsVerticalScrollIndicator={false}
               >
+                {/* Surrogate Photo(s) from application */}
+                {(() => {
+                  const photoUrls = parsedFormData.photos && Array.isArray(parsedFormData.photos) && parsedFormData.photos.length > 0
+                    ? parsedFormData.photos
+                    : parsedFormData.photoUrl
+                      ? [parsedFormData.photoUrl]
+                      : [];
+                  if (photoUrls.length === 0) return null;
+                  return (
+                    <View style={styles.surrogateDetailPhotosSection}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surrogateDetailPhotosScroll}>
+                        {photoUrls.map((uri, index) => (
+                          <Image
+                            key={index}
+                            source={{ uri: typeof uri === 'string' ? uri : uri?.url || uri }}
+                            style={styles.surrogateDetailPhoto}
+                            resizeMode="cover"
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+                  );
+                })()}
+
                 {/* Basic Information */}
                 <View style={styles.detailSection}>
                   <View style={styles.detailSectionHeader}>
@@ -2182,6 +2193,21 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     paddingBottom: 20,
+  },
+  surrogateDetailPhotosSection: {
+    marginBottom: 16,
+  },
+  surrogateDetailPhotosScroll: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  surrogateDetailPhoto: {
+    width: width * 0.7,
+    maxWidth: 320,
+    height: 280,
+    borderRadius: 12,
+    backgroundColor: '#F0F4F8',
+    marginRight: 12,
   },
   detailSection: {
     padding: 20,

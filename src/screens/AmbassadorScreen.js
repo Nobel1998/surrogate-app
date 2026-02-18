@@ -28,15 +28,19 @@ export default function AmbassadorScreen() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const isParent = (user?.role || '').toLowerCase() === 'parent';
+  const nameLabelKey = isParent ? 'ambassador.referredPotentialParentName' : 'ambassador.referredSurrogateName';
+  const phoneLabelKey = isParent ? 'ambassador.referredPotentialParentPhone' : 'ambassador.referredSurrogatePhone';
+
   const validate = () => {
     const name = referredName.trim();
     const phone = referredPhone.trim();
     if (!name) {
-      Alert.alert('', t('ambassador.referredSurrogateName').replace(' *', '') + ' ' + t('common.required', { defaultValue: 'is required' }));
+      Alert.alert('', t(nameLabelKey).replace(' *', '') + ' ' + t('common.required', { defaultValue: 'is required' }));
       return false;
     }
     if (!phone) {
-      Alert.alert('', t('ambassador.referredSurrogatePhone').replace(' *', '') + ' ' + t('common.required', { defaultValue: 'is required' }));
+      Alert.alert('', t(phoneLabelKey).replace(' *', '') + ' ' + t('common.required', { defaultValue: 'is required' }));
       return false;
     }
     return true;
@@ -56,6 +60,7 @@ export default function AmbassadorScreen() {
         referred_surrogate_email: referredEmail.trim() || null,
         notes: notes.trim() || null,
         submitted_by_user_id: user.id,
+        referral_type: isParent ? 'potential_parent' : 'surrogate',
       });
       if (error) throw error;
       Alert.alert(t('ambassador.submitSuccess'), t('ambassador.submitSuccessMessage'));
@@ -100,37 +105,41 @@ export default function AmbassadorScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.mainTitle}>{t('ambassador.referralBonusTitle')}</Text>
-          <Text style={styles.cta}>{t('ambassador.referralBonusCta')}</Text>
+          <Text style={styles.cta}>
+            {isParent ? t('ambassador.referralBonusCtaParent') : t('ambassador.referralBonusCta')}
+          </Text>
           <Text style={styles.description}>
-            {t('ambassador.referralBonusDescription')}
+            {isParent ? t('ambassador.referralBonusDescriptionParent') : t('ambassador.referralBonusDescription')}
           </Text>
 
           <View style={styles.card}>
-            <Text style={styles.label}>{t('ambassador.referredSurrogateName')}</Text>
+            <Text style={styles.label}>{t(nameLabelKey)}</Text>
             <TextInput
               style={styles.input}
               value={referredName}
               onChangeText={setReferredName}
-              placeholder={t('ambassador.referredSurrogateNamePlaceholder')}
+              placeholder={isParent ? t('ambassador.referredPotentialParentNamePlaceholder') : t('ambassador.referredSurrogateNamePlaceholder')}
               placeholderTextColor="#9CA3AF"
             />
 
-            <Text style={styles.label}>{t('ambassador.referredSurrogatePhone')}</Text>
+            <Text style={styles.label}>{t(phoneLabelKey)}</Text>
             <TextInput
               style={styles.input}
               value={referredPhone}
               onChangeText={setReferredPhone}
-              placeholder={t('ambassador.referredSurrogatePhonePlaceholder')}
+              placeholder={isParent ? t('ambassador.referredPotentialParentPhonePlaceholder') : t('ambassador.referredSurrogatePhonePlaceholder')}
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
             />
 
-            <Text style={styles.label}>{t('ambassador.referredSurrogateEmail')}</Text>
+            <Text style={styles.label}>
+              {isParent ? t('ambassador.referredPotentialParentEmail') : t('ambassador.referredSurrogateEmail')}
+            </Text>
             <TextInput
               style={styles.input}
               value={referredEmail}
               onChangeText={setReferredEmail}
-              placeholder={t('ambassador.referredSurrogateEmailPlaceholder')}
+              placeholder={isParent ? t('ambassador.referredPotentialParentEmailPlaceholder') : t('ambassador.referredSurrogateEmailPlaceholder')}
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
             />

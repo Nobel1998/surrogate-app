@@ -52,7 +52,7 @@ export async function GET(
     if (profileIds.length > 0) {
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, name, phone, email, date_of_birth, location, progress_stage, transfer_date')
+        .select('id, name, phone, email, date_of_birth, location, progress_stage, transfer_date, stage_updated_by')
         .in('id', profileIds);
 
       if (profilesData) {
