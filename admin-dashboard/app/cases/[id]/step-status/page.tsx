@@ -403,7 +403,7 @@ export default function StepStatusPage() {
               <div className="grid grid-cols-2 gap-x-8">
                 {renderField('Case Status', caseData?.status?.toUpperCase() || 'ACTIVE', true)}
                 {renderField('Current Step', caseData?.current_step ? (STAGE_LABELS[caseData.current_step] || caseData.current_step) : undefined)}
-                {renderField('代母的stage是否由代母自己在App更新', caseData?.surrogate?.stage_updated_by === 'surrogate' ? '是' : '否', true)}
+                {renderField('Stage Updated by Surrogate in App', caseData?.surrogate?.stage_updated_by === 'surrogate' ? 'Yes' : 'No', true)}
                 {renderField('Case Type', caseData?.case_type)}
                 {renderField('Weeks Pregnant', caseData?.weeks_pregnant)}
                 {renderField('Number of Fetuses', caseData?.number_of_fetuses)}
