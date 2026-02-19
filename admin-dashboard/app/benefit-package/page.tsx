@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 export default function BenefitPackagePage() {
   const [currentDoc, setCurrentDoc] = useState<{
     file_url: string | null;
-    file_path: string | null;
     updated_at: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);

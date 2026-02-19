@@ -26,7 +26,7 @@ export async function GET() {
   });
   const { data, error } = await supabase
     .from('global_documents')
-    .select('file_url, file_path, updated_at')
+    .select('file_url, updated_at')
     .eq('document_type', DOCUMENT_TYPE)
     .maybeSingle();
   if (error) {
@@ -36,7 +36,7 @@ export async function GET() {
       { status: 500 }
     );
   }
-  return NextResponse.json(data || { file_url: null, file_path: null, updated_at: null });
+  return NextResponse.json(data || { file_url: null, updated_at: null });
 }
 
 /** POST: Upload new Benefit Package PDF (replace existing) */
@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           document_type: DOCUMENT_TYPE,
-          file_path: STORAGE_PATH,
           file_url,
           updated_at: new Date().toISOString(),
         },
@@ -110,7 +109,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       file_url,
-      file_path: STORAGE_PATH,
     });
   } catch (err: any) {
     console.error('[benefit-package] error:', err);
