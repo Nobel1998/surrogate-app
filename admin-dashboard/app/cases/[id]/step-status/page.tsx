@@ -641,7 +641,7 @@ export default function StepStatusPage() {
               const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
               const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
               const surrogateReports = medicalReports.filter((r) => r.user_id === caseData.surrogate_id);
-              const latestReports = surrogateReports.slice(0, 3);
+              const latestReports = surrogateReports; // Show all medical reports instead of slicing
 
               return renderDocumentSection('Activity', '📊',
                 <div className="space-y-4">
