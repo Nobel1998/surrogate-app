@@ -88,6 +88,13 @@ export default function StepStatusPage() {
   const [surrogateApp, setSurrogateApp] = useState<SurrogateApplication | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [medicalInfo, setMedicalInfo] = useState<MedicalInfo | null>(null);
+
+  const [updateTab, setUpdateTab] = useState<'note' | 'medical'>('note');
+  const [medicalStage, setMedicalStage] = useState('Pre-Transfer');
+  const [medicalVisitDate, setMedicalVisitDate] = useState('');
+  const [medicalProviderName, setMedicalProviderName] = useState('');
+  const [savingMedical, setSavingMedical] = useState(false);
+
   useEffect(() => {
     if (caseId) {
       loadData();
@@ -331,6 +338,46 @@ export default function StepStatusPage() {
       alert('Update deleted successfully');
     } catch (err: any) {
       alert(err.message || 'Failed to delete update');
+    }
+  };
+
+  const saveMedicalCheckIn = async () => {
+    if (!caseData?.surrogate_id) {
+      alert('No surrogate assigned to this case');
+      return;
+    }
+    if (!medicalVisitDate) {
+      alert('Please select a visit date');
+      return;
+    }
+
+    setSavingMedical(true);
+    try {
+      const res = await fetch('/api/matches/medical-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surrogate_id: caseData.surrogate_id,
+          stage: medicalStage,
+          visit_date: medicalVisitDate,
+          provider_name: medicalProviderName,
+          proof_image_url: null, // Admin basic upload doesn't require proof image for now, or it could be added if needed
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to save medical check in');
+      }
+
+      setMedicalVisitDate('');
+      setMedicalProviderName('');
+      await loadData();
+      alert('Medical check in saved successfully');
+    } catch (err: any) {
+      alert(err.message || 'Failed to save medical check in');
+    } finally {
+      setSavingMedical(false);
     }
   };
 
@@ -821,22 +868,96 @@ export default function StepStatusPage() {
             </div>
           )}
 
-          {/* Add new update */}
-          <textarea
-            value={adminUpdate}
-            onChange={(e) => setAdminUpdate(e.target.value)}
-            placeholder="Enter admin update notes..."
-            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <div className="mt-4">
-            <button
-              onClick={saveAdminUpdate}
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Update'}
-            </button>
+          {/* Add new update / medical check in */}
+          <div className="border-b border-gray-200 mb-4">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setUpdateTab('note')}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  updateTab === 'note'
+                    ? 'border-purple-500 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Add Admin Note
+              </button>
+              <button
+                onClick={() => setUpdateTab('medical')}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  updateTab === 'medical'
+                    ? 'border-purple-500 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Help Upload Medical Check In
+              </button>
+            </nav>
           </div>
+
+          {updateTab === 'note' ? (
+            <>
+              <textarea
+                value={adminUpdate}
+                onChange={(e) => setAdminUpdate(e.target.value)}
+                placeholder="Enter admin update notes..."
+                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="mt-4">
+                <button
+                  onClick={saveAdminUpdate}
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Update'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                  <select
+                    value={medicalStage}
+                    onChange={(e) => setMedicalStage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Pre-Transfer">Pre-Transfer</option>
+                    <option value="Post-Transfer">Post-Transfer</option>
+                    <option value="OBGYN">OBGYN</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visit Date</label>
+                  <input
+                    type="date"
+                    value={medicalVisitDate}
+                    onChange={(e) => setMedicalVisitDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={medicalProviderName}
+                    onChange={(e) => setMedicalProviderName(e.target.value)}
+                    placeholder="Enter doctor or clinic name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={saveMedicalCheckIn}
+                  disabled={savingMedical}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {savingMedical ? 'Saving...' : 'Save Medical Check In'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
