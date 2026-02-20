@@ -94,6 +94,7 @@ export default function StepStatusPage() {
   const [medicalVisitDate, setMedicalVisitDate] = useState('');
   const [medicalProviderName, setMedicalProviderName] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
+  const [selectedMedicalReport, setSelectedMedicalReport] = useState<any | null>(null);
 
   useEffect(() => {
     if (caseId) {
@@ -728,6 +729,13 @@ export default function StepStatusPage() {
                                   </a>
                                 )}
                                 <button
+                                  onClick={() => setSelectedMedicalReport(r)}
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                                  title="View detailed medical report"
+                                >
+                                  👁️ View Details
+                                </button>
+                                <button
                                   onClick={() => deleteMedicalReport(r.id)}
                                   className="text-xs text-red-600 hover:text-red-800 font-semibold"
                                   title="Delete this medical report"
@@ -965,6 +973,133 @@ export default function StepStatusPage() {
           Generated on {new Date().toLocaleString('en-US')} • Babytree Surrogacy
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedMedicalReport && renderMedicalReportDetailModal(
+        selectedMedicalReport, 
+        () => setSelectedMedicalReport(null),
+        formatDateOnly
+      )}
     </div>
   );
 }
+
+const renderMedicalReportDetailModal = (
+  report: any,
+  onClose: () => void,
+  formatDateOnly: (dateStr: string | null | undefined) => string
+) => {
+  if (!report) return null;
+
+  const reportDataLabelMap: Record<string, string> = {
+    endometrial_thickness: 'Endometrial Thickness',
+    follicle_1_mm: 'Follicle 1 (mm)',
+    follicle_2_mm: 'Follicle 2 (mm)',
+    follicle_3_mm: 'Follicle 3 (mm)',
+    labs: 'Labs',
+    labs_other: 'Other Labs',
+    next_appointment_date: 'Next Appt Date',
+    next_appointment_type: 'Next Appt Type',
+    questions_for_team: 'Questions',
+    gestational_sac_diameter: 'Gestational Sac Diameter (mm)',
+    fetal_heart_rate: 'Fetal Heart Rate (bpm)',
+    beta_hcg: 'Beta hCG',
+    weight: 'Weight',
+    blood_pressure: 'Blood Pressure',
+    fetal_heartbeats: 'Fetal Heartbeats',
+    fundal_height: 'Fundal Height',
+    cervix_length: 'Cervix Length',
+    urine_test_results: 'Urine Test Results',
+    other_concerns: 'Other Concerns',
+  };
+
+  const reportData = report.report_data || {};
+  const dataKeys = Object.keys(reportData).filter(key => {
+    const val = reportData[key];
+    return val !== null && val !== undefined && val !== '';
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto pt-10 pb-10">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto flex flex-col max-h-[90vh]">
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
+          <h3 className="text-lg font-bold text-gray-900">Medical Check-in Details</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none">
+            &times;
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto">
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="block text-xs font-semibold text-gray-500 uppercase">Stage</span>
+                <span className="block text-sm font-medium text-gray-900 mt-1">{report.stage}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-gray-500 uppercase">Visit Date</span>
+                <span className="block text-sm font-medium text-gray-900 mt-1">{formatDateOnly(report.visit_date)}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-gray-500 uppercase">Provider</span>
+                <span className="block text-sm font-medium text-gray-900 mt-1">{report.provider_name || '—'}</span>
+              </div>
+              {report.provider_contact && (
+                <div>
+                  <span className="block text-xs font-semibold text-gray-500 uppercase">Provider Contact</span>
+                  <span className="block text-sm font-medium text-gray-900 mt-1">{report.provider_contact}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <h4 className="font-semibold text-md text-gray-800 border-b border-gray-200 pb-2 mb-4">Report Data</h4>
+          
+          {dataKeys.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No additional report data provided.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {dataKeys.map((key) => {
+                let value = reportData[key];
+                if (Array.isArray(value)) {
+                  value = value.join(', ');
+                } else if (typeof value === 'object') {
+                  value = JSON.stringify(value);
+                }
+                const label = reportDataLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                return (
+                  <div key={key} className="break-words">
+                    <span className="block text-xs font-semibold text-gray-500">{label}</span>
+                    <span className="block text-sm text-gray-900 mt-0.5 whitespace-pre-wrap">{value}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {report.proof_image_url && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h4 className="font-semibold text-sm text-gray-800 mb-2">Proof Image</h4>
+              <a 
+                href={report.proof_image_url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                📎 View Uploaded Document/Image
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t border-gray-200 shrink-0 text-right bg-gray-50 rounded-b-lg">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md text-sm font-medium transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
