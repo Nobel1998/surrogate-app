@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         email,
         role,
         branch_id,
+        read_only,
         created_at,
         updated_at,
         branches:branch_id (
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, username, email, password, branch_id } = body;
+    const { name, username, email, password, branch_id, read_only } = body;
 
     // Validation
     if (!name || !username || !password || !branch_id) {
@@ -189,8 +190,9 @@ export async function POST(req: NextRequest) {
         password_hash: passwordHash,
         role: 'branch_manager',
         branch_id: branch_id,
+        read_only: read_only === true,
       })
-      .select('id, name, username, email, role, branch_id, created_at')
+      .select('id, name, username, email, role, branch_id, read_only, created_at')
       .single();
 
     if (insertError) {

@@ -57,7 +57,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, username, email, password, branch_id } = body;
+    const { name, username, email, password, branch_id, read_only } = body;
 
     // Check if branch manager exists
     const { data: existingManager, error: fetchError } = await supabase
@@ -103,6 +103,8 @@ export async function PUT(
       }
       updateData.branch_id = branch_id;
     }
+
+    if (read_only !== undefined) updateData.read_only = read_only === true;
 
     // Check username uniqueness if changed
     if (username !== undefined && username !== null) {
@@ -153,6 +155,7 @@ export async function PUT(
         email,
         role,
         branch_id,
+        read_only,
         created_at,
         updated_at,
         branches:branch_id (

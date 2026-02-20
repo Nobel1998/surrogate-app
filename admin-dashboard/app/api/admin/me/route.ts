@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     // Fetch admin user
     const { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
-      .select('id, name, role, branch_id')
+      .select('id, name, role, branch_id, read_only')
       .eq('id', adminUserId)
       .single();
 
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
       branch_id: adminUser.branch_id,
       branch: branch,
       canViewAllBranches: role === 'admin',
+      read_only: role === 'branch_manager' ? !!adminUser.read_only : false,
     });
   } catch (error: any) {
     console.error('[admin/me] Error:', error);

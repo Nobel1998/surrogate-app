@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -176,6 +177,12 @@ export async function PATCH(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (await isReadOnlyBranchManager(supabase, adminUserId)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
     const { id: matchId } = await params;
     const body = await req.json();
 
@@ -224,6 +231,14 @@ export async function DELETE(
   });
 
   try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (await isReadOnlyBranchManager(supabase, adminUserId)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
     const { id: matchId } = await params;
 
     const { error: deleteError } = await supabase

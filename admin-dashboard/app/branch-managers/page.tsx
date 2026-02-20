@@ -16,6 +16,7 @@ interface BranchManager {
   email: string | null;
   role: string;
   branch_id: string;
+  read_only?: boolean;
   created_at: string;
   updated_at: string;
   branches?: Branch;
@@ -36,6 +37,7 @@ export default function BranchManagersPage() {
     email: '',
     password: '',
     branch_id: '',
+    read_only: false,
   });
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function BranchManagersPage() {
       email: '',
       password: '',
       branch_id: '',
+      read_only: false,
     });
     setEditingId(null);
     setShowAddModal(true);
@@ -91,6 +94,7 @@ export default function BranchManagersPage() {
       email: manager.email || '',
       password: '', // Don't pre-fill password
       branch_id: manager.branch_id,
+      read_only: !!manager.read_only,
     });
     setEditingId(manager.id);
     setShowAddModal(true);
@@ -151,6 +155,7 @@ export default function BranchManagersPage() {
           email: formData.email || null,
           password: formData.password || undefined,
           branch_id: formData.branch_id,
+          read_only: formData.read_only,
         }),
       });
 
@@ -167,6 +172,7 @@ export default function BranchManagersPage() {
         email: '',
         password: '',
         branch_id: '',
+        read_only: false,
       });
       setEditingId(null);
       setShowPassword(false);
@@ -233,6 +239,9 @@ export default function BranchManagersPage() {
                   Branch
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  View only
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -243,7 +252,7 @@ export default function BranchManagersPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {branchManagers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                     No branch managers found. Click "Add Branch Manager" to create one.
                   </td>
                 </tr>
@@ -261,6 +270,15 @@ export default function BranchManagersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {manager.branches?.name || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {manager.read_only ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                          View only
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(manager.created_at).toLocaleDateString()}
@@ -303,6 +321,7 @@ export default function BranchManagersPage() {
                       email: '',
                       password: '',
                       branch_id: '',
+                      read_only: false,
                     });
                     setEditingId(null);
                     setShowPassword(false);
@@ -409,6 +428,19 @@ export default function BranchManagersPage() {
                   </select>
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="read_only"
+                    checked={formData.read_only}
+                    onChange={(e) => setFormData({ ...formData, read_only: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="read_only" className="text-sm font-medium text-gray-700">
+                    View only (can view but cannot create, edit, or delete)
+                  </label>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
@@ -420,6 +452,7 @@ export default function BranchManagersPage() {
                         email: '',
                         password: '',
                         branch_id: '',
+                        read_only: false,
                       });
                       setEditingId(null);
                       setShowPassword(false);
