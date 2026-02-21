@@ -93,6 +93,7 @@ export default function StepStatusPage() {
   const [medicalStage, setMedicalStage] = useState('Pre-Transfer');
   const [medicalVisitDate, setMedicalVisitDate] = useState('');
   const [medicalProviderName, setMedicalProviderName] = useState('');
+  const [medicalProviderContact, setMedicalProviderContact] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
   const [selectedMedicalReport, setSelectedMedicalReport] = useState<any | null>(null);
   const [medicalReportData, setMedicalReportData] = useState<any>({});
@@ -384,7 +385,10 @@ export default function StepStatusPage() {
           visit_date: medicalVisitDate,
           provider_name: medicalProviderName,
           proof_image_url: null, // Admin basic upload doesn't require proof image for now, or it could be added if needed
-          report_data: medicalReportData,
+          report_data: {
+            ...medicalReportData,
+            ...(medicalProviderContact.trim() ? { provider_contact: medicalProviderContact.trim() } : {}),
+          },
         }),
       });
 
@@ -395,6 +399,7 @@ export default function StepStatusPage() {
 
       setMedicalVisitDate('');
       setMedicalProviderName('');
+      setMedicalProviderContact('');
       setMedicalReportData({});
       await loadData();
       alert('Medical check in saved successfully');
@@ -970,13 +975,23 @@ export default function StepStatusPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Provider Name (Optional)</label>
                   <input
                     type="text"
                     value={medicalProviderName}
                     onChange={(e) => setMedicalProviderName(e.target.value)}
-                    placeholder="Enter doctor or clinic name"
+                    placeholder="e.g. Dr. Smith"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider Contact (Optional)</label>
+                  <input
+                    type="text"
+                    value={medicalProviderContact}
+                    onChange={(e) => setMedicalProviderContact(e.target.value)}
+                    placeholder="e.g. phone, email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1352,10 +1367,10 @@ const renderMedicalReportDetailModal = (
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Provider</span>
                 <span className="block text-sm font-medium text-gray-900 mt-1">{report.provider_name || '—'}</span>
               </div>
-              {report.provider_contact && (
+              {reportData.provider_contact && (
                 <div>
                   <span className="block text-xs font-semibold text-gray-500 uppercase">Provider Contact</span>
-                  <span className="block text-sm font-medium text-gray-900 mt-1">{report.provider_contact}</span>
+                  <span className="block text-sm font-medium text-gray-900 mt-1">{reportData.provider_contact}</span>
                 </div>
               )}
             </div>
@@ -1367,7 +1382,7 @@ const renderMedicalReportDetailModal = (
             <p className="text-sm text-gray-500 italic">No additional report data provided.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              {dataKeys.map((key) => {
+              {dataKeys.filter(k => k !== 'provider_contact').map((key) => {
                 let value = reportData[key];
                 if (Array.isArray(value)) {
                   const valLabels: Record<string, string> = {
