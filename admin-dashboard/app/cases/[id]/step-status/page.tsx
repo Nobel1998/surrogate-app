@@ -988,65 +988,133 @@ export default function StepStatusPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {medicalStage === 'Pre-Transfer' && (
                     <>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Labs</label>
+                        <div className="flex flex-wrap gap-4 mt-1">
+                          {['estradiol', 'progesterone', 'fsh', 'lh', 'beta_hgc'].map((lab) => {
+                            const labels: Record<string, string> = {
+                              estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test'
+                            };
+                            return (
+                              <label key={lab} className="inline-flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                  checked={isMedicalCheckboxChecked('labs', lab)}
+                                  onChange={(e) => handleMedicalReportCheckboxChange('labs', lab, e.target.checked)}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">{labels[lab]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Test Site</label>
+                        <div className="flex flex-wrap gap-4 mt-1">
+                          {['labcorp', 'ivf_clinic', 'others'].map((site) => {
+                            const labels: Record<string, string> = {
+                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
+                            };
+                            return (
+                              <label key={site} className="inline-flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                  checked={isMedicalCheckboxChecked('test_site', site)}
+                                  onChange={(e) => handleMedicalReportCheckboxChange('test_site', site, e.target.checked)}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">{labels[site]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.lab_test_date || ''}
+                          onChange={(e) => handleMedicalReportDataChange('lab_test_date', e.target.value)}
+                          placeholder="e.g. 12-01-2025"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="col-span-2 mt-2">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Follicle Ultrasound</h5>
+                        <p className="text-xs text-gray-500 mb-2">Top 4 Follicles Measurement</p>
+                        <div className="space-y-3">
+                          {[1, 2, 3, 4].map((num) => (
+                            <div key={num} className="flex items-center gap-4">
+                              <input
+                                type="number" step="0.1"
+                                value={medicalReportData[`follicle_${num}_mm`] || ''}
+                                onChange={(e) => handleMedicalReportDataChange(`follicle_${num}_mm`, e.target.value)}
+                                placeholder={`${num}. mm`}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicalReportDataChange(`follicle_${num}_ovary`, 'L')}
+                                  className={`w-10 h-10 rounded-full border ${medicalReportData[`follicle_${num}_ovary`] === 'L' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'} flex items-center justify-center font-medium`}
+                                >
+                                  L
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicalReportDataChange(`follicle_${num}_ovary`, 'R')}
+                                  className={`w-10 h-10 rounded-full border ${medicalReportData[`follicle_${num}_ovary`] === 'R' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'} flex items-center justify-center font-medium`}
+                                >
+                                  R
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Endometrial Thickness (mm)</label>
                         <input
                           type="number" step="0.1"
                           value={medicalReportData.endometrial_thickness || ''}
                           onChange={(e) => handleMedicalReportDataChange('endometrial_thickness', e.target.value)}
+                          placeholder="e.g. 8.5"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 1 (mm)</label>
-                        <input
-                          type="number" step="0.1"
-                          value={medicalReportData.follicle_1_mm || ''}
-                          onChange={(e) => handleMedicalReportDataChange('follicle_1_mm', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 2 (mm)</label>
-                        <input
-                          type="number" step="0.1"
-                          value={medicalReportData.follicle_2_mm || ''}
-                          onChange={(e) => handleMedicalReportDataChange('follicle_2_mm', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 3 (mm)</label>
-                        <input
-                          type="number" step="0.1"
-                          value={medicalReportData.follicle_3_mm || ''}
-                          onChange={(e) => handleMedicalReportDataChange('follicle_3_mm', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Labs</label>
-                        <div className="flex flex-wrap gap-4 mt-2">
-                          {['E2', 'P4', 'LH', 'FSH'].map((lab) => (
-                            <label key={lab} className="inline-flex items-center">
-                              <input
-                                type="checkbox"
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                checked={isMedicalCheckboxChecked('labs', lab)}
-                                onChange={(e) => handleMedicalReportCheckboxChange('labs', lab, e.target.checked)}
-                              />
-                              <span className="ml-2 text-sm text-gray-700">{lab}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Other Labs</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Endometrial Type</label>
                         <input
                           type="text"
-                          value={medicalReportData.labs_other || ''}
-                          onChange={(e) => handleMedicalReportDataChange('labs_other', e.target.value)}
+                          value={medicalReportData.endometrial_type || ''}
+                          onChange={(e) => handleMedicalReportDataChange('endometrial_type', e.target.value)}
+                          placeholder="e.g. Triple line"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.ultrasound_test_date || ''}
+                          onChange={(e) => handleMedicalReportDataChange('ultrasound_test_date', e.target.value)}
+                          placeholder="e.g. 12-01-2025"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                          value={medicalReportData.notes || ''}
+                          onChange={(e) => handleMedicalReportDataChange('notes', e.target.value)}
+                          placeholder="Additional notes..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={3}
                         />
                       </div>
                     </>
@@ -1224,12 +1292,20 @@ const renderMedicalReportDetailModal = (
   if (!report) return null;
 
   const reportDataLabelMap: Record<string, string> = {
-    endometrial_thickness: 'Endometrial Thickness',
+    endometrial_thickness: 'Endometrial Thickness (mm)',
+    endometrial_type: 'Endometrial Type',
+    ultrasound_test_date: 'Ultrasound Test Date',
     follicle_1_mm: 'Follicle 1 (mm)',
+    follicle_1_ovary: 'Follicle 1 Ovary',
     follicle_2_mm: 'Follicle 2 (mm)',
+    follicle_2_ovary: 'Follicle 2 Ovary',
     follicle_3_mm: 'Follicle 3 (mm)',
+    follicle_3_ovary: 'Follicle 3 Ovary',
+    follicle_4_mm: 'Follicle 4 (mm)',
+    follicle_4_ovary: 'Follicle 4 Ovary',
     labs: 'Labs',
-    labs_other: 'Other Labs',
+    test_site: 'Test Site',
+    lab_test_date: 'Lab Test Date',
     next_appointment_date: 'Next Appt Date',
     next_appointment_type: 'Next Appt Type',
     questions_for_team: 'Questions',
@@ -1243,6 +1319,7 @@ const renderMedicalReportDetailModal = (
     cervix_length: 'Cervix Length',
     urine_test_results: 'Urine Test Results',
     other_concerns: 'Other Concerns',
+    notes: 'Notes'
   };
 
   const reportData = report.report_data || {};
@@ -1293,7 +1370,11 @@ const renderMedicalReportDetailModal = (
               {dataKeys.map((key) => {
                 let value = reportData[key];
                 if (Array.isArray(value)) {
-                  value = value.join(', ');
+                  const valLabels: Record<string, string> = {
+                    estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test',
+                    labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
+                  };
+                  value = value.map(v => valLabels[v as string] || v).join(', ');
                 } else if (typeof value === 'object') {
                   value = JSON.stringify(value);
                 }
