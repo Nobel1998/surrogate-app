@@ -95,6 +95,27 @@ export default function StepStatusPage() {
   const [medicalProviderName, setMedicalProviderName] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
   const [selectedMedicalReport, setSelectedMedicalReport] = useState<any | null>(null);
+  const [medicalReportData, setMedicalReportData] = useState<any>({});
+
+  const handleMedicalReportDataChange = (key: string, value: any) => {
+    setMedicalReportData((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  const handleMedicalReportCheckboxChange = (groupKey: string, value: string, checked: boolean) => {
+    setMedicalReportData((prev: any) => {
+      const current = prev[groupKey] || [];
+      if (checked) {
+        return { ...prev, [groupKey]: [...current, value] };
+      } else {
+        return { ...prev, [groupKey]: current.filter((item: string) => item !== value) };
+      }
+    });
+  };
+
+  const isMedicalCheckboxChecked = (groupKey: string, value: string) => {
+    const arr = medicalReportData[groupKey] || [];
+    return Array.isArray(arr) && arr.includes(value);
+  };
 
   useEffect(() => {
     if (caseId) {
@@ -363,6 +384,7 @@ export default function StepStatusPage() {
           visit_date: medicalVisitDate,
           provider_name: medicalProviderName,
           proof_image_url: null, // Admin basic upload doesn't require proof image for now, or it could be added if needed
+          report_data: medicalReportData,
         }),
       });
 
@@ -373,6 +395,7 @@ export default function StepStatusPage() {
 
       setMedicalVisitDate('');
       setMedicalProviderName('');
+      setMedicalReportData({});
       await loadData();
       alert('Medical check in saved successfully');
     } catch (err: any) {
@@ -927,7 +950,10 @@ export default function StepStatusPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
                   <select
                     value={medicalStage}
-                    onChange={(e) => setMedicalStage(e.target.value)}
+                    onChange={(e) => {
+                      setMedicalStage(e.target.value);
+                      setMedicalReportData({});
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Pre-Transfer">Pre-Transfer</option>
@@ -955,6 +981,212 @@ export default function StepStatusPage() {
                   />
                 </div>
               </div>
+
+              {/* Dynamic Fields based on Stage */}
+              <div className="pt-4 border-t border-gray-200 mt-4">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">Additional Report Data</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {medicalStage === 'Pre-Transfer' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Endometrial Thickness (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.endometrial_thickness || ''}
+                          onChange={(e) => handleMedicalReportDataChange('endometrial_thickness', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 1 (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.follicle_1_mm || ''}
+                          onChange={(e) => handleMedicalReportDataChange('follicle_1_mm', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 2 (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.follicle_2_mm || ''}
+                          onChange={(e) => handleMedicalReportDataChange('follicle_2_mm', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Follicle 3 (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.follicle_3_mm || ''}
+                          onChange={(e) => handleMedicalReportDataChange('follicle_3_mm', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Labs</label>
+                        <div className="flex flex-wrap gap-4 mt-2">
+                          {['E2', 'P4', 'LH', 'FSH'].map((lab) => (
+                            <label key={lab} className="inline-flex items-center">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                checked={isMedicalCheckboxChecked('labs', lab)}
+                                onChange={(e) => handleMedicalReportCheckboxChange('labs', lab, e.target.checked)}
+                              />
+                              <span className="ml-2 text-sm text-gray-700">{lab}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Other Labs</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.labs_other || ''}
+                          onChange={(e) => handleMedicalReportDataChange('labs_other', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {medicalStage === 'Post-Transfer' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gestational Sac Diameter (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.gestational_sac_diameter || ''}
+                          onChange={(e) => handleMedicalReportDataChange('gestational_sac_diameter', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fetal Heart Rate (bpm)</label>
+                        <input
+                          type="number"
+                          value={medicalReportData.fetal_heart_rate || ''}
+                          onChange={(e) => handleMedicalReportDataChange('fetal_heart_rate', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Beta hCG</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.beta_hcg || ''}
+                          onChange={(e) => handleMedicalReportDataChange('beta_hcg', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {medicalStage === 'OBGYN' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.weight || ''}
+                          onChange={(e) => handleMedicalReportDataChange('weight', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Blood Pressure (e.g. 120/80)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.blood_pressure || ''}
+                          onChange={(e) => handleMedicalReportDataChange('blood_pressure', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fetal Heartbeats (bpm)</label>
+                        <input
+                          type="number"
+                          value={medicalReportData.fetal_heartbeats || ''}
+                          onChange={(e) => handleMedicalReportDataChange('fetal_heartbeats', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fundal Height (cm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.fundal_height || ''}
+                          onChange={(e) => handleMedicalReportDataChange('fundal_height', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cervix Length (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.cervix_length || ''}
+                          onChange={(e) => handleMedicalReportDataChange('cervix_length', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Urine Test Results</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.urine_test_results || ''}
+                          onChange={(e) => handleMedicalReportDataChange('urine_test_results', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Other Concerns</label>
+                        <textarea
+                          value={medicalReportData.other_concerns || ''}
+                          onChange={(e) => handleMedicalReportDataChange('other_concerns', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={2}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Common fields for all stages */}
+                  <div className="col-span-2 pt-2">
+                    <h5 className="text-xs font-semibold text-gray-600 uppercase mb-2">Next Appointment & Questions</h5>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Next Appt Date</label>
+                    <input
+                      type="date"
+                      value={medicalReportData.next_appointment_date || ''}
+                      onChange={(e) => handleMedicalReportDataChange('next_appointment_date', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Next Appt Type</label>
+                    <input
+                      type="text"
+                      value={medicalReportData.next_appointment_type || ''}
+                      onChange={(e) => handleMedicalReportDataChange('next_appointment_type', e.target.value)}
+                      placeholder="e.g. Ultrasound, Bloodwork"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Questions for Team</label>
+                    <textarea
+                      value={medicalReportData.questions_for_team || ''}
+                      onChange={(e) => handleMedicalReportDataChange('questions_for_team', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </div>
+              
               <div className="mt-4">
                 <button
                   onClick={saveMedicalCheckIn}

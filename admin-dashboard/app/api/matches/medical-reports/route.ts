@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { surrogate_id, stage, visit_date, provider_name, proof_image_url } = body;
+    const { surrogate_id, stage, visit_date, provider_name, proof_image_url, report_data } = body;
 
     if (!surrogate_id || !stage || !visit_date) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         visit_date,
         provider_name: provider_name || null,
         proof_image_url: proof_image_url || null,
-        report_data: {}, // Admin can add basic info, complex form left to app or can be expanded later
+        report_data: report_data || {}, 
       })
       .select()
       .single();

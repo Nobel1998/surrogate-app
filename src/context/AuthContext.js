@@ -172,11 +172,9 @@ export const AuthProvider = ({ children }) => {
           // 超时时，检查本地存储的用户
           const storedUser = await getStoredUser();
           if (storedUser) {
-            console.log('📱 Found stored user, will require re-login for cloud sync');
-            // 有本地用户但没有云端会话，清除本地用户强制重新登录
-            setUser(null);
-            setIsAuthenticated(false);
-            await AsyncStorageLib.removeItem('current_user');
+            console.log('📱 Found stored user, keeping them logged in for offline access or manual retry');
+            setUser(storedUser);
+            setIsAuthenticated(true);
           } else {
             console.log('❌ No stored user found');
             setUser(null);
@@ -384,6 +382,17 @@ export const AuthProvider = ({ children }) => {
         }
       }
       
+      // Before forcing logout, check if user logged in manually
+      try {
+        const storedUser = await getStoredUser();
+        if (storedUser) {
+          console.log('✅ checkAuthStatus failed, but user logged in manually (found in storage). Skipping logout.');
+          setUser(storedUser);
+          setIsAuthenticated(true);
+          return;
+        }
+      } catch (e) {}
+
       // 发生错误时，设置为未认证状态，让用户可以重新登录
       setUser(null);
       setIsAuthenticated(false);
