@@ -1137,12 +1137,91 @@ export default function StepStatusPage() {
 
                   {medicalStage === 'Post-Transfer' && (
                     <>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Labs</label>
+                        <div className="flex flex-wrap gap-4 mt-1">
+                          {['beta_hgc', 'progesterone', 'estradiol', 'tsh'].map((lab) => {
+                            const labels: Record<string, string> = {
+                              beta_hgc: 'β-hCG test', progesterone: 'Progesterone', estradiol: 'Estradiol', tsh: 'TSH'
+                            };
+                            return (
+                              <label key={lab} className="inline-flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                  checked={isMedicalCheckboxChecked('labs', lab)}
+                                  onChange={(e) => handleMedicalReportCheckboxChange('labs', lab, e.target.checked)}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">{labels[lab]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Test Site</label>
+                        <div className="flex flex-wrap gap-4 mt-1">
+                          {['labcorp', 'ivf_clinic', 'others'].map((site) => {
+                            const labels: Record<string, string> = {
+                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
+                            };
+                            return (
+                              <label key={site} className="inline-flex items-center">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                  checked={isMedicalCheckboxChecked('test_site', site)}
+                                  onChange={(e) => handleMedicalReportCheckboxChange('test_site', site, e.target.checked)}
+                                />
+                                <span className="ml-2 text-sm text-gray-700">{labels[site]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.lab_test_date || ''}
+                          onChange={(e) => handleMedicalReportDataChange('lab_test_date', e.target.value)}
+                          placeholder="e.g. 12-01-2025"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="col-span-2 mt-2">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Transvaginal Ultrasound</h5>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Gestational Sac Diameter (mm)</label>
                         <input
                           type="number" step="0.1"
                           value={medicalReportData.gestational_sac_diameter || ''}
                           onChange={(e) => handleMedicalReportDataChange('gestational_sac_diameter', e.target.value)}
+                          placeholder="e.g. 15.2"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Yolk Sac Diameter (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.yolk_sac_diameter || ''}
+                          onChange={(e) => handleMedicalReportDataChange('yolk_sac_diameter', e.target.value)}
+                          placeholder="e.g. 3.5"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Crown Rump Length (mm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.crown_rump_length || ''}
+                          onChange={(e) => handleMedicalReportDataChange('crown_rump_length', e.target.value)}
+                          placeholder="e.g. 5.2"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1152,16 +1231,48 @@ export default function StepStatusPage() {
                           type="number"
                           value={medicalReportData.fetal_heart_rate || ''}
                           onChange={(e) => handleMedicalReportDataChange('fetal_heart_rate', e.target.value)}
+                          placeholder="e.g. 150"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Beta hCG</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gestational Age</label>
                         <input
-                          type="number" step="0.1"
-                          value={medicalReportData.beta_hcg || ''}
-                          onChange={(e) => handleMedicalReportDataChange('beta_hcg', e.target.value)}
+                          type="text"
+                          value={medicalReportData.gestational_age || ''}
+                          onChange={(e) => handleMedicalReportDataChange('gestational_age', e.target.value)}
+                          placeholder="e.g. 6 weeks 3 days"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">EDD (Estimated Due Date) (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.edd || ''}
+                          onChange={(e) => handleMedicalReportDataChange('edd', e.target.value)}
+                          placeholder="e.g. 08-15-2026"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.ultrasound_test_date || ''}
+                          onChange={(e) => handleMedicalReportDataChange('ultrasound_test_date', e.target.value)}
+                          placeholder="e.g. 12-01-2025"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                          value={medicalReportData.notes || ''}
+                          onChange={(e) => handleMedicalReportDataChange('notes', e.target.value)}
+                          placeholder="Additional notes..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={3}
                         />
                       </div>
                     </>
@@ -1325,7 +1436,11 @@ const renderMedicalReportDetailModal = (
     next_appointment_type: 'Next Appt Type',
     questions_for_team: 'Questions',
     gestational_sac_diameter: 'Gestational Sac Diameter (mm)',
+    yolk_sac_diameter: 'Yolk Sac Diameter (mm)',
+    crown_rump_length: 'Crown Rump Length (mm)',
     fetal_heart_rate: 'Fetal Heart Rate (bpm)',
+    gestational_age: 'Gestational Age',
+    edd: 'EDD (Estimated Due Date)',
     beta_hcg: 'Beta hCG',
     weight: 'Weight',
     blood_pressure: 'Blood Pressure',
@@ -1386,7 +1501,7 @@ const renderMedicalReportDetailModal = (
                 let value = reportData[key];
                 if (Array.isArray(value)) {
                   const valLabels: Record<string, string> = {
-                    estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test',
+                    estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test', tsh: 'TSH',
                     labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
                   };
                   value = value.map(v => valLabels[v as string] || v).join(', ');
