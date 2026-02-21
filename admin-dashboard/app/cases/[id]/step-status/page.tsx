@@ -1281,20 +1281,32 @@ export default function StepStatusPage() {
                   {medicalStage === 'OBGYN' && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Surrogate&apos;s Weight (lbs)</label>
                         <input
                           type="number" step="0.1"
                           value={medicalReportData.weight || ''}
                           onChange={(e) => handleMedicalReportDataChange('weight', e.target.value)}
+                          placeholder="e.g. 145"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Blood Pressure (e.g. 120/80)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Blood Pressure</label>
                         <input
                           type="text"
                           value={medicalReportData.blood_pressure || ''}
                           onChange={(e) => handleMedicalReportDataChange('blood_pressure', e.target.value)}
+                          placeholder="e.g. 120/80"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Stomach Measurement (cm)</label>
+                        <input
+                          type="number" step="0.1"
+                          value={medicalReportData.stomach_measurement || ''}
+                          onChange={(e) => handleMedicalReportDataChange('stomach_measurement', e.target.value)}
+                          placeholder="e.g. 32"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1304,43 +1316,90 @@ export default function StepStatusPage() {
                           type="number"
                           value={medicalReportData.fetal_heartbeats || ''}
                           onChange={(e) => handleMedicalReportDataChange('fetal_heartbeats', e.target.value)}
+                          placeholder="e.g. 150"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Fundal Height (cm)</label>
-                        <input
-                          type="number" step="0.1"
-                          value={medicalReportData.fundal_height || ''}
-                          onChange={(e) => handleMedicalReportDataChange('fundal_height', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Cervix Length (mm)</label>
-                        <input
-                          type="number" step="0.1"
-                          value={medicalReportData.cervix_length || ''}
-                          onChange={(e) => handleMedicalReportDataChange('cervix_length', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Urine Test Results</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Effacement</label>
                         <input
                           type="text"
-                          value={medicalReportData.urine_test_results || ''}
-                          onChange={(e) => handleMedicalReportDataChange('urine_test_results', e.target.value)}
+                          value={medicalReportData.effacement || ''}
+                          onChange={(e) => handleMedicalReportDataChange('effacement', e.target.value)}
+                          placeholder="e.g. 50% or 2cm"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Dilation (cm)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.dilation || ''}
+                          onChange={(e) => handleMedicalReportDataChange('dilation', e.target.value)}
+                          placeholder="e.g. 2"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="col-span-2 mt-2">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Screening Tests</h5>
+                        <div className="space-y-3">
+                          {[
+                            { key: 'nt_screen', label: 'NT Screen Normal' },
+                            { key: 'quad_screen', label: 'Quad Screen Normal' },
+                            { key: 'anatomy_scan', label: 'Anatomy Scan Normal' },
+                            { key: 'glucose_screening', label: 'Glucose Screening Normal' },
+                            { key: 'gbs_testing', label: 'GBS Testing Normal' },
+                            { key: 'nipt_cvs_amniocentesis', label: 'NIPT/CVS/Amniocentesis Normal (not required)' },
+                          ].map((test) => (
+                            <div key={test.key} className="flex flex-wrap items-center gap-3 p-2 bg-gray-50 rounded-md">
+                              <span className="text-sm font-medium text-gray-700 w-48 shrink-0">{test.label}</span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicalReportDataChange(`${test.key}_normal`, 'yes')}
+                                  className={`px-3 py-1.5 rounded-full border text-sm font-medium ${medicalReportData[`${test.key}_normal`] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicalReportDataChange(`${test.key}_normal`, 'no')}
+                                  className={`px-3 py-1.5 rounded-full border text-sm font-medium ${medicalReportData[`${test.key}_normal`] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
+                                >
+                                  No
+                                </button>
+                              </div>
+                              <input
+                                type="text"
+                                value={medicalReportData[`${test.key}_test_date`] || ''}
+                                onChange={(e) => handleMedicalReportDataChange(`${test.key}_test_date`, e.target.value)}
+                                placeholder="Test date (MM-DD-YYYY)"
+                                className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gestational Age</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.gestational_age || ''}
+                          onChange={(e) => handleMedicalReportDataChange('gestational_age', e.target.value)}
+                          placeholder="e.g. 28 weeks 3 days"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Other Concerns</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                         <textarea
-                          value={medicalReportData.other_concerns || ''}
-                          onChange={(e) => handleMedicalReportDataChange('other_concerns', e.target.value)}
+                          value={medicalReportData.notes || ''}
+                          onChange={(e) => handleMedicalReportDataChange('notes', e.target.value)}
+                          placeholder="Additional notes..."
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          rows={2}
+                          rows={3}
                         />
                       </div>
                     </>
@@ -1442,14 +1501,29 @@ const renderMedicalReportDetailModal = (
     gestational_age: 'Gestational Age',
     edd: 'EDD (Estimated Due Date)',
     beta_hcg: 'Beta hCG',
-    weight: 'Weight',
+    weight: 'Surrogate\'s Weight (lbs)',
     blood_pressure: 'Blood Pressure',
-    fetal_heartbeats: 'Fetal Heartbeats',
+    stomach_measurement: 'Stomach Measurement (cm)',
+    fetal_heartbeats: 'Fetal Heartbeats (bpm)',
+    effacement: 'Effacement',
+    dilation: 'Dilation (cm)',
     fundal_height: 'Fundal Height',
     cervix_length: 'Cervix Length',
     urine_test_results: 'Urine Test Results',
     other_concerns: 'Other Concerns',
-    notes: 'Notes'
+    notes: 'Notes',
+    nt_screen_normal: 'NT Screen Normal',
+    nt_screen_test_date: 'NT Screen Test Date',
+    quad_screen_normal: 'Quad Screen Normal',
+    quad_screen_test_date: 'Quad Screen Test Date',
+    anatomy_scan_normal: 'Anatomy Scan Normal',
+    anatomy_scan_test_date: 'Anatomy Scan Test Date',
+    glucose_screening_normal: 'Glucose Screening Normal',
+    glucose_screening_test_date: 'Glucose Screening Test Date',
+    gbs_testing_normal: 'GBS Testing Normal',
+    gbs_testing_test_date: 'GBS Testing Test Date',
+    nipt_cvs_amniocentesis_normal: 'NIPT/CVS/Amniocentesis Normal',
+    nipt_cvs_amniocentesis_test_date: 'NIPT/CVS/Amniocentesis Test Date',
   };
 
   const reportData = report.report_data || {};
