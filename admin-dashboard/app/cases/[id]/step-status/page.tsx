@@ -1402,41 +1402,19 @@ export default function StepStatusPage() {
                           rows={3}
                         />
                       </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment Date (MM-DD-YYYY)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.next_appointment_date || ''}
+                          onChange={(e) => handleMedicalReportDataChange('next_appointment_date', e.target.value)}
+                          placeholder="e.g. 01-15-2026"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </>
                   )}
 
-                  {/* Common fields for all stages */}
-                  <div className="col-span-2 pt-2">
-                    <h5 className="text-xs font-semibold text-gray-600 uppercase mb-2">Next Appointment & Questions</h5>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Next Appt Date</label>
-                    <input
-                      type="date"
-                      value={medicalReportData.next_appointment_date || ''}
-                      onChange={(e) => handleMedicalReportDataChange('next_appointment_date', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Next Appt Type</label>
-                    <input
-                      type="text"
-                      value={medicalReportData.next_appointment_type || ''}
-                      onChange={(e) => handleMedicalReportDataChange('next_appointment_type', e.target.value)}
-                      placeholder="e.g. Ultrasound, Bloodwork"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Questions for Team</label>
-                    <textarea
-                      value={medicalReportData.questions_for_team || ''}
-                      onChange={(e) => handleMedicalReportDataChange('questions_for_team', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                    />
-                  </div>
                 </div>
               </div>
               
