@@ -779,89 +779,72 @@ export default function StepStatusPage() {
                   </div>
                   <div className="mt-2 pt-2 border-t border-gray-300">
                     {(() => {
-                      const upcomingOBAppointments = obAppointments
-                        .filter((a) => a.status === 'scheduled')
-                        .slice(0, 5);
-                      const upcomingIVFAppointments = ivfAppointments
-                        .filter((a) => a.status === 'scheduled')
-                        .slice(0, 5);
-                      
+                      const renderAppointmentCard = (appointment: any, colorScheme: 'blue' | 'purple') => {
+                        const appointmentDate = formatDateOnly(appointment.appointment_date);
+                        const appointmentTime = appointment.appointment_time ?
+                          new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                        const borderColor = colorScheme === 'blue' ? 'border-blue-200' : 'border-purple-200';
+                        const bgColor = colorScheme === 'blue' ? 'bg-blue-50' : 'bg-purple-50';
+
+                        return (
+                          <div key={appointment.id} className={`p-3 rounded-lg border ${borderColor} ${bgColor}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-sm font-semibold text-gray-800">
+                                {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                                appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {appointment.status}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mt-1">
+                              {appointment.provider_name && (
+                                <div><span className="font-medium text-gray-700">Provider:</span> {appointment.provider_name}</div>
+                              )}
+                              {appointment.clinic_name && (
+                                <div><span className="font-medium text-gray-700">Clinic:</span> {appointment.clinic_name}</div>
+                              )}
+                              {appointment.clinic_address && (
+                                <div className="col-span-2"><span className="font-medium text-gray-700">Address:</span> {appointment.clinic_address}</div>
+                              )}
+                              {appointment.clinic_phone && (
+                                <div><span className="font-medium text-gray-700">Phone:</span> {appointment.clinic_phone}</div>
+                              )}
+                              {appointment.appointment_type && (
+                                <div><span className="font-medium text-gray-700">Type:</span> {appointment.appointment_type}</div>
+                              )}
+                            </div>
+                            {appointment.notes && (
+                              <div className="mt-1.5 text-xs text-gray-500 bg-white/60 rounded p-1.5 italic">{appointment.notes}</div>
+                            )}
+                          </div>
+                        );
+                      };
+
                       return (
                         <>
                           <div className="font-semibold text-sm text-blue-700 mb-2">
-                            OB Appointments: {obAppointments.length} total ({obAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                            OB Appointments ({obAppointments.length})
                           </div>
-                          {upcomingOBAppointments.length === 0 ? (
-                            <div className="text-gray-500 text-xs">No upcoming OB appointments</div>
+                          {obAppointments.length === 0 ? (
+                            <div className="text-gray-500 text-xs">No OB appointments</div>
                           ) : (
                             <div className="space-y-2">
-                              {upcomingOBAppointments.map((appointment) => {
-                                const appointmentDate = formatDateOnly(appointment.appointment_date);
-                                const appointmentTime = appointment.appointment_time ? 
-                                  new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
-                                
-                                return (
-                                  <div key={appointment.id} className="p-2 rounded border border-blue-200 bg-blue-50">
-                                    <div className="text-[11px] text-gray-600 font-semibold">
-                                      {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
-                                    </div>
-                                    <div className="text-xs text-gray-700 mt-1">
-                                      {appointment.provider_name && `Dr. ${appointment.provider_name}`}
-                                      {appointment.clinic_name && ` · ${appointment.clinic_name}`}
-                                    </div>
-                                    <div className="text-xs text-gray-600 mt-1">
-                                      {appointment.status && (
-                                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
-                                          appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                                          appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                          'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                          {appointment.status}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                              {obAppointments.map((a) => renderAppointmentCard(a, 'blue'))}
                             </div>
                           )}
-                          <div className="font-semibold text-sm text-purple-700 mb-2 mt-3">
-                            IVF Appointments: {ivfAppointments.length} total ({ivfAppointments.filter(a => a.status === 'scheduled').length} scheduled)
+                          <div className="font-semibold text-sm text-purple-700 mb-2 mt-4">
+                            IVF Appointments ({ivfAppointments.length})
                           </div>
-                          {upcomingIVFAppointments.length === 0 ? (
-                            <div className="text-gray-500 text-xs">No upcoming IVF appointments</div>
+                          {ivfAppointments.length === 0 ? (
+                            <div className="text-gray-500 text-xs">No IVF appointments</div>
                           ) : (
                             <div className="space-y-2">
-                              {upcomingIVFAppointments.map((appointment) => {
-                                const appointmentDate = formatDateOnly(appointment.appointment_date);
-                                const appointmentTime = appointment.appointment_time ? 
-                                  new Date(`2000-01-01T${appointment.appointment_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
-                                
-                                return (
-                                  <div key={appointment.id} className="p-2 rounded border border-purple-200 bg-purple-50">
-                                    <div className="text-[11px] text-gray-600 font-semibold">
-                                      {appointmentDate} {appointmentTime && `· ${appointmentTime}`}
-                                    </div>
-                                    <div className="text-xs text-gray-700 mt-1">
-                                      {appointment.provider_name && `Dr. ${appointment.provider_name}`}
-                                      {appointment.clinic_name && ` · ${appointment.clinic_name}`}
-                                    </div>
-                                    <div className="text-xs text-gray-600 mt-1">
-                                      {appointment.status && (
-                                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] ${
-                                          appointment.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
-                                          appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                          'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                          {appointment.status}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                              {ivfAppointments.map((a) => renderAppointmentCard(a, 'purple'))}
                             </div>
                           )}
                         </>
