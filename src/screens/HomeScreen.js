@@ -2859,21 +2859,12 @@ export default function HomeScreen() {
 
             {/* Right Column: Content */}
             <View style={styles.timelineContent}>
-              <TouchableOpacity 
+              <View 
                 style={[
                   styles.timelineCard,
                   isCurrent && styles.cardCurrent,
                   isLocked && styles.cardLocked
                 ]}
-                activeOpacity={isLocked ? 1 : 0.7}
-                onPress={() => {
-                  if (!isLocked) {
-                    setStageFilter(stage.key);
-                    setViewMode('feed');
-                  } else {
-                    Alert.alert('Locked', 'Future stages are hidden until unlocked.');
-                  }
-                }}
               >
                 <View style={styles.cardHeader}>
                   <Text style={[styles.timelineStepText, isCurrent && styles.textCurrent]}>
@@ -2900,7 +2891,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </TouchableOpacity>
+              </View>
             </View>
           </View>
         )})}
