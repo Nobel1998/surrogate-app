@@ -40,6 +40,8 @@ export default function OBAppointmentsScreen({ navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [matchId, setMatchId] = useState(null);
+  const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
+  const isParent = (user?.role || '').toLowerCase() === 'parent';
   const [formData, setFormData] = useState({
     appointment_date: new Date(),
     appointment_time: new Date(),
@@ -51,9 +53,37 @@ export default function OBAppointmentsScreen({ navigation }) {
   });
 
   useEffect(() => {
-    loadMatchId();
-    loadAppointments();
+    if (isParent) {
+      loadMatchedSurrogateId();
+    } else {
+      loadMatchId();
+      loadAppointments();
+    }
   }, [user]);
+
+  const loadMatchedSurrogateId = async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('surrogate_matches')
+        .select('surrogate_id')
+        .eq('parent_id', user.id)
+        .in('status', ['matched', 'active'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const surrogateId = data?.[0]?.surrogate_id || null;
+      setMatchedSurrogateId(surrogateId);
+      if (surrogateId) {
+        loadAppointmentsForUser(surrogateId);
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error loading matched surrogate:', error);
+      setLoading(false);
+    }
+  };
 
   const loadMatchId = async () => {
     if (!user?.id) return;
@@ -74,20 +104,17 @@ export default function OBAppointmentsScreen({ navigation }) {
     }
   };
 
-  const loadAppointments = async () => {
-    if (!user?.id) return;
-
+  const loadAppointmentsForUser = async (targetUserId) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('ob_appointments')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('appointment_date', { ascending: true })
         .order('appointment_time', { ascending: true });
 
       if (error) throw error;
-
       setAppointments(data || []);
     } catch (error) {
       console.error('Error loading appointments:', error);
@@ -98,9 +125,18 @@ export default function OBAppointmentsScreen({ navigation }) {
     }
   };
 
+  const loadAppointments = async () => {
+    if (!user?.id) return;
+    loadAppointmentsForUser(user.id);
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
-    loadAppointments();
+    if (isParent && matchedSurrogateId) {
+      loadAppointmentsForUser(matchedSurrogateId);
+    } else {
+      loadAppointments();
+    }
   };
 
   const handleAdd = () => {
@@ -251,9 +287,13 @@ export default function OBAppointmentsScreen({ navigation }) {
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>OB Appointments</Text>
-        <TouchableOpacity onPress={handleAdd}>
-          <Icon name="plus" size={24} color="#3B82F6" />
-        </TouchableOpacity>
+        {isParent ? (
+          <View style={{ width: 24 }} />
+        ) : (
+          <TouchableOpacity onPress={handleAdd}>
+            <Icon name="plus" size={24} color="#3B82F6" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -263,8 +303,8 @@ export default function OBAppointmentsScreen({ navigation }) {
         {appointments.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="calendar" size={48} color="#CCC" />
-            <Text style={styles.emptyText}>No appointments scheduled</Text>
-            <Text style={styles.emptySubtext}>Tap + to schedule an appointment</Text>
+            <Text style={styles.emptyText}>{isParent ? 'No surrogate appointments yet' : 'No appointments scheduled'}</Text>
+            {!isParent && <Text style={styles.emptySubtext}>Tap + to schedule an appointment</Text>}
           </View>
         ) : (
           appointments.map((appointment) => (
@@ -312,30 +352,32 @@ export default function OBAppointmentsScreen({ navigation }) {
                 )}
               </View>
 
-              <View style={styles.appointmentActions}>
-                {appointment.status === 'scheduled' && (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.completeButton]}
-                      onPress={() => handleStatusUpdate(appointment.id, 'completed')}
-                    >
-                      <Text style={styles.actionButtonText}>Mark Complete</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.cancelButton]}
-                      onPress={() => handleStatusUpdate(appointment.id, 'cancelled')}
-                    >
-                      <Text style={styles.actionButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.deleteButton]}
-                  onPress={() => handleDelete(appointment.id)}
-                >
-                  <Icon name="trash-2" size={16} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
+              {!isParent && (
+                <View style={styles.appointmentActions}>
+                  {appointment.status === 'scheduled' && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.completeButton]}
+                        onPress={() => handleStatusUpdate(appointment.id, 'completed')}
+                      >
+                        <Text style={styles.actionButtonText}>Mark Complete</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.cancelButton]}
+                        onPress={() => handleStatusUpdate(appointment.id, 'cancelled')}
+                      >
+                        <Text style={styles.actionButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDelete(appointment.id)}
+                  >
+                    <Icon name="trash-2" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))
         )}

@@ -251,6 +251,7 @@ export const translations = {
       stagePreTransfer: 'Pre-Transfer',
       stagePostTransfer: 'Post-Transfer',
       stageOBGYN: 'OBGYN',
+      adminUploaded: 'Admin',
     },
     // Points Rewards
     points: {
@@ -1154,6 +1155,7 @@ export const translations = {
       stagePreTransfer: '移植前',
       stagePostTransfer: '移植后',
       stageOBGYN: '产科',
+      adminUploaded: '管理员上传',
     },
     // Points Rewards - Chinese
     points: {
@@ -2032,6 +2034,7 @@ export const translations = {
       stagePreTransfer: 'Pre-Transferencia',
       stagePostTransfer: 'Post-Transferencia',
       stageOBGYN: 'OBGYN',
+      adminUploaded: 'Admin',
     },
     // Points Rewards - Spanish
     points: {

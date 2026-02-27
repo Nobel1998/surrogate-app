@@ -694,6 +694,8 @@ export default function ProfileScreen({ navigation }) {
                 intendedParentApplicationStatus === 'submitted' ? 'Submitted' : 'Not Submitted',
                 loadingIntendedParentApplication
               )}
+              {renderMenuItem('OB Appointments', 'calendar', () => navigation.navigate('OBAppointments'), '#10B981')}
+              {renderMenuItem('IVF Appointments', 'calendar', () => navigation.navigate('IVFAppointments'), '#3B82F6')}
             </>
           )}
           {/* Only show Application, Benefit Package, Injection Tutorial Videos, and Medical Info for surrogates */}

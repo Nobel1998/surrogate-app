@@ -296,6 +296,7 @@ export default function MedicalReportFormScreen({ route }) {
         stage: currentStage,
         report_data: reportDataWithContact,
         proof_image_url: imageUrl,
+        uploaded_by: 'surrogate',
       }).select();
 
       if (error) {

@@ -2437,8 +2437,13 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.medicalReportTitle}>{t('medicalReport.title')}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Text style={styles.medicalReportDate}>{formattedDate}</Text>
+              {report.uploaded_by === 'admin' && (
+                <View style={styles.adminUploadedBadge}>
+                  <Text style={styles.adminUploadedText}>{t('medicalReport.adminUploaded')}</Text>
+                </View>
+              )}
               {pregnancyWeeks && (
                 <View style={styles.pregnancyWeeksBadge}>
                   <Text style={styles.pregnancyWeeksText}>
@@ -2570,6 +2575,13 @@ export default function HomeScreen() {
                 <View style={styles.medicalReportDetailSection}>
                   <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.providerContact')}</Text>
                   <Text style={styles.medicalReportDetailValue}>{formatValue(reportData.provider_contact)}</Text>
+                </View>
+              )}
+              {report.uploaded_by === 'admin' && (
+                <View style={[styles.medicalReportDetailSection, styles.adminUploadedDetailRow]}>
+                  <View style={styles.adminUploadedBadge}>
+                    <Text style={styles.adminUploadedText}>{t('medicalReport.adminUploaded')}</Text>
+                  </View>
                 </View>
               )}
               {Object.entries(reportData)
@@ -4455,6 +4467,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#00B894',
+  },
+  adminUploadedBadge: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  adminUploadedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#E65100',
+  },
+  adminUploadedDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   medicalReportProvider: {
     fontSize: 12,

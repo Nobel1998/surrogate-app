@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
         visit_date,
         provider_name: provider_name || null,
         proof_image_url: proof_image_url || null,
-        report_data: report_data || {}, 
+        report_data: report_data || {},
+        uploaded_by: 'admin',
       })
       .select()
       .single();
