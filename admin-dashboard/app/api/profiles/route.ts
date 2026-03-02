@@ -13,7 +13,6 @@ type AppProfile = {
   phone: string | null;
   role: string | null;
   created_at: string | null;
-  updated_at: string | null;
 };
 
 type SurrogateApplication = {
@@ -36,7 +35,7 @@ export async function GET() {
   try {
     const profilesWithEmailRes = await supabase
       .from('profiles')
-      .select('id, name, email, phone, role, created_at, updated_at')
+      .select('id, name, email, phone, role, created_at')
       .order('created_at', { ascending: false });
 
     let profilesData: AppProfile[] = [];
@@ -54,7 +53,7 @@ export async function GET() {
       // Fallback for environments where profiles.email doesn't exist
       const profilesWithoutEmailRes = await supabase
         .from('profiles')
-        .select('id, name, phone, role, created_at, updated_at')
+        .select('id, name, phone, role, created_at')
         .order('created_at', { ascending: false });
 
       if (profilesWithoutEmailRes.error) throw profilesWithoutEmailRes.error;
