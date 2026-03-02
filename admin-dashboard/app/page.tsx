@@ -113,7 +113,7 @@ export default function Home() {
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent'
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent', 'signup'
   const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
 
   // 解析 Surrogate 申请数据的辅助函数
@@ -191,29 +191,69 @@ export default function Home() {
     };
   };
 
+  // 解析仅 Sign Up 的用户（未提交申请表）
+  const parseSignupProfileData = (profile: any) => {
+    const role = (profile?.role || '').toLowerCase();
+    const roleLabel = role === 'parent' ? 'Parent' : role === 'surrogate' ? 'Surrogate' : 'User';
+
+    return {
+      ...profile,
+      id: profile.id,
+      applicationType: 'signup',
+      signupRole: role,
+      full_name: profile.name || profile.full_name || 'Unknown',
+      phone: profile.phone || 'N/A',
+      email: profile.email || 'N/A',
+      location: profile.location || profile.address || 'N/A',
+      status: 'registered',
+      signupSource: `Sign Up (${roleLabel})`,
+      submitted_at: profile.created_at,
+    };
+  };
+
   const loadApplications = async () => {
     try {
       setLoading(true);
       
-      // 同时加载 Surrogate 和 Intended Parent 申请
-      const [surrogateRes, intendedParentRes] = await Promise.all([
+      // 同时加载 Surrogate 申请、Intended Parent 申请和 profiles
+      const [surrogateRes, intendedParentRes, profilesRes] = await Promise.all([
         supabase
           .from('applications')
           .select('*')
           .order('created_at', { ascending: false }),
-        fetch('/api/intended-parent-applications').then(res => res.json())
+        fetch('/api/intended-parent-applications').then(res => res.json()),
+        supabase
+          .from('profiles')
+          .select('*')
+          .in('role', ['surrogate', 'parent'])
+          .order('created_at', { ascending: false }),
       ]);
 
       if (surrogateRes.error) throw surrogateRes.error;
+      if (profilesRes.error) throw profilesRes.error;
       
       // 解析 Surrogate 申请
       const parsedSurrogateApps = (surrogateRes.data || []).map(parseSurrogateApplicationData);
       
       // 解析 Intended Parent 申请
       const parsedIntendedParentApps = (intendedParentRes.data || []).map(parseIntendedParentApplicationData);
+
+      // 找出已经提交申请的用户 ID（避免和 Sign Up 用户重复）
+      const appliedUserIds = new Set<string>();
+      (surrogateRes.data || []).forEach((app: any) => {
+        if (app?.user_id) appliedUserIds.add(String(app.user_id));
+      });
+      (intendedParentRes.data || []).forEach((app: any) => {
+        if (app?.user_id) appliedUserIds.add(String(app.user_id));
+      });
+
+      // 仅 Sign Up（未提交申请）的 parent/surrogate 用户
+      const signupOnlyUsers = (profilesRes.data || [])
+        .filter((profile: any) => profile?.id && !appliedUserIds.has(String(profile.id)))
+        .map(parseSignupProfileData);
       
       // 合并并排序（按提交日期，最新的在前）
-      const allApplications = [...parsedSurrogateApps, ...parsedIntendedParentApps].sort((a, b) => {
+      const allApplications = [...parsedSurrogateApps, ...parsedIntendedParentApps, ...signupOnlyUsers].sort((a, b) => {
         const dateA = new Date(a.submitted_at || a.created_at || 0).getTime();
         const dateB = new Date(b.submitted_at || b.created_at || 0).getTime();
         return dateB - dateA;
@@ -251,6 +291,7 @@ export default function Home() {
     
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'pending' && (!app.status || app.status === 'pending')) ||
+      (statusFilter === 'registered' && app.status === 'registered') ||
       app.status === statusFilter;
     
     const matchesType = typeFilter === 'all' || app.applicationType === typeFilter;
@@ -258,9 +299,16 @@ export default function Home() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  const isActionableApplication = (app: any) =>
+    app.applicationType === 'surrogate' || app.applicationType === 'intended_parent';
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredApplications.map(app => ({ id: app.id, type: app.applicationType })));
+      setSelectedIds(
+        filteredApplications
+          .filter(isActionableApplication)
+          .map(app => ({ id: app.id, type: app.applicationType }))
+      );
     } else {
       setSelectedIds([]);
     }
@@ -394,7 +442,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage surrogate and intended parent applications</p>
+          <p className="text-gray-600">Manage applications and Sign Up users (parent/surrogate)</p>
         </div>
         
         <DashboardStats />
@@ -420,6 +468,7 @@ export default function Home() {
                 <option value="all">All Types</option>
                 <option value="surrogate">Surrogate</option>
                 <option value="intended_parent">Intended Parent</option>
+                <option value="signup">Sign Up Users</option>
               </select>
             </div>
             <div>
@@ -432,6 +481,7 @@ export default function Home() {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="registered">Registered</option>
               </select>
             </div>
           </div>
@@ -497,7 +547,10 @@ export default function Home() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === filteredApplications.length && filteredApplications.length > 0}
+                      checked={
+                        filteredApplications.filter(isActionableApplication).length > 0 &&
+                        selectedIds.length === filteredApplications.filter(isActionableApplication).length
+                      }
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -518,16 +571,23 @@ export default function Home() {
                         type="checkbox"
                         checked={selectedIds.some(item => item.id === app.id && item.type === app.applicationType)}
                         onChange={(e) => handleSelectOne(app.id, app.applicationType, e.target.checked)}
+                        disabled={!isActionableApplication(app)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
-                        app.applicationType === 'intended_parent' 
-                          ? 'bg-purple-100 text-purple-800' 
+                        app.applicationType === 'intended_parent'
+                          ? 'bg-purple-100 text-purple-800'
+                          : app.applicationType === 'signup'
+                          ? 'bg-indigo-100 text-indigo-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {app.applicationType === 'intended_parent' ? 'Intended Parent' : 'Surrogate'}
+                        {app.applicationType === 'intended_parent'
+                          ? 'Intended Parent'
+                          : app.applicationType === 'signup'
+                          ? app.signupSource || 'Sign Up'
+                          : 'Surrogate'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -540,6 +600,10 @@ export default function Home() {
                           <div className="text-sm text-gray-500">
                             {app.age ? `Age: ${app.age}` : 'Age not provided'} 
                             {app.previousSurrogacy && ' • Previous Surrogate'}
+                          </div>
+                        ) : app.applicationType === 'signup' ? (
+                          <div className="text-sm text-gray-500">
+                            {app.signupRole === 'parent' ? 'Signed up as Parent' : 'Signed up as Surrogate'}
                           </div>
                         ) : (
                           <div className="text-sm text-gray-500">
@@ -566,6 +630,7 @@ export default function Home() {
                       <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full 
                         ${app.status === 'approved' ? 'bg-green-100 text-green-800' : 
                           app.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                          app.status === 'registered' ? 'bg-indigo-100 text-indigo-800' :
                           'bg-yellow-100 text-yellow-800'}`}>
                         {app.status ? app.status.toUpperCase() : 'PENDING'}
                       </span>
@@ -578,53 +643,59 @@ export default function Home() {
                         >
                           📋 View
                         </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await generateApplicationPDF(app);
-                            } catch (error) {
-                              console.error('Error generating PDF:', error);
-                              alert('Error generating PDF. Please try again.');
-                            }
-                          }}
-                          className="text-green-600 hover:text-green-900 text-xs font-medium"
-                        >
-                          📄 PDF
-                        </button>
+                        {isActionableApplication(app) && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await generateApplicationPDF(app);
+                              } catch (error) {
+                                console.error('Error generating PDF:', error);
+                                alert('Error generating PDF. Please try again.');
+                              }
+                            }}
+                            className="text-green-600 hover:text-green-900 text-xs font-medium"
+                          >
+                            📄 PDF
+                          </button>
+                        )}
                         {app.applicationType === 'surrogate' ? (
                           <ApproveButton 
                             id={app.id} 
                             currentStatus={app.status} 
                             onUpdate={loadApplications}
                           />
-                        ) : (
+                        ) : app.applicationType === 'intended_parent' ? (
                           <IntendedParentApproveButton 
                             id={app.id} 
                             currentStatus={app.status} 
                             onUpdate={loadApplications}
                           />
+                        ) : (
+                          <span className="text-gray-400 text-xs">No review needed</span>
                         )}
-                        <button
-                          onClick={() => handleDeleteApplication(app.id, app.full_name, app.applicationType)}
-                          className="text-gray-500 hover:text-red-600 text-xs font-medium"
-                        >
-                          🗑️
-                        </button>
+                        {isActionableApplication(app) && (
+                          <button
+                            onClick={() => handleDeleteApplication(app.id, app.full_name, app.applicationType)}
+                            className="text-gray-500 hover:text-red-600 text-xs font-medium"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
                 ))}
                 {filteredApplications.length === 0 && applications.length > 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       No applications match your search criteria.
                     </td>
                   </tr>
                 )}
                 {applications.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No applications found.
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      No applications or sign up users found.
                     </td>
                   </tr>
                 )}
@@ -654,7 +725,45 @@ export default function Home() {
               </div>
 
               <div className="space-y-6">
-                {selectedApp.applicationType === 'intended_parent' ? (
+                {selectedApp.applicationType === 'signup' ? (
+                  <div className="bg-indigo-50 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-indigo-900 mb-4">👤 Sign Up User Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Role</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedApp.signupRole === 'parent' ? 'Parent' : selectedApp.signupRole === 'surrogate' ? 'Surrogate' : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Status</label>
+                        <p className="text-sm text-gray-900">REGISTERED (Sign Up only)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Full Name</label>
+                        <p className="text-sm text-gray-900">{selectedApp.full_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Email</label>
+                        <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Phone</label>
+                        <p className="text-sm text-gray-900">{selectedApp.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Location</label>
+                        <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-500">Created At</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedApp.created_at ? new Date(selectedApp.created_at).toLocaleString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedApp.applicationType === 'intended_parent' ? (
                   <>
                     {/* Intended Parent Application Template */}
                     {/* Step 1: Family Structure & Basic Information */}
@@ -1906,6 +2015,7 @@ export default function Home() {
                     <span className={`px-3 py-1 inline-flex text-sm leading-5 font-medium rounded-full 
                       ${selectedApp.status === 'approved' ? 'bg-green-100 text-green-800' : 
                         selectedApp.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                        selectedApp.status === 'registered' ? 'bg-indigo-100 text-indigo-800' :
                         'bg-yellow-100 text-yellow-800'}`}>
                       {selectedApp.status ? selectedApp.status.toUpperCase() : 'PENDING'}
                     </span>
@@ -1923,22 +2033,24 @@ export default function Home() {
                   >
                     Close
                   </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await generateApplicationPDF(selectedApp);
-                      } catch (error) {
-                        console.error('Error generating PDF:', error);
-                        alert('Error generating PDF. Please try again.');
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download PDF
-                  </button>
+                  {isActionableApplication(selectedApp) && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await generateApplicationPDF(selectedApp);
+                        } catch (error) {
+                          console.error('Error generating PDF:', error);
+                          alert('Error generating PDF. Please try again.');
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download PDF
+                    </button>
+                  )}
                   {selectedApp.applicationType === 'surrogate' ? (
                     <ApproveButton 
                       id={selectedApp.id} 
@@ -1948,7 +2060,7 @@ export default function Home() {
                         setSelectedApp(null);
                       }}
                     />
-                  ) : (
+                  ) : selectedApp.applicationType === 'intended_parent' ? (
                     <button
                       onClick={async () => {
                         const newStatus = selectedApp.status === 'approved' ? 'pending' : 'approved';
@@ -1973,6 +2085,8 @@ export default function Home() {
                     >
                       {selectedApp.status === 'approved' ? '⏳ Mark Pending' : '✅ Approve'}
                     </button>
+                  ) : (
+                    <span className="px-4 py-2 text-sm text-gray-500">Sign Up user (no approval action)</span>
                   )}
                 </div>
                   </>
@@ -1985,4 +2099,3 @@ export default function Home() {
     </div>
   );
 }
-
