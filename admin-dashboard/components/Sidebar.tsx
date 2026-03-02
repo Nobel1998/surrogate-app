@@ -12,6 +12,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   const allNavItems = [
     { href: '/', label: 'Applications', icon: '📋' },
+    { href: '/profiles', label: 'Profile', icon: '🪪' },
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
@@ -74,4 +75,3 @@ export default function Sidebar({ userRole }: SidebarProps) {
     </aside>
   );
 }
-
