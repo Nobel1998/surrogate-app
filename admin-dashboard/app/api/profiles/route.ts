@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 type AppProfile = {
   id: string;
   name: string | null;
-  email: string | null;
   phone: string | null;
   role: string | null;
   created_at: string | null;
@@ -37,7 +36,7 @@ export async function GET() {
     const [profilesRes, surrogateAppsRes, parentAppsRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, name, email, phone, role, created_at, updated_at')
+        .select('id, name, phone, role, created_at, updated_at')
         .order('created_at', { ascending: false }),
       supabase.from('applications').select('user_id'),
       supabase.from('intended_parent_applications').select('user_id'),
@@ -64,6 +63,7 @@ export async function GET() {
 
       return {
         ...profile,
+        email: null,
         hasSurrogateApplication,
         hasParentApplication,
         hasAnyApplication: hasSurrogateApplication || hasParentApplication,
@@ -79,4 +79,3 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
