@@ -35,6 +35,9 @@ export default function ProfilesPage() {
       }
       const data = await res.json();
       setUsers(data.users || []);
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        console.warn('[profiles] API warnings:', data.warnings);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load users';
       setError(message);
@@ -190,4 +193,3 @@ export default function ProfilesPage() {
     </div>
   );
 }
-

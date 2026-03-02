@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 type AppProfile = {
   id: string;
   name: string | null;
+  email?: string | null;
   phone: string | null;
   role: string | null;
   created_at: string | null;
@@ -33,37 +34,67 @@ export async function GET() {
   });
 
   try {
-    const [profilesRes, surrogateAppsRes, parentAppsRes] = await Promise.all([
-      supabase
+    const profilesWithEmailRes = await supabase
+      .from('profiles')
+      .select('id, name, email, phone, role, created_at, updated_at')
+      .order('created_at', { ascending: false });
+
+    let profilesData: AppProfile[] = [];
+    if (!profilesWithEmailRes.error) {
+      profilesData = (profilesWithEmailRes.data || []) as AppProfile[];
+    } else {
+      const message = String(profilesWithEmailRes.error.message || '').toLowerCase();
+      const missingEmailColumn =
+        message.includes('email') && (message.includes('does not exist') || message.includes('column'));
+
+      if (!missingEmailColumn) {
+        throw profilesWithEmailRes.error;
+      }
+
+      // Fallback for environments where profiles.email doesn't exist
+      const profilesWithoutEmailRes = await supabase
         .from('profiles')
         .select('id, name, phone, role, created_at, updated_at')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false });
+
+      if (profilesWithoutEmailRes.error) throw profilesWithoutEmailRes.error;
+      profilesData = ((profilesWithoutEmailRes.data || []) as AppProfile[]).map((profile) => ({
+        ...profile,
+        email: null,
+      }));
+    }
+
+    const [surrogateAppsRes, parentAppsRes] = await Promise.all([
       supabase.from('applications').select('user_id'),
       supabase.from('intended_parent_applications').select('user_id'),
     ]);
 
-    if (profilesRes.error) throw profilesRes.error;
-    if (surrogateAppsRes.error) throw surrogateAppsRes.error;
-    if (parentAppsRes.error) throw parentAppsRes.error;
-
     const surrogateApplicantIds = new Set(
-      ((surrogateAppsRes.data || []) as SurrogateApplication[])
+      ((surrogateAppsRes.error ? [] : surrogateAppsRes.data || []) as SurrogateApplication[])
         .map((row) => row.user_id)
         .filter((id): id is string => !!id)
     );
     const parentApplicantIds = new Set(
-      ((parentAppsRes.data || []) as ParentApplication[])
+      ((parentAppsRes.error ? [] : parentAppsRes.data || []) as ParentApplication[])
         .map((row) => row.user_id)
         .filter((id): id is string => !!id)
     );
 
-    const users = ((profilesRes.data || []) as AppProfile[]).map((profile) => {
+    const warnings: string[] = [];
+    if (surrogateAppsRes.error) {
+      warnings.push(`applications lookup failed: ${surrogateAppsRes.error.message}`);
+    }
+    if (parentAppsRes.error) {
+      warnings.push(`intended_parent_applications lookup failed: ${parentAppsRes.error.message}`);
+    }
+
+    const users = profilesData.map((profile) => {
       const hasSurrogateApplication = surrogateApplicantIds.has(profile.id);
       const hasParentApplication = parentApplicantIds.has(profile.id);
 
       return {
         ...profile,
-        email: null,
+        email: profile.email || null,
         hasSurrogateApplication,
         hasParentApplication,
         hasAnyApplication: hasSurrogateApplication || hasParentApplication,
@@ -72,9 +103,14 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ users });
+    return NextResponse.json({ users, warnings });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load profiles';
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message?: unknown }).message || 'Failed to load profiles')
+        : `Failed to load profiles: ${String(error)}`;
     console.error('[profiles] GET error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
