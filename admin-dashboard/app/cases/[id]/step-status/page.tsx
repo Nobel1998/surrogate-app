@@ -305,6 +305,46 @@ export default function StepStatusPage() {
     }
   };
 
+  // Keep Weeks Pregnant display aligned with Matches page:
+  // 1) prefer stored weeks_pregnant when > 0
+  // 2) otherwise calculate from transfer date using day-5 embryo baseline (19 gestational days)
+  const calculateWeeksPregnantDisplay = () => {
+    if (caseData?.weeks_pregnant && caseData.weeks_pregnant > 0) {
+      return `${caseData.weeks_pregnant} weeks`;
+    }
+
+    const transferDate = caseData?.transfer_date || caseData?.surrogate?.transfer_date;
+    if (!transferDate) return '—';
+
+    try {
+      const dateMatch = String(transferDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      let transfer: Date;
+
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        transfer = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        transfer = new Date(transferDate);
+        transfer.setHours(0, 0, 0, 0);
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const diffDays = Math.floor((today.getTime() - transfer.getTime()) / (24 * 60 * 60 * 1000));
+      if (diffDays < 0) return '—';
+
+      const transferGestationalDays = 19; // day-5 embryo transfer baseline
+      const gestationalDays = diffDays + transferGestationalDays;
+      const weeks = Math.floor(gestationalDays / 7);
+      const days = gestationalDays % 7;
+
+      return `${weeks} weeks ${days} days`;
+    } catch {
+      return '—';
+    }
+  };
+
   const formatValue = (value: any) => {
     if (value === null || value === undefined || value === '') return '—';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -480,7 +520,7 @@ export default function StepStatusPage() {
                 {renderField('Case Status', caseData?.status?.toUpperCase() || 'ACTIVE', true)}
                 {renderField('Current Step', caseData?.current_step ? (STAGE_LABELS[caseData.current_step] || caseData.current_step) : undefined)}
                 {renderField('Case Type', caseData?.case_type)}
-                {renderField('Weeks Pregnant', caseData?.weeks_pregnant)}
+                {renderField('Weeks Pregnant', calculateWeeksPregnantDisplay())}
                 {renderField('Number of Fetuses', caseData?.number_of_fetuses)}
                 {renderField('Fetal Beat Confirm', caseData?.fetal_beat_confirm)}
               </div>
