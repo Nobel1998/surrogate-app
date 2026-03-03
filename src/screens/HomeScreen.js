@@ -130,6 +130,12 @@ export default function HomeScreen() {
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [hasSurrogateMatch, setHasSurrogateMatch] = useState(false);
   const [checkingMatch, setCheckingMatch] = useState(false);
+  const pointsBackfillDoneRef = React.useRef(false);
+
+  useEffect(() => {
+    // Reset backfill guard when user changes
+    pointsBackfillDoneRef.current = false;
+  }, [user?.id]);
 
   // Check if surrogate user has submitted application
   const checkApplication = useCallback(async () => {
@@ -1368,7 +1374,7 @@ export default function HomeScreen() {
         .select('*')
         .eq('user_id', targetUserId)
         .order('visit_date', { ascending: false });
-      
+
       if (error) {
         console.error('Error fetching medical reports:', error);
         return;
@@ -1384,6 +1390,102 @@ export default function HomeScreen() {
   }, [user?.id, isParentRole, matchedSurrogateId]);
 
   // Fetch user points
+  const backfillPointsForHistoricalMedicalReports = useCallback(async () => {
+    if (!user?.id || !isSurrogateRole || pointsBackfillDoneRef.current) return;
+
+    pointsBackfillDoneRef.current = true;
+
+    try {
+      const { data: reports, error: reportsError } = await supabase
+        .from('medical_reports')
+        .select('id, visit_date, created_at')
+        .eq('user_id', user.id);
+
+      if (reportsError) {
+        console.error('Error loading medical reports for points backfill:', reportsError);
+        return;
+      }
+
+      const reportIds = (reports || []).map((r) => r.id).filter(Boolean);
+      if (reportIds.length === 0) return;
+
+      const { data: existingRewards, error: rewardsError } = await supabase
+        .from('points_rewards')
+        .select('source_id, reward_type')
+        .eq('user_id', user.id)
+        .eq('source_type', 'medical_report')
+        .in('source_id', reportIds);
+
+      if (rewardsError) {
+        console.error('Error loading existing points rewards for backfill:', rewardsError);
+        return;
+      }
+
+      const rewardTypeByReportId = new Map();
+      (existingRewards || []).forEach((reward) => {
+        if (!reward?.source_id) return;
+        const key = String(reward.source_id);
+        if (!rewardTypeByReportId.has(key)) {
+          rewardTypeByReportId.set(key, new Set());
+        }
+        rewardTypeByReportId.get(key).add(reward.reward_type);
+      });
+
+      const getDatePrefix = (value) => {
+        const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : '';
+      };
+
+      const rewardsToInsert = [];
+      (reports || []).forEach((report) => {
+        if (!report?.id) return;
+        const reportId = String(report.id);
+        const existingTypes = rewardTypeByReportId.get(reportId) || new Set();
+
+        // Base reward for every medical report
+        if (!existingTypes.has('base_hit')) {
+          rewardsToInsert.push({
+            user_id: user.id,
+            points: 200,
+            reward_type: 'base_hit',
+            source_type: 'medical_report',
+            source_id: report.id,
+            description: 'Medical report submission reward (historical backfill)',
+          });
+        }
+
+        // Speed bonus if visit_date and report creation date are the same day
+        const visitDate = getDatePrefix(report.visit_date);
+        const createdDate = getDatePrefix(report.created_at);
+        const qualifiesSpeedBonus = !!visitDate && !!createdDate && visitDate === createdDate;
+        if (qualifiesSpeedBonus && !existingTypes.has('speed_bonus')) {
+          rewardsToInsert.push({
+            user_id: user.id,
+            points: 50,
+            reward_type: 'speed_bonus',
+            source_type: 'medical_report',
+            source_id: report.id,
+            description: 'Same-day upload bonus (historical backfill)',
+          });
+        }
+      });
+
+      if (rewardsToInsert.length === 0) return;
+
+      const { error: insertError } = await supabase
+        .from('points_rewards')
+        .insert(rewardsToInsert);
+
+      if (insertError) {
+        console.error('Error inserting historical points rewards:', insertError);
+      } else {
+        console.log(`✅ Backfilled ${rewardsToInsert.length} historical points reward records`);
+      }
+    } catch (error) {
+      console.error('Error during historical points backfill:', error);
+    }
+  }, [user?.id, isSurrogateRole]);
+
   const fetchUserPoints = useCallback(async () => {
     if (!user?.id || !isSurrogateRole) {
       setUserPoints(0);
@@ -1392,6 +1494,9 @@ export default function HomeScreen() {
 
     try {
       setLoadingPoints(true);
+      // Backfill points for reports uploaded before points system went live
+      await backfillPointsForHistoricalMedicalReports();
+
       const { data, error } = await supabase
         .from('profiles')
         .select('total_points')
@@ -1410,7 +1515,7 @@ export default function HomeScreen() {
     } finally {
       setLoadingPoints(false);
     }
-  }, [user?.id, isSurrogateRole]);
+  }, [user?.id, isSurrogateRole, backfillPointsForHistoricalMedicalReports]);
 
   // Fetch match and medical information for surrogate
   const fetchMatchAndMedicalInfo = useCallback(async () => {
@@ -2876,7 +2981,7 @@ export default function HomeScreen() {
                 <Text style={[styles.timelineDescText, isCurrent && styles.textCurrentSub]}>
                   {stage.description}
                 </Text>
-                {isSurrogateRole && !isLocked && (
+                {!isLocked && (
                   <View style={styles.cardFooter}>
                     <TouchableOpacity
                       onPress={() => {
@@ -3063,7 +3168,7 @@ export default function HomeScreen() {
               />
             }
           >
-            {stageFilter !== 'delivery' && (
+            {isSurrogateRole && stageFilter !== 'delivery' && (
               <TouchableOpacity
                 style={styles.addMedicalReportButton}
                 onPress={() => {
