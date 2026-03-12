@@ -59,7 +59,9 @@ export default function AmbassadorScreen() {
         referred_surrogate_phone: referredPhone.trim(),
         referred_surrogate_email: referredEmail.trim() || null,
         notes: notes.trim() || null,
-        submitted_by_user_id: user.id,
+        referrer_user_id: user.id,
+        referrer_name: user.name || '',
+        referrer_email: user.email || '',
         referral_type: isParent ? 'potential_parent' : 'surrogate',
       });
       if (error) throw error;
