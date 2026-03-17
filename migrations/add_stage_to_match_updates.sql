@@ -3,4 +3,4 @@
 ALTER TABLE match_updates
   ADD COLUMN IF NOT EXISTS stage TEXT;
 
-COMMENT ON COLUMN match_updates.stage IS 'Optional stage for admin_note: pre_transfer, ob_visit, delivery, or null for general';
+COMMENT ON COLUMN match_updates.stage IS 'Optional stage for admin_note: pre_transfer, post_transfer, ob_visit, delivery, or null for general';

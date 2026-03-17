@@ -1346,7 +1346,7 @@ export default function MyMatchScreen({ navigation }) {
                     {note.stage ? (
                       <View style={styles.adminNoteStageBadge}>
                         <Text style={styles.adminNoteStageText}>
-                          {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
+                          {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'post_transfer' ? 'Post-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
                         </Text>
                       </View>
                     ) : null}

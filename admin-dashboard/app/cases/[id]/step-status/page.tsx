@@ -17,15 +17,15 @@ const STAGE_LABELS: Record<string, string> = {
   'complete': 'Complete',
 };
 
-// Admin note stage options (for Add Admin Note)
+// Admin note stage options (for Add Admin Note) — stage is required
 const ADMIN_NOTE_STAGES: { value: string; label: string }[] = [
-  { value: '', label: 'General' },
   { value: 'pre_transfer', label: 'Pre-Transfer' },
+  { value: 'post_transfer', label: 'Post-Transfer' },
   { value: 'ob_visit', label: 'OB Office Visit' },
   { value: 'delivery', label: 'Delivery' },
 ];
 const ADMIN_NOTE_STAGE_LABEL: Record<string, string> = Object.fromEntries(
-  ADMIN_NOTE_STAGES.map((s) => [s.value || 'general', s.label])
+  ADMIN_NOTE_STAGES.map((s) => [s.value, s.label])
 );
 
 type CaseDetail = {
@@ -86,7 +86,7 @@ export default function StepStatusPage() {
 
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [adminUpdate, setAdminUpdate] = useState('');
-  const [adminNoteStage, setAdminNoteStage] = useState('');
+  const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
   const [updates, setUpdates] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
@@ -378,7 +378,7 @@ export default function StepStatusPage() {
           update_type: 'admin_note',
           title: 'Admin Update',
           content: adminUpdate,
-          stage: adminNoteStage || null,
+          stage: adminNoteStage,
         }),
       });
 
@@ -387,7 +387,7 @@ export default function StepStatusPage() {
       }
 
       setAdminUpdate('');
-      setAdminNoteStage('');
+      setAdminNoteStage('pre_transfer');
       await loadData();
       alert('Update saved successfully');
     } catch (err: any) {
@@ -984,7 +984,7 @@ export default function StepStatusPage() {
                   className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {ADMIN_NOTE_STAGES.map((opt) => (
-                    <option key={opt.value || 'general'} value={opt.value}>
+                    <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
