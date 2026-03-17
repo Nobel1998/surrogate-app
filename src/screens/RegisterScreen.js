@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterScreen({ navigation }) {
@@ -281,11 +283,20 @@ export default function RegisterScreen({ navigation }) {
   );
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <TouchableOpacity
+          style={styles.backHomeButton}
+          onPress={() => navigation.navigate('Landing')}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={16} color="#2A7BF6" />
+          <Text style={styles.backHomeText}>Back to Home</Text>
+        </TouchableOpacity>
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join our surrogacy community</Text>
@@ -338,10 +349,15 @@ export default function RegisterScreen({ navigation }) {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FB',
@@ -349,8 +365,21 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 20,
+  },
+  backHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  backHomeText: {
+    fontSize: 14,
+    color: '#2A7BF6',
+    fontWeight: '600',
   },
   header: {
     alignItems: 'center',

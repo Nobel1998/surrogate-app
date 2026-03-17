@@ -180,6 +180,15 @@ export const NotificationProvider = ({ children }) => {
     NotificationService.sendMedicalAppointmentReminder(appointmentType, date, time);
   };
 
+  const scheduleMedicalAppointmentReminders = async (appointmentInfo) => {
+    if (!settings.medicalAppointments) return { scheduledCount: 0, disabled: true };
+    return NotificationService.scheduleAppointmentReminders(appointmentInfo);
+  };
+
+  const cancelMedicalAppointmentReminders = async (appointmentKey) => {
+    return NotificationService.cancelAppointmentReminders(appointmentKey);
+  };
+
   const sendWeeklyUpdate = () => {
     if (!settings.weeklyUpdates) return;
     
@@ -267,6 +276,8 @@ export const NotificationProvider = ({ children }) => {
     sendImportantMessage,
     sendPaymentReminder,
     sendMedicalAppointmentReminder,
+    scheduleMedicalAppointmentReminders,
+    cancelMedicalAppointmentReminders,
     sendWeeklyUpdate,
     sendMarketingMessage,
     sendSurrogateProgressUpdate,

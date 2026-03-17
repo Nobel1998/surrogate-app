@@ -17,11 +17,17 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
-export default function SurrogateMedicalInfoScreen({ navigation }) {
+export default function SurrogateMedicalInfoScreen({ navigation, route }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasData, setHasData] = useState(false);
+  
+  // Get surrogateId and readOnly from route params (for parent viewing surrogate's info)
+  const surrogateId = route?.params?.surrogateId;
+  const readOnly = route?.params?.readOnly || false;
+  const targetUserId = surrogateId || user?.id;
   
   // IVF Clinic Information
   const [ivfClinicName, setIvfClinicName] = useState('');
@@ -45,17 +51,17 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
 
   useEffect(() => {
     loadMedicalInfo();
-  }, [user]);
+  }, [targetUserId]);
 
   const loadMedicalInfo = async () => {
-    if (!user?.id) return;
+    if (!targetUserId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('surrogate_medical_info')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -65,6 +71,7 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
       }
 
       if (data) {
+        setHasData(true);
         setIvfClinicName(data.ivf_clinic_name || '');
         setIvfClinicAddress(data.ivf_clinic_address || '');
         setIvfClinicPhone(data.ivf_clinic_phone || '');
@@ -81,6 +88,8 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
         setDeliveryHospitalAddress(data.delivery_hospital_address || '');
         setDeliveryHospitalPhone(data.delivery_hospital_phone || '');
         setDeliveryHospitalEmail(data.delivery_hospital_email || '');
+      } else {
+        setHasData(false);
       }
     } catch (error) {
       console.error('Error loading medical info:', error);
@@ -91,7 +100,7 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!user?.id || readOnly) return;
 
     setSaving(true);
     try {
@@ -144,12 +153,13 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, readOnly && { backgroundColor: '#F5F5F5', color: '#666' }]}
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={readOnly ? '-' : placeholder}
         placeholderTextColor="#999"
         keyboardType={keyboardType}
+        editable={!readOnly}
       />
     </View>
   );
@@ -176,16 +186,28 @@ export default function SurrogateMedicalInfoScreen({ navigation }) {
             <Icon name="arrow-left" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('medicalInfo.title')}</Text>
-          <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={saving}>
-            {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>{t('common.save')}</Text>
-            )}
-          </TouchableOpacity>
+          {!readOnly ? (
+            <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 60 }} />
+          )}
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {readOnly && !hasData && (
+            <View style={styles.noDataBanner}>
+              <Icon name="info" size={20} color="#1E40AF" />
+              <Text style={styles.noDataText}>
+                Medical information has not been filled in by the surrogate yet.
+              </Text>
+            </View>
+          )}
           {renderSection(
             t('medicalInfo.ivfClinic'),
             'activity',
@@ -309,6 +331,21 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  noDataBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  noDataText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E40AF',
+    lineHeight: 20,
   },
   loadingContainer: {
     flex: 1,

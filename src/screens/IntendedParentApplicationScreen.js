@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
@@ -2547,11 +2548,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Landing')}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-left" size={16} color="#2A7BF6" />
+            <Text style={styles.backButtonText}>Back to Home</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Intended Parent Application</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerSubtitle}>Tell us about yourself</Text>
         </View>
 
         {/* Progress Bar */}
@@ -2653,28 +2659,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   backButton: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    gap: 4,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#2A7BF6',
+    fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#1A1D1E',
+    textAlign: 'center',
+    marginBottom: 6,
   },
-  headerSpacer: {
-    width: 60,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   progressContainer: {
     paddingHorizontal: 16,

@@ -1,18 +1,44 @@
 import { Platform, Alert, Linking, AppState } from 'react-native';
+import AsyncStorageLib from '../utils/Storage';
+
+const APPOINTMENT_REMINDER_STORAGE_KEY = 'appointment_reminder_schedule_v1';
+const MAX_TIMER_DELAY_MS = 2147480000;
 
 class RealNotificationService {
   constructor() {
     this.notifications = [];
     this.badgeCount = 0;
     this.isAppInForeground = true;
+    this.language = 'en';
+    this.appointmentReminderTimers = new Map();
+    this.scheduledAppointmentReminders = {};
     this.setupAppStateListener();
+    void this.refreshLanguage();
+    this.restoreScheduledAppointmentReminders();
   }
 
   setupAppStateListener() {
     AppState.addEventListener('change', (nextAppState) => {
       this.isAppInForeground = nextAppState === 'active';
+      if (nextAppState === 'active') {
+        void this.refreshLanguage();
+      }
       console.log('App state changed:', nextAppState);
     });
+  }
+
+  async refreshLanguage() {
+    try {
+      const savedLanguage = await AsyncStorageLib.getItem('app_language');
+      this.language = savedLanguage || 'en';
+    } catch (error) {
+      console.error('Failed to load notification language:', error);
+      this.language = 'en';
+    }
+  }
+
+  isChineseLanguage() {
+    return this.language === 'zh';
   }
 
   // Request notification permissions
@@ -56,11 +82,11 @@ class RealNotificationService {
         message,
         [
           { 
-            text: '查看', 
+            text: this.isChineseLanguage() ? '查看' : 'View',
             onPress: () => this.handleNotificationTap(notification) 
           },
           { 
-            text: '稍后', 
+            text: this.isChineseLanguage() ? '稍后' : 'Later',
             style: 'cancel' 
           }
         ]
@@ -116,16 +142,19 @@ class RealNotificationService {
     this.simulateNotificationEffects(priority);
     
     // Create a more prominent alert for background notifications
+    const backgroundNotice = this.isChineseLanguage() ? '后台通知' : 'Background Notification';
+    const viewNowText = this.isChineseLanguage() ? '🔍 立即查看' : '🔍 View Now';
+    const laterText = this.isChineseLanguage() ? '⏰ 稍后处理' : '⏰ Later';
     Alert.alert(
       `${icon} ${title}`,
-      `📱 后台通知\n\n${message}\n\n⏰ ${new Date().toLocaleTimeString()}`,
+      `📱 ${backgroundNotice}\n\n${message}\n\n⏰ ${new Date().toLocaleTimeString()}`,
       [
         { 
-          text: '🔍 立即查看', 
+          text: viewNowText,
           onPress: () => this.handleNotificationTap({ title, message, data })
         },
         { 
-          text: '⏰ 稍后处理', 
+          text: laterText,
           style: 'cancel' 
         }
       ],
@@ -233,9 +262,14 @@ class RealNotificationService {
 
   // Send medical appointment reminder
   sendMedicalAppointmentReminder(appointmentType, date, time) {
+    const title = this.isChineseLanguage() ? '医疗预约提醒' : 'Medical Appointment Reminder';
+    const message = this.isChineseLanguage()
+      ? `您有一个 ${appointmentType} 预约，时间：${date} ${time}`
+      : `You have a ${appointmentType} appointment on ${date} at ${time}`;
+
     this.sendLocalNotification(
-      '医疗预约提醒',
-      `您有一个 ${appointmentType} 预约，时间：${date} ${time}`,
+      title,
+      message,
       {
         type: 'medical_appointment',
         appointmentType: appointmentType,
@@ -243,6 +277,230 @@ class RealNotificationService {
         time: time,
       }
     );
+  }
+
+  getAppointmentReminderOffsets() {
+    if (this.isChineseLanguage()) {
+      return [
+        { id: '24h', ms: 24 * 60 * 60 * 1000, label: '24小时后即将到达' },
+        { id: '2h', ms: 2 * 60 * 60 * 1000, label: '2小时后即将到达' },
+      ];
+    }
+
+    return [
+      { id: '24h', ms: 24 * 60 * 60 * 1000, label: 'starts in 24 hours' },
+      { id: '2h', ms: 2 * 60 * 60 * 1000, label: 'starts in 2 hours' },
+    ];
+  }
+
+  getAppointmentDateTime(appointmentDate, appointmentTime) {
+    if (!appointmentDate || !appointmentTime) return null;
+    const dateStr = String(appointmentDate).slice(0, 10);
+    const timeStr = String(appointmentTime).slice(0, 5);
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [hh, mm] = timeStr.split(':').map(Number);
+    if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) return null;
+    const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  async persistScheduledAppointmentReminders() {
+    try {
+      await AsyncStorageLib.setItem(
+        APPOINTMENT_REMINDER_STORAGE_KEY,
+        JSON.stringify(this.scheduledAppointmentReminders)
+      );
+    } catch (error) {
+      console.error('Failed to persist appointment reminders:', error);
+    }
+  }
+
+  scheduleReminderTimer(reminderId, triggerAt, onTrigger) {
+    const tick = () => {
+      if (!this.scheduledAppointmentReminders[reminderId]) return;
+
+      const remaining = triggerAt - Date.now();
+      if (remaining <= 0) {
+        void onTrigger();
+        return;
+      }
+
+      const delay = Math.min(remaining, MAX_TIMER_DELAY_MS);
+      const timer = setTimeout(tick, delay);
+      this.appointmentReminderTimers.set(reminderId, timer);
+    };
+
+    tick();
+  }
+
+  async scheduleAppointmentReminders({
+    appointmentKey,
+    appointmentType,
+    appointmentDate,
+    appointmentTime,
+    providerName,
+    clinicName,
+  }) {
+    if (!appointmentKey) return { scheduledCount: 0 };
+    await this.refreshLanguage();
+
+    await this.cancelAppointmentReminders(appointmentKey);
+
+    const appointmentDateTime = this.getAppointmentDateTime(appointmentDate, appointmentTime);
+    if (!appointmentDateTime) return { scheduledCount: 0 };
+
+    const now = Date.now();
+    const offsets = this.getAppointmentReminderOffsets();
+    let scheduledCount = 0;
+
+    offsets.forEach((offset) => {
+      const triggerAt = appointmentDateTime.getTime() - offset.ms;
+      if (triggerAt <= now) return;
+
+      const reminderId = `${appointmentKey}:${offset.id}`;
+      this.scheduledAppointmentReminders[reminderId] = {
+        appointmentKey,
+        appointmentType,
+        appointmentDate,
+        appointmentTime,
+        providerName: providerName || null,
+        clinicName: clinicName || null,
+        reminderOffset: offset.id,
+        triggerAt,
+        createdAt: Date.now(),
+      };
+      this.scheduleReminderTimer(reminderId, triggerAt, async () => {
+        const reminderTitle = this.isChineseLanguage() ? '医疗预约提醒' : 'Medical Appointment Reminder';
+        const providerOrClinic = providerName || clinicName || (this.isChineseLanguage() ? '医疗机构' : 'provider');
+        const reminderMessage = this.isChineseLanguage()
+          ? `${appointmentType} 预约（${providerOrClinic}）${offset.label}：${appointmentDate} ${appointmentTime}`
+          : `${appointmentType} appointment (${providerOrClinic}) ${offset.label}: ${appointmentDate} ${appointmentTime}`;
+        this.sendLocalNotification(
+          reminderTitle,
+          reminderMessage,
+          {
+            type: 'medical_appointment',
+            appointmentType,
+            date: appointmentDate,
+            time: appointmentTime,
+            appointmentKey,
+            reminderOffset: offset.id,
+          }
+        );
+
+        this.appointmentReminderTimers.delete(reminderId);
+        delete this.scheduledAppointmentReminders[reminderId];
+        await this.persistScheduledAppointmentReminders();
+      });
+
+      scheduledCount += 1;
+    });
+
+    // If appointment is within 2 hours, keep at least one reminder at appointment time.
+    if (scheduledCount === 0 && appointmentDateTime.getTime() > now) {
+      const reminderId = `${appointmentKey}:at_time`;
+      this.scheduledAppointmentReminders[reminderId] = {
+        appointmentKey,
+        appointmentType,
+        appointmentDate,
+        appointmentTime,
+        providerName: providerName || null,
+        clinicName: clinicName || null,
+        reminderOffset: 'at_time',
+        triggerAt: appointmentDateTime.getTime(),
+        createdAt: Date.now(),
+      };
+      this.scheduleReminderTimer(reminderId, appointmentDateTime.getTime(), async () => {
+        const reminderTitle = this.isChineseLanguage() ? '医疗预约提醒' : 'Medical Appointment Reminder';
+        const reminderMessage = this.isChineseLanguage()
+          ? `现在是您的 ${appointmentType} 预约时间：${appointmentDate} ${appointmentTime}`
+          : `It is now time for your ${appointmentType} appointment: ${appointmentDate} ${appointmentTime}`;
+        this.sendLocalNotification(
+          reminderTitle,
+          reminderMessage,
+          {
+            type: 'medical_appointment',
+            appointmentType,
+            date: appointmentDate,
+            time: appointmentTime,
+            appointmentKey,
+            reminderOffset: 'at_time',
+          }
+        );
+
+        this.appointmentReminderTimers.delete(reminderId);
+        delete this.scheduledAppointmentReminders[reminderId];
+        await this.persistScheduledAppointmentReminders();
+      });
+
+      scheduledCount = 1;
+    }
+
+    await this.persistScheduledAppointmentReminders();
+    return { scheduledCount };
+  }
+
+  async cancelAppointmentReminders(appointmentKey) {
+    if (!appointmentKey) return;
+
+    Object.keys(this.scheduledAppointmentReminders).forEach((reminderId) => {
+      if (!reminderId.startsWith(`${appointmentKey}:`)) return;
+      const timer = this.appointmentReminderTimers.get(reminderId);
+      if (timer) {
+        clearTimeout(timer);
+      }
+      this.appointmentReminderTimers.delete(reminderId);
+      delete this.scheduledAppointmentReminders[reminderId];
+    });
+
+    await this.persistScheduledAppointmentReminders();
+  }
+
+  async restoreScheduledAppointmentReminders() {
+    try {
+      await this.refreshLanguage();
+      const raw = await AsyncStorageLib.getItem(APPOINTMENT_REMINDER_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return;
+      this.scheduledAppointmentReminders = parsed;
+
+      const now = Date.now();
+      Object.entries(parsed).forEach(([reminderId, reminder]) => {
+        const triggerAt = Number(reminder?.triggerAt || 0);
+        if (!triggerAt || triggerAt <= now) {
+          delete this.scheduledAppointmentReminders[reminderId];
+          return;
+        }
+
+        this.scheduleReminderTimer(reminderId, triggerAt, async () => {
+          const reminderTitle = this.isChineseLanguage() ? '医疗预约提醒' : 'Medical Appointment Reminder';
+          const reminderMessage = this.isChineseLanguage()
+            ? `${reminder.appointmentType} 预约提醒：${reminder.appointmentDate} ${reminder.appointmentTime}`
+            : `${reminder.appointmentType} appointment reminder: ${reminder.appointmentDate} ${reminder.appointmentTime}`;
+          this.sendLocalNotification(
+            reminderTitle,
+            reminderMessage,
+            {
+              type: 'medical_appointment',
+              appointmentType: reminder.appointmentType,
+              date: reminder.appointmentDate,
+              time: reminder.appointmentTime,
+              appointmentKey: reminder.appointmentKey,
+              reminderOffset: reminder.reminderOffset,
+            }
+          );
+          this.appointmentReminderTimers.delete(reminderId);
+          delete this.scheduledAppointmentReminders[reminderId];
+          await this.persistScheduledAppointmentReminders();
+        });
+      });
+
+      await this.persistScheduledAppointmentReminders();
+    } catch (error) {
+      console.error('Failed to restore appointment reminders:', error);
+    }
   }
 
   // Send surrogate progress stage update notification
@@ -281,6 +539,10 @@ class RealNotificationService {
   cancelAllNotifications() {
     this.notifications = [];
     this.badgeCount = 0;
+    this.appointmentReminderTimers.forEach((timer) => clearTimeout(timer));
+    this.appointmentReminderTimers.clear();
+    this.scheduledAppointmentReminders = {};
+    this.persistScheduledAppointmentReminders();
     console.log('All notifications cancelled');
     console.log('Badge count reset to:', this.badgeCount);
   }

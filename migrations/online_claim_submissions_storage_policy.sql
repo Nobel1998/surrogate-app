@@ -22,3 +22,4 @@ CREATE POLICY "Users can read own online claim submission files"
     AND (storage.foldername(name))[1] = 'online_claim_submissions'
     AND (storage.foldername(name))[2] = auth.uid()::text
   );
+image.png

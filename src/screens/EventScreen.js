@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, StatusBar, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, RefreshControl, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 
@@ -166,6 +168,16 @@ export default function EventScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      {!isAuthenticated && (
+        <TouchableOpacity
+          style={styles.backToHomeButton}
+          onPress={() => navigation.navigate('Landing')}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={16} color="#2A7BF6" />
+          <Text style={styles.backToHomeText}>Back to Home</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Blogs</Text>
         <Text style={styles.subtitle}>News, Policies & Updates</Text>
@@ -216,6 +228,19 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#F8F9FB',
+  },
+  backToHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 6,
+  },
+  backToHomeText: {
+    fontSize: 15,
+    color: '#2A7BF6',
+    fontWeight: '600',
   },
   headerContainer: {
     paddingHorizontal: 20,

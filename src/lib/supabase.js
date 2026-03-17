@@ -17,8 +17,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: supabaseStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true, // 启用URL会话检测，支持深度链接登录
-    flowType: 'implicit', // 使用隐式流程，更适合移动应用
+    // In Expo native runtime, app launch URL is usually exp://... and should not be treated as auth callback.
+    detectSessionInUrl: false,
   },
   global: {
     headers: {
@@ -46,4 +46,3 @@ console.log('🔧 Supabase client initialized with extended timeout');
 console.log('📍 URL:', supabaseUrl);
 console.log('🔑 Key length:', supabaseKey.length);
 console.log('🔑 Key prefix:', supabaseKey.substring(0, 20) + '...');
-

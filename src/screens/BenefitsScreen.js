@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
@@ -86,35 +87,6 @@ export default function BenefitsScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Base Compensation Details */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('benefits.compensationStructure')}</Text>
-        <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>{t('benefits.baseSurrogacyFee')}</Text>
-          <Text style={styles.compensationAmount}>$60,000</Text>
-        </View>
-        <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>{t('benefits.successfulTransferBonus')}</Text>
-          <Text style={styles.compensationAmount}>$5,000</Text>
-        </View>
-        <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>{t('benefits.pregnancyConfirmationBonus')}</Text>
-          <Text style={styles.compensationAmount}>$2,000</Text>
-        </View>
-        <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>{t('benefits.monthlyAllowance')}</Text>
-          <Text style={styles.compensationAmount}>$200/month</Text>
-        </View>
-        <View style={styles.compensationItem}>
-          <Text style={styles.compensationLabel}>{t('benefits.deliveryBonus')}</Text>
-          <Text style={styles.compensationAmount}>$3,000</Text>
-        </View>
-        <View style={styles.totalCompensation}>
-          <Text style={styles.totalLabel}>{t('benefits.totalEstimatedIncome')}</Text>
-          <Text style={styles.totalAmount}>$70,800</Text>
-        </View>
-      </View>
-
       {/* Additional Benefits Policy */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('benefits.comprehensiveBenefits')}</Text>
@@ -166,29 +138,44 @@ export default function BenefitsScreen({ navigation }) {
         <Text style={styles.sectionTitle}>{t('benefits.paymentSchedule')}</Text>
         <View style={styles.paymentSchedule}>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>{t('benefits.contractSigning')}</Text>
-            <Text style={styles.paymentAmount}>$5,000</Text>
-            <Text style={styles.paymentDescription}>{t('benefits.paidAfterSigning')}</Text>
+            <Text style={styles.paymentPhase}>Signing Bonus</Text>
+            <Text style={styles.paymentAmount}>$500</Text>
+            <Text style={styles.paymentDescription}>Paid after signing contract with IP</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>{t('benefits.successfulTransfer')}</Text>
-            <Text style={styles.paymentAmount}>$5,000</Text>
-            <Text style={styles.paymentDescription}>{t('benefits.paidAfterTransfer')}</Text>
+            <Text style={styles.paymentPhase}>Transfer Fee</Text>
+            <Text style={styles.paymentAmount}>$1,500</Text>
+            <Text style={styles.paymentDescription}>Paid after transfer</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>{t('benefits.pregnancyConfirmation')}</Text>
-            <Text style={styles.paymentAmount}>$2,000</Text>
-            <Text style={styles.paymentDescription}>{t('benefits.paidAfterPregnancy')}</Text>
+            <Text style={styles.paymentPhase}>Pregnancy Confirmation (Blood Test)</Text>
+            <Text style={styles.paymentAmount}>$500</Text>
+            <Text style={styles.paymentDescription}>Paid after first beta HCG is positive</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>{t('benefits.monthlyAllowancePayment')}</Text>
-            <Text style={styles.paymentAmount}>$200</Text>
-            <Text style={styles.paymentDescription}>{t('benefits.paidMonthly')}</Text>
+            <Text style={styles.paymentPhase}>Pregnancy Confirmation (Fetal Heartbeat)</Text>
+            <Text style={styles.paymentAmount}>$1,000</Text>
+            <Text style={styles.paymentDescription}>Paid after ultrasound confirming heartbeat</Text>
           </View>
           <View style={styles.paymentItem}>
-            <Text style={styles.paymentPhase}>{t('benefits.deliveryCompletion')}</Text>
-            <Text style={styles.paymentAmount}>$58,800</Text>
-            <Text style={styles.paymentDescription}>{t('benefits.paidAfterDelivery')}</Text>
+            <Text style={styles.paymentPhase}>Medication Start Fee</Text>
+            <Text style={styles.paymentAmount}>$500</Text>
+            <Text style={styles.paymentDescription}>Paid after medication start</Text>
+          </View>
+          <View style={styles.paymentItem}>
+            <Text style={styles.paymentPhase}>Monthly Expense</Text>
+            <Text style={styles.paymentAmount}>$300</Text>
+            <Text style={styles.paymentDescription}>Paid on first day of every month for about 15 months</Text>
+          </View>
+          <View style={styles.paymentItem}>
+            <Text style={styles.paymentPhase}>Medical Screen</Text>
+            <Text style={styles.paymentAmount}>$300</Text>
+            <Text style={styles.paymentDescription}>Paid after medical screen appointment</Text>
+          </View>
+          <View style={styles.paymentItem}>
+            <Text style={styles.paymentPhase}>Basic Compensation</Text>
+            <Text style={styles.paymentAmount}>$60,000</Text>
+            <Text style={styles.paymentDescription}>Paid every month after fetal heartbeat confirmation</Text>
           </View>
         </View>
       </View>

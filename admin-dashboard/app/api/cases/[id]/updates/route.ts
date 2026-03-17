@@ -87,6 +87,7 @@ export async function POST(
       content,
       amount,
       status,
+      stage,
     } = body;
 
     if (!update_type) {
@@ -105,6 +106,7 @@ export async function POST(
         content: content || null,
         amount: amount || null,
         status: status || null,
+        stage: stage || null,
         updated_by: adminUserId || null,
       })
       .select()

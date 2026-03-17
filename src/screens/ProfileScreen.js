@@ -694,11 +694,9 @@ export default function ProfileScreen({ navigation }) {
                 intendedParentApplicationStatus === 'submitted' ? 'Submitted' : 'Not Submitted',
                 loadingIntendedParentApplication
               )}
-              {renderMenuItem('OB Appointments', 'calendar', () => navigation.navigate('OBAppointments'), '#10B981')}
-              {renderMenuItem('IVF Appointments', 'calendar', () => navigation.navigate('IVFAppointments'), '#3B82F6')}
             </>
           )}
-          {/* Only show Application, Benefit Package, Injection Tutorial Videos, and Medical Info for surrogates */}
+          {/* Only show Application, Benefit Package, and Injection Tutorial Videos for surrogates */}
           {userRole === 'surrogate' && (
             <>
               {renderMenuItem(
@@ -711,9 +709,6 @@ export default function ProfileScreen({ navigation }) {
               )}
               {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
               {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
-              {renderMenuItem(t('profile.medicalInfo'), 'activity', () => navigation.navigate('SurrogateMedicalInfo'), '#2A7BF6')}
-              {renderMenuItem('OB Appointments', 'calendar', () => navigation.navigate('OBAppointments'), '#10B981')}
-              {renderMenuItem('IVF Appointments', 'calendar', () => navigation.navigate('IVFAppointments'), '#3B82F6')}
             </>
           )}
         </View>

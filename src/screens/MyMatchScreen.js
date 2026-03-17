@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
 import { TextInput } from 'react-native';
+import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
 
 const { width } = Dimensions.get('window');
 
@@ -40,14 +41,16 @@ export default function MyMatchScreen({ navigation }) {
   const [surrogateDetails, setSurrogateDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
-  // HCG test dates (1st, 2nd, 3rd and 4th)
-  const [pregnancyTestDate1, setPregnancyTestDate1] = useState('');
-  const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
-  const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
-  const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
-  const [savingPregnancyTests, setSavingPregnancyTests] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
+  // Pregnancy History states
+  const [medicationStartDate, setMedicationStartDate] = useState('');
+  const [transferDate, setTransferDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [betaTestDate, setBetaTestDate] = useState('');
+  const [fetalHeartbeatDate, setFetalHeartbeatDate] = useState('');
+  const [savingPregnancyHistory, setSavingPregnancyHistory] = useState(false);
   const [checkingApplication, setCheckingApplication] = useState(true);
+  const [adminNotes, setAdminNotes] = useState([]);
 
   useEffect(() => {
     checkUserApplication();
@@ -217,47 +220,23 @@ export default function MyMatchScreen({ navigation }) {
       console.log('[MyMatch] match:', match);
 
       if (match) {
-        // Load HCG test dates 1, 2, 3 and 4
-        if (match.pregnancy_test_date) {
-          const date = new Date(match.pregnancy_test_date);
+        // Load pregnancy history dates
+        const formatDateForDisplay = (dateValue) => {
+          if (!dateValue) return '';
+          const date = parseDateWithoutTimezoneShift(dateValue);
+          if (!date) return '';
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
           const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate1(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate1('');
-        }
-        
-        if (match.pregnancy_test_date_2) {
-          const date = new Date(match.pregnancy_test_date_2);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate2(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate2('');
-        }
-        
-        if (match.pregnancy_test_date_3) {
-          const date = new Date(match.pregnancy_test_date_3);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate3(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate3('');
-        }
-        
-        if (match.pregnancy_test_date_4) {
-          const date = new Date(match.pregnancy_test_date_4);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate4(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate4('');
-        }
-        
+          return `${month}/${day}/${year}`;
+        };
+
+        setMedicationStartDate(formatDateForDisplay(match.medication_start_date));
+        setTransferDate(formatDateForDisplay(match.transfer_date));
+        setDueDate(formatDateForDisplay(match.due_date));
+        setBetaTestDate(formatDateForDisplay(match.pregnancy_test_date));
+        setFetalHeartbeatDate(formatDateForDisplay(match.fetal_beat_date));
+
         // 3) 对方资料
         if (isSurrogate && match.parent_id) {
           const { data: parentProfile, error: parentError } = await supabase
@@ -349,7 +328,7 @@ export default function MyMatchScreen({ navigation }) {
           'parent_contract',
           'surrogate_contract',
           // 'online_claims', // Moved to User Center (ProfileScreen)
-          // trust_account removed for parent app
+          'trust_account',
         ];
 
         const { data: docs, error: docsError } = await supabase
@@ -365,12 +344,27 @@ export default function MyMatchScreen({ navigation }) {
           setDocuments(docs || []);
           console.log('[MyMatch] documents count:', docs?.length || 0);
         }
+
+        // 5) Admin notes (from web admin Add Admin Note)
+        const { data: notesData, error: notesError } = await supabase
+          .from('match_updates')
+          .select('id, title, content, created_at, stage')
+          .eq('match_id', match.id)
+          .eq('update_type', 'admin_note')
+          .order('created_at', { ascending: false });
+
+        if (notesError) {
+          console.error('Error loading admin notes:', notesError);
+        } else {
+          setAdminNotes(notesData || []);
+        }
       } else {
         console.log('[MyMatch] no active match, unmatched state');
         setMatchData(null);
         setPartnerProfile(null);
         setPartnerApplication(null);
         setDocuments([]);
+        setAdminNotes([]);
         
         // If parent user and unmatched, load available surrogates
         if (!isSurrogate) {
@@ -606,90 +600,135 @@ export default function MyMatchScreen({ navigation }) {
     }
   };
 
+  const parseDateWithoutTimezoneShift = (value) => {
+    if (!value) return null;
+    const s = String(value).trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
   const formatMatchDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
+    const date = parseDateWithoutTimezoneShift(dateString);
+    if (!date) return '';
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
     return `${month}-${day}-${year}`;
   };
 
-  // Helper functions for date parsing and formatting
+  const maskName = (name, shouldMask = true) => {
+    if (!name) return 'N/A';
+    const rawName = String(name).trim();
+    if (!rawName) return 'N/A';
+    if (!shouldMask) return rawName;
+
+    const parts = rawName.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      return parts
+        .map((part) => {
+          if (part.length <= 1) return '*';
+          return `${part[0]}${'*'.repeat(Math.min(3, part.length - 1))}`;
+        })
+        .join(' ');
+    }
+
+    if (rawName.length <= 1) return '*';
+    return `${rawName[0]}${'*'.repeat(Math.min(3, rawName.length - 1))}`;
+  };
+
+  // Helper functions for date parsing
   const parseMMDDYYToISO = (dateString) => {
-    // Parse MM/DD/YY format to Date object
     const parts = dateString.split('/');
     if (parts.length !== 3) return null;
-    
-    const month = parseInt(parts[0], 10) - 1; // Month is 0-indexed
+    const month = parseInt(parts[0], 10) - 1;
     const day = parseInt(parts[1], 10);
     let year = parseInt(parts[2], 10);
-    
-    // Convert 2-digit year to 4-digit (assuming 2000-2099)
-    if (year < 100) {
-      year += 2000;
-    }
-    
+    if (year < 100) year += 2000;
     const date = new Date(year, month, day);
     if (isNaN(date.getTime())) return null;
     return date;
   };
 
   const formatDateToISO = (date) => {
-    // Format Date object to YYYY-MM-DD ISO string
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const savePregnancyTestDates = async () => {
+  // Save pregnancy history
+  const savePregnancyHistory = async () => {
     if (!user?.id || userRole !== 'surrogate' || !matchData?.id) {
-      Alert.alert('Error', 'You must be a surrogate with an active match to save β‑hCG test dates.');
+      Alert.alert('Error', 'You must be a surrogate with an active match to save pregnancy history.');
       return;
     }
 
-    setSavingPregnancyTests(true);
+    setSavingPregnancyHistory(true);
     try {
       const updateData = {};
 
-      // Parse and format HCG test date 2
-      if (pregnancyTestDate2.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
+      if (medicationStartDate.trim()) {
+        const parsed = parseMMDDYYToISO(medicationStartDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
-          setSavingPregnancyTests(false);
+          Alert.alert('Invalid Format', 'Please enter medication start date in format: MM/DD/YY');
+          setSavingPregnancyHistory(false);
           return;
         }
-        updateData.pregnancy_test_date_2 = formatDateToISO(parsed);
+        updateData.medication_start_date = formatDateToISO(parsed);
       } else {
-        updateData.pregnancy_test_date_2 = null;
+        updateData.medication_start_date = null;
       }
 
-      // Parse and format HCG test date 3
-      if (pregnancyTestDate3.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
+      if (transferDate.trim()) {
+        const parsed = parseMMDDYYToISO(transferDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
-          setSavingPregnancyTests(false);
+          Alert.alert('Invalid Format', 'Please enter transfer date in format: MM/DD/YY');
+          setSavingPregnancyHistory(false);
           return;
         }
-        updateData.pregnancy_test_date_3 = formatDateToISO(parsed);
+        updateData.transfer_date = formatDateToISO(parsed);
       } else {
-        updateData.pregnancy_test_date_3 = null;
+        updateData.transfer_date = null;
       }
 
-      // Parse and format HCG test date 4
-      if (pregnancyTestDate4.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
+      if (dueDate.trim()) {
+        const parsed = parseMMDDYYToISO(dueDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
-          setSavingPregnancyTests(false);
+          Alert.alert('Invalid Format', 'Please enter due date in format: MM/DD/YY');
+          setSavingPregnancyHistory(false);
           return;
         }
-        updateData.pregnancy_test_date_4 = formatDateToISO(parsed);
+        updateData.due_date = formatDateToISO(parsed);
       } else {
-        updateData.pregnancy_test_date_4 = null;
+        updateData.due_date = null;
+      }
+
+      if (betaTestDate.trim()) {
+        const parsed = parseMMDDYYToISO(betaTestDate.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter beta test date in format: MM/DD/YY');
+          setSavingPregnancyHistory(false);
+          return;
+        }
+        updateData.pregnancy_test_date = formatDateToISO(parsed);
+      } else {
+        updateData.pregnancy_test_date = null;
+      }
+
+      if (fetalHeartbeatDate.trim()) {
+        const parsed = parseMMDDYYToISO(fetalHeartbeatDate.trim());
+        if (!parsed) {
+          Alert.alert('Invalid Format', 'Please enter fetal heartbeat date in format: MM/DD/YY');
+          setSavingPregnancyHistory(false);
+          return;
+        }
+        updateData.fetal_beat_date = formatDateToISO(parsed);
+      } else {
+        updateData.fetal_beat_date = null;
       }
 
       updateData.updated_at = new Date().toISOString();
@@ -701,19 +740,91 @@ export default function MyMatchScreen({ navigation }) {
         .eq('surrogate_id', user.id);
 
       if (error) {
-        console.error('Error updating HCG test dates:', error);
-        Alert.alert('Error', 'Failed to save β‑hCG test dates. Please try again.');
+        console.error('Error updating pregnancy history:', error);
+        Alert.alert('Error', 'Failed to save pregnancy history. Please try again.');
         return;
       }
 
-      Alert.alert('Success', 'β‑hCG test dates saved successfully.');
-      loadMatchData(); // Reload data to reflect changes
+      Alert.alert('Success', 'Pregnancy history saved successfully.');
+      loadMatchData();
     } catch (error) {
-      console.error('Error in savePregnancyTestDates:', error);
-      Alert.alert('Error', 'Failed to save pregnancy test dates. Please try again.');
+      console.error('Error in savePregnancyHistory:', error);
+      Alert.alert('Error', 'Failed to save pregnancy history. Please try again.');
     } finally {
-      setSavingPregnancyTests(false);
+      setSavingPregnancyHistory(false);
     }
+  };
+
+  const openMatchedProfile = async () => {
+    const targetId = userRole === 'surrogate' ? matchData?.parent_id : matchData?.surrogate_id;
+    if (!targetId) {
+      Alert.alert(t('common.error'), t('profileDetail.profileNotAvailable'));
+      return;
+    }
+
+    let targetProfile = partnerProfile;
+    let targetApplication = partnerApplication;
+
+    try {
+      if (!targetProfile || targetProfile.id !== targetId) {
+        const { data: fallbackProfile, error: fallbackProfileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', targetId)
+          .maybeSingle();
+
+        if (fallbackProfileError && fallbackProfileError.code !== 'PGRST116') {
+          console.error('[MyMatch] Failed to fetch fallback profile:', fallbackProfileError);
+        } else if (fallbackProfile) {
+          targetProfile = fallbackProfile;
+          setPartnerProfile(fallbackProfile);
+        }
+      }
+
+      if (userRole === 'parent' && !targetApplication) {
+        const { data: fallbackApplication, error: fallbackApplicationError } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', targetId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackApplicationError && fallbackApplicationError.code !== 'PGRST116') {
+          console.error('[MyMatch] Failed to fetch fallback application:', fallbackApplicationError);
+        } else if (fallbackApplication) {
+          let parsedFormData = {};
+          try {
+            if (fallbackApplication.form_data) {
+              parsedFormData =
+                typeof fallbackApplication.form_data === 'string'
+                  ? JSON.parse(fallbackApplication.form_data)
+                  : fallbackApplication.form_data;
+            }
+          } catch (parseError) {
+            console.error('[MyMatch] Failed to parse fallback application form_data:', parseError);
+          }
+
+          targetApplication = {
+            ...fallbackApplication,
+            parsedFormData,
+          };
+          setPartnerApplication(targetApplication);
+        }
+      }
+    } catch (error) {
+      console.error('[MyMatch] Failed to open matched profile:', error);
+    }
+
+    if (!targetProfile) {
+      Alert.alert(t('common.error'), t('profileDetail.profileNotAvailable'));
+      return;
+    }
+
+    navigation.navigate('IntendedParentsProfile', {
+      profile: targetProfile,
+      application: targetApplication || null,
+    });
   };
 
   // Render Unmatched State
@@ -769,7 +880,7 @@ export default function MyMatchScreen({ navigation }) {
                       <View style={styles.surrogateCardHeader}>
                         <Avatar name={surrogate.name || 'S'} size={40} />
                         <View style={styles.surrogateCardInfo}>
-                          <Text style={styles.surrogateName}>{surrogate.name || 'Surrogate'}</Text>
+                          <Text style={styles.surrogateName}>{maskName(surrogate.name, true)}</Text>
                           {surrogate.phone && (
                             <Text style={styles.surrogatePhone}>{surrogate.phone}</Text>
                           )}
@@ -859,7 +970,13 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'parental_rights',
       },
       // Online Claims moved to User Center (ProfileScreen)
-      // Trust Account removed for parent app
+      ...(!isSurrogate ? [{
+        key: 'trust_account',
+        label: 'Trust Account',
+        icon: 'dollar-sign',
+        iconColor: '#2ECC71',
+        documentType: 'trust_account',
+      }] : []),
     ];
     
     return (
@@ -986,11 +1103,8 @@ export default function MyMatchScreen({ navigation }) {
               
               // Special handling for Intended Parents Profile
               const handlePress = () => {
-                if (doc.key === 'intended_parents_profile' && partnerProfile) {
-                  navigation.navigate('IntendedParentsProfile', { 
-                    profile: partnerProfile,
-                    application: partnerApplication,
-                  });
+                if (doc.key === 'intended_parents_profile') {
+                  openMatchedProfile();
                 } else if (isAvailable) {
                   handleDocumentPress(docData || {});
                 }
@@ -1049,133 +1163,135 @@ export default function MyMatchScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Pregnancy Information */}
-        {(matchData?.fetal_beat_date || matchData?.fetal_beat_confirm || matchData?.beta_confirm_date || userRole === 'surrogate') && (
-          <View style={styles.pregnancyInfoSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('myMatch.pregnancyInformation')}</Text>
+        {/* Pregnancy History Section */}
+        <View style={styles.pregnancyHistorySection}>
+          <Text style={styles.sectionTitle}>Pregnancy History</Text>
+          <View style={styles.pregnancyHistoryCard}>
+            <View style={styles.pregnancyHistoryItem}>
+              <Text style={styles.pregnancyHistoryLabel}>Medication Start Date</Text>
+              <View style={styles.pregnancyHistoryInputContainer}>
+                <Icon name="calendar" size={18} color="#94A3B8" />
+                <TextInput
+                  value={medicationStartDate}
+                  onChangeText={setMedicationStartDate}
+                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholderTextColor="#94A3B8"
+                  editable={isSurrogate}
+                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                />
+              </View>
             </View>
-            <View style={styles.pregnancyInfoCard}>
-              {(matchData?.fetal_beat_date || matchData?.fetal_beat_confirm) && (
-                <View style={styles.pregnancyInfoItem}>
-                  <View style={styles.pregnancyInfoIconContainer}>
-                    <Icon name="heart" size={24} color="#FF8EA4" />
-                  </View>
-                  <View style={styles.pregnancyInfoContent}>
-                    <Text style={styles.pregnancyInfoLabel}>{t('myMatch.fetalBeatConfirm')}</Text>
-                    <Text style={styles.pregnancyInfoValue}>
-                      {matchData.fetal_beat_date ? formatMatchDate(matchData.fetal_beat_date) : matchData.fetal_beat_confirm}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              {matchData?.beta_confirm_date && (
-                <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_date || matchData?.fetal_beat_confirm) && styles.pregnancyInfoItemWithMargin]}>
-                  <View style={styles.pregnancyInfoIconContainer}>
-                    <Icon name="calendar" size={24} color="#2A7BF6" />
-                  </View>
-                  <View style={styles.pregnancyInfoContent}>
-                    <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaConfirmDate')}</Text>
-                    <Text style={styles.pregnancyInfoValue}>
-                      {formatMatchDate(matchData.beta_confirm_date)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              
-              {/* HCG Test Dates - Only for surrogates */}
-              {userRole === 'surrogate' && (
-                <>
-                  {/* HCG Test Date 1 */}
-                  <View style={[styles.pregnancyInfoItem, (matchData?.fetal_beat_date || matchData?.fetal_beat_confirm || matchData?.beta_confirm_date) && styles.pregnancyInfoItemWithMargin]}>
-                    <View style={styles.pregnancyInfoIconContainer}>
-                      <Icon name="activity" size={24} color="#10B981" />
-                    </View>
-                    <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate1')}</Text>
-                      {pregnancyTestDate1 ? (
-                        <Text style={styles.pregnancyInfoValue}>{pregnancyTestDate1}</Text>
-                      ) : (
-                        <Text style={[styles.pregnancyInfoValue, { color: '#94A3B8', fontStyle: 'italic' }]}>Not set</Text>
-                      )}
-                    </View>
-                  </View>
-                  
-                  {/* HCG Test Date 2 */}
-                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
-                    <View style={styles.pregnancyInfoIconContainer}>
-                      <Icon name="activity" size={24} color="#10B981" />
-                    </View>
-                    <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate2')}</Text>
-                      <View style={styles.pregnancyTestInputContainer}>
-                        <TextInput
-                          value={pregnancyTestDate2}
-                          onChangeText={setPregnancyTestDate2}
-                          placeholder="e.g. 12/15/25"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.pregnancyTestInput}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
-                    <View style={styles.pregnancyInfoIconContainer}>
-                      <Icon name="activity" size={24} color="#10B981" />
-                    </View>
-                    <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate3')}</Text>
-                      <View style={styles.pregnancyTestInputContainer}>
-                        <TextInput
-                          value={pregnancyTestDate3}
-                          onChangeText={setPregnancyTestDate3}
-                          placeholder="e.g. 12/20/25"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.pregnancyTestInput}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <View style={[styles.pregnancyInfoItem, styles.pregnancyInfoItemWithMargin]}>
-                    <View style={styles.pregnancyInfoIconContainer}>
-                      <Icon name="activity" size={24} color="#10B981" />
-                    </View>
-                    <View style={styles.pregnancyInfoContent}>
-                      <Text style={styles.pregnancyInfoLabel}>{t('myMatch.betaHcgTestDate4')}</Text>
-                      <View style={styles.pregnancyTestInputContainer}>
-                        <TextInput
-                          value={pregnancyTestDate4}
-                          onChangeText={setPregnancyTestDate4}
-                          placeholder="e.g. 12/25/25"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.pregnancyTestInput}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <TouchableOpacity
-                    style={[styles.savePregnancyTestButton, savingPregnancyTests && styles.savePregnancyTestButtonDisabled]}
-                    onPress={savePregnancyTestDates}
-                    disabled={savingPregnancyTests}
-                    activeOpacity={0.8}
-                  >
-                    {savingPregnancyTests ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.savePregnancyTestButtonText}>{t('myMatch.saveBetaHcgTestDates')}</Text>
-                    )}
-                  </TouchableOpacity>
-                </>
-              )}
+
+            <View style={styles.pregnancyHistoryItem}>
+              <Text style={styles.pregnancyHistoryLabel}>Transfer Date</Text>
+              <View style={styles.pregnancyHistoryInputContainer}>
+                <Icon name="calendar" size={18} color="#94A3B8" />
+                <TextInput
+                  value={transferDate}
+                  onChangeText={setTransferDate}
+                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholderTextColor="#94A3B8"
+                  editable={isSurrogate}
+                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                />
+              </View>
             </View>
+
+            <View style={styles.pregnancyHistoryItem}>
+              <Text style={styles.pregnancyHistoryLabel}>Beta Test Date</Text>
+              <View style={styles.pregnancyHistoryInputContainer}>
+                <Icon name="heart" size={18} color="#94A3B8" />
+                <TextInput
+                  value={betaTestDate}
+                  onChangeText={setBetaTestDate}
+                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholderTextColor="#94A3B8"
+                  editable={isSurrogate}
+                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.pregnancyHistoryItem}>
+              <Text style={styles.pregnancyHistoryLabel}>Fetal Heartbeat Confirmation Date</Text>
+              <View style={styles.pregnancyHistoryInputContainer}>
+                <Icon name="activity" size={18} color="#94A3B8" />
+                <TextInput
+                  value={fetalHeartbeatDate}
+                  onChangeText={setFetalHeartbeatDate}
+                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholderTextColor="#94A3B8"
+                  editable={isSurrogate}
+                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.pregnancyHistoryItem}>
+              <Text style={styles.pregnancyHistoryLabel}>Due Date</Text>
+              <View style={styles.pregnancyHistoryInputContainer}>
+                <Icon name="calendar" size={18} color="#94A3B8" />
+                <TextInput
+                  value={dueDate}
+                  onChangeText={setDueDate}
+                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholderTextColor="#94A3B8"
+                  editable={isSurrogate}
+                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                />
+              </View>
+            </View>
+
+            {isSurrogate && (
+              <TouchableOpacity
+                style={[styles.savePregnancyHistoryButton, savingPregnancyHistory && styles.savePregnancyHistoryButtonDisabled]}
+                onPress={savePregnancyHistory}
+                disabled={savingPregnancyHistory}
+                activeOpacity={0.8}
+              >
+                {savingPregnancyHistory ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.savePregnancyHistoryButtonText}>Save Pregnancy History</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
-        )}
+        </View>
+
+        {/* Medical & Appointments Section */}
+        <View style={styles.quickActionsSection}>
+          <Text style={styles.sectionTitle}>Medical & Appointments</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('SurrogateMedicalInfo', isSurrogate ? {} : { surrogateId: matchData?.surrogate_id, readOnly: true })}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#EDE7F6' }]}>
+                <Icon name="activity" size={24} color="#2A7BF6" />
+              </View>
+              <Text style={styles.quickActionLabel}>{t('profile.medicalInfo')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('OBAppointments')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="calendar" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.quickActionLabel}>OB Appointments</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => navigation.navigate('IVFAppointments')}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
+                <Icon name="calendar" size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.quickActionLabel}>IVF Appointments</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActionsSection}>
@@ -1212,6 +1328,45 @@ export default function MyMatchScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Admin Notes (from web admin Add Admin Note) */}
+        {adminNotes.length > 0 && (
+          <View style={styles.adminNotesSection}>
+            <View style={styles.detailSectionHeader}>
+              <Icon name="message-square" size={20} color="#FF8EA4" />
+              <Text style={styles.detailSectionTitle}>Admin Notes</Text>
+            </View>
+            {adminNotes.map((note) => (
+              <View key={note.id} style={styles.adminNoteCard}>
+                {(note.title || note.stage) ? (
+                  <View style={styles.adminNoteHeaderRow}>
+                    {note.title ? (
+                      <Text style={styles.adminNoteTitle}>{note.title}</Text>
+                    ) : null}
+                    {note.stage ? (
+                      <View style={styles.adminNoteStageBadge}>
+                        <Text style={styles.adminNoteStageText}>
+                          {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text style={styles.adminNoteContent}>{note.content || ''}</Text>
+                <Text style={styles.adminNoteDate}>
+                  {note.created_at
+                    ? new Date(note.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
       </ScrollView>
     );
   };
@@ -1275,7 +1430,7 @@ export default function MyMatchScreen({ navigation }) {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Surrogate Profile</Text>
+                <Text style={styles.modalTitle}>{t('profileDetail.surrogateProfile')}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     setShowSurrogateModal(false);
@@ -1289,7 +1444,7 @@ export default function MyMatchScreen({ navigation }) {
               </View>
               <View style={styles.modalLoadingContainer}>
                 <ActivityIndicator size="large" color="#FF8EA4" />
-                <Text style={styles.modalLoadingText}>Loading details...</Text>
+                <Text style={styles.modalLoadingText}>{t('common.loading')}</Text>
               </View>
             </View>
           </View>
@@ -1303,19 +1458,35 @@ export default function MyMatchScreen({ navigation }) {
     
     // Check if user is matched - if not matched, mask sensitive information
     const isMatched = !!matchData;
-    
-    console.log('[MyMatch] Rendering modal with data:', {
-      hasProfile: !!profile,
-      hasSelectedSurrogate: !!selectedSurrogate,
-      profileName: surrogateProfile?.name,
-      profilePhone: surrogateProfile?.phone,
-      profileEmail: surrogateProfile?.email,
-      profileLocation: surrogateProfile?.location,
-      formDataKeys: Object.keys(parsedFormData || {}),
-      allProfileKeys: profile ? Object.keys(profile) : 'No profile',
-      isMatched: isMatched,
-    });
-    
+
+    // Resolve display value for a field (form data + profile fallback for contact info)
+    const getFieldValue = (key) => {
+      const formVal = parsedFormData?.[key];
+      if (key === 'fullName' && (formVal == null || formVal === '') && surrogateProfile?.name) return surrogateProfile.name;
+      if (key === 'phoneNumber' && (formVal == null || formVal === '') && surrogateProfile?.phone) return surrogateProfile.phone;
+      if (key === 'email' && (formVal == null || formVal === '') && surrogateProfile?.email) return surrogateProfile.email;
+      if (key === 'address' && (formVal == null || formVal === '') && surrogateProfile?.address) return surrogateProfile.address;
+      if (key === 'location') return surrogateProfile?.location || selectedSurrogate?.location || formVal;
+      return formVal;
+    };
+
+    const shouldExcludeKey = (key) => {
+      const lowerKey = String(key || '').toLowerCase();
+      if (['photos', 'photourl', 'photo', 'photo_url'].includes(lowerKey)) return true;
+      if (!isMatched && lowerKey.includes('emergency')) return true;
+      return false;
+    };
+
+    const hasValue = (key) => {
+      if (shouldExcludeKey(key)) return false;
+      const value = getFieldValue(key);
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'boolean') return true;
+      if (typeof value === 'string' && value.trim() === '') return false;
+      if (Array.isArray(value) && value.length === 0) return false;
+      return true;
+    };
+
     // Helper function to mask sensitive information
     const maskPhone = (phone) => {
       if (!phone) return 'N/A';
@@ -1354,6 +1525,105 @@ export default function MyMatchScreen({ navigation }) {
     };
     
     // Location doesn't need masking as it's already general information
+    const formatFieldLabel = (key) => {
+      if (!key) return '';
+      return String(key)
+        .replace(/[_-]+/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    };
+
+    const formatFieldValue = (key, value) => {
+      const lowerKey = String(key || '').toLowerCase();
+
+      if (lowerKey === 'deliveries') {
+        let deliveriesValue = value;
+
+        // Handle JSON string payloads
+        if (typeof deliveriesValue === 'string') {
+          try {
+            deliveriesValue = JSON.parse(deliveriesValue);
+          } catch {
+            // Keep original string if it's not valid JSON
+          }
+        }
+
+        // Normalize to array
+        const deliveriesArray = Array.isArray(deliveriesValue)
+          ? deliveriesValue
+          : deliveriesValue && typeof deliveriesValue === 'object'
+          ? [deliveriesValue]
+          : [];
+
+        if (deliveriesArray.length === 0) {
+          return typeof deliveriesValue === 'string' ? deliveriesValue : 'N/A';
+        }
+
+        const formatted = deliveriesArray.map((item, index) => {
+          if (!item || typeof item !== 'object') {
+            return `Delivery ${index + 1}: ${String(item)}`;
+          }
+
+          const parts = [];
+
+          // Date priority: full date fields, then year/month/day, then year only
+          const dateValue =
+            item.deliveryDate ||
+            item.date ||
+            (item.deliveryMonth && item.deliveryDay && item.deliveryYear
+              ? `${item.deliveryMonth}/${item.deliveryDay}/${item.deliveryYear}`
+              : item.deliveryYear
+              ? String(item.deliveryYear)
+              : item.year
+              ? String(item.year)
+              : null);
+
+          if (dateValue) parts.push(`Date: ${dateValue}`);
+          if (item.conceptionMethod) parts.push(`Conception: ${item.conceptionMethod}`);
+          if (item.deliveryMethod) parts.push(`Delivery Method: ${item.deliveryMethod}`);
+          if (item.pregnancyResult) parts.push(`Pregnancy Result: ${item.pregnancyResult}`);
+          if (item.gestationWeeks) parts.push(`Gestation: ${item.gestationWeeks} weeks`);
+          if (item.fetusesCount) parts.push(`Fetuses: ${item.fetusesCount}`);
+          if (item.gender) parts.push(`Baby Gender: ${item.gender}`);
+          if (item.birthWeight) parts.push(`Birth Weight: ${item.birthWeight}`);
+          if (item.complications) parts.push(`Complications: ${item.complications}`);
+
+          if (parts.length === 0) {
+            return `Delivery ${index + 1}: ${JSON.stringify(item)}`;
+          }
+
+          return `Delivery ${index + 1}\n${parts.join('\n')}`;
+        });
+
+        return formatted.join('\n\n');
+      }
+
+      if (value === null || value === undefined || value === '') return 'N/A';
+      if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+      if (Array.isArray(value)) {
+        if (value.length === 0) return 'N/A';
+        return value
+          .map((item) => {
+            if (item === null || item === undefined || item === '') return null;
+            if (typeof item === 'object') return JSON.stringify(item);
+            return String(item);
+          })
+          .filter(Boolean)
+          .join(', ');
+      }
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+
+      const strValue = String(value);
+      if (!isMatched && lowerKey.includes('name')) return maskName(strValue, true);
+      if (!isMatched && lowerKey.includes('phone')) return maskPhone(strValue);
+      if (!isMatched && lowerKey.includes('email')) return maskEmail(strValue);
+      if (!isMatched && lowerKey.includes('address')) return maskAddress(strValue);
+      return strValue;
+    };
 
     return (
       <Modal
@@ -1369,7 +1639,7 @@ export default function MyMatchScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Surrogate Profile</Text>
+              <Text style={styles.modalTitle}>{t('profileDetail.surrogateProfile')}</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowSurrogateModal(false);
@@ -1385,7 +1655,7 @@ export default function MyMatchScreen({ navigation }) {
             {loadingDetails ? (
               <View style={styles.modalLoadingContainer}>
                 <ActivityIndicator size="large" color="#FF8EA4" />
-                <Text style={styles.modalLoadingText}>Loading details...</Text>
+                <Text style={styles.modalLoadingText}>{t('common.loading')}</Text>
               </View>
             ) : (
               <ScrollView 
@@ -1417,214 +1687,31 @@ export default function MyMatchScreen({ navigation }) {
                   );
                 })()}
 
-                {/* Basic Information */}
-                <View style={styles.detailSection}>
-                  <View style={styles.detailSectionHeader}>
-                    <Icon name="user" size={20} color="#FF8EA4" />
-                    <Text style={styles.detailSectionTitle}>Basic Information</Text>
-                  </View>
-                  
-                  {/* Name - Always show */}
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailLabel}>Name</Text>
-                    <Text style={styles.detailValue}>
-                      {surrogateProfile?.name || selectedSurrogate?.name || 'N/A'}
-                    </Text>
-                  </View>
-
-                  {/* Phone - Mask if not matched */}
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailLabel}>Phone</Text>
-                    <Text style={styles.detailValue}>
-                      {maskPhone(surrogateProfile?.phone || selectedSurrogate?.phone)}
-                    </Text>
-                    {!isMatched && (
-                      <Text style={styles.maskedHint}>Contact information will be available after matching</Text>
-                    )}
-                  </View>
-
-                  {/* Email - Mask if not matched */}
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailLabel}>Email</Text>
-                    <Text style={styles.detailValue}>
-                      {maskEmail(surrogateProfile?.email)}
-                    </Text>
-                  </View>
-
-                  {/* Location - Always show (already general information) */}
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailLabel}>Location</Text>
-                    <Text style={styles.detailValue}>
-                      {surrogateProfile?.location || selectedSurrogate?.location || 'N/A'}
-                    </Text>
-                  </View>
-
-                  {/* Address - Masked if not matched */}
-                  {(parsedFormData.address || surrogateProfile?.address) && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailLabel}>Address</Text>
-                      <Text style={styles.detailValue}>
-                        {maskAddress(parsedFormData.address || surrogateProfile?.address)}
-                      </Text>
+                {/* Application content in same order as Become a Surrogate form */}
+                {SURROGATE_APPLICATION_STEPS.map(({ step, title, fields }) => {
+                  const visibleFields = fields.filter((key) => hasValue(key));
+                  if (visibleFields.length === 0) return null;
+                  return (
+                    <View key={`step-${step}`} style={styles.detailSection}>
+                      <View style={styles.detailSectionHeader}>
+                        <Icon name="file-text" size={20} color="#FF8EA4" />
+                        <Text style={styles.detailSectionTitle}>{title}</Text>
+                      </View>
+                      {visibleFields.map((key) => {
+                        const value = getFieldValue(key);
+                        return (
+                          <View key={`${step}-${key}`} style={styles.detailInfoRow}>
+                            <Text style={styles.detailLabel}>{formatFieldLabel(key)}</Text>
+                            <Text style={styles.detailValue}>{formatFieldValue(key, value)}</Text>
+                            {!isMatched && (key === 'phoneNumber' || key === 'phone') && (
+                              <Text style={styles.maskedHint}>Contact information will be available after matching</Text>
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
-                  )}
-
-                  {parsedFormData.age && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailLabel}>Age</Text>
-                      <Text style={styles.detailValue}>{parsedFormData.age}</Text>
-                    </View>
-                  )}
-
-                  {parsedFormData.dateOfBirth && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailLabel}>Date of Birth</Text>
-                      <Text style={styles.detailValue}>{parsedFormData.dateOfBirth}</Text>
-                    </View>
-                  )}
-
-                  {parsedFormData.race && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailLabel}>Race</Text>
-                      <Text style={styles.detailValue}>{parsedFormData.race}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Medical Information */}
-                {(parsedFormData.previousPregnancies || parsedFormData.previousSurrogacy !== undefined || parsedFormData.bmi) && (
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailSectionHeader}>
-                      <Icon name="heart" size={20} color="#FF8EA4" />
-                      <Text style={styles.detailSectionTitle}>Medical Information</Text>
-                    </View>
-
-                    {parsedFormData.previousPregnancies && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Previous Pregnancies</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.previousPregnancies}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.previousSurrogacy !== undefined && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Previous Surrogacy Experience</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.previousSurrogacy ? 'Yes' : 'No'}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.bmi && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>BMI</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.bmi}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.pregnancyComplications && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Pregnancy Complications</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.pregnancyComplications}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.currentMedications && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Current Medications</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.currentMedications}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.healthConditions && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Health Conditions</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.healthConditions}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Lifestyle Information */}
-                {(parsedFormData.smokingStatus || parsedFormData.employmentStatus || parsedFormData.exerciseRoutine) && (
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailSectionHeader}>
-                      <Icon name="activity" size={20} color="#FF8EA4" />
-                      <Text style={styles.detailSectionTitle}>Lifestyle Information</Text>
-                    </View>
-
-                    {parsedFormData.smokingStatus && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Smoking Status</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.smokingStatus}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.alcoholUsage && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Alcohol Usage</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.alcoholUsage}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.exerciseRoutine && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Exercise Routine</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.exerciseRoutine}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.employmentStatus && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Employment Status</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.employmentStatus}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.supportSystem && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Support System</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.supportSystem}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Additional Information */}
-                {(parsedFormData.timelineAvailability || parsedFormData.travelWillingness !== undefined || parsedFormData.additionalComments) && (
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailSectionHeader}>
-                      <Icon name="info" size={20} color="#FF8EA4" />
-                      <Text style={styles.detailSectionTitle}>Additional Information</Text>
-                    </View>
-
-                    {parsedFormData.timelineAvailability && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Timeline Availability</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.timelineAvailability}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.travelWillingness !== undefined && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Travel Willingness</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.travelWillingness ? 'Yes' : 'No'}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.specialPreferences && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Special Preferences</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.specialPreferences}</Text>
-                      </View>
-                    )}
-
-                    {parsedFormData.additionalComments && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailLabel}>Additional Comments</Text>
-                        <Text style={styles.detailValue}>{parsedFormData.additionalComments}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -2013,16 +2100,16 @@ const styles = StyleSheet.create({
   documentArrow: {
     marginLeft: 8,
   },
-  // Pregnancy Information
-  pregnancyInfoSection: {
+  // Pregnancy History
+  pregnancyHistorySection: {
     padding: 20,
     paddingTop: 8,
   },
-  pregnancyInfoCard: {
+  pregnancyHistoryCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
-    marginTop: 16,
+    marginTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -2031,64 +2118,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F0F4F8',
   },
-  pregnancyInfoItem: {
+  pregnancyHistoryItem: {
+    marginBottom: 16,
+  },
+  pregnancyHistoryLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  pregnancyHistoryInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  pregnancyInfoItemWithMargin: {
-    marginTop: 16,
-  },
-  pregnancyInfoIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#FFF0F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  pregnancyInfoContent: {
-    flex: 1,
-  },
-  pregnancyInfoLabel: {
-    fontSize: 13,
-    color: '#94A3B8',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  pregnancyInfoValue: {
-    fontSize: 18,
-    color: '#1A1D1E',
-    fontWeight: '700',
-  },
-  pregnancyTestInputContainer: {
-    marginTop: 8,
-  },
-  pregnancyTestInput: {
     backgroundColor: '#F8FAFC',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    gap: 10,
+  },
+  pregnancyHistoryInput: {
+    flex: 1,
     fontSize: 16,
     color: '#1A1D1E',
     fontWeight: '600',
+    padding: 0,
   },
-  savePregnancyTestButton: {
+  savePregnancyHistoryButton: {
     backgroundColor: '#1F6FE0',
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  savePregnancyTestButtonDisabled: {
+  savePregnancyHistoryButtonDisabled: {
     backgroundColor: '#94A3B8',
     opacity: 0.6,
   },
-  savePregnancyTestButtonText: {
+  savePregnancyHistoryButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
@@ -2130,6 +2199,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1D1E',
+  },
+  // Admin Notes
+  adminNotesSection: {
+    padding: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  adminNoteCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  adminNoteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  adminNoteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1D1E',
+  },
+  adminNoteStageBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  adminNoteStageText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  adminNoteContent: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  adminNoteDate: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
   // Loading
   loadingContainer: {

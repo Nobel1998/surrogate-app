@@ -222,39 +222,73 @@ export default function MedicalReportFormScreen({ route }) {
   // Award points for medical report submission
   const awardPoints = async (reportId, visitDateStr) => {
     try {
-      let totalPoints = 200; // Base reward: +200 points ($20)
-      let rewardMessages = [t('points.baseHitReward', { points: 200, value: '$20' })];
+      const { data: existingRewards, error: existingRewardsError } = await supabase
+        .from('points_rewards')
+        .select('points')
+        .eq('user_id', user.id);
+
+      if (existingRewardsError) {
+        console.error('Error loading existing points for cap check:', existingRewardsError);
+        return { totalPoints: 0, rewardMessages: [], isSpeedBonus: false };
+      }
+
+      const currentTotalPoints = (existingRewards || []).reduce(
+        (sum, row) => sum + (Number(row?.points) || 0),
+        0
+      );
+      let remainingPoints = Math.max(0, 5000 - currentTotalPoints);
+      if (remainingPoints <= 0) {
+        console.log('ℹ️ Points cap reached (5000), skipping new rewards');
+        return { totalPoints: 0, rewardMessages: [], isSpeedBonus: false };
+      }
+
+      let totalPoints = 0;
+      const rewardMessages = [];
       
       // Check for speed bonus (极速奖)
       const isSpeedBonus = isToday(visitDateStr);
-      if (isSpeedBonus) {
-        totalPoints += 50; // Speed bonus: +50 points ($5)
-        rewardMessages.push(t('points.speedBonusReward', { points: 50, value: '$5' }));
-      }
 
       // Insert points rewards
       const pointsRewards = [];
       
       // Base hit reward
-      pointsRewards.push({
-        user_id: user.id,
-        points: 200,
-        reward_type: 'base_hit',
-        source_type: 'medical_report',
-        source_id: reportId,
-        description: t('points.baseHitDescription'),
-      });
-
-      // Speed bonus (if applicable)
-      if (isSpeedBonus) {
+      const basePoints = Math.min(200, remainingPoints);
+      if (basePoints > 0) {
         pointsRewards.push({
           user_id: user.id,
-          points: 50,
+          points: basePoints,
+          reward_type: 'base_hit',
+          source_type: 'medical_report',
+          source_id: reportId,
+          description: t('points.baseHitDescription'),
+        });
+        totalPoints += basePoints;
+        remainingPoints -= basePoints;
+        rewardMessages.push(
+          t('points.baseHitReward', { points: basePoints, value: `$${Math.floor(basePoints / 10)}` })
+        );
+      }
+
+      // Speed bonus (if applicable)
+      const awardedSpeedBonus = isSpeedBonus && remainingPoints > 0;
+      if (awardedSpeedBonus) {
+        const speedPoints = Math.min(50, remainingPoints);
+        pointsRewards.push({
+          user_id: user.id,
+          points: speedPoints,
           reward_type: 'speed_bonus',
           source_type: 'medical_report',
           source_id: reportId,
           description: t('points.speedBonusDescription'),
         });
+        totalPoints += speedPoints;
+        rewardMessages.push(
+          t('points.speedBonusReward', { points: speedPoints, value: `$${Math.floor(speedPoints / 10)}` })
+        );
+      }
+
+      if (pointsRewards.length === 0) {
+        return { totalPoints: 0, rewardMessages: [], isSpeedBonus: false };
       }
 
       // Insert all rewards
@@ -266,16 +300,16 @@ export default function MedicalReportFormScreen({ route }) {
         console.error('Error awarding points:', pointsError);
         // Don't throw - points are bonus, report submission should still succeed
       } else {
-        console.log(`✅ Points awarded: ${totalPoints} points (Base: 200${isSpeedBonus ? ', Speed Bonus: 50' : ''})`);
+        console.log(`✅ Points awarded: ${totalPoints} points (Base: ${basePoints}${awardedSpeedBonus ? ', Speed Bonus awarded' : ''})`);
         // Note: total_points in profiles is automatically updated by the database trigger
         // (update_total_points_trigger) when points_rewards records are inserted
       }
 
-      return { totalPoints, rewardMessages, isSpeedBonus };
+      return { totalPoints, rewardMessages, isSpeedBonus: awardedSpeedBonus };
     } catch (error) {
       console.error('Error in awardPoints:', error);
       // Return default values if points awarding fails
-      return { totalPoints: 200, rewardMessages: [t('points.baseHitReward', { points: 200, value: '$20' })], isSpeedBonus: false };
+      return { totalPoints: 0, rewardMessages: [], isSpeedBonus: false };
     }
   };
 
@@ -381,17 +415,12 @@ export default function MedicalReportFormScreen({ route }) {
       
       // Show success alert with points information
       // Format reward messages by replacing {points} placeholders
-      const formattedRewardMessages = pointsResult.rewardMessages.map(msg => {
-        if (msg.includes('Base Hit')) {
-          return msg.replace(/\{points\}/g, '200').replace(/\{value\}/g, '$20');
-        } else if (msg.includes('Speed Bonus')) {
-          return msg.replace(/\{points\}/g, '50').replace(/\{value\}/g, '$5');
-        }
-        return msg.replace(/\{points\}/g, '200').replace(/\{value\}/g, '$20');
-      });
-      const pointsMessage = formattedRewardMessages.join('\n');
+      const pointsMessage = pointsResult.rewardMessages.join('\n');
       const totalMessage = t('points.totalPointsEarned').replace(/\{points\}/g, String(pointsResult.totalPoints));
-      let alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
+      let alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${totalMessage}`;
+      if (pointsMessage) {
+        alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
+      }
       
       // Add full participation achievement message if reached 5000
       if (reached5000) {

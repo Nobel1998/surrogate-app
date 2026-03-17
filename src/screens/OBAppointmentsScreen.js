@@ -18,6 +18,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
@@ -32,6 +33,7 @@ const STATUS_COLORS = {
 
 export default function OBAppointmentsScreen({ navigation }) {
   const { user } = useAuth();
+  const { scheduleMedicalAppointmentReminders, cancelMedicalAppointmentReminders } = useNotifications();
   const { t } = useLanguage();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +118,30 @@ export default function OBAppointmentsScreen({ navigation }) {
 
       if (error) throw error;
       setAppointments(data || []);
+
+      if (Array.isArray(data)) {
+        data.forEach((appointment) => {
+          if (!appointment?.id) return;
+          const appointmentKey = `ob_${appointment.id}`;
+
+          if (appointment.status === 'scheduled') {
+            void scheduleMedicalAppointmentReminders({
+              appointmentKey,
+              appointmentType: 'OB',
+              appointmentDate: appointment.appointment_date,
+              appointmentTime: appointment.appointment_time,
+              providerName: appointment.provider_name,
+              clinicName: appointment.clinic_name,
+            }).catch((scheduleError) => {
+              console.error('Failed to schedule OB reminder:', scheduleError);
+            });
+          } else {
+            void cancelMedicalAppointmentReminders(appointmentKey).catch((cancelError) => {
+              console.error('Failed to cancel OB reminder:', cancelError);
+            });
+          }
+        });
+      }
     } catch (error) {
       console.error('Error loading appointments:', error);
       Alert.alert('Error', 'Failed to load appointments');
@@ -188,7 +214,7 @@ export default function OBAppointmentsScreen({ navigation }) {
       const appointmentDate = formData.appointment_date.toISOString().split('T')[0];
       const appointmentTime = formData.appointment_time.toTimeString().split(' ')[0].substring(0, 5);
 
-      const { error } = await supabase
+      const { data: insertedAppointment, error } = await supabase
         .from('ob_appointments')
         .insert({
           user_id: user.id,
@@ -201,11 +227,26 @@ export default function OBAppointmentsScreen({ navigation }) {
           clinic_phone: formData.clinic_phone.trim() || null,
           notes: formData.notes.trim() || null,
           status: 'scheduled',
-        });
+        })
+        .select('*')
+        .single();
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Appointment scheduled successfully');
+      const reminderResult = await scheduleMedicalAppointmentReminders({
+        appointmentKey: `ob_${insertedAppointment.id}`,
+        appointmentType: 'OB',
+        appointmentDate,
+        appointmentTime,
+        providerName: formData.provider_name.trim(),
+        clinicName: formData.clinic_name.trim(),
+      });
+
+      const reminderText = reminderResult?.scheduledCount
+        ? ` (${reminderResult.scheduledCount} reminder${reminderResult.scheduledCount > 1 ? 's' : ''} scheduled)`
+        : '';
+
+      Alert.alert('Success', `Appointment scheduled successfully${reminderText}`);
       setShowAddModal(false);
       loadAppointments();
     } catch (error) {
@@ -222,6 +263,10 @@ export default function OBAppointmentsScreen({ navigation }) {
         .eq('id', appointmentId);
 
       if (error) throw error;
+
+      if (newStatus !== 'scheduled') {
+        await cancelMedicalAppointmentReminders(`ob_${appointmentId}`);
+      }
 
       Alert.alert('Success', 'Appointment status updated');
       loadAppointments();
@@ -249,6 +294,7 @@ export default function OBAppointmentsScreen({ navigation }) {
 
               if (error) throw error;
 
+              await cancelMedicalAppointmentReminders(`ob_${appointmentId}`);
               Alert.alert('Success', 'Appointment deleted');
               loadAppointments();
             } catch (error) {
@@ -765,4 +811,3 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 });
-

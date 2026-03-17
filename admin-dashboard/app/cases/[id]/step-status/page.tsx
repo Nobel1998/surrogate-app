@@ -17,6 +17,17 @@ const STAGE_LABELS: Record<string, string> = {
   'complete': 'Complete',
 };
 
+// Admin note stage options (for Add Admin Note)
+const ADMIN_NOTE_STAGES: { value: string; label: string }[] = [
+  { value: '', label: 'General' },
+  { value: 'pre_transfer', label: 'Pre-Transfer' },
+  { value: 'ob_visit', label: 'OB Office Visit' },
+  { value: 'delivery', label: 'Delivery' },
+];
+const ADMIN_NOTE_STAGE_LABEL: Record<string, string> = Object.fromEntries(
+  ADMIN_NOTE_STAGES.map((s) => [s.value || 'general', s.label])
+);
+
 type CaseDetail = {
   id: string;
   claim_id: string;
@@ -75,6 +86,7 @@ export default function StepStatusPage() {
 
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [adminUpdate, setAdminUpdate] = useState('');
+  const [adminNoteStage, setAdminNoteStage] = useState('');
   const [updates, setUpdates] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
@@ -366,6 +378,7 @@ export default function StepStatusPage() {
           update_type: 'admin_note',
           title: 'Admin Update',
           content: adminUpdate,
+          stage: adminNoteStage || null,
         }),
       });
 
@@ -374,6 +387,7 @@ export default function StepStatusPage() {
       }
 
       setAdminUpdate('');
+      setAdminNoteStage('');
       await loadData();
       alert('Update saved successfully');
     } catch (err: any) {
@@ -907,7 +921,14 @@ export default function StepStatusPage() {
                   <div key={update.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
+                          {update.stage && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {ADMIN_NOTE_STAGE_LABEL[update.stage] || update.stage}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {update.created_at ? new Date(update.created_at).toLocaleString('en-US') : '—'}
                           {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
@@ -955,6 +976,20 @@ export default function StepStatusPage() {
 
           {updateTab === 'note' ? (
             <>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                <select
+                  value={adminNoteStage}
+                  onChange={(e) => setAdminNoteStage(e.target.value)}
+                  className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {ADMIN_NOTE_STAGES.map((opt) => (
+                    <option key={opt.value || 'general'} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <textarea
                 value={adminUpdate}
                 onChange={(e) => setAdminUpdate(e.target.value)}

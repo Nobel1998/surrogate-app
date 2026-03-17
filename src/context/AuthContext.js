@@ -112,27 +112,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const buildUserDataFromSession = (sessionUser, profileData = null, fallbackEmail = '') => {
+    const email = sessionUser?.email || fallbackEmail || '';
+    const metadata = sessionUser?.user_metadata || {};
+    const transferDate = (profileData?.transfer_date || '').trim() ||
+      (metadata?.transfer_date || '').trim() ||
+      '';
+    const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() ||
+      (metadata?.transfer_embryo_day || '').trim() ||
+      '';
+
+    return {
+      id: sessionUser?.id || '',
+      email,
+      name: profileData?.name || metadata?.name || (email.includes('@') ? email.split('@')[0] : 'User'),
+      phone: profileData?.phone || metadata?.phone || '',
+      address: profileData?.location || metadata?.location || '',
+      dateOfBirth: profileData?.date_of_birth || metadata?.date_of_birth || '',
+      race: profileData?.race || metadata?.race || '',
+      inviteCode: profileData?.invite_code || '',
+      referredBy: profileData?.referred_by || '',
+      role: profileData?.role || metadata?.role || 'surrogate',
+      location: profileData?.location || metadata?.location || '',
+      transfer_date: transferDate,
+      transfer_embryo_day: transferEmbryoDay,
+      createdAt: sessionUser?.created_at || new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      user_metadata: metadata,
+    };
+  };
+
   const checkAuthStatus = async (retryCount = 0) => {
-    const maxRetries = 3;
+    const maxRetries = 0;
     try {
       console.log(`🔍 Checking auth status... (attempt ${retryCount + 1}/${maxRetries + 1})`);
       
-      // 首先进行网络连接测试
-      if (retryCount === 0) {
-        try {
-          console.log('🌐 Testing network connectivity...');
-          const networkTest = await fetch('https://www.google.com', { 
-            method: 'HEAD',
-            timeout: 5000 
-          });
-          console.log('✅ Network connectivity confirmed');
-        } catch (networkError) {
-          console.log('⚠️ Network connectivity issue detected:', networkError.message);
-        }
-      }
-      
       // 根据重试次数调整超时时间
-      const timeoutDuration = 15000 + (retryCount * 10000); // 15s, 25s, 35s
+      const timeoutDuration = 10000 + (retryCount * 5000); // 10s (single try)
       console.log(`⏱️ Using timeout duration: ${timeoutDuration}ms`);
       
       // 添加超时机制，防止无限加载
@@ -251,25 +267,11 @@ export const AuthProvider = ({ children }) => {
             profileDataTransferEmbryoDay: profileData?.transfer_embryo_day,
           });
           
-          const userData = {
-            id: session.user.id,
-            email: session.user.email,
-            name: profileData?.name || session.user.user_metadata?.name || session.user.email.split('@')[0],
-            phone: profileData?.phone || session.user.user_metadata?.phone || '',
-            address: profileData?.location || session.user.user_metadata?.location || '',
-            dateOfBirth: profileData?.date_of_birth || session.user.user_metadata?.date_of_birth || '',
-            race: profileData?.race || session.user.user_metadata?.race || '',
-            inviteCode: profileData?.invite_code || '',
-            referredBy: profileData?.referred_by || '',
-            role: profileData?.role || session.user.user_metadata?.role || 'surrogate',
-            location: profileData?.location || session.user.user_metadata?.location || '',
+          const userData = buildUserDataFromSession(session.user, {
+            ...profileData,
             transfer_date: transferDate,
             transfer_embryo_day: transferEmbryoDay,
-            createdAt: session.user.created_at,
-            lastLogin: new Date().toISOString(),
-            // Include raw user_metadata for application form fields (age, hear_about_us)
-            user_metadata: session.user.user_metadata || {},
-          };
+          });
           
           console.log('✅ User data prepared:', {
             transfer_date: userData.transfer_date,
@@ -312,25 +314,10 @@ export const AuthProvider = ({ children }) => {
           }
           
           // 即使 profile 获取失败，也可以使用基本用户信息
-          const basicUserData = {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-            phone: session.user.user_metadata?.phone || '',
-            address: session.user.user_metadata?.location || '',
-            dateOfBirth: session.user.user_metadata?.date_of_birth || '',
-            race: session.user.user_metadata?.race || '',
-            inviteCode: '',
-            referredBy: '',
-            role: session.user.user_metadata?.role || 'surrogate',
-            location: session.user.user_metadata?.location || '',
+          const basicUserData = buildUserDataFromSession(session.user, {
             transfer_date: fallbackTransferDate || session.user.user_metadata?.transfer_date || '',
             transfer_embryo_day: fallbackTransferEmbryoDay || session.user.user_metadata?.transfer_embryo_day || '',
-            createdAt: session.user.created_at,
-            lastLogin: new Date().toISOString(),
-            // Include raw user_metadata for application form fields (age, hear_about_us)
-            user_metadata: session.user.user_metadata || {},
-          };
+          });
           
           console.log('✅ User data prepared (fallback):', {
             transfer_date: basicUserData.transfer_date,
@@ -348,12 +335,9 @@ export const AuthProvider = ({ children }) => {
         console.log('⚠️ No Supabase session found');
         const storedUser = await getStoredUser();
         if (storedUser) {
-          console.log('Found stored user locally:', storedUser.email);
-          console.log('⚠️ User will need to re-login to create Supabase session');
-          // 清除本地用户，强制重新登录
-          setUser(null);
-          setIsAuthenticated(false);
-          await AsyncStorageLib.removeItem('current_user');
+          console.log('✅ Found stored user locally, keeping local session:', storedUser.email);
+          setUser(storedUser);
+          setIsAuthenticated(true);
         } else {
           // 没有本地用户，设置为未认证状态
           setUser(null);
@@ -411,23 +395,25 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
     };
 
-    // 先取 initialUrl，再决定应急超时时间：扫码/链接打开用 2 秒，冷启动用 12 秒，避免扫码后长时间 loading
+    // 先取 initialUrl，再决定应急超时时间：扫码/链接打开也使用标准超时，避免 auth 尚未恢复就提前结束加载态
     const checkDeepLinkAndAuth = async () => {
       try {
         const initialUrl = await Linking.getInitialURL();
         console.log('🔗 App opened with URL:', initialUrl);
-        const delayMs = initialUrl ? 2000 : 12000;
+        const delayMs = initialUrl ? 12000 : 12000;
         emergencyTimeoutRef.current = setTimeout(fireEmergency, delayMs);
 
         if (initialUrl) {
-          console.log('📱 App opened via link/QR, using short loading timeout (2s)');
+          console.log('📱 App opened via link/QR, using standard loading timeout (12s)');
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        checkAuthStatus();
+        await checkAuthStatus();
+        if (emergencyTimeoutRef.current) clearTimeout(emergencyTimeoutRef.current);
       } catch (error) {
         console.error('Error checking deep link:', error);
         emergencyTimeoutRef.current = setTimeout(fireEmergency, 12000);
-        checkAuthStatus();
+        await checkAuthStatus();
+        if (emergencyTimeoutRef.current) clearTimeout(emergencyTimeoutRef.current);
       }
     };
 
@@ -443,34 +429,32 @@ export const AuthProvider = ({ children }) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           try {
-            const { data: profileData } = await supabase
+            // Fast path: authenticate immediately with metadata to avoid blocking on profile fetch.
+            const basicUserData = buildUserDataFromSession(session.user);
+            setUser(basicUserData);
+            setIsAuthenticated(true);
+            await storeUser(basicUserData);
+            console.log('✅ User authenticated via auth state change (fast path)');
+
+            // Best-effort profile enrichment with timeout.
+            const profilePromise = supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-            
-            const userData = {
-              id: session.user.id,
-              email: session.user.email,
-              name: profileData?.name || session.user.user_metadata?.name || session.user.email.split('@')[0],
-              phone: profileData?.phone || session.user.user_metadata?.phone || '',
-              address: profileData?.location || session.user.user_metadata?.location || '',
-              dateOfBirth: profileData?.date_of_birth || session.user.user_metadata?.date_of_birth || '',
-              race: profileData?.race || session.user.user_metadata?.race || '',
-              inviteCode: profileData?.invite_code || '',
-              referredBy: profileData?.referred_by || '',
-              role: profileData?.role || session.user.user_metadata?.role || 'surrogate',
-              location: profileData?.location || session.user.user_metadata?.location || '',
-              createdAt: session.user.created_at,
-              lastLogin: new Date().toISOString(),
-              // Include raw user_metadata for application form fields (age, hear_about_us)
-              user_metadata: session.user.user_metadata || {},
-            };
-            
-            setUser(userData);
-            setIsAuthenticated(true);
-            await storeUser(userData);
-            console.log('✅ User authenticated via auth state change');
+            const { data: profileData, error: profileError } = await Promise.race([
+              profilePromise,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Auth state profile timeout')), 8000)),
+            ]);
+
+            if (!profileError && profileData) {
+              const enrichedUserData = buildUserDataFromSession(session.user, profileData);
+              setUser(enrichedUserData);
+              await storeUser(enrichedUserData);
+              console.log('✅ User profile enriched via auth state change');
+            } else if (profileError) {
+              console.log('⚠️ Auth state profile fetch skipped:', profileError.message);
+            }
           } catch (error) {
             console.error('Error in auth state change handler:', error);
           }
@@ -567,9 +551,16 @@ export const AuthProvider = ({ children }) => {
 
         console.log('✅ Supabase login successful');
 
-        // Fetch user profile from profiles table with timeout - 增加到30秒
+        // Fast path: do not block login on profile query.
+        const basicUserData = buildUserDataFromSession(authData.user, null, email);
+        setUser(basicUserData);
+        setIsAuthenticated(true);
+        await storeUser(basicUserData);
+        console.log('✅ Login fast path user set');
+
+        // Fetch user profile from profiles table with timeout
         const profileTimeout = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Profile loading timeout. Please try again.')), 30000); // 30秒超时
+          setTimeout(() => reject(new Error('Profile loading timeout. Please try again.')), 10000);
         });
 
         let profileData = null;
@@ -598,11 +589,11 @@ export const AuthProvider = ({ children }) => {
         }
 
         // Extract transfer_date and transfer_embryo_day with proper fallback
-        const transferDate = (profileData?.transfer_date || '').trim() || 
-                            (authData.user.user_metadata?.transfer_date || '').trim() || 
+        const transferDate = (profileData?.transfer_date || '').trim() ||
+                            (authData.user.user_metadata?.transfer_date || '').trim() ||
                             '';
-        const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() || 
-                                 (authData.user.user_metadata?.transfer_embryo_day || '').trim() || 
+        const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() ||
+                                 (authData.user.user_metadata?.transfer_embryo_day || '').trim() ||
                                  '';
         
         console.log('🔍 Login - Extracted transfer data:', {
@@ -613,26 +604,11 @@ export const AuthProvider = ({ children }) => {
           profileDataTransferDate: profileData?.transfer_date,
         });
         
-        // Construct user data
-        const userData = {
-          id: authData.user.id,
-          email: authData.user.email,
-          name: profileData?.name || authData.user.user_metadata?.name || email.split('@')[0],
-          phone: profileData?.phone || authData.user.user_metadata?.phone || '',
-          address: profileData?.location || authData.user.user_metadata?.location || '',
-          dateOfBirth: profileData?.date_of_birth || authData.user.user_metadata?.date_of_birth || '',
-          race: profileData?.race || authData.user.user_metadata?.race || '',
-          inviteCode: profileData?.invite_code || '',
-          referredBy: profileData?.referred_by || '',
-          role: profileData?.role || authData.user.user_metadata?.role || 'surrogate',
-          location: profileData?.location || authData.user.user_metadata?.location || '',
+        const userData = buildUserDataFromSession(authData.user, {
+          ...profileData,
           transfer_date: transferDate,
           transfer_embryo_day: transferEmbryoDay,
-          createdAt: authData.user.created_at,
-          lastLogin: new Date().toISOString(),
-          // Include raw user_metadata for application form fields (age, hear_about_us)
-          user_metadata: authData.user.user_metadata || {},
-        };
+        }, email);
         
         console.log('✅ Login - User data prepared:', {
           transfer_date: userData.transfer_date,

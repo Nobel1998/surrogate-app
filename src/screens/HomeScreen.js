@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, SafeAreaView, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
@@ -116,16 +117,6 @@ export default function HomeScreen() {
   const [isEditingTransferDate, setIsEditingTransferDate] = useState(false);
   const [userPoints, setUserPoints] = useState(0);
   const [loadingPoints, setLoadingPoints] = useState(false);
-  // Medical information states
-  const [medicationStartDate, setMedicationStartDate] = useState('');
-  const [pregnancyTestDate, setPregnancyTestDate] = useState('');
-  const [pregnancyTestDate2, setPregnancyTestDate2] = useState('');
-  const [pregnancyTestDate3, setPregnancyTestDate3] = useState('');
-  const [pregnancyTestDate4, setPregnancyTestDate4] = useState('');
-  const [fetalBeatDate, setFetalBeatDate] = useState('');
-  const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
-  const [loadingMedicalInfo, setLoadingMedicalInfo] = useState(false);
-  const [currentMatchId, setCurrentMatchId] = useState(null);
   const [hasApplication, setHasApplication] = useState(false);
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [hasSurrogateMatch, setHasSurrogateMatch] = useState(false);
@@ -335,7 +326,7 @@ export default function HomeScreen() {
     const daysToDue = Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
 
     const progress = clamp(gestationalDays / 280, 0, 1); // 40w * 7d
-    const isGraduated = gestationalDays >= 70; // >=10w
+    const isGraduated = gestationalDays >= 70; // >=10w - Transfer to OB Office Visit
 
     return {
       transfer,
@@ -390,19 +381,26 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, transferDateStr, transferEmbryoDayStr, matchedProfile?.transfer_date, matchedProfile?.transfer_embryo_day, isEditingTransferDate]);
 
-  // Trigger: when Current_Weeks >= 10 → popup (only once)
+  // Trigger OB recommendation at 10 weeks (shown only once)
   useEffect(() => {
-    const run = async () => {
-      if (!pregnancyMetrics?.isGraduated) return;
+    const checkMilestone = async () => {
+      if (!pregnancyMetrics) return;
       const uid = user?.id || 'guest';
-      const key = `graduation_prompt_shown_${uid}`;
-      const already = await AsyncStorageLib.getItem(key);
-      if (already === 'true') return;
-      Alert.alert('Congratulations!', 'Congratulations! Transfer to OB/GYN recommended.');
-      await AsyncStorageLib.setItem(key, 'true');
+      const { weeks } = pregnancyMetrics;
+
+      // 10 weeks - OB Office Visit recommendation
+      if (weeks >= 10) {
+        const key = `graduation_prompt_shown_${uid}`;
+        const already = await AsyncStorageLib.getItem(key);
+        if (already !== 'true') {
+          Alert.alert('Congratulations!', 'You are at 10 weeks! Transfer to OB Office Visit recommended.');
+          await AsyncStorageLib.setItem(key, 'true');
+        }
+      }
     };
-    run().catch((e) => console.warn('Graduation prompt error:', e));
-  }, [pregnancyMetrics?.isGraduated, user?.id]);
+
+    checkMilestone().catch((e) => console.warn('Milestone prompt error:', e));
+  }, [pregnancyMetrics, user?.id]);
 
   const saveTransferDate = useCallback(async () => {
     const v = String(transferDateDraft || '').trim();
@@ -649,11 +647,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {isGraduated && (
-          <View style={styles.pregGraduationBanner}>
-            <Text style={styles.pregGraduationText}>{t('home.congratulationsGraduation')}</Text>
-          </View>
-        )}
 
         {/* Points Display - Only for surrogates */}
         {isSurrogateRole && (
@@ -1398,7 +1391,7 @@ export default function HomeScreen() {
     try {
       const { data: reports, error: reportsError } = await supabase
         .from('medical_reports')
-        .select('id, visit_date, created_at')
+        .select('id, visit_date, created_at, uploaded_by')
         .eq('user_id', user.id);
 
       if (reportsError) {
@@ -1406,8 +1399,49 @@ export default function HomeScreen() {
         return;
       }
 
-      const reportIds = (reports || []).map((r) => r.id).filter(Boolean);
+      const allReports = reports || [];
+
+      const surrogateUploadedReports = allReports.filter(
+        (report) => !report?.uploaded_by || report.uploaded_by === 'surrogate'
+      );
+      const nonSurrogateReportIds = allReports
+        .filter((report) => report?.uploaded_by && report.uploaded_by !== 'surrogate')
+        .map((report) => report.id)
+        .filter(Boolean);
+
+      // Clean up wrongly counted points from admin-uploaded reports.
+      if (nonSurrogateReportIds.length > 0) {
+        const { error: cleanupError } = await supabase
+          .from('points_rewards')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('source_type', 'medical_report')
+          .in('source_id', nonSurrogateReportIds);
+
+        if (cleanupError) {
+          console.error('Error cleaning up admin-uploaded medical report points:', cleanupError);
+        }
+      }
+
+      const reportIds = surrogateUploadedReports.map((r) => r.id).filter(Boolean);
       if (reportIds.length === 0) return;
+
+      const { data: allExistingRewards, error: allRewardsError } = await supabase
+        .from('points_rewards')
+        .select('points')
+        .eq('user_id', user.id);
+
+      if (allRewardsError) {
+        console.error('Error loading user points total for cap check:', allRewardsError);
+        return;
+      }
+
+      const existingTotalPoints = (allExistingRewards || []).reduce(
+        (sum, row) => sum + (Number(row?.points) || 0),
+        0
+      );
+      let remainingPoints = Math.max(0, 5000 - existingTotalPoints);
+      if (remainingPoints <= 0) return;
 
       const { data: existingRewards, error: rewardsError } = await supabase
         .from('points_rewards')
@@ -1437,21 +1471,27 @@ export default function HomeScreen() {
       };
 
       const rewardsToInsert = [];
-      (reports || []).forEach((report) => {
+      surrogateUploadedReports.forEach((report) => {
         if (!report?.id) return;
+        if (remainingPoints <= 0) return;
+
         const reportId = String(report.id);
         const existingTypes = rewardTypeByReportId.get(reportId) || new Set();
 
         // Base reward for every medical report
         if (!existingTypes.has('base_hit')) {
-          rewardsToInsert.push({
-            user_id: user.id,
-            points: 200,
-            reward_type: 'base_hit',
-            source_type: 'medical_report',
-            source_id: report.id,
-            description: 'Medical report submission reward (historical backfill)',
-          });
+          const basePoints = Math.min(200, remainingPoints);
+          if (basePoints > 0) {
+            rewardsToInsert.push({
+              user_id: user.id,
+              points: basePoints,
+              reward_type: 'base_hit',
+              source_type: 'medical_report',
+              source_id: report.id,
+              description: 'Medical report submission reward (historical backfill)',
+            });
+            remainingPoints -= basePoints;
+          }
         }
 
         // Speed bonus if visit_date and report creation date are the same day
@@ -1459,14 +1499,18 @@ export default function HomeScreen() {
         const createdDate = getDatePrefix(report.created_at);
         const qualifiesSpeedBonus = !!visitDate && !!createdDate && visitDate === createdDate;
         if (qualifiesSpeedBonus && !existingTypes.has('speed_bonus')) {
-          rewardsToInsert.push({
-            user_id: user.id,
-            points: 50,
-            reward_type: 'speed_bonus',
-            source_type: 'medical_report',
-            source_id: report.id,
-            description: 'Same-day upload bonus (historical backfill)',
-          });
+          const speedPoints = Math.min(50, remainingPoints);
+          if (speedPoints > 0) {
+            rewardsToInsert.push({
+              user_id: user.id,
+              points: speedPoints,
+              reward_type: 'speed_bonus',
+              source_type: 'medical_report',
+              source_id: report.id,
+              description: 'Same-day upload bonus (historical backfill)',
+            });
+            remainingPoints -= speedPoints;
+          }
         }
       });
 
@@ -1503,11 +1547,34 @@ export default function HomeScreen() {
         .eq('id', user.id)
         .single();
 
+      const { data: rewardsRows, error: rewardsSumError } = await supabase
+        .from('points_rewards')
+        .select('points, source_type, source_id, reward_type')
+        .eq('user_id', user.id);
+
+      const { data: allReportsForPoints } = await supabase
+        .from('medical_reports')
+        .select('id, uploaded_by')
+        .eq('user_id', user.id);
+
+      const surrogateReportIdSet = new Set(
+        (allReportsForPoints || [])
+          .filter((report) => !report?.uploaded_by || report.uploaded_by === 'surrogate')
+          .map((report) => String(report.id))
+      );
+
+      const validRewards = (rewardsRows || []).filter((reward) => {
+        if (reward?.source_type !== 'medical_report') return true;
+        if (!reward?.source_id) return false;
+        return surrogateReportIdSet.has(String(reward.source_id));
+      });
+      const filteredPoints = validRewards.reduce((sum, row) => sum + (Number(row?.points) || 0), 0);
+
       if (error) {
         console.error('Error fetching user points:', error);
         setUserPoints(0);
       } else {
-        setUserPoints(data?.total_points || 0);
+        setUserPoints(Math.min(filteredPoints, 5000));
       }
     } catch (error) {
       console.error('Error in fetchUserPoints:', error);
@@ -1517,244 +1584,36 @@ export default function HomeScreen() {
     }
   }, [user?.id, isSurrogateRole, backfillPointsForHistoricalMedicalReports]);
 
-  // Fetch match and medical information for surrogate
-  const fetchMatchAndMedicalInfo = useCallback(async () => {
+  // Check if surrogate has a match
+  const checkSurrogateMatch = useCallback(async () => {
     if (!user?.id || !isSurrogateRole) {
-      setCurrentMatchId(null);
       setHasSurrogateMatch(false);
       return;
     }
 
-    setLoadingMedicalInfo(true);
+    setCheckingMatch(true);
     try {
-      // Find the match for this surrogate - query all matches then filter for active
-      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Querying matches for surrogate:', { userId: user.id });
       const { data: allMatches, error: matchError } = await supabase
         .from('surrogate_matches')
-        .select('*')
+        .select('id, status')
         .eq('surrogate_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('[HomeScreen] fetchMatchAndMedicalInfo - All matches query result:', { 
-        matches: allMatches, 
-        error: matchError,
-        matchCount: allMatches?.length 
-      });
-
       if (matchError) {
         console.error('Error fetching match:', matchError);
-        setCurrentMatchId(null);
         setHasSurrogateMatch(false);
         return;
       }
 
-      // Find matched match (status can be 'matched' or 'active')
       const matchData = allMatches?.find(m => m.status === 'matched' || m.status === 'active');
-      
-      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Matched match check:', { 
-        hasMatchedMatch: !!matchData,
-        matchedMatchId: matchData?.id,
-        matchedMatchStatus: matchData?.status,
-        allMatchesStatuses: allMatches?.map(m => ({ id: m.id, status: m.status }))
-      });
-
-      if (matchData) {
-        setCurrentMatchId(matchData.id);
-        setHasSurrogateMatch(true);
-        console.log('[HomeScreen] fetchMatchAndMedicalInfo - Updated hasSurrogateMatch to true');
-        // Format dates for display (YYYY-MM-DD to MM/DD/YY)
-        if (matchData.medication_start_date) {
-          const date = new Date(matchData.medication_start_date);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setMedicationStartDate(`${month}/${day}/${year}`);
-        } else {
-          setMedicationStartDate('');
-        }
-
-        if (matchData.pregnancy_test_date) {
-          const date = new Date(matchData.pregnancy_test_date);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate('');
-        }
-
-        if (matchData.pregnancy_test_date_2) {
-          const date = new Date(matchData.pregnancy_test_date_2);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate2(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate2('');
-        }
-
-        if (matchData.pregnancy_test_date_3) {
-          const date = new Date(matchData.pregnancy_test_date_3);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate3(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate3('');
-        }
-
-        if (matchData.pregnancy_test_date_4) {
-          const date = new Date(matchData.pregnancy_test_date_4);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setPregnancyTestDate4(`${month}/${day}/${year}`);
-        } else {
-          setPregnancyTestDate4('');
-        }
-
-        if (matchData.fetal_beat_date) {
-          const date = new Date(matchData.fetal_beat_date);
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = String(date.getFullYear()).slice(-2);
-          setFetalBeatDate(`${month}/${day}/${year}`);
-        } else {
-          setFetalBeatDate('');
-        }
-      } else {
-        setCurrentMatchId(null);
-        setHasSurrogateMatch(false);
-        setMedicationStartDate('');
-        setPregnancyTestDate('');
-        setPregnancyTestDate2('');
-        setPregnancyTestDate3('');
-        setPregnancyTestDate4('');
-        setFetalBeatDate('');
-        console.log('[HomeScreen] fetchMatchAndMedicalInfo - No active match found, setting hasSurrogateMatch to false');
-      }
+      setHasSurrogateMatch(!!matchData);
     } catch (error) {
-      console.error('Error in fetchMatchAndMedicalInfo:', error);
-      setCurrentMatchId(null);
+      console.error('Error checking surrogate match:', error);
       setHasSurrogateMatch(false);
-      console.log('[HomeScreen] fetchMatchAndMedicalInfo - Error occurred, setting hasSurrogateMatch to false');
     } finally {
-      setLoadingMedicalInfo(false);
+      setCheckingMatch(false);
     }
   }, [user?.id, isSurrogateRole]);
-
-  // Save medical information
-  const saveMedicalInfo = useCallback(async () => {
-    if (!user?.id || !isSurrogateRole || !currentMatchId) {
-      Alert.alert('Error', 'Please wait for match information to load.');
-      return;
-    }
-
-    setSavingMedicalInfo(true);
-    try {
-      const updateData = {};
-
-      // Parse and format medication start date
-      if (medicationStartDate.trim()) {
-        const parsed = parseMMDDYYToISO(medicationStartDate.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter medication start date in format: MM/DD/YY (e.g., 12/01/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.medication_start_date = formatDateToISO(parsed);
-      } else {
-        updateData.medication_start_date = null;
-      }
-
-      // Parse and format pregnancy test date
-      if (pregnancyTestDate.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date in format: MM/DD/YY (e.g., 12/01/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.pregnancy_test_date = formatDateToISO(parsed);
-      } else {
-        updateData.pregnancy_test_date = null;
-      }
-
-      // Parse and format pregnancy test date 2
-      if (pregnancyTestDate2.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate2.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 2 in format: MM/DD/YY (e.g., 12/15/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.pregnancy_test_date_2 = formatDateToISO(parsed);
-      } else {
-        updateData.pregnancy_test_date_2 = null;
-      }
-
-      // Parse and format pregnancy test date 3
-      if (pregnancyTestDate3.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate3.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 3 in format: MM/DD/YY (e.g., 12/20/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.pregnancy_test_date_3 = formatDateToISO(parsed);
-      } else {
-        updateData.pregnancy_test_date_3 = null;
-      }
-
-      // Parse and format pregnancy test date 4
-      if (pregnancyTestDate4.trim()) {
-        const parsed = parseMMDDYYToISO(pregnancyTestDate4.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter β‑hCG test date 4 in format: MM/DD/YY (e.g., 12/25/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.pregnancy_test_date_4 = formatDateToISO(parsed);
-      } else {
-        updateData.pregnancy_test_date_4 = null;
-      }
-
-      // Fetal heartbeat confirmation date
-      if (fetalBeatDate.trim()) {
-        const parsed = parseMMDDYYToISO(fetalBeatDate.trim());
-        if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter Fetal Heartbeat Confirmation date in format: MM/DD/YY (e.g., 12/01/25).');
-          setSavingMedicalInfo(false);
-          return;
-        }
-        updateData.fetal_beat_date = formatDateToISO(parsed);
-        updateData.fetal_beat_confirm = 'Confirmed';
-      } else {
-        updateData.fetal_beat_date = null;
-        updateData.fetal_beat_confirm = 'None';
-      }
-      updateData.updated_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('surrogate_matches')
-        .update(updateData)
-        .eq('id', currentMatchId)
-        .eq('surrogate_id', user.id);
-
-      if (error) {
-        console.error('Error updating medical info:', error);
-        Alert.alert('Error', 'Failed to save medical information. Please try again.');
-        return;
-      }
-
-      Alert.alert('Success', 'Medical information saved successfully.');
-    } catch (error) {
-      console.error('Error in saveMedicalInfo:', error);
-      Alert.alert('Error', 'Failed to save medical information. Please try again.');
-    } finally {
-      setSavingMedicalInfo(false);
-    }
-  }, [user?.id, isSurrogateRole, currentMatchId, medicationStartDate, pregnancyTestDate, pregnancyTestDate2, pregnancyTestDate3, pregnancyTestDate4, fetalBeatDate]);
 
   // Fetch medical reports on mount and when user/match changes
   useEffect(() => {
@@ -1762,10 +1621,10 @@ export default function HomeScreen() {
       fetchMedicalReports();
       fetchUserPoints();
       if (isSurrogateRole) {
-        fetchMatchAndMedicalInfo();
+        checkSurrogateMatch();
       }
     }
-  }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, fetchMatchAndMedicalInfo]);
+  }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, checkSurrogateMatch]);
 
   // Listen for match creation/updates in surrogate_matches table
   useEffect(() => {
@@ -1826,7 +1685,7 @@ export default function HomeScreen() {
             
             // Refresh match and medical info for surrogate
             if (isSurrogate) {
-              await fetchMatchAndMedicalInfo();
+              await checkSurrogateMatch();
             }
             
             // Refresh matched surrogate for parent
@@ -1865,7 +1724,7 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Cleaning up match updates listener');
       supabase.removeChannel(channel);
     };
-  }, [user?.id, user?.role, refreshStageData, fetchMatchAndMedicalInfo, fetchMatchedSurrogate]);
+  }, [user?.id, user?.role, refreshStageData, checkSurrogateMatch, fetchMatchedSurrogate]);
 
   // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态
   const onRefresh = useCallback(async () => {
@@ -2739,128 +2598,6 @@ export default function HomeScreen() {
       >
         {renderPregnancyDashboard()}
         {isSurrogateRole && (
-          <View style={styles.medicalInfoCard}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
-                <Icon name="activity" size={24} color="#F59E0B" />
-              </View>
-              <View>
-                <Text style={styles.cardTitle}>Medical Information</Text>
-                <Text style={styles.cardSubtitle}>Update your medical records</Text>
-              </View>
-            </View>
-
-            {loadingMedicalInfo ? (
-              <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 16 }} />
-            ) : (
-              <>
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>Medication Start Date (MM/DD/YY)</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={medicationStartDate}
-                      onChangeText={setMedicationStartDate}
-                      placeholder="e.g. 12/01/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate1')}</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={pregnancyTestDate}
-                      onChangeText={setPregnancyTestDate}
-                      placeholder="e.g. 12/15/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate2')}</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={pregnancyTestDate2}
-                      onChangeText={setPregnancyTestDate2}
-                      placeholder="e.g. 12/20/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate3')}</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={pregnancyTestDate3}
-                      onChangeText={setPregnancyTestDate3}
-                      placeholder="e.g. 12/25/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>{t('home.betaHcgTestDate4')}</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={pregnancyTestDate4}
-                      onChangeText={setPregnancyTestDate4}
-                      placeholder="e.g. 12/30/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.medicalInfoSection}>
-                  <Text style={styles.sectionLabel}>{t('home.fetalHeartbeatConfirmDate')}</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                      value={fetalBeatDate}
-                      onChangeText={setFetalBeatDate}
-                      placeholder="e.g. 12/01/25"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      style={styles.fancyInput}
-                    />
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.fullWidthButton, savingMedicalInfo && styles.fullWidthButtonDisabled]}
-                  onPress={saveMedicalInfo}
-                  disabled={savingMedicalInfo}
-                  activeOpacity={0.8}
-                >
-                  {savingMedicalInfo ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.buttonText}>Save Medical Information</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        )}
-        {isSurrogateRole && (
           <View style={styles.stageUpdateCard}>
             <Text style={styles.stageUpdateLabel}>{t('home.updateYourStage')}</Text>
             <View style={styles.stageChipRow}>
@@ -3462,22 +3199,6 @@ const styles = StyleSheet.create({
     elevation: 0,
     zIndex: 10,
     marginBottom: 16,
-  },
-  medicalInfoCard: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 20,
-    padding: 24,
-    borderRadius: 24,
-    shadowColor: '#1A1D1E',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  medicalInfoSection: {
-    marginBottom: 20,
   },
   radioGroup: {
     flexDirection: 'row',
