@@ -7,7 +7,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
 
-// Require admin role for payment nodes access
+// Require admin role for payment nodes write access
 async function requireAdmin() {
   const cookieStore = await cookies();
   const adminUserId = cookieStore.get('admin_user_id')?.value;
@@ -35,9 +35,39 @@ async function requireAdmin() {
   return { allowed: true, status: 200 as const, error: null };
 }
 
+// Require admin or finance_manager role for payment nodes read access
+async function requirePaymentRead() {
+  const cookieStore = await cookies();
+  const adminUserId = cookieStore.get('admin_user_id')?.value;
+  if (!adminUserId) {
+    return { allowed: false, status: 401 as const, error: 'Not authenticated' };
+  }
+  if (!supabaseUrl || !serviceKey) {
+    return { allowed: false, status: 500 as const, error: 'Missing Supabase env vars' };
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: adminUser, error } = await supabase
+    .from('admin_users')
+    .select('id, role')
+    .eq('id', adminUserId)
+    .single();
+  if (error || !adminUser) {
+    return { allowed: false, status: 401 as const, error: 'Invalid admin session' };
+  }
+  const role = (adminUser.role || '').toLowerCase();
+  if (role !== 'admin' && role !== 'finance_manager') {
+    return { allowed: false, status: 403 as const, error: 'Only admins and finance managers can read payment nodes.' };
+  }
+  return { allowed: true, status: 200 as const, error: null };
+}
+
 // GET: Fetch all payment nodes with match and profile information
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requirePaymentRead();
   if (!auth.allowed) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

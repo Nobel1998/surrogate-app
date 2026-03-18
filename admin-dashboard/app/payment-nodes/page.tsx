@@ -91,6 +91,7 @@ export default function PaymentNodesPage() {
   const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readOnly, setReadOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -102,6 +103,22 @@ export default function PaymentNodesPage() {
   const [filterMatchId, setFilterMatchId] = useState<string>('all');
   const [filterMatchStatus, setFilterMatchStatus] = useState<string>('all');
   const [filterInstallment, setFilterInstallment] = useState<string>('all');
+
+  // Load admin auth info (read-only status) once
+  useEffect(() => {
+    const loadAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/check');
+        if (res.ok) {
+          const data = await res.json();
+          setReadOnly(!!data.user?.read_only);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadAuth();
+  }, []);
 
   // Form state for payment nodes
   const [formData, setFormData] = useState({
@@ -249,6 +266,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleAdd = () => {
+    if (readOnly) return;
     setFormData({
       match_id: '',
       node_name: '',
@@ -267,6 +285,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleEdit = (node: PaymentNode) => {
+    if (readOnly) return;
     setSelectedNode(node);
     
     // Extract date part (YYYY-MM-DD) for date inputs
@@ -350,6 +369,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (readOnly) return;
     if (!confirm('Are you sure you want to delete this payment node?')) {
       return;
     }
@@ -373,6 +393,7 @@ export default function PaymentNodesPage() {
 
   // Client Payment handlers
   const handleAddPayment = () => {
+    if (readOnly) return;
     setPaymentFormData({
       match_id: '',
       payment_installment: 'Installment 1',
@@ -388,6 +409,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleEditPayment = (payment: ClientPayment) => {
+    if (readOnly) return;
     setSelectedPayment(payment);
     
     // Format date for input field (handle both DATE and TIMESTAMP formats)
@@ -476,6 +498,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleDeletePayment = async (id: string) => {
+    if (readOnly) return;
     if (!confirm('Are you sure you want to delete this payment record?')) {
       return;
     }
@@ -498,6 +521,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -547,6 +571,7 @@ export default function PaymentNodesPage() {
   };
 
   const handleNodeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -792,20 +817,24 @@ export default function PaymentNodesPage() {
             <p className="text-gray-600 mt-1">Manage payment nodes and client payment records</p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleAdd}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <span>+</span>
-              <span>Add Payment Node</span>
-            </button>
-            <button
-              onClick={handleAddPayment}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
-            >
-              <span>+</span>
-              <span>Add Payment Record</span>
-            </button>
+            {!readOnly && (
+              <>
+                <button
+                  onClick={handleAdd}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <span>+</span>
+                  <span>Add Payment Node</span>
+                </button>
+                <button
+                  onClick={handleAddPayment}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+                >
+                  <span>+</span>
+                  <span>Add Payment Record</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -1082,52 +1111,56 @@ export default function PaymentNodesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {payment.type === 'node' ? (
+                      {!readOnly && (
                         <>
-                          <button
-                            onClick={() => {
-                              // Find the node from the original paymentNodes array
-                              const node = paymentNodes.find(n => n.id === payment.id);
-                              if (node) {
-                                handleEdit(node);
-                              } else {
-                                console.error('Payment node not found:', payment.id);
-                                alert('Payment node not found. Please refresh the page.');
-                              }
-                            }}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(payment.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => {
-                              const clientPayment = clientPayments.find(p => p.id === payment.id);
-                              if (clientPayment) {
-                                handleEditPayment(clientPayment);
-                              } else {
-                                console.error('Client payment not found:', payment.id);
-                                alert('Client payment not found. Please refresh the page.');
-                              }
-                            }}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeletePayment(payment.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
+                          {payment.type === 'node' ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  // Find the node from the original paymentNodes array
+                                  const node = paymentNodes.find(n => n.id === payment.id);
+                                  if (node) {
+                                    handleEdit(node);
+                                  } else {
+                                    console.error('Payment node not found:', payment.id);
+                                    alert('Payment node not found. Please refresh the page.');
+                                  }
+                                }}
+                                className="text-blue-600 hover:text-blue-900 mr-4"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(payment.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const clientPayment = clientPayments.find(p => p.id === payment.id);
+                                  if (clientPayment) {
+                                    handleEditPayment(clientPayment);
+                                  } else {
+                                    console.error('Client payment not found:', payment.id);
+                                    alert('Client payment not found. Please refresh the page.');
+                                  }
+                                }}
+                                className="text-blue-600 hover:text-blue-900 mr-4"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeletePayment(payment.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </>
                       )}
                     </td>
@@ -1139,7 +1172,7 @@ export default function PaymentNodesPage() {
         )}
 
         {/* Add/Edit Modal for Payment Nodes */}
-        {(showAddModal || showEditModal) && (
+        {!readOnly && (showAddModal || showEditModal) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
@@ -1355,7 +1388,7 @@ export default function PaymentNodesPage() {
                           type="file"
                           accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                           onChange={handleNodeImageUpload}
-                          disabled={uploadingNodeImage}
+                          disabled={readOnly || uploadingNodeImage}
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
                         />
                       </label>
@@ -1397,7 +1430,7 @@ export default function PaymentNodesPage() {
         )}
 
         {/* Add/Edit Modal for Client Payments */}
-        {(showAddPaymentModal || showEditPaymentModal) && (
+        {!readOnly && (showAddPaymentModal || showEditPaymentModal) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
@@ -1594,7 +1627,7 @@ export default function PaymentNodesPage() {
                             type="file"
                             accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                             onChange={handleImageUpload}
-                            disabled={uploadingImage}
+                            disabled={readOnly || uploadingImage}
                             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
                           />
                         </label>

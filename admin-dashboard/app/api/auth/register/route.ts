@@ -46,9 +46,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (role !== 'admin' && role !== 'branch_manager') {
+    if (role !== 'admin' && role !== 'branch_manager' && role !== 'finance_manager') {
       return NextResponse.json(
-        { error: 'Invalid role. Must be admin or branch_manager' },
+        { error: 'Invalid role. Must be admin, branch_manager, or finance_manager' },
         { status: 400 }
       );
     }

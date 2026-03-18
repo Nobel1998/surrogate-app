@@ -16,7 +16,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
-    { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰', adminOnly: true },
+    { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰', allowedRoles: ['admin', 'finance_manager'] },
     { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️' },
     { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠' },
     { href: '/monthly-assessments', label: 'Monthly Assessments', icon: '📊' },
@@ -32,6 +32,9 @@ export default function Sidebar({ userRole }: SidebarProps) {
   // Filter nav items based on user role
   const navItems = allNavItems.filter(item => {
     if (item.adminOnly && userRole !== 'admin') {
+      return false;
+    }
+    if (item.allowedRoles && !item.allowedRoles.includes(userRole)) {
       return false;
     }
     return true;

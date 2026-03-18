@@ -78,7 +78,8 @@ export async function GET(req: NextRequest) {
       branch_id: adminUser.branch_id,
       branch: branch,
       canViewAllBranches: role === 'admin',
-      read_only: role === 'branch_manager' ? !!adminUser.read_only : false,
+      read_only:
+        role === 'finance_manager' ? true : role === 'branch_manager' ? !!adminUser.read_only : false,
     });
   } catch (error: any) {
     console.error('[admin/me] Error:', error);

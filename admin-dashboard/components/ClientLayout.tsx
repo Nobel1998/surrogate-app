@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
-const ADMIN_ONLY_PATHS = ['/payment-nodes', '/business-statistics'];
+const ADMIN_ONLY_PATHS = ['/business-statistics'];
+const PAYMENT_NODES_PATH = '/payment-nodes';
+const PAYMENT_ALLOWED_ROLES = ['admin', 'finance_manager'];
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -43,9 +45,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // Redirect non-admin away from admin-only pages
   useEffect(() => {
     if (loading || !ADMIN_ONLY_PATHS.includes(pathname)) return;
-    if ((userRole || '').toLowerCase() !== 'admin') {
-      router.replace('/');
-    }
+    if ((userRole || '').toLowerCase() !== 'admin') router.replace('/');
+  }, [loading, pathname, userRole, router]);
+
+  // Redirect non-allowed roles away from payment-nodes
+  useEffect(() => {
+    if (loading || pathname !== PAYMENT_NODES_PATH) return;
+    const roleLower = (userRole || '').toLowerCase();
+    if (!PAYMENT_ALLOWED_ROLES.includes(roleLower)) router.replace('/');
   }, [loading, pathname, userRole, router]);
 
   if (pathname === '/login') {
@@ -54,7 +61,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const isAdminOnlyPath = ADMIN_ONLY_PATHS.includes(pathname);
   const isAdmin = (userRole || '').toLowerCase() === 'admin';
-  if (isAdminOnlyPath && !loading && !isAdmin) {
+  const isPaymentPath = pathname === PAYMENT_NODES_PATH;
+  const isPaymentAllowed = PAYMENT_ALLOWED_ROLES.includes((userRole || '').toLowerCase());
+  if ((isAdminOnlyPath && !loading && !isAdmin) || (isPaymentPath && !loading && !isPaymentAllowed)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">Access denied. Redirecting...</p>

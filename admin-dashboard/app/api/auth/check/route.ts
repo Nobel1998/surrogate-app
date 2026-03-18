@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     const role = (adminUser.role || '').toLowerCase();
-    if (role !== 'admin' && role !== 'branch_manager') {
+    if (role !== 'admin' && role !== 'branch_manager' && role !== 'finance_manager') {
       return NextResponse.json({ authenticated: false }, { status: 403 });
     }
 
@@ -66,7 +66,8 @@ export async function GET() {
         branch_id: adminUser.branch_id,
         branch: branch,
         canViewAllBranches: role === 'admin',
-        read_only: role === 'branch_manager' ? !!adminUser.read_only : false,
+        read_only:
+          role === 'finance_manager' ? true : role === 'branch_manager' ? !!adminUser.read_only : false,
       },
     });
   } catch (error: any) {

@@ -16,5 +16,7 @@ export async function isReadOnlyBranchManager(
     .single();
   if (error || !data) return false;
   const role = (data.role || '').toLowerCase();
+  // Finance managers are always view-only.
+  if (role === 'finance_manager') return true;
   return role === 'branch_manager' && !!data.read_only;
 }

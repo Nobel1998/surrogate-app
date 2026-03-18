@@ -247,6 +247,7 @@ export default function RegisterPage() {
               >
                 <option value="admin">Admin (Can view all branches)</option>
                 <option value="branch_manager">Branch Manager (Can view only assigned branch)</option>
+                <option value="finance_manager">Finance Manager (Read-only)</option>
               </select>
             </div>
 
