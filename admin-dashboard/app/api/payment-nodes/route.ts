@@ -1,13 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
 
+// Require admin role for payment nodes access
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  const adminUserId = cookieStore.get('admin_user_id')?.value;
+  if (!adminUserId) {
+    return { allowed: false, status: 401 as const, error: 'Not authenticated' };
+  }
+  if (!supabaseUrl || !serviceKey) {
+    return { allowed: false, status: 500 as const, error: 'Missing Supabase env vars' };
+  }
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: adminUser, error } = await supabase
+    .from('admin_users')
+    .select('id, role')
+    .eq('id', adminUserId)
+    .single();
+  if (error || !adminUser) {
+    return { allowed: false, status: 401 as const, error: 'Invalid admin session' };
+  }
+  const role = (adminUser.role || '').toLowerCase();
+  if (role !== 'admin') {
+    return { allowed: false, status: 403 as const, error: 'Only admins can access payment nodes.' };
+  }
+  return { allowed: true, status: 200 as const, error: null };
+}
+
 // GET: Fetch all payment nodes with match and profile information
 export async function GET(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.allowed) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
@@ -115,6 +148,10 @@ export async function GET(req: NextRequest) {
 
 // POST: Create a new payment node
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.allowed) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
@@ -229,6 +266,10 @@ export async function POST(req: NextRequest) {
 
 // PATCH: Update a payment node
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.allowed) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },
@@ -284,6 +325,10 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE: Delete a payment node
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.allowed) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },

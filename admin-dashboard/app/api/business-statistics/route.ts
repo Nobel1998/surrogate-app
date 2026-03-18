@@ -37,13 +37,20 @@ async function checkAdminAuth() {
   return { isAdmin: true, adminUser };
 }
 
-// GET - Fetch business statistics
+// GET - Fetch business statistics (admin only)
 export async function GET(req: NextRequest) {
   const authCheck = await checkAdminAuth();
   if (!authCheck.isAdmin) {
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
       { status: 401 }
+    );
+  }
+  const role = (authCheck.adminUser?.role || '').toLowerCase();
+  if (role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Only admins can access business statistics.' },
+      { status: 403 }
     );
   }
 

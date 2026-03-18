@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -8,12 +9,25 @@ export const dynamic = 'force-dynamic';
 
 const STORAGE_BUCKET = 'documents';
 
-// Helper function to get public URL
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  const adminUserId = cookieStore.get('admin_user_id')?.value;
+  if (!adminUserId) return { allowed: false, status: 401 as const, error: 'Not authenticated' };
+  if (!supabaseUrl || !serviceKey) return { allowed: false, status: 500 as const, error: 'Missing Supabase env vars' };
+  const supabase = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data: adminUser, error } = await supabase.from('admin_users').select('id, role').eq('id', adminUserId).single();
+  if (error || !adminUser) return { allowed: false, status: 401 as const, error: 'Invalid admin session' };
+  if ((adminUser.role || '').toLowerCase() !== 'admin') return { allowed: false, status: 403 as const, error: 'Only admins can upload payment receipts.' };
+  return { allowed: true, status: 200 as const, error: null };
+}
+
 function getPublicUrl(path: string): string {
   return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.allowed) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: 'Missing Supabase env vars' },

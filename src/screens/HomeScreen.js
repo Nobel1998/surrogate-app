@@ -102,6 +102,8 @@ export default function HomeScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
+  const [matchId, setMatchId] = useState(null); // surrogate_matches.id for fetching admin notes
+  const [adminNotes, setAdminNotes] = useState([]);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
@@ -785,6 +787,7 @@ export default function HomeScreen() {
           setServerStage('pre');
           setPostStage('pre');
           setMatchedSurrogateId(null);
+          setMatchId(null);
           setMatchedProfile(null);
           setStageLoaded(true);
           console.log('✅ fetchStage done (guest)', { stage: 'pre' });
@@ -827,12 +830,14 @@ export default function HomeScreen() {
             
             if (!cancelled) {
               setHasSurrogateMatch(hasMatch);
+              setMatchId(hasMatch ? matchedMatch.id : null);
               console.log('[HomeScreen] fetchMatchAndStage - Updated hasSurrogateMatch to:', hasMatch);
             }
           } catch (matchErr) {
             console.error('Error checking surrogate match:', matchErr);
             if (!cancelled) {
               setHasSurrogateMatch(false);
+              setMatchId(null);
             }
           }
 
@@ -865,7 +870,7 @@ export default function HomeScreen() {
           try {
             const { data: parentMatches, error: parentMatchError } = await supabase
               .from('surrogate_matches')
-              .select('surrogate_id, status')
+              .select('id, surrogate_id, status')
               .eq('parent_id', user.id)
               .in('status', ['matched', 'active'])
               .order('created_at', { ascending: false })
@@ -874,8 +879,10 @@ export default function HomeScreen() {
               console.log('Error loading match by parent_id:', parentMatchError.message);
             }
             surrogateId = parentMatches?.[0]?.surrogate_id || null;
+            if (!cancelled) setMatchId(parentMatches?.[0]?.id ?? null);
           } catch (matchErr) {
             console.error('Error fetching match:', matchErr);
+            if (!cancelled) setMatchId(null);
           }
 
           if (cancelled) return;
@@ -1225,6 +1232,7 @@ export default function HomeScreen() {
     });
     if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
       setMatchedSurrogateId(null);
+      setMatchId(null);
       setMatchedProfile(null);
       return null;
     }
@@ -1233,7 +1241,7 @@ export default function HomeScreen() {
     try {
       const { data: parentMatches, error: parentMatchError } = await supabase
         .from('surrogate_matches')
-        .select('surrogate_id, status')
+        .select('id, surrogate_id, status')
         .eq('parent_id', user.id)
         .in('status', ['matched', 'active'])
         .order('created_at', { ascending: false })
@@ -1245,6 +1253,7 @@ export default function HomeScreen() {
 
       finalId = parentMatches?.[0]?.surrogate_id || null;
       setMatchedSurrogateId(finalId);
+      setMatchId(parentMatches?.[0]?.id ?? null);
       if (finalId) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -1264,6 +1273,7 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error fetching matched surrogate:', error);
       setMatchedSurrogateId(null);
+      setMatchId(null);
       setMatchedProfile(null);
       finalId = null;
     } finally {
@@ -1314,10 +1324,12 @@ export default function HomeScreen() {
           });
           
           setHasSurrogateMatch(hasMatch);
+          setMatchId(hasMatch ? matchedMatch.id : null);
           console.log('[HomeScreen] refreshStageData - Updated hasSurrogateMatch to:', hasMatch);
         } catch (matchErr) {
           console.error('Error checking surrogate match in refreshStageData:', matchErr);
           setHasSurrogateMatch(false);
+          setMatchId(null);
         }
 
         const { data } = await supabase
@@ -1381,6 +1393,31 @@ export default function HomeScreen() {
       setLoadingReports(false);
     }
   }, [user?.id, isParentRole, matchedSurrogateId]);
+
+  // Fetch admin notes (match_updates with update_type = admin_note) for View Detail
+  const fetchAdminNotes = useCallback(async () => {
+    if (!matchId) {
+      setAdminNotes([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('match_updates')
+        .select('id, title, content, created_at, stage')
+        .eq('match_id', matchId)
+        .eq('update_type', 'admin_note')
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching admin notes:', error);
+        setAdminNotes([]);
+        return;
+      }
+      setAdminNotes(data || []);
+    } catch (err) {
+      console.error('Error in fetchAdminNotes:', err);
+      setAdminNotes([]);
+    }
+  }, [matchId]);
 
   // Fetch user points
   const backfillPointsForHistoricalMedicalReports = useCallback(async () => {
@@ -1626,6 +1663,11 @@ export default function HomeScreen() {
     }
   }, [user?.id, matchedSurrogateId, fetchMedicalReports, fetchUserPoints, isSurrogateRole, checkSurrogateMatch]);
 
+  // Fetch admin notes when matchId is available
+  useEffect(() => {
+    fetchAdminNotes();
+  }, [matchId, fetchAdminNotes]);
+
   // Listen for match creation/updates in surrogate_matches table
   useEffect(() => {
     if (!user?.id) {
@@ -1726,7 +1768,7 @@ export default function HomeScreen() {
     };
   }, [user?.id, user?.role, refreshStageData, checkSurrogateMatch, fetchMatchedSurrogate]);
 
-  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态
+  // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态 + admin notes
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -1735,6 +1777,7 @@ export default function HomeScreen() {
         refreshStageData(),
         fetchMedicalReports(),
         fetchUserPoints(),
+        fetchAdminNotes(),
         checkApplication(),
       ]);
     } catch (error) {
@@ -1742,7 +1785,7 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, refreshStageData, fetchMedicalReports, fetchUserPoints, checkApplication]);
+  }, [refreshData, refreshStageData, fetchMedicalReports, fetchUserPoints, fetchAdminNotes, checkApplication]);
 
   // Helper function to recursively count all comments and replies
   const countAllComments = (comments) => {
@@ -2311,6 +2354,12 @@ export default function HomeScreen() {
       'delivery': 'OBGYN',
     };
     return stageMap[currentStage] || 'Pre-Transfer';
+  }, []);
+
+  // Map stageFilter to match_updates.stage for admin notes
+  const getAdminNoteStageForFilter = useCallback((filterKey) => {
+    const map = { pre: 'pre_transfer', pregnancy: 'post_transfer', ob_visit: 'ob_visit', delivery: 'delivery' };
+    return map[filterKey] || null;
   }, []);
 
   // Render medical report card
@@ -2939,6 +2988,40 @@ export default function HomeScreen() {
                 <Text style={styles.emptySubtext}>{t('home.addMedicalCheckin')}</Text>
               </View>
             )}
+            {/* Admin Notes for this stage */}
+            <View style={styles.adminNotesSection}>
+              <View style={styles.adminNotesSectionHeader}>
+                <Icon name="message-square" size={20} color="#2A7BF6" />
+                <Text style={styles.adminNotesSectionTitle}>{t('home.adminNotes') || 'Admin Notes'}</Text>
+              </View>
+              {adminNotes
+                .filter((note) => note.stage === getAdminNoteStageForFilter(stageFilter))
+                .map((note) => (
+                  <View key={note.id} style={styles.adminNoteCard}>
+                    {(note.title || note.stage) ? (
+                      <View style={styles.adminNoteHeaderRow}>
+                        {note.title ? <Text style={styles.adminNoteTitle}>{note.title}</Text> : null}
+                        {note.stage ? (
+                          <View style={styles.adminNoteStageBadge}>
+                            <Text style={styles.adminNoteStageText}>
+                              {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'post_transfer' ? 'Post-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    <Text style={styles.adminNoteContent}>{note.content || ''}</Text>
+                    <Text style={styles.adminNoteDate}>
+                      {note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
+                    </Text>
+                  </View>
+                ))}
+              {adminNotes.filter((n) => n.stage === getAdminNoteStageForFilter(stageFilter)).length === 0 && (
+                <View style={styles.adminNotesEmpty}>
+                  <Text style={styles.adminNotesEmptyText}>{t('home.noAdminNotesInStage') || 'No admin notes for this stage'}</Text>
+                </View>
+              )}
+            </View>
           </ScrollView>
         </>
       ) : (
@@ -3826,6 +3909,77 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40
+  },
+  adminNotesSection: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E8ECF1',
+  },
+  adminNotesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  adminNotesSectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1D1E',
+  },
+  adminNoteCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  adminNoteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  adminNoteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1D1E',
+  },
+  adminNoteStageBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  adminNoteStageText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  adminNoteContent: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  adminNoteDate: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  adminNotesEmpty: {
+    paddingVertical: 16,
+  },
+  adminNotesEmptyText: {
+    fontSize: 14,
+    color: '#94A3B8',
   },
   disabledText: {
     opacity: 0.5,

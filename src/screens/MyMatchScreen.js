@@ -50,7 +50,6 @@ export default function MyMatchScreen({ navigation }) {
   const [fetalHeartbeatDate, setFetalHeartbeatDate] = useState('');
   const [savingPregnancyHistory, setSavingPregnancyHistory] = useState(false);
   const [checkingApplication, setCheckingApplication] = useState(true);
-  const [adminNotes, setAdminNotes] = useState([]);
 
   useEffect(() => {
     checkUserApplication();
@@ -344,27 +343,12 @@ export default function MyMatchScreen({ navigation }) {
           setDocuments(docs || []);
           console.log('[MyMatch] documents count:', docs?.length || 0);
         }
-
-        // 5) Admin notes (from web admin Add Admin Note)
-        const { data: notesData, error: notesError } = await supabase
-          .from('match_updates')
-          .select('id, title, content, created_at, stage')
-          .eq('match_id', match.id)
-          .eq('update_type', 'admin_note')
-          .order('created_at', { ascending: false });
-
-        if (notesError) {
-          console.error('Error loading admin notes:', notesError);
-        } else {
-          setAdminNotes(notesData || []);
-        }
       } else {
         console.log('[MyMatch] no active match, unmatched state');
         setMatchData(null);
         setPartnerProfile(null);
         setPartnerApplication(null);
         setDocuments([]);
-        setAdminNotes([]);
         
         // If parent user and unmatched, load available surrogates
         if (!isSurrogate) {
@@ -1329,44 +1313,6 @@ export default function MyMatchScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Admin Notes (from web admin Add Admin Note) */}
-        {adminNotes.length > 0 && (
-          <View style={styles.adminNotesSection}>
-            <View style={styles.detailSectionHeader}>
-              <Icon name="message-square" size={20} color="#FF8EA4" />
-              <Text style={styles.detailSectionTitle}>Admin Notes</Text>
-            </View>
-            {adminNotes.map((note) => (
-              <View key={note.id} style={styles.adminNoteCard}>
-                {(note.title || note.stage) ? (
-                  <View style={styles.adminNoteHeaderRow}>
-                    {note.title ? (
-                      <Text style={styles.adminNoteTitle}>{note.title}</Text>
-                    ) : null}
-                    {note.stage ? (
-                      <View style={styles.adminNoteStageBadge}>
-                        <Text style={styles.adminNoteStageText}>
-                          {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'post_transfer' ? 'Post-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-                <Text style={styles.adminNoteContent}>{note.content || ''}</Text>
-                <Text style={styles.adminNoteDate}>
-                  {note.created_at
-                    ? new Date(note.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : ''}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
       </ScrollView>
     );
   };
@@ -2199,59 +2145,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1D1E',
-  },
-  // Admin Notes
-  adminNotesSection: {
-    padding: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-  adminNoteCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#F0F4F8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  adminNoteHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  adminNoteTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1D1E',
-  },
-  adminNoteStageBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  adminNoteStageText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E40AF',
-  },
-  adminNoteContent: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  adminNoteDate: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '500',
   },
   // Loading
   loadingContainer: {

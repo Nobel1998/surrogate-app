@@ -1,12 +1,15 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
+const ADMIN_ONLY_PATHS = ['/payment-nodes', '/business-statistics'];
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [userName, setUserName] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [readOnly, setReadOnly] = useState(false);
@@ -37,8 +40,26 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     loadUserInfo();
   }, [pathname]);
 
+  // Redirect non-admin away from admin-only pages
+  useEffect(() => {
+    if (loading || !ADMIN_ONLY_PATHS.includes(pathname)) return;
+    if ((userRole || '').toLowerCase() !== 'admin') {
+      router.replace('/');
+    }
+  }, [loading, pathname, userRole, router]);
+
   if (pathname === '/login') {
     return <>{children}</>;
+  }
+
+  const isAdminOnlyPath = ADMIN_ONLY_PATHS.includes(pathname);
+  const isAdmin = (userRole || '').toLowerCase() === 'admin';
+  if (isAdminOnlyPath && !loading && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Access denied. Redirecting...</p>
+      </div>
+    );
   }
 
   return (
