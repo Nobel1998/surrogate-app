@@ -88,9 +88,6 @@ export default function StepStatusPage() {
   const [adminUpdate, setAdminUpdate] = useState('');
   const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
   const [updates, setUpdates] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [comments, setComments] = useState<any[]>([]);
-  const [postLikes, setPostLikes] = useState<any[]>([]);
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [obAppointments, setObAppointments] = useState<any[]>([]);
   const [ivfAppointments, setIvfAppointments] = useState<any[]>([]);
@@ -185,31 +182,21 @@ export default function StepStatusPage() {
           console.error('Error loading medical info:', e);
         }
 
-        // Load activity data (posts, comments, likes, medical reports, appointments)
-        // We'll load this data from the matches/options API which already has this data
+        // Load activity data (medical reports, appointments)
+        // We'll load this data from the matches/options API.
         try {
           const activityRes = await fetch('/api/matches/options');
           if (activityRes.ok) {
             const activityData = await activityRes.json();
-            const allPosts = activityData.posts || [];
-            const allComments = activityData.comments || [];
-            const allLikes = activityData.postLikes || [];
             const allReports = activityData.medicalReports || [];
             const allOBAppointments = activityData.obAppointments || [];
             const allIVFAppointments = activityData.ivfAppointments || [];
             
             // Filter by surrogate_id
-            const surrogatePosts = allPosts.filter((p: any) => p.user_id === caseDataRes.case.surrogate_id);
-            const postIds = surrogatePosts.map((p: any) => p.id).filter(Boolean);
-            const surrogateComments = allComments.filter((c: any) => postIds.includes(c.post_id));
-            const surrogateLikes = allLikes.filter((l: any) => postIds.includes(l.post_id));
             const surrogateReports = allReports.filter((r: any) => r.user_id === caseDataRes.case.surrogate_id);
             const surrogateOBAppointments = allOBAppointments.filter((a: any) => a.user_id === caseDataRes.case.surrogate_id);
             const surrogateIVFAppointments = allIVFAppointments.filter((a: any) => a.user_id === caseDataRes.case.surrogate_id);
             
-            setPosts(surrogatePosts);
-            setComments(surrogateComments);
-            setPostLikes(surrogateLikes);
             setMedicalReports(surrogateReports);
             setObAppointments(surrogateOBAppointments);
             setIvfAppointments(surrogateIVFAppointments);
@@ -718,48 +705,12 @@ export default function StepStatusPage() {
 
             {/* Activity Section */}
             {caseData?.surrogate_id && (() => {
-              const surrogatePosts = posts.filter((p) => p.user_id === caseData.surrogate_id);
-              const latestPosts = surrogatePosts.slice(0, 3);
-              const commentCount = comments.filter((c) => surrogatePosts.some((p) => p.id === c.post_id)).length;
-              const likeCount = postLikes.filter((l) => surrogatePosts.some((p) => p.id === l.post_id)).length;
               const surrogateReports = medicalReports.filter((r) => r.user_id === caseData.surrogate_id);
               const latestReports = surrogateReports; // Show all medical reports instead of slicing
 
               return renderDocumentSection('Activity', '📊',
                 <div className="space-y-4">
-                  <div className="text-xs text-gray-700">
-                    <div className="font-semibold mb-2">
-                      Posts: {surrogatePosts.length} · Likes: {likeCount} · Comments: {commentCount}
-                    </div>
-                    {latestPosts.length === 0 ? (
-                      <div className="text-gray-500 text-xs">No posts</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {latestPosts.map((p) => (
-                          <div key={p.id} className="p-2 rounded border border-gray-200 bg-gray-50">
-                            <div className="text-[11px] text-gray-500">
-                              {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
-                              {p.stage ? ` · ${p.stage}` : ''}
-                            </div>
-                            <div className="text-sm text-gray-900 line-clamp-2">
-                              {p.content || p.text || '(no text)'}
-                            </div>
-                            {((p.media_url || p.media_uri) && (
-                              <a
-                                href={String(p.media_url || p.media_uri || '#')}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-blue-600 hover:text-blue-800"
-                              >
-                                Media
-                              </a>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-gray-300">
+                  <div>
                     <div className="font-semibold text-sm text-green-700 mb-2">
                       Medical Check-ins: {surrogateReports.length}
                     </div>
