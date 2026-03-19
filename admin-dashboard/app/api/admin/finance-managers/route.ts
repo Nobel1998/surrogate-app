@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -7,7 +8,11 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
 
-async function checkAdminAccess(adminUserId: string | undefined) {
+type AdminAccessDenied = { authorized: false; error: string };
+type AdminAccessGranted = { authorized: true; supabase: SupabaseClient };
+type AdminAccessResult = AdminAccessDenied | AdminAccessGranted;
+
+async function checkAdminAccess(adminUserId: string | undefined): Promise<AdminAccessResult> {
   if (!adminUserId) {
     return { authorized: false, error: 'Unauthorized' };
   }
@@ -44,12 +49,13 @@ export async function GET(req: NextRequest) {
   if (!authCheck.authorized) {
     return NextResponse.json(
       { error: authCheck.error },
-      { status: authCheck.error?.includes('403') ? 403 : 401 }
+      { status: authCheck.error.includes('Only admins') ? 403 : 401 }
     );
   }
 
   try {
-    const { data: financeManagers, error } = await authCheck.supabase
+    const supabase = authCheck.supabase;
+    const { data: financeManagers, error } = await supabase
       .from('admin_users')
       .select(`
         id,
@@ -93,11 +99,12 @@ export async function POST(req: NextRequest) {
   if (!authCheck.authorized) {
     return NextResponse.json(
       { error: authCheck.error },
-      { status: authCheck.error?.includes('403') ? 403 : 401 }
+      { status: authCheck.error.includes('Only admins') ? 403 : 401 }
     );
   }
 
   try {
+    const supabase = authCheck.supabase;
     const body = await req.json();
     const { name, username, email, password, branch_id } = body;
 
@@ -124,7 +131,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if username already exists
-    const { data: existingUser, error: checkError } = await authCheck.supabase
+    const { data: existingUser, error: checkError } = await supabase
       .from('admin_users')
       .select('id')
       .eq('username', username)
@@ -146,7 +153,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify branch exists
-    const { data: branch, error: branchError } = await authCheck.supabase
+    const { data: branch, error: branchError } = await supabase
       .from('branches')
       .select('id, name')
       .eq('id', branch_id)
@@ -163,7 +170,7 @@ export async function POST(req: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Insert new finance manager (read-only enforced)
-    const { data: newManager, error: insertError } = await authCheck.supabase
+    const { data: newManager, error: insertError } = await supabase
       .from('admin_users')
       .insert({
         name,
