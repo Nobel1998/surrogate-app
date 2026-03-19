@@ -220,6 +220,8 @@ export default function MatchesPage() {
   const [embryosValue, setEmbryosValue] = useState<string>('');
   const [editingLawyer, setEditingLawyer] = useState<string | null>(null);
   const [lawyerValue, setLawyerValue] = useState<string>('');
+
+  const FIELD_LABEL_CLASS = 'text-xs font-medium text-slate-600 mb-1';
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyValue, setCompanyValue] = useState<string>('');
   const [editingTransferHotel, setEditingTransferHotel] = useState<string | null>(null);
@@ -2898,16 +2900,16 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Basic Information</h4>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Surrogate</div>
+                            <div className={FIELD_LABEL_CLASS}>Surrogate</div>
                             <div className="text-sm font-medium text-gray-900">{surrogate?.name || m.surrogate_id}</div>
                             <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Parent</div>
+                            <div className={FIELD_LABEL_CLASS}>Parent</div>
                             <div className="text-sm font-medium text-gray-900">{m.first_parent_name || parent?.name || m.parent_id}</div>
                             <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                             <div className="mt-1">
-                              <div className="text-xs text-gray-500 mb-1">Blood Type</div>
+                              <div className={FIELD_LABEL_CLASS}>Blood Type</div>
                               {editingFirstParentBloodType === m.id ? (
                                 <div className="flex items-center gap-2">
                                   <input
@@ -2959,7 +2961,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Case Notes</div>
+                            <div className={FIELD_LABEL_CLASS}>Case Notes</div>
                             {editingNotes === m.id ? (
                               <div className="space-y-2">
                                 <textarea
@@ -3027,7 +3029,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Parent 2</div>
+                            <div className={FIELD_LABEL_CLASS}>Parent 2</div>
                             {editingParent2 === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3076,7 +3078,7 @@ export default function MatchesPage() {
                               </div>
                             )}
                             <div className="mt-1">
-                              <div className="text-xs text-gray-500 mb-1">Blood Type</div>
+                              <div className={FIELD_LABEL_CLASS}>Blood Type</div>
                               {editingSecondParentBloodType === m.id ? (
                                 <div className="flex items-center gap-2">
                                   <input
@@ -3128,7 +3130,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Manager</div>
+                            <div className={FIELD_LABEL_CLASS}>Manager</div>
                             {canViewAllBranches ? (
                               <div className="flex items-center gap-2">
                                 {assigningManager === m.id ? (
@@ -3279,7 +3281,7 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Pregnancy & Medical</h4>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Current Step</div>
+                            <div className={FIELD_LABEL_CLASS}>Current Step</div>
                             <div className="text-sm text-gray-900">
                               {m.current_step ? (
                                 <div className="max-w-xs">{m.current_step}</div>
@@ -3295,7 +3297,7 @@ export default function MatchesPage() {
                               )}
                         </div>
                             <div className="mt-2">
-                              <div className="text-xs text-gray-500 mb-1">Status</div>
+                              <div className={FIELD_LABEL_CLASS}>Status</div>
                               <div className="flex flex-wrap gap-1">
                                 {STATUS_OPTIONS.map((s: string) => (
                                   <button
@@ -3313,7 +3315,7 @@ export default function MatchesPage() {
                               </div>
                             </div>
                             <div className="mt-2">
-                              <div className="text-xs text-gray-500 mb-1">Stage</div>
+                              <div className={FIELD_LABEL_CLASS}>Stage</div>
                               <select
                                 className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
                                 value={surrogate?.progress_stage || 'pre'}
@@ -3328,7 +3330,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Weeks Pregnant</div>
+                            <div className={FIELD_LABEL_CLASS}>Weeks Pregnant</div>
                             <div className="text-sm text-gray-900">
                               {pregnancyWeeks ? (
                                 typeof pregnancyWeeks === 'number' ? (
@@ -3342,7 +3344,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Due Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Due Date</div>
                             <div className="text-sm text-gray-900">
                               {calculatedDueDate 
                                 ? (() => {
@@ -3355,7 +3357,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Fetuses</div>
+                            <div className={FIELD_LABEL_CLASS}>Fetuses</div>
                             {editingFetuses === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3406,7 +3408,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Surrogate BMI</div>
+                            <div className={FIELD_LABEL_CLASS}>Surrogate BMI</div>
                             {editingSurrogateBMI === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3484,7 +3486,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Fetal Beat Confirm</div>
+                            <div className={FIELD_LABEL_CLASS}>Fetal Beat Confirm</div>
                             {editingFetalBeat === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3563,7 +3565,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Fetal Heartbeat Count</div>
+                            <div className={FIELD_LABEL_CLASS}>Fetal Heartbeat Count</div>
                             {editingFetalHeartbeatCount === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -3986,7 +3988,7 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Important Dates</h4>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Sign Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Sign Date</div>
                             {editingSignDate === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4044,7 +4046,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Transfer Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Transfer Date</div>
                             <div className="text-sm text-gray-900">
                               {(() => {
                                 // Read transfer_date from surrogate's app input, fallback to match data
@@ -4054,7 +4056,7 @@ export default function MatchesPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Transfer Hotel</div>
+                            <div className={FIELD_LABEL_CLASS}>Transfer Hotel</div>
                             {editingTransferHotel === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4104,7 +4106,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Beta Confirm Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Beta Confirm Date</div>
                             {editingBetaConfirmDate === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4162,7 +4164,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Legal Clearance Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Legal Clearance Date</div>
                             {editingLegalClearanceDate === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4220,7 +4222,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Medication Start Date</div>
+                            <div className={FIELD_LABEL_CLASS}>Medication Start Date</div>
                             {editingMedicationStartDate === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4283,7 +4285,7 @@ export default function MatchesPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Clinic & Legal</h4>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Clinic</div>
+                            <div className={FIELD_LABEL_CLASS}>Clinic</div>
                             {editingClinic === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4333,7 +4335,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Embryos</div>
+                            <div className={FIELD_LABEL_CLASS}>Embryos</div>
                             {editingEmbryos === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4383,7 +4385,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Lawyer</div>
+                            <div className={FIELD_LABEL_CLASS}>Lawyer</div>
                             {editingLawyer === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4433,7 +4435,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Escrow</div>
+                            <div className={FIELD_LABEL_CLASS}>Escrow</div>
                             {editingCompany === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4483,7 +4485,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Egg Donation</div>
+                            <div className={FIELD_LABEL_CLASS}>Egg Donation</div>
                             {editingEggDonation === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -4533,7 +4535,7 @@ export default function MatchesPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Sperm Donation</div>
+                            <div className={FIELD_LABEL_CLASS}>Sperm Donation</div>
                             {editingSpermDonation === m.id ? (
                               <div className="flex items-center gap-2">
                                 <input
