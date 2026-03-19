@@ -221,7 +221,7 @@ export default function MatchesPage() {
   const [editingLawyer, setEditingLawyer] = useState<string | null>(null);
   const [lawyerValue, setLawyerValue] = useState<string>('');
 
-  const FIELD_LABEL_CLASS = 'text-xs font-medium text-slate-600 mb-1';
+  const FIELD_LABEL_CLASS = 'text-xs font-semibold text-slate-700 mb-1';
   const [editingCompany, setEditingCompany] = useState<string | null>(null);
   const [companyValue, setCompanyValue] = useState<string>('');
   const [editingTransferHotel, setEditingTransferHotel] = useState<string | null>(null);
