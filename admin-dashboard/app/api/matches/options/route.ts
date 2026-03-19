@@ -369,55 +369,11 @@ export async function GET(req: NextRequest) {
           .filter(Boolean)
       )
     );
-    console.log('[matches/options] allSurrogateIds for posts', allSurrogateIds);
+    console.log('[matches/options] allSurrogateIds for documents', allSurrogateIds);
 
-    let posts: any[] = [];
-    let comments: any[] = [];
-    let postLikes: any[] = [];
     let medicalReports: any[] = [];
 
     if (allSurrogateIds.length > 0) {
-      console.log('[matches/options] fetching posts for all surrogates...');
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('id, user_id, content, media_uri, media_type, stage, created_at')
-        .in('user_id', allSurrogateIds)
-        .order('created_at', { ascending: false })
-        .limit(1000); // Add limit to prevent timeout
-      if (postsError) {
-        console.error('[matches/options] load posts error', postsError);
-      } else {
-        posts = postsData || [];
-        console.log('[matches/options] loaded posts', posts.length);
-      }
-
-      const postIds = posts.map((p) => p.id).filter(Boolean);
-      console.log('[matches/options] loaded posts count', posts.length, 'postIds', postIds.length);
-      if (postIds.length > 0) {
-        const [{ data: commentsData, error: commentsError }, { data: likesData, error: likesError }] =
-          await Promise.all([
-            supabase
-              .from('comments')
-              .select('id, post_id')
-              .in('post_id', postIds),
-            supabase
-              .from('post_likes')
-              .select('id, post_id')
-              .in('post_id', postIds),
-          ]);
-        if (commentsError) {
-          console.error('[matches/options] load comments error', commentsError);
-        } else {
-          comments = commentsData || [];
-        }
-        if (likesError) {
-          console.error('[matches/options] load post likes error', likesError);
-        } else {
-          postLikes = likesData || [];
-        }
-        console.log('[matches/options] comments count', comments.length, 'likes count', postLikes.length);
-      }
-
       // Fetch medical reports for all surrogates
       console.log('[matches/options] fetching medical reports for all surrogates...');
       const { data: reportsData, error: reportsError } = await supabase
@@ -491,9 +447,6 @@ export async function GET(req: NextRequest) {
     console.log('[matches/options] returning payload', {
       profiles: profiles?.length || 0,
       matches: enrichedMatches?.length || 0,
-      posts: posts.length,
-      comments: comments.length,
-      postLikes: postLikes.length,
       medicalReports: medicalReports.length,
       contracts: contractsData?.length || 0,
     });
@@ -511,9 +464,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       profiles,
       matches: enrichedMatches,
-      posts,
-      comments,
-      postLikes,
       medicalReports,
       contracts: contractsData || [],
       obAppointments: obAppointments || [],

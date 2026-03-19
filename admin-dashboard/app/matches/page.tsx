@@ -71,19 +71,6 @@ type Match = {
   manager_name?: string | null;
 };
 
-type Post = {
-  id: string;
-  user_id: string;
-  content?: string | null;
-  text?: string | null;
-  media_url?: string | null;
-  media_uri?: string | null;
-  media_type?: string | null;
-  stage?: string | null;
-  created_at?: string | null;
-};
-type CommentRow = { id: string; post_id: string };
-type LikeRow = { id: string; post_id: string };
 type MedicalReport = {
   id: string;
   user_id: string;
@@ -163,9 +150,6 @@ export default function MatchesPage() {
   const [surrogates, setSurrogates] = useState<Profile[]>([]);
   const [parents, setParents] = useState<Profile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [comments, setComments] = useState<CommentRow[]>([]);
-  const [postLikes, setPostLikes] = useState<LikeRow[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [onlineClaimSubmissionsBySurrogate, setOnlineClaimSubmissionsBySurrogate] = useState<Record<string, OnlineClaimSubmission[]>>({});
@@ -404,9 +388,6 @@ export default function MatchesPage() {
       const {
         profiles = [],
         matches: matchData = [],
-        posts: postsData = [],
-        comments: commentsData = [],
-        postLikes: likesData = [],
         medicalReports: reportsData = [],
         contracts: contractsData = [],
         branches: branchesData = [],
@@ -448,9 +429,6 @@ export default function MatchesPage() {
       setSurrogates(surList);
       setParents(parList);
       setMatches(matchData || []);
-      setPosts(postsData || []);
-      setComments(commentsData || []);
-      setPostLikes(likesData || []);
       setMedicalReports(reportsData || []);
       setContracts(contractsData || []);
       setBranches(branchesData || []);
