@@ -21,8 +21,6 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [applicationFilter, setApplicationFilter] = useState('all');
 
   const loadUsers = async () => {
     setLoading(true);
@@ -53,13 +51,7 @@ export default function ProfilesPage() {
   const filteredUsers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return users.filter((user) => {
-      const role = (user.role || '').toLowerCase();
-      const matchesRole = roleFilter === 'all' || role === roleFilter;
-
-      const matchesApplication =
-        applicationFilter === 'all' ||
-        (applicationFilter === 'with_application' && user.hasAnyApplication) ||
-        (applicationFilter === 'signup_only' && !user.hasAnyApplication);
+      const isSignUpOnly = !user.hasAnyApplication;
 
       const matchesSearch =
         !keyword ||
@@ -68,9 +60,9 @@ export default function ProfilesPage() {
         (user.phone || '').toLowerCase().includes(keyword) ||
         user.id.toLowerCase().includes(keyword);
 
-      return matchesRole && matchesApplication && matchesSearch;
+      return isSignUpOnly && matchesSearch;
     });
-  }, [users, search, roleFilter, applicationFilter]);
+  }, [users, search]);
 
   if (loading) {
     return (
@@ -92,8 +84,8 @@ export default function ProfilesPage() {
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Profile</h1>
-          <p className="text-gray-600">All registered users (Sign Up users + users who submitted applications).</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Sign Up</h1>
+          <p className="text-gray-600">Users who signed up but have not submitted an application.</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
@@ -105,24 +97,6 @@ export default function ProfilesPage() {
               placeholder="Search by name, email, phone, or user ID..."
               className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Roles</option>
-              <option value="parent">Parent</option>
-              <option value="surrogate">Surrogate</option>
-            </select>
-            <select
-              value={applicationFilter}
-              onChange={(e) => setApplicationFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Registration Types</option>
-              <option value="with_application">With Application</option>
-              <option value="signup_only">Sign Up Only</option>
-            </select>
             <button
               onClick={loadUsers}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2"
@@ -133,7 +107,7 @@ export default function ProfilesPage() {
         </div>
 
         <div className="text-sm text-gray-600">
-          Showing {filteredUsers.length} of {users.length} registered users
+          Showing {filteredUsers.length} sign up users
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
