@@ -16,11 +16,35 @@ type RegisteredUser = {
   registrationSource: string;
 };
 
+type SignUpDetailResponse = {
+  profile: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    role: string | null;
+    created_at: string | null;
+  } | null;
+  signupMetadata: {
+    name: string | null;
+    phone: string | null;
+    role: string | null;
+    date_of_birth: string | null;
+    race: string | null;
+    location: string | null;
+    referral_code: string | null;
+  };
+};
+
 export default function ProfilesPage() {
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState<RegisteredUser | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [signupDetail, setSignupDetail] = useState<SignUpDetailResponse | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -47,6 +71,34 @@ export default function ProfilesPage() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  const openDetailModal = async (user: RegisteredUser) => {
+    setSelectedUser(user);
+    setSignupDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/profiles/${user.id}/signup-detail`);
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Failed to load signup detail: ${res.status} ${errText}`);
+      }
+      const data = await res.json();
+      setSignupDetail(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load signup detail';
+      setDetailError(message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setSelectedUser(null);
+    setSignupDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  };
 
   const filteredUsers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -121,12 +173,13 @@ export default function ProfilesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
                       No users found.
                     </td>
                   </tr>
@@ -156,6 +209,14 @@ export default function ProfilesPage() {
                         {user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 font-mono">{user.id}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <button
+                          onClick={() => openDetailModal(user)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          View Details
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -163,6 +224,43 @@ export default function ProfilesPage() {
             </table>
           </div>
         </div>
+
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl border border-gray-200">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Sign Up Details</h3>
+                <button
+                  onClick={closeDetailModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {detailLoading ? (
+                  <div className="text-gray-600">Loading details...</div>
+                ) : detailError ? (
+                  <div className="text-red-600">{detailError}</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div><span className="font-semibold text-gray-700">Full Name:</span> {signupDetail?.signupMetadata?.name || signupDetail?.profile?.name || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Email:</span> {signupDetail?.profile?.email || selectedUser.email || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Phone:</span> {signupDetail?.signupMetadata?.phone || signupDetail?.profile?.phone || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Role:</span> {String(signupDetail?.signupMetadata?.role || signupDetail?.profile?.role || selectedUser.role || 'N/A').toUpperCase()}</div>
+                    <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Race / Emergency Contact:</span> {signupDetail?.signupMetadata?.race || 'N/A'}</div>
+                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location:</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Referral Code:</span> {signupDetail?.signupMetadata?.referral_code || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Registered At:</span> {signupDetail?.profile?.created_at ? new Date(signupDetail.profile.created_at).toLocaleString() : (selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A')}</div>
+                    <div className="md:col-span-2 text-xs text-gray-500 font-mono"><span className="font-semibold text-gray-600">User ID:</span> {selectedUser.id}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
