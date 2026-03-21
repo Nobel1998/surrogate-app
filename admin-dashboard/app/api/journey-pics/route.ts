@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -51,8 +51,10 @@ async function getAuthContext(): Promise<AuthContext> {
   };
 }
 
+// Use SupabaseClient (not ReturnType<typeof createClient>) — Vercel/TS resolves
+// createClient() to a wider schema generic than ReturnType<> and rejects the call.
 async function getAccessibleMatchIds(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   auth: Extract<AuthContext, { ok: true }>
 ): Promise<string[] | null> {
   if (auth.role === 'admin') {
