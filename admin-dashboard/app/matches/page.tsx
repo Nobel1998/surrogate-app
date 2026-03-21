@@ -172,6 +172,7 @@ export default function MatchesPage() {
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [notesDetailModal, setNotesDetailModal] = useState<{ matchId: string; notes: string } | null>(null);
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
+  const [currentAdminRole, setCurrentAdminRole] = useState<string>('');
   const [currentBranchFilter, setCurrentBranchFilter] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [assigningManager, setAssigningManager] = useState<string | null>(null);
@@ -346,6 +347,7 @@ export default function MatchesPage() {
           const adminInfo = await res.json();
           console.log('🔍 Admin Info:', adminInfo);
           setAdminUserId(adminInfo.id);
+          setCurrentAdminRole((adminInfo.role || '').toLowerCase());
           const canView = adminInfo.canViewAllBranches || false;
           console.log('🔍 canViewAllBranches:', canView, 'role:', adminInfo.role);
           setCanViewAllBranches(canView);
@@ -2397,6 +2399,7 @@ export default function MatchesPage() {
 
 
         {/* Surrogate Availability Management */}
+        {currentAdminRole !== 'branch_manager' && (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Surrogate Availability Management</h2>
           <p className="text-sm text-gray-600 mb-4">Set whether surrogates are available for matching. Only surrogates marked as "Available" will appear in the match dropdown.</p>
@@ -2464,6 +2467,7 @@ export default function MatchesPage() {
             </table>
           </div>
         </div>
+        )}
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>

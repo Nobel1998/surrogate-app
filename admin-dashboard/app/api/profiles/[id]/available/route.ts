@@ -46,6 +46,26 @@ export async function PATCH(
       );
     }
 
+    const { data: adminUser, error: adminError } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('id', adminUserId)
+      .single();
+
+    if (adminError || !adminUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    if ((adminUser.role || '').toLowerCase() === 'branch_manager') {
+      return NextResponse.json(
+        { error: 'Branch managers cannot update surrogate availability.' },
+        { status: 403 }
+      );
+    }
+
     // Verify the profile exists and is a surrogate
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
