@@ -12,17 +12,21 @@ function buildPublicUrl(path: string) {
   return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
+type AuthContext =
+  | { ok: true; adminUserId: string; role: string; branchId: string | null }
+  | { ok: false; error: string; status: number };
+
 // Helper function to check admin authentication
-async function checkAdminAuth() {
+async function getAuthContext(): Promise<AuthContext> {
   const cookieStore = await cookies();
   const adminUserId = cookieStore.get('admin_user_id')?.value;
-  
+
   if (!adminUserId) {
-    return { isAdmin: false, error: 'Not authenticated' };
+    return { ok: false, error: 'Not authenticated', status: 401 };
   }
 
   if (!supabaseUrl || !serviceKey) {
-    return { isAdmin: false, error: 'Missing Supabase env vars' };
+    return { ok: false, error: 'Missing Supabase env vars', status: 500 };
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
@@ -31,24 +35,61 @@ async function checkAdminAuth() {
 
   const { data: adminUser, error } = await supabase
     .from('admin_users')
-    .select('id, role')
+    .select('id, role, branch_id')
     .eq('id', adminUserId)
     .single();
 
   if (error || !adminUser) {
-    return { isAdmin: false, error: 'Invalid admin session' };
+    return { ok: false, error: 'Invalid admin session', status: 401 };
   }
 
-  return { isAdmin: true, adminUser };
+  return {
+    ok: true,
+    adminUserId: adminUser.id,
+    role: (adminUser.role || '').toLowerCase(),
+    branchId: adminUser.branch_id || null,
+  };
+}
+
+async function getAccessibleMatchIds(
+  supabase: ReturnType<typeof createClient>,
+  auth: Extract<AuthContext, { ok: true }>
+): Promise<string[] | null> {
+  if (auth.role === 'admin') {
+    return null; // null means unrestricted
+  }
+
+  const { data: assignedMatches } = await supabase
+    .from('match_managers')
+    .select('match_id')
+    .eq('manager_id', auth.adminUserId);
+
+  const assignedMatchIds =
+    assignedMatches?.map((row: { match_id: string | null }) => row.match_id).filter((id): id is string => !!id) || [];
+
+  if (auth.role === 'branch_manager') {
+    let branchMatchIds: string[] = [];
+    if (auth.branchId) {
+      const { data: branchMatches } = await supabase
+        .from('surrogate_matches')
+        .select('id')
+        .eq('branch_id', auth.branchId);
+      branchMatchIds =
+        branchMatches?.map((row: { id: string | null }) => row.id).filter((id): id is string => !!id) || [];
+    }
+    return Array.from(new Set([...assignedMatchIds, ...branchMatchIds]));
+  }
+
+  return Array.from(new Set(assignedMatchIds));
 }
 
 // GET - Fetch journey pics
 export async function GET(req: NextRequest) {
-  const authCheck = await checkAdminAuth();
-  if (!authCheck.isAdmin) {
+  const auth = await getAuthContext();
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authCheck.error || 'Unauthorized' },
-      { status: 401 }
+      { error: auth.error || 'Unauthorized' },
+      { status: auth.status || 401 }
     );
   }
 
@@ -59,6 +100,14 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const matchId = searchParams.get('match_id');
+    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+
+    if (accessibleMatchIds && accessibleMatchIds.length === 0) {
+      return NextResponse.json({ pics: [] });
+    }
+    if (matchId && accessibleMatchIds && !accessibleMatchIds.includes(matchId)) {
+      return NextResponse.json({ pics: [] });
+    }
 
     let query = supabase
       .from('journey_pics')
@@ -68,6 +117,8 @@ export async function GET(req: NextRequest) {
 
     if (matchId) {
       query = query.eq('match_id', matchId);
+    } else if (accessibleMatchIds) {
+      query = query.in('match_id', accessibleMatchIds);
     }
 
     const { data, error } = await query;
@@ -86,11 +137,11 @@ export async function GET(req: NextRequest) {
 
 // POST - Upload journey pic
 export async function POST(req: NextRequest) {
-  const authCheck = await checkAdminAuth();
-  if (!authCheck.isAdmin) {
+  const auth = await getAuthContext();
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authCheck.error || 'Unauthorized' },
-      { status: 401 }
+      { error: auth.error || 'Unauthorized' },
+      { status: auth.status || 401 }
     );
   }
 
@@ -120,6 +171,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    if (accessibleMatchIds && !accessibleMatchIds.includes(matchId)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to upload journey pics for this match.' },
+        { status: 403 }
+      );
+    }
+
     // Validate file extension - only images
     const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -146,9 +205,6 @@ export async function POST(req: NextRequest) {
 
     const publicUrl = buildPublicUrl(path);
 
-    const cookieStore = await cookies();
-    const adminUserId = cookieStore.get('admin_user_id')?.value;
-
     // Insert journey pic record
     const { data, error: insertError } = await supabase
       .from('journey_pics')
@@ -159,7 +215,7 @@ export async function POST(req: NextRequest) {
         title: title?.trim() || null,
         description: description?.trim() || null,
         photo_date: photoDate || null,
-        uploaded_by: adminUserId || null,
+        uploaded_by: auth.adminUserId || null,
       })
       .select()
       .single();
@@ -178,11 +234,11 @@ export async function POST(req: NextRequest) {
 
 // PUT - Update journey pic
 export async function PUT(req: NextRequest) {
-  const authCheck = await checkAdminAuth();
-  if (!authCheck.isAdmin) {
+  const auth = await getAuthContext();
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authCheck.error || 'Unauthorized' },
-      { status: 401 }
+      { error: auth.error || 'Unauthorized' },
+      { status: auth.status || 401 }
     );
   }
 
@@ -203,6 +259,26 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json(
         { error: 'Missing pic ID' },
         { status: 400 }
+      );
+    }
+
+    const { data: existingPic, error: existingPicError } = await supabase
+      .from('journey_pics')
+      .select('id, match_id')
+      .eq('id', id)
+      .single();
+    if (existingPicError || !existingPic) {
+      return NextResponse.json(
+        { error: 'Journey pic not found' },
+        { status: 404 }
+      );
+    }
+
+    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    if (accessibleMatchIds && !accessibleMatchIds.includes(existingPic.match_id)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to update this journey pic.' },
+        { status: 403 }
       );
     }
 
@@ -234,11 +310,11 @@ export async function PUT(req: NextRequest) {
 
 // DELETE - Delete journey pic
 export async function DELETE(req: NextRequest) {
-  const authCheck = await checkAdminAuth();
-  if (!authCheck.isAdmin) {
+  const auth = await getAuthContext();
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authCheck.error || 'Unauthorized' },
-      { status: 401 }
+      { error: auth.error || 'Unauthorized' },
+      { status: auth.status || 401 }
     );
   }
 
@@ -260,11 +336,19 @@ export async function DELETE(req: NextRequest) {
     // Get the pic to find the file path
     const { data: pic, error: fetchError } = await supabase
       .from('journey_pics')
-      .select('image_url')
+      .select('image_url, match_id')
       .eq('id', id)
       .single();
 
     if (fetchError) throw fetchError;
+
+    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    if (accessibleMatchIds && !accessibleMatchIds.includes(pic.match_id)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete this journey pic.' },
+        { status: 403 }
+      );
+    }
 
     // Delete file from storage if exists
     if (pic?.image_url) {
