@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getAdminSession,
+  canListAllApplicationsOrProfiles,
+  canFetchApplicationsByUserId,
+  type AdminSessionResult,
+} from '@/lib/adminSession';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
+
+function denyIntendedParentMutation(session: AdminSessionResult): NextResponse | null {
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: session.status });
+  }
+  if (!canListAllApplicationsOrProfiles(session.role)) {
+    return NextResponse.json(
+      { error: 'Only admins and finance managers can modify intended parent applications.' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
 
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
@@ -14,14 +33,35 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const session = await getAdminSession();
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: session.status });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get('user_id');
+
+  if (userId) {
+    if (!canFetchApplicationsByUserId(session.role)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to load intended parent applications for this user.' },
+        { status: 403 }
+      );
+    }
+  } else {
+    if (!canListAllApplicationsOrProfiles(session.role)) {
+      return NextResponse.json(
+        { error: 'Branch managers cannot list all intended parent applications.' },
+        { status: 403 }
+      );
+    }
+  }
+
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('user_id');
-
     let query = supabase
       .from('intended_parent_applications')
       .select('*')
@@ -52,6 +92,10 @@ export async function PATCH(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  const session = await getAdminSession();
+  const denied = denyIntendedParentMutation(session);
+  if (denied) return denied;
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -97,6 +141,10 @@ export async function DELETE(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  const session = await getAdminSession();
+  const denied = denyIntendedParentMutation(session);
+  if (denied) return denied;
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },

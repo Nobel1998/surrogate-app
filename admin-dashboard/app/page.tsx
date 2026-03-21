@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 import ApproveButton from '../components/ApproveButton';
 import DashboardStats from '../components/DashboardStats';
@@ -107,6 +108,7 @@ function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: numb
 }
 
 export default function Home() {
+  const router = useRouter();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -214,7 +216,16 @@ export default function Home() {
   const loadApplications = async () => {
     try {
       setLoading(true);
-      
+
+      const authRes = await fetch('/api/auth/check');
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        if ((authData.user?.role || '').toLowerCase() === 'branch_manager') {
+          router.replace('/matches');
+          return;
+        }
+      }
+
       // 同时加载 Surrogate 申请、Intended Parent 申请和 profiles
       const [surrogateRes, intendedParentRes, profilesRes] = await Promise.all([
         supabase

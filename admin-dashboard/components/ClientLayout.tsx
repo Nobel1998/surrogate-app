@@ -8,6 +8,8 @@ import Header from './Header';
 const ADMIN_ONLY_PATHS = ['/business-statistics'];
 const PAYMENT_NODES_PATH = '/payment-nodes';
 const PAYMENT_ALLOWED_ROLES = ['admin', 'finance_manager'];
+const BRANCH_MANAGER_BLOCKED_PATHS = ['/', '/profiles'];
+const BRANCH_MANAGER_HOME = '/matches';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -55,6 +57,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     if (!PAYMENT_ALLOWED_ROLES.includes(roleLower)) router.replace('/');
   }, [loading, pathname, userRole, router]);
 
+  // Branch managers cannot access Applications or Sign Up
+  useEffect(() => {
+    if (loading || !BRANCH_MANAGER_BLOCKED_PATHS.includes(pathname)) return;
+    if ((userRole || '').toLowerCase() !== 'branch_manager') return;
+    router.replace(BRANCH_MANAGER_HOME);
+  }, [loading, pathname, userRole, router]);
+
   if (pathname === '/login') {
     return <>{children}</>;
   }
@@ -63,7 +72,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const isAdmin = (userRole || '').toLowerCase() === 'admin';
   const isPaymentPath = pathname === PAYMENT_NODES_PATH;
   const isPaymentAllowed = PAYMENT_ALLOWED_ROLES.includes((userRole || '').toLowerCase());
-  if ((isAdminOnlyPath && !loading && !isAdmin) || (isPaymentPath && !loading && !isPaymentAllowed)) {
+  const isBranchManagerBlockedPath =
+    BRANCH_MANAGER_BLOCKED_PATHS.includes(pathname) &&
+    (userRole || '').toLowerCase() === 'branch_manager';
+  if (
+    (isAdminOnlyPath && !loading && !isAdmin) ||
+    (isPaymentPath && !loading && !isPaymentAllowed) ||
+    (isBranchManagerBlockedPath && !loading)
+  ) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">Access denied. Redirecting...</p>

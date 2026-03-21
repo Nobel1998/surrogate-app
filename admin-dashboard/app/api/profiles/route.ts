@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAdminSession, canListAllApplicationsOrProfiles } from '@/lib/adminSession';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -26,6 +27,17 @@ type ParentApplication = {
 export async function GET() {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
+  }
+
+  const session = await getAdminSession();
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: session.status });
+  }
+  if (!canListAllApplicationsOrProfiles(session.role)) {
+    return NextResponse.json(
+      { error: 'Only admins and finance managers can access the Sign Up user list.' },
+      { status: 403 }
+    );
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {

@@ -11,8 +11,8 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
 
   const allNavItems = [
-    { href: '/', label: 'Applications', icon: '📋' },
-    { href: '/profiles', label: 'Sign Up', icon: '🪪' },
+    { href: '/', label: 'Applications', icon: '📋', allowedRoles: ['admin', 'finance_manager'] },
+    { href: '/profiles', label: 'Sign Up', icon: '🪪', allowedRoles: ['admin', 'finance_manager'] },
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄' },
     { href: '/events', label: 'Blog', icon: '📝' },
     { href: '/matches', label: 'Matches', icon: '🤝' },
