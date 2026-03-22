@@ -134,16 +134,12 @@ export async function GET(req: NextRequest) {
     // Apply filters based on role
     if (isSuperAdmin) {
       // Super admin can see all matches - no filter needed
-    } else if (isBranchManager && effectiveBranchId) {
-      // Branch manager can see:
-      // 1. Matches in their branch
-      // 2. Matches assigned to them (even if not in their branch)
+    } else if (isBranchManager) {
+      // Branch manager: only matches in match_managers (aligns with admin assign workflow).
       if (assignedMatchIdsList.length > 0) {
-        // Use .or() to combine branch filter with assigned matches
-        const matchIdsStr = assignedMatchIdsList.map(id => `"${id}"`).join(',');
-        query = query.or(`branch_id.eq."${effectiveBranchId}",id.in.(${matchIdsStr})`);
+        query = query.in('id', assignedMatchIdsList);
       } else {
-        query = query.eq('branch_id', effectiveBranchId);
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
       }
     } else if (assignedMatchIdsList.length > 0) {
       // Any other manager (or if adminUserId exists but role is not admin/branch_manager)

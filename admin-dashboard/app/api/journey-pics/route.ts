@@ -69,19 +69,8 @@ async function getAccessibleMatchIds(
   const assignedMatchIds =
     assignedMatches?.map((row: { match_id: string | null }) => row.match_id).filter((id): id is string => !!id) || [];
 
-  if (auth.role === 'branch_manager') {
-    let branchMatchIds: string[] = [];
-    if (auth.branchId) {
-      const { data: branchMatches } = await supabase
-        .from('surrogate_matches')
-        .select('id')
-        .eq('branch_id', auth.branchId);
-      branchMatchIds =
-        branchMatches?.map((row: { id: string | null }) => row.id).filter((id): id is string => !!id) || [];
-    }
-    return Array.from(new Set([...assignedMatchIds, ...branchMatchIds]));
-  }
-
+  // branch_manager: same as other non-admin roles — only explicitly assigned matches
+  // (do not union entire branch; aligns with matches/options and cases list).
   return Array.from(new Set(assignedMatchIds));
 }
 

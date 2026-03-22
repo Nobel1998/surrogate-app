@@ -172,18 +172,15 @@ export async function GET(req: NextRequest) {
     if (isSuperAdmin) {
       // Super admin can see all matches - no filter needed
       console.log('[matches/options] Super admin - no filter applied');
-    } else if (isBranchManager && effectiveBranchFilter && effectiveBranchFilter !== 'all') {
-      // Branch manager can see:
-      // 1. Matches in their branch
-      // 2. Matches assigned to them (even if not in their branch)
+    } else if (isBranchManager) {
+      // Branch manager: only matches explicitly assigned in match_managers (same as case_manager).
+      // Do not expose all branch matches after admin removes assignment.
       if (assignedMatchIds.length > 0) {
-        // Use .or() to combine branch filter with assigned matches
-        const matchIdsStr = assignedMatchIds.map(id => `"${id}"`).join(',');
-        matchesQuery = matchesQuery.or(`branch_id.eq."${effectiveBranchFilter}",id.in.(${matchIdsStr})`);
-        console.log('[matches/options] Branch manager filter: branch OR assigned matches');
+        matchesQuery = matchesQuery.in('id', assignedMatchIds);
+        console.log('[matches/options] Branch manager filter: assigned matches only', assignedMatchIds);
       } else {
-        matchesQuery = matchesQuery.eq('branch_id', effectiveBranchFilter);
-        console.log('[matches/options] Branch manager filter: branch only');
+        matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        console.log('[matches/options] Branch manager filter: no assigned matches, returning empty');
       }
     } else if (isCaseManager) {
       if (assignedMatchIds.length > 0) {
