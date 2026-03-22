@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { getAccessibleMatchIds, getPartyUserIdsForMatches } from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -19,10 +21,38 @@ export async function GET() {
   });
 
   try {
-    const { data: submissions, error: submissionsError } = await supabase
-      .from('referral_submissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const { data: adminUser, error: adminErr } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('id', adminUserId)
+      .single();
+    if (adminErr || !adminUser) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+
+    const role = (adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
+
+    let subQuery = supabase.from('referral_submissions').select('*').order('created_at', { ascending: false });
+
+    if (accessible !== null) {
+      if (accessible.length === 0) {
+        return NextResponse.json({ submissions: [] });
+      }
+      const party = await getPartyUserIdsForMatches(supabase, accessible);
+      const partyIds = [...party];
+      if (partyIds.length === 0) {
+        return NextResponse.json({ submissions: [] });
+      }
+      subQuery = subQuery.in('referrer_user_id', partyIds);
+    }
+
+    const { data: submissions, error: submissionsError } = await subQuery;
 
     if (submissionsError) throw submissionsError;
 

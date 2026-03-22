@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
+import {
+  buildMatchOrNullSurrogateOrFilter,
+  getAccessibleMatchIds,
+  getPartyUserIdsForMatches,
+  getSurrogateIdsForMatches,
+  rowAllowedForScopedManager,
+} from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const dynamic = 'force-dynamic';
 
+type AuthOk = { isAdmin: true; adminUser: { id: string; role: string | null } };
+type AuthFail = { isAdmin: false; error: string };
+
 // Helper function to check admin authentication
-async function checkAdminAuth() {
+async function checkAdminAuth(): Promise<AuthOk | AuthFail> {
   const cookieStore = await cookies();
   const adminUserId = cookieStore.get('admin_user_id')?.value;
   
@@ -56,10 +67,33 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get('user_id');
     const matchId = searchParams.get('match_id');
 
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
+    if (accessible !== null) {
+      if (accessible.length === 0) {
+        return NextResponse.json({ insurance: [] });
+      }
+      if (matchId && !accessible.includes(matchId)) {
+        return NextResponse.json({ insurance: [] });
+      }
+      if (userId) {
+        const party = await getPartyUserIdsForMatches(supabase, accessible);
+        if (!party.has(userId)) {
+          return NextResponse.json({ insurance: [] });
+        }
+      }
+    }
+
     let query = supabase
       .from('surrogate_insurance')
       .select('*')
       .order('active_date', { ascending: false });
+
+    if (accessible !== null) {
+      const sur = await getSurrogateIdsForMatches(supabase, accessible);
+      query = query.or(buildMatchOrNullSurrogateOrFilter(accessible, sur));
+    }
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -97,6 +131,16 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    if (await isReadOnlyBranchManager(supabase, (await cookies()).get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const body = await req.json();
     const {
       user_id,
@@ -124,6 +168,16 @@ export async function POST(req: NextRequest) {
         { error: 'purchased_by must be one of: agency, own, employer' },
         { status: 400 }
       );
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: match_id || null,
+        user_id: user_id,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Not allowed for this match or user' }, { status: 403 });
+      }
     }
 
     const { data, error } = await supabase
@@ -171,6 +225,16 @@ export async function PUT(req: NextRequest) {
   });
 
   try {
+    if (await isReadOnlyBranchManager(supabase, (await cookies()).get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const body = await req.json();
     const {
       id,
@@ -212,6 +276,25 @@ export async function PUT(req: NextRequest) {
     if (zip_code !== undefined) updateData.zip_code = zip_code?.trim() || null;
     if (notes !== undefined) updateData.notes = notes?.trim() || null;
 
+    const { data: existing, error: fetchErr } = await supabase
+      .from('surrogate_insurance')
+      .select('id, match_id, user_id')
+      .eq('id', id)
+      .single();
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: existing.match_id,
+        user_id: existing.user_id,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const { data, error } = await supabase
       .from('surrogate_insurance')
       .update(updateData)
@@ -246,6 +329,16 @@ export async function DELETE(req: NextRequest) {
   });
 
   try {
+    if (await isReadOnlyBranchManager(supabase, (await cookies()).get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -254,6 +347,25 @@ export async function DELETE(req: NextRequest) {
         { error: 'Missing insurance record ID' },
         { status: 400 }
       );
+    }
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from('surrogate_insurance')
+      .select('id, match_id, user_id')
+      .eq('id', id)
+      .single();
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: existing.match_id,
+        user_id: existing.user_id,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const { error } = await supabase

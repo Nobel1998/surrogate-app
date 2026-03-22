@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { getAccessibleMatchIds as getScopedMatchIdsForRole } from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -53,25 +54,11 @@ async function getAuthContext(): Promise<AuthContext> {
 
 // Use SupabaseClient (not ReturnType<typeof createClient>) — Vercel/TS resolves
 // createClient() to a wider schema generic than ReturnType<> and rejects the call.
-async function getAccessibleMatchIds(
+async function resolveAccessibleMatchIds(
   supabase: SupabaseClient,
   auth: Extract<AuthContext, { ok: true }>
 ): Promise<string[] | null> {
-  if (auth.role === 'admin') {
-    return null; // null means unrestricted
-  }
-
-  const { data: assignedMatches } = await supabase
-    .from('match_managers')
-    .select('match_id')
-    .eq('manager_id', auth.adminUserId);
-
-  const assignedMatchIds =
-    assignedMatches?.map((row: { match_id: string | null }) => row.match_id).filter((id): id is string => !!id) || [];
-
-  // branch_manager: same as other non-admin roles — only explicitly assigned matches
-  // (do not union entire branch; aligns with matches/options and cases list).
-  return Array.from(new Set(assignedMatchIds));
+  return getScopedMatchIdsForRole(supabase, auth.adminUserId, auth.role);
 }
 
 // GET - Fetch journey pics
@@ -91,7 +78,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const matchId = searchParams.get('match_id');
-    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    const accessibleMatchIds = await resolveAccessibleMatchIds(supabase, auth);
 
     if (accessibleMatchIds && accessibleMatchIds.length === 0) {
       return NextResponse.json({ pics: [] });
@@ -162,7 +149,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    const accessibleMatchIds = await resolveAccessibleMatchIds(supabase, auth);
     if (accessibleMatchIds && !accessibleMatchIds.includes(matchId)) {
       return NextResponse.json(
         { error: 'You do not have permission to upload journey pics for this match.' },
@@ -265,7 +252,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    const accessibleMatchIds = await resolveAccessibleMatchIds(supabase, auth);
     if (accessibleMatchIds && !accessibleMatchIds.includes(existingPic.match_id)) {
       return NextResponse.json(
         { error: 'You do not have permission to update this journey pic.' },
@@ -333,7 +320,7 @@ export async function DELETE(req: NextRequest) {
 
     if (fetchError) throw fetchError;
 
-    const accessibleMatchIds = await getAccessibleMatchIds(supabase, auth);
+    const accessibleMatchIds = await resolveAccessibleMatchIds(supabase, auth);
     if (accessibleMatchIds && !accessibleMatchIds.includes(pic.match_id)) {
       return NextResponse.json(
         { error: 'You do not have permission to delete this journey pic.' },

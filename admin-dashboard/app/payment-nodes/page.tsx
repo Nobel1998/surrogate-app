@@ -419,25 +419,6 @@ export default function PaymentNodesPage() {
       return dateStr.split('T')[0];
     };
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'payment-nodes/page.tsx:381',
-        message: 'handleEditPayment called',
-        data: {
-          paymentId: payment.id,
-          hasReceiptImageUrl: !!payment.receipt_image_url,
-          receiptImageUrl: payment.receipt_image_url,
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'A',
-      }),
-    }).catch(() => {});
-    // #endregion
     
     setPaymentFormData({
       match_id: payment.match_id,
@@ -1438,29 +1419,6 @@ export default function PaymentNodesPage() {
                   {showEditPaymentModal ? 'Edit Payment Record' : 'Add Payment Record'}
                 </h2>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
-                  {/* #region agent log */}
-                  {(() => {
-                    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        location: 'payment-nodes/page.tsx:1271',
-                        message: 'Payment form rendered',
-                        data: {
-                          showAddPaymentModal,
-                          showEditPaymentModal,
-                          hasReceiptImageUrl: !!paymentFormData.receipt_image_url,
-                          hasPreviewImage: !!previewImage,
-                        },
-                        timestamp: Date.now(),
-                        sessionId: 'debug-session',
-                        runId: 'run1',
-                        hypothesisId: 'A',
-                      }),
-                    }).catch(() => {});
-                    return null;
-                  })()}
-                  {/* #endregion */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Match *
@@ -1575,30 +1533,6 @@ export default function PaymentNodesPage() {
                     <label className="block text-sm font-semibold text-gray-900 mb-3">
                       Payment Receipt Image
                     </label>
-                    {/* #region agent log */}
-                    {(() => {
-                      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          location: 'payment-nodes/page.tsx:1405',
-                          message: 'Receipt image section rendered',
-                          data: {
-                            showEditPaymentModal,
-                            showAddPaymentModal,
-                            hasPreviewImage: !!previewImage,
-                            hasReceiptImageUrl: !!paymentFormData.receipt_image_url,
-                            receiptImageUrl: paymentFormData.receipt_image_url,
-                          },
-                          timestamp: Date.now(),
-                          sessionId: 'debug-session',
-                          runId: 'run1',
-                          hypothesisId: 'B',
-                        }),
-                      }).catch(() => {});
-                      return null;
-                    })()}
-                    {/* #endregion */}
                     <div className="space-y-3">
                       {previewImage || paymentFormData.receipt_image_url ? (
                         <div className="relative inline-block">

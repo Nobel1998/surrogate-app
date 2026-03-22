@@ -101,9 +101,6 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         max_participants: formData.max_participants || null,
       };
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleSubmit:beforeUpdate',message:'Before submitting form',data:{isEdit:!!event?.id,eventId:event?.id,submitData:submitData,formDataImageUrl:formData.image_url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
 
       if (event?.id) {
         // 更新文章 - 使用 .match() 确保精确匹配
@@ -146,9 +143,6 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           
         console.log('Verification result:', { verifyData, verifyError });
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleSubmit:verification',message:'After update verification',data:{verifyData:verifyData,submitDataImageUrl:submitData.image_url,verifyDataImageUrl:verifyData?.image_url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
-        // #endregion
         
         if (verifyData) {
           // Compare dates as Date objects to handle timezone format differences
@@ -172,9 +166,6 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
             console.error('❌ CRITICAL: Article image_url mismatch after update!');
             console.error('Expected:', submitData.image_url);
             console.error('Got:', verifyData.image_url);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleSubmit:imageUrlMismatch',message:'Image URL mismatch detected',data:{expected:submitData.image_url,actual:verifyData.image_url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
           } else {
             console.log('✅ Image URL verification passed!', {
               expected: submitData.image_url,
@@ -245,9 +236,6 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       const uploadFormData = new FormData();
       uploadFormData.append('file', selectedImageFile);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:start',message:'Starting image upload',data:{fileName:selectedImageFile.name,fileSize:selectedImageFile.size,fileType:selectedImageFile.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       const res = await fetch('/api/events/upload-image', {
         method: 'POST',
@@ -256,24 +244,15 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
 
       const data = await res.json();
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:afterFetch',message:'After fetch response',data:{resOk:res.ok,data:data,currentImageUrl:formData.image_url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-      // #endregion
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to upload image');
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:beforeUpdate',message:'Before updating image_url',data:{uploadedUrl:data.url,currentFormDataImageUrl:formData.image_url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-      // #endregion
 
       // Set the uploaded image URL
       handleInputChange('image_url', data.url);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:afterUpdate',message:'After updating image_url',data:{newImageUrl:formData.image_url,uploadedUrl:data.url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-      // #endregion
 
       // Update preview to show uploaded image from URL
       setImagePreview(data.url);
@@ -284,9 +263,6 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       // Clear success message after 3 seconds
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventForm.tsx:handleImageUpload:error',message:'Image upload error',data:{error:err?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'all'})}).catch(()=>{});
-      // #endregion
       setError(err.message || 'Failed to upload image');
     } finally {
       setUploadingImage(false);

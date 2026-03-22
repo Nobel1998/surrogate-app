@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { getAccessibleMatchIds, getPartyUserIdsForMatches } from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -16,8 +18,23 @@ export async function GET() {
   });
 
   try {
-    // Fetch all support tickets with user information
-    const { data: tickets, error: ticketsError } = await supabase
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const { data: adminUser, error: adminErr } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('id', adminUserId)
+      .single();
+    if (adminErr || !adminUser) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+    const role = (adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
+
+    let ticketsQuery = supabase
       .from('support_tickets')
       .select(`
         id,
@@ -31,6 +48,20 @@ export async function GET() {
       `)
       .order('created_at', { ascending: false })
       .limit(1000);
+
+    if (accessible !== null) {
+      if (accessible.length === 0) {
+        return NextResponse.json({ tickets: [] });
+      }
+      const party = await getPartyUserIdsForMatches(supabase, accessible);
+      const partyIds = [...party];
+      if (partyIds.length === 0) {
+        return NextResponse.json({ tickets: [] });
+      }
+      ticketsQuery = ticketsQuery.in('user_id', partyIds);
+    }
+
+    const { data: tickets, error: ticketsError } = await ticketsQuery;
 
     if (ticketsError) throw ticketsError;
 
@@ -74,11 +105,42 @@ export async function PATCH(req: Request) {
   });
 
   try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const { data: adminUser, error: adminErr } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('id', adminUserId)
+      .single();
+    if (adminErr || !adminUser) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, status, admin_response } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Ticket ID is required' }, { status: 400 });
+    }
+
+    const role = (adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
+    if (accessible !== null) {
+      if (accessible.length === 0) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      const party = await getPartyUserIdsForMatches(supabase, accessible);
+      const { data: ticketRow, error: tErr } = await supabase
+        .from('support_tickets')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+      if (tErr || !ticketRow || !party.has(ticketRow.user_id)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const updateData: any = {

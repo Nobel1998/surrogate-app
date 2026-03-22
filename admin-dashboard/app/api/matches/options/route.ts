@@ -36,8 +36,6 @@ export async function GET(req: NextRequest) {
     let canViewAllBranches = true;
 
     let isSuperAdmin = false;
-    let isBranchManager = false;
-    let isCaseManager = false;
     
     if (adminUserId) {
       // Fetch admin user to check permissions
@@ -54,13 +52,10 @@ export async function GET(req: NextRequest) {
           isSuperAdmin = true;
           canViewAllBranches = true;
         } else if (role === 'branch_manager') {
-          // Branch manager can only see their branch
-          isBranchManager = true;
           branchFilter = adminUser.branch_id;
           canViewAllBranches = false;
         } else {
-          // Other roles (like case_manager) should see matches assigned to them
-          isCaseManager = true;
+          // case_manager, finance_manager, etc. — same match visibility as branch_manager
           canViewAllBranches = false;
         }
       }
@@ -71,8 +66,6 @@ export async function GET(req: NextRequest) {
       branchFilter,
       canViewAllBranches,
       isSuperAdmin,
-      isBranchManager,
-      isCaseManager,
     });
 
     // Get optional branch filter from query params (for admin filtering)
@@ -152,8 +145,6 @@ export async function GET(req: NextRequest) {
       
       console.log('[matches/options] Manager assigned matches:', {
         adminUserId,
-        isCaseManager,
-        isBranchManager,
         isSuperAdmin,
         assignedMatchIdsCount: assignedMatchIds.length,
         assignedMatchIdsList: assignedMatchIds,
@@ -163,8 +154,6 @@ export async function GET(req: NextRequest) {
     // Apply filters based on role
     console.log('[matches/options] Applying filters:', {
       isSuperAdmin,
-      isBranchManager,
-      isCaseManager,
       effectiveBranchFilter,
       assignedMatchIdsCount: assignedMatchIds.length,
     });
@@ -172,25 +161,14 @@ export async function GET(req: NextRequest) {
     if (isSuperAdmin) {
       // Super admin can see all matches - no filter needed
       console.log('[matches/options] Super admin - no filter applied');
-    } else if (isBranchManager) {
-      // Branch manager: only matches explicitly assigned in match_managers (same as case_manager).
-      // Do not expose all branch matches after admin removes assignment.
+    } else if (adminUserId) {
+      // All non-admin dashboard users: only matches assigned via match_managers
       if (assignedMatchIds.length > 0) {
         matchesQuery = matchesQuery.in('id', assignedMatchIds);
-        console.log('[matches/options] Branch manager filter: assigned matches only', assignedMatchIds);
+        console.log('[matches/options] Scoped manager filter: assigned matches only', assignedMatchIds);
       } else {
         matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('[matches/options] Branch manager filter: no assigned matches, returning empty');
-      }
-    } else if (isCaseManager) {
-      if (assignedMatchIds.length > 0) {
-        // Case manager can only see matches assigned to them
-        matchesQuery = matchesQuery.in('id', assignedMatchIds);
-        console.log('[matches/options] Case manager filter: assigned matches only', assignedMatchIds);
-      } else {
-        // Case manager with no assigned matches, return empty result
-        matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('[matches/options] Case manager filter: no assigned matches, returning empty');
+        console.log('[matches/options] Scoped manager: no assigned matches, returning empty');
       }
     } else if (effectiveBranchFilter && effectiveBranchFilter !== 'all') {
       // Fallback: apply branch filter if specified
@@ -357,10 +335,26 @@ export async function GET(req: NextRequest) {
       };
     }) || [];
 
+    const partyIdSet = new Set<string>();
+    if (!isSuperAdmin) {
+      for (const m of enrichedMatches) {
+        const row = m as Record<string, unknown>;
+        for (const k of ['surrogate_id', 'parent_id', 'first_parent_id', 'second_parent_id']) {
+          const v = row[k];
+          if (typeof v === 'string' && v) partyIdSet.add(v);
+        }
+      }
+    }
+
+    const profilesFiltered =
+      !isSuperAdmin && partyIdSet.size >= 0
+        ? (profiles || []).filter((p: any) => partyIdSet.has(p.id))
+        : profiles || [];
+
     // 拉取所有代母的帖子，供后台展示（不仅仅是匹配的代母）
     const allSurrogateIds = Array.from(
       new Set(
-        (profiles || [])
+        profilesFiltered
           .filter((p: any) => (p.role || '').toLowerCase() === 'surrogate')
           .map((p: any) => p.id)
           .filter(Boolean)
@@ -400,6 +394,9 @@ export async function GET(req: NextRequest) {
       console.error('[matches/options] load contracts error', contractsError);
     } else {
       contractsData = contractsDataResult || [];
+      if (!isSuperAdmin) {
+        contractsData = contractsData.filter((c: any) => partyIdSet.has(c.user_id));
+      }
       console.log('[matches/options] loaded contracts', contractsData.length);
     }
 
@@ -442,7 +439,7 @@ export async function GET(req: NextRequest) {
     }
 
     console.log('[matches/options] returning payload', {
-      profiles: profiles?.length || 0,
+      profiles: profilesFiltered?.length || 0,
       matches: enrichedMatches?.length || 0,
       medicalReports: medicalReports.length,
       contracts: contractsData?.length || 0,
@@ -459,7 +456,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      profiles,
+      profiles: profilesFiltered,
       matches: enrichedMatches,
       medicalReports,
       contracts: contractsData || [],
@@ -582,10 +579,6 @@ export async function POST(req: Request) {
         .eq('id', surrogateId);
       if (availError) {
         console.error('[matches/options] Failed to set surrogate available=false after match create:', availError);
-      } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-dashboard/app/api/matches/options/route.ts:POST:afterSetAvailableFalse',message:'Set surrogate available=false after new match',data:{surrogateId,matchId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
       }
     }
 

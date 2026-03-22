@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
+import {
+  buildMatchOrNullSurrogateOrFilter,
+  getAccessibleMatchIds,
+  getPartyUserIdsForMatches,
+  getSurrogateIdsForMatches,
+  rowAllowedForScopedManager,
+} from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -12,8 +20,10 @@ function buildPublicUrl(path: string) {
   return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
-// Helper function to check admin authentication
-async function checkAdminAuth() {
+type AuthOk = { isAdmin: true; adminUser: { id: string; role: string | null } };
+type AuthFail = { isAdmin: false; error: string };
+
+async function checkAdminAuth(): Promise<AuthOk | AuthFail> {
   const cookieStore = await cookies();
   const adminUserId = cookieStore.get('admin_user_id')?.value;
   
@@ -61,10 +71,33 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get('user_id');
     const matchId = searchParams.get('match_id');
 
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
+    if (accessible !== null) {
+      if (accessible.length === 0) {
+        return NextResponse.json({ evaluations: [] });
+      }
+      if (matchId && !accessible.includes(matchId)) {
+        return NextResponse.json({ evaluations: [] });
+      }
+      if (userId) {
+        const party = await getPartyUserIdsForMatches(supabase, accessible);
+        if (!party.has(userId)) {
+          return NextResponse.json({ evaluations: [] });
+        }
+      }
+    }
+
     let query = supabase
       .from('psychological_evaluations')
       .select('*')
       .order('evaluation_date', { ascending: false });
+
+    if (accessible !== null) {
+      const sur = await getSurrogateIdsForMatches(supabase, accessible);
+      query = query.or(buildMatchOrNullSurrogateOrFilter(accessible, sur));
+    }
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -102,6 +135,17 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    const cookieStore = await cookies();
+    if (await isReadOnlyBranchManager(supabase, cookieStore.get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const userId = formData.get('user_id') as string | null;
@@ -122,6 +166,16 @@ export async function POST(req: NextRequest) {
         { error: 'Missing required fields: user_id, evaluation_date' },
         { status: 400 }
       );
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: matchId || null,
+        user_id: userId,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Not allowed for this match or user' }, { status: 403 });
+      }
     }
 
     // Validate file extension
@@ -192,6 +246,17 @@ export async function PUT(req: NextRequest) {
   });
 
   try {
+    const cookieStore = await cookies();
+    if (await isReadOnlyBranchManager(supabase, cookieStore.get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const body = await req.json();
     const {
       id,
@@ -213,6 +278,25 @@ export async function PUT(req: NextRequest) {
     if (evaluation_date !== undefined) updateData.evaluation_date = evaluation_date;
     if (evaluator_name !== undefined) updateData.evaluator_name = evaluator_name?.trim() || null;
     if (notes !== undefined) updateData.notes = notes?.trim() || null;
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from('psychological_evaluations')
+      .select('id, match_id, user_id')
+      .eq('id', id)
+      .single();
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: existing.match_id,
+        user_id: existing.user_id,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     const { data, error } = await supabase
       .from('psychological_evaluations')
@@ -248,6 +332,17 @@ export async function DELETE(req: NextRequest) {
   });
 
   try {
+    const cookieStore = await cookies();
+    if (await isReadOnlyBranchManager(supabase, cookieStore.get('admin_user_id')?.value)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const role = (authCheck.adminUser.role || '').toLowerCase();
+    const accessible = await getAccessibleMatchIds(supabase, authCheck.adminUser.id, role);
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -261,11 +356,23 @@ export async function DELETE(req: NextRequest) {
     // Get the evaluation to find the file path
     const { data: evaluation, error: fetchError } = await supabase
       .from('psychological_evaluations')
-      .select('report_url')
+      .select('report_url, match_id, user_id')
       .eq('id', id)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError || !evaluation) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    if (accessible !== null) {
+      const ok = await rowAllowedForScopedManager(supabase, accessible, {
+        match_id: evaluation.match_id,
+        user_id: evaluation.user_id,
+      });
+      if (!ok) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     // Delete file from storage if exists
     if (evaluation?.report_url) {

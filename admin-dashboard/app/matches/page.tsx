@@ -464,10 +464,6 @@ export default function MatchesPage() {
       // Load surrogate applications for BMI calculation
       await loadSurrogateApplications(surList.map((s: Profile) => s.id));
       
-      // #region agent log
-      const attorneyRetainerContracts = contractsData.filter((c: any) => c.document_type === 'attorney_retainer');
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadData:afterSetContracts',message:'After loading contracts',data:{totalContracts:contractsData.length,attorneyRetainerCount:attorneyRetainerContracts.length,attorneyRetainerContracts:attorneyRetainerContracts.map((c:any)=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name,fileUrl:c.file_url}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
       
       // default stage selection for form: if surrogate chosen, pick its stage
       if (selectedSurrogate) {
@@ -504,9 +500,6 @@ export default function MatchesPage() {
 
   const loadSurrogateApplications = async (surrogateIds: string[]) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:entry',message:'Loading surrogate applications',data:{surrogateIdsCount:surrogateIds.length,surrogateIds:surrogateIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       
       if (surrogateIds.length === 0) return;
       
@@ -515,23 +508,14 @@ export default function MatchesPage() {
       // Fetch applications for all surrogates (one by one to avoid URL length issues)
       const fetchPromises = surrogateIds.map(async (id) => {
         try {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:fetching',message:'Fetching application for surrogate',data:{surrogateId:id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           
           const res = await fetch(`/api/applications?user_id=${id}`);
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:response',message:'Application API response',data:{surrogateId:id,status:res.status,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           
           if (res.ok) {
             const data = await res.json();
             const applications = data.data || [];
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:applications',message:'Applications found',data:{surrogateId:id,applicationsCount:applications.length,applications:applications.map((a:any)=>({id:a.id,status:a.status,hasFormData:!!a.form_data,created_at:a.created_at}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             
             // Get the most recent approved application, or most recent if none approved
             let bestApp = null;
@@ -547,46 +531,28 @@ export default function MatchesPage() {
               }
             }
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:bestApp',message:'Best application selected',data:{surrogateId:id,hasBestApp:!!bestApp,bestAppStatus:bestApp?.status,bestAppCreatedAt:bestApp?.created_at,hasFormData:!!bestApp?.form_data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             
             if (bestApp) {
               try {
                 const formData = JSON.parse(bestApp.form_data);
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:parsed',message:'Form data parsed',data:{surrogateId:id,formDataKeys:Object.keys(formData),hasHeight:!!formData.height,hasWeight:!!formData.weight,height:formData.height,weight:formData.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
                 
                 applicationsMap.set(id, formData);
               } catch (e) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:parseError',message:'Error parsing form_data',data:{surrogateId:id,error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
                 console.error('Error parsing form_data for user:', id, e);
               }
             }
           }
         } catch (err) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:fetchError',message:'Error fetching application',data:{surrogateId:id,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           console.error(`Error loading application for surrogate ${id}:`, err);
         }
       });
       
       await Promise.all(fetchPromises);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:complete',message:'Applications loading complete',data:{applicationsMapSize:applicationsMap.size,loadedSurrogateIds:Array.from(applicationsMap.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       
       setSurrogateApplications(applicationsMap);
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:loadSurrogateApplications:error',message:'Error loading surrogate applications',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.error('Error loading surrogate applications:', err);
     }
   };
@@ -594,9 +560,6 @@ export default function MatchesPage() {
   // Calculate BMI from height and weight
   const calculateBMI = (height: string | number, weight: string | number): number | null => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:entry',message:'BMI calculation started',data:{height,weight,heightType:typeof height,weightType:typeof weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       let heightInCm: number;
       let weightInKg: number;
@@ -610,16 +573,10 @@ export default function MatchesPage() {
           const inches = parseInt(feetInchesMatch[2], 10);
           const totalInches = feet * 12 + inches;
           heightInCm = totalInches * 2.54; // Convert inches to cm
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:feetInches',message:'Parsed feet/inches format',data:{originalHeight:height,feet,inches,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         } else {
           // Try to parse as number (could be cm, inches, or feet)
           const heightNum = parseFloat(height);
           if (isNaN(heightNum) || heightNum <= 0) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidHeight',message:'Invalid height value',data:{originalHeight:height,parsed:heightNum},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             return null;
           }
           // Smart unit detection:
@@ -631,21 +588,12 @@ export default function MatchesPage() {
             const feet = heightNum;
             const totalInches = feet * 12;
             heightInCm = totalInches * 2.54;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightFeet',message:'Parsed numeric height as feet',data:{originalHeight:height,parsed:heightNum,feet,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
           } else if (heightNum < 100) {
             // Likely inches
             heightInCm = heightNum * 2.54;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInches',message:'Parsed numeric height as inches',data:{originalHeight:height,parsed:heightNum,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
           } else {
             // Likely cm
             heightInCm = heightNum;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightCm',message:'Parsed numeric height as cm',data:{originalHeight:height,parsed:heightNum,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
           }
         }
       } else {
@@ -655,21 +603,12 @@ export default function MatchesPage() {
           const feet = height;
           const totalInches = feet * 12;
           heightInCm = totalInches * 2.54;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputFeet',message:'Numeric height input as feet',data:{height,feet,totalInches,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         } else if (height < 100) {
           // Likely inches
           heightInCm = height * 2.54;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputInches',message:'Numeric height input as inches',data:{height,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         } else {
           // Likely cm
           heightInCm = height;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericHeightInputCm',message:'Numeric height input as cm',data:{height,heightInCm},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         }
       }
       
@@ -677,44 +616,26 @@ export default function MatchesPage() {
       if (typeof weight === 'string') {
         const weightNum = parseFloat(weight);
         if (isNaN(weightNum) || weightNum <= 0) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidWeight',message:'Invalid weight value',data:{originalWeight:weight,parsed:weightNum},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           return null;
         }
         // If weight is less than 50, assume it's already in kg, otherwise assume lbs
         weightInKg = weightNum < 50 ? weightNum : weightNum / 2.20462;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:weight',message:'Parsed weight',data:{originalWeight:weight,parsed:weightNum,assumedUnit:weightNum<50?'kg':'lbs',weightInKg},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       } else {
         // Weight is already a number - assume kg if < 50, otherwise lbs
         weightInKg = weight < 50 ? weight : weight / 2.20462;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:numericWeightInput',message:'Numeric weight input',data:{weight,assumedUnit:weight<50?'kg':'lbs',weightInKg},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       }
       
       // Calculate BMI: weight (kg) / height (m)^2
       const heightInMeters = heightInCm / 100;
       const bmi = weightInKg / (heightInMeters * heightInMeters);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:result',message:'BMI calculation result',data:{heightInCm,heightInMeters,weightInKg,bmi,isValid:!isNaN(bmi)&&bmi>0&&bmi<100},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       if (isNaN(bmi) || bmi <= 0 || bmi > 100) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:invalidBMI',message:'Invalid BMI result',data:{bmi},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         return null;
       }
       
       return bmi;
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:calculateBMI:error',message:'BMI calculation error',data:{error:String(e),height,weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.error('Error calculating BMI:', e);
       return null;
     }
@@ -722,35 +643,20 @@ export default function MatchesPage() {
 
   // Get calculated BMI for a surrogate
   const getCalculatedBMI = (surrogateId: string): number | null => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:entry',message:'Get calculated BMI started',data:{surrogateId,surrogateApplicationsSize:surrogateApplications.size,hasAppData:surrogateApplications.has(surrogateId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     
     const appData = surrogateApplications.get(surrogateId);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:appData',message:'Application data check',data:{surrogateId,hasAppData:!!appData,appDataKeys:appData?Object.keys(appData):null,height:appData?.height,weight:appData?.weight,heightType:typeof appData?.height,weightType:typeof appData?.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     
     if (!appData) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:noAppData',message:'No application data found',data:{surrogateId,allSurrogateIds:Array.from(surrogateApplications.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return null;
     }
     
     if (!appData.height || !appData.weight) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:missingFields',message:'Height or weight missing',data:{surrogateId,hasHeight:!!appData.height,hasWeight:!!appData.weight,height:appData.height,weight:appData.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return null;
     }
     
     const bmi = calculateBMI(appData.height, appData.weight);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:getCalculatedBMI:result',message:'BMI calculation result',data:{surrogateId,bmi,hasBMI:bmi!==null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     
     return bmi;
   };
@@ -1204,20 +1110,11 @@ export default function MatchesPage() {
 
   const handleAutoCalculateBMI = async (matchId: string, surrogateId: string) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:entry',message:'Auto calculate BMI started',data:{matchId,surrogateId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       
       const appData = surrogateApplications.get(surrogateId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:appData',message:'Application data retrieved',data:{surrogateId,hasAppData:!!appData,height:appData?.height,weight:appData?.weight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       
       const calculatedBMI = getCalculatedBMI(surrogateId);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:calculated',message:'BMI calculated',data:{calculatedBMI,isValid:calculatedBMI!==null&&calculatedBMI>0&&calculatedBMI<100},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       
       if (calculatedBMI === null) {
         alert('Cannot calculate BMI: Height and weight data not available from application form');
@@ -1226,9 +1123,6 @@ export default function MatchesPage() {
 
       // Validate BMI is within reasonable range before saving
       if (calculatedBMI <= 0 || calculatedBMI > 100) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:invalidRange',message:'BMI out of valid range',data:{calculatedBMI},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         alert(`Calculated BMI (${calculatedBMI.toFixed(1)}) is out of valid range (0-100). Please check height and weight values.`);
         return;
       }
@@ -1236,9 +1130,6 @@ export default function MatchesPage() {
       // Round to 2 decimal places to match database precision
       const bmiToSave = Math.round(calculatedBMI * 100) / 100;
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:beforeSave',message:'About to save BMI',data:{calculatedBMI,bmiToSave,matchId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       const res = await fetch(`/api/cases/${matchId}`, {
         method: 'PATCH',
@@ -1250,21 +1141,12 @@ export default function MatchesPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:saveError',message:'Failed to save BMI',data:{error:errData.error,status:res.status,bmiToSave},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         throw new Error(errData.error || 'Failed to update Surrogate BMI');
       }
 
       await loadData();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:success',message:'BMI saved successfully',data:{bmiToSave},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       alert(`Surrogate BMI calculated and saved: ${bmiToSave.toFixed(1)}`);
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:handleAutoCalculateBMI:exception',message:'Exception in auto calculate BMI',data:{error:String(err),message:err.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       console.error('[matches] Error auto-calculating Surrogate BMI:', err);
       alert(err.message || 'Failed to auto-calculate Surrogate BMI');
     }
@@ -1924,9 +1806,6 @@ export default function MatchesPage() {
       return;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:start',message:'Starting attorney retainer upload',data:{userId:attorneyUserId,userType:attorneyUserType,fileName:attorneyFile.name,fileSize:attorneyFile.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     setUploadingAttorney(true);
     try {
@@ -1940,37 +1819,22 @@ export default function MatchesPage() {
         body: formData,
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:afterFetch',message:'After fetch response',data:{resOk:res.ok,status:res.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-      // #endregion
 
       if (!res.ok) {
         const errText = await res.text();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:error',message:'Upload failed',data:{status:res.status,error:errText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'all'})}).catch(()=>{});
-        // #endregion
         throw new Error(`Upload failed: ${res.status} ${errText}`);
       }
 
       const result = await res.json();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:success',message:'Upload successful',data:{result:result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-      // #endregion
       
       alert(`Attorney Retainer Agreement uploaded successfully! The ${attorneyUserType} can now see it in their My Match section.`);
       setShowAttorneyModal(false);
       setAttorneyFile(null);
       await loadData();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:afterLoadData',message:'After loadData call',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
     } catch (err: any) {
       console.error('Error uploading attorney retainer:', err);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:uploadAttorneyRetainer:exception',message:'Exception in upload',data:{error:err?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'all'})}).catch(()=>{});
-      // #endregion
       alert(err.message || 'Failed to upload attorney retainer agreement');
     } finally {
       setUploadingAttorney(false);
@@ -2489,9 +2353,6 @@ export default function MatchesPage() {
                         onClick={() => {
                           const nextAvailable = !effectiveAvailable;
                           if (nextAvailable && hasActiveMatch(s.id)) {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:SetAvailable:blocked',message:'Frontend blocked Set Available: surrogate has active match',data:{surrogateId:s.id,surrogateName:s.name},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-                            // #endregion
                             alert('This surrogate is already matched. They cannot be set to Available.');
                             return;
                           }
@@ -2696,23 +2557,6 @@ export default function MatchesPage() {
                       const normalizedParentName = parentName.replace(/\s+/g, '');
                       const normalizedClaimId = claimId.replace(/\s+/g, '');
                       
-                      // #region agent log
-                      console.log('[Name Search]', {
-                        searchTerm,
-                        normalizedSearchTerm,
-                        matchId: m.id,
-                        surrogateId: m.surrogate_id,
-                        parentId: m.parent_id,
-                        surrogateName,
-                        normalizedSurrogateName,
-                        parentName,
-                        normalizedParentName,
-                        claimId,
-                        normalizedClaimId,
-                        profileLookupHasSurrogate: !!surrogate,
-                        profileLookupHasParent: !!parent,
-                      });
-                      // #endregion
                       
                       // Check if search term matches:
                       // 1. Surrogate name (with or without spaces)
@@ -2723,25 +2567,8 @@ export default function MatchesPage() {
                       const matchesClaimId = claimId.includes(searchTerm) || normalizedClaimId.includes(normalizedSearchTerm);
                       
                       if (!matchesSurrogate && !matchesParent && !matchesClaimId) {
-                        // #region agent log
-                        console.log('[Name Search] Filtered out:', {
-                          searchTerm,
-                          surrogateName,
-                          parentName,
-                          claimId,
-                        });
-                        // #endregion
                         return false;
                       }
-                      // #region agent log
-                      console.log('[Name Search] Match passed:', {
-                        searchTerm,
-                        matched: true,
-                        matchesSurrogate,
-                        matchesParent,
-                        matchesClaimId,
-                      });
-                      // #endregion
                     }
                     
                     return true;
@@ -4668,11 +4495,6 @@ export default function MatchesPage() {
                               c.document_type === 'attorney_retainer'
                             );
                             
-                            // #region agent log
-                            if (parentAttorneyRetainerContracts.length > 0 || surrogateAttorneyRetainerContracts.length > 0) {
-                              fetch('http://127.0.0.1:7242/ingest/ed2cc5d5-a27e-4b2b-ba07-22ce53d66cf9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'matches/page.tsx:attorneyRetainerFilter',message:'Attorney retainer contracts found',data:{matchId:m.id,parentContracts:parentAttorneyRetainerContracts.length,parentContractsData:parentAttorneyRetainerContracts.map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name})),surrogateContracts:surrogateAttorneyRetainerContracts.length,surrogateContractsData:surrogateAttorneyRetainerContracts.map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name})),allContractsCount:contracts.length,allAttorneyRetainerContracts:contracts.filter(c=>c.document_type==='attorney_retainer').map(c=>({id:c.id,userId:c.user_id,documentType:c.document_type,fileName:c.file_name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-                            }
-                            // #endregion
                             
                             // Helper function to get files for a document type
                             const getFilesForDocType = (docTypes: string[], isSingleUser: boolean = false) => {
