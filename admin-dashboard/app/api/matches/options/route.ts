@@ -496,9 +496,31 @@ export async function POST(req: Request) {
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
     if (await isReadOnlyBranchManager(supabase, adminUserId)) {
       return NextResponse.json(
         { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const { data: adminRow, error: adminRoleError } = await supabase
+      .from('admin_users')
+      .select('role')
+      .eq('id', adminUserId)
+      .single();
+    if (adminRoleError || !adminRow) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+    const postRole = (adminRow.role || '').toLowerCase();
+    if (postRole !== 'admin') {
+      return NextResponse.json(
+        {
+          error:
+            'Only administrators can create or update matches via this action.',
+        },
         { status: 403 }
       );
     }

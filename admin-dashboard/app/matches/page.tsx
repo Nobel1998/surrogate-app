@@ -2522,6 +2522,7 @@ export default function MatchesPage() {
         </div>
         )}
 
+        {currentAdminRole === 'admin' && (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Create / Update Match</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2617,6 +2618,7 @@ export default function MatchesPage() {
             </button>
           </div>
         </div>
+        )}
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
