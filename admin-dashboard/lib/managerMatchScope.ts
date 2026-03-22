@@ -1,15 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Only dashboard role `admin` sees all matches. Every other admin_users row
- * (branch_manager, case_manager, finance_manager, etc.) is limited to match_managers.assignments.
+ * `admin` and `finance_manager` see all matches (no match_managers filter).
+ * Every other admin_users row is limited to match_managers.assignments.
  */
 export async function getAccessibleMatchIds(
   supabase: SupabaseClient,
   adminUserId: string,
   roleLower: string
 ): Promise<string[] | null> {
-  if (roleLower === 'admin') {
+  if (roleLower === 'admin' || roleLower === 'finance_manager') {
     return null;
   }
 

@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
       if (adminUser) {
         const role = (adminUser.role || '').toLowerCase();
-        if (role === 'admin') {
+        if (role === 'admin' || role === 'finance_manager') {
           isSuperAdmin = true;
         } else if (role === 'branch_manager') {
           isBranchManager = true;

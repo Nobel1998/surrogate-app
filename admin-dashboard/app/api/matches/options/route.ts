@@ -47,15 +47,15 @@ export async function GET(req: NextRequest) {
 
       if (!adminError && adminUser) {
         const role = (adminUser.role || '').toLowerCase();
-        if (role === 'admin') {
-          // Admin can see all branches and all matches
+        if (role === 'admin' || role === 'finance_manager') {
+          // Admin + finance_manager: all branches and all matches (FM is read-only for writes elsewhere)
           isSuperAdmin = true;
           canViewAllBranches = true;
         } else if (role === 'branch_manager') {
           branchFilter = adminUser.branch_id;
           canViewAllBranches = false;
         } else {
-          // case_manager, finance_manager, etc. — same match visibility as branch_manager
+          // case_manager, etc. — assigned matches only
           canViewAllBranches = false;
         }
       }

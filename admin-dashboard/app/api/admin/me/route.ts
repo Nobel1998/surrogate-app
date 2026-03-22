@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       role: role,
       branch_id: adminUser.branch_id,
       branch: branch,
-      canViewAllBranches: role === 'admin',
+      canViewAllBranches: role === 'admin' || role === 'finance_manager',
       read_only:
         role === 'finance_manager' ? true : role === 'branch_manager' ? !!adminUser.read_only : false,
     });
