@@ -61,6 +61,12 @@ export async function GET(req: NextRequest) {
       { status: 401 }
     );
   }
+  if ((authCheck.adminUser.role || '').toLowerCase() === 'finance_manager') {
+    return NextResponse.json(
+      { error: 'Finance manager cannot access this section.' },
+      { status: 403 }
+    );
+  }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -127,6 +133,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
       { status: 401 }
+    );
+  }
+  if ((authCheck.adminUser.role || '').toLowerCase() === 'finance_manager') {
+    return NextResponse.json(
+      { error: 'Finance manager cannot access this section.' },
+      { status: 403 }
     );
   }
 
@@ -240,6 +252,12 @@ export async function PUT(req: NextRequest) {
       { status: 401 }
     );
   }
+  if ((authCheck.adminUser.role || '').toLowerCase() === 'finance_manager') {
+    return NextResponse.json(
+      { error: 'Finance manager cannot access this section.' },
+      { status: 403 }
+    );
+  }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -324,6 +342,12 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(
       { error: authCheck.error || 'Unauthorized' },
       { status: 401 }
+    );
+  }
+  if ((authCheck.adminUser.role || '').toLowerCase() === 'finance_manager') {
+    return NextResponse.json(
+      { error: 'Finance manager cannot access this section.' },
+      { status: 403 }
     );
   }
 

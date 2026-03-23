@@ -43,6 +43,13 @@ async function getAuthContext(): Promise<AuthContext> {
   if (error || !adminUser) {
     return { ok: false, error: 'Invalid admin session', status: 401 };
   }
+  if ((adminUser.role || '').toLowerCase() === 'finance_manager') {
+    return {
+      ok: false,
+      error: 'Finance manager cannot access this section.',
+      status: 403,
+    };
+  }
 
   return {
     ok: true,

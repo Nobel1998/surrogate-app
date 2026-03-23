@@ -32,6 +32,12 @@ export async function GET() {
     }
 
     const role = (adminUser.role || '').toLowerCase();
+    if (role === 'finance_manager') {
+      return NextResponse.json(
+        { error: 'Finance manager cannot access this section.' },
+        { status: 403 }
+      );
+    }
     const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
 
     let reqQuery = supabase.from('reward_requests').select('*').order('created_at', { ascending: false });
@@ -131,6 +137,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     const role = (adminUser.role || '').toLowerCase();
+    if (role === 'finance_manager') {
+      return NextResponse.json(
+        { error: 'Finance manager cannot access this section.' },
+        { status: 403 }
+      );
+    }
     const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
     if (accessible !== null) {
       if (accessible.length === 0) {

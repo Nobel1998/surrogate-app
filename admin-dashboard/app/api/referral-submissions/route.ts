@@ -36,6 +36,12 @@ export async function GET() {
     }
 
     const role = (adminUser.role || '').toLowerCase();
+    if (role === 'finance_manager') {
+      return NextResponse.json(
+        { error: 'Finance manager cannot access this section.' },
+        { status: 403 }
+      );
+    }
     const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
 
     let subQuery = supabase.from('referral_submissions').select('*').order('created_at', { ascending: false });

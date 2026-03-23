@@ -32,6 +32,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
     }
     const role = (adminUser.role || '').toLowerCase();
+    if (role === 'finance_manager') {
+      return NextResponse.json(
+        { error: 'Finance manager cannot access this section.' },
+        { status: 403 }
+      );
+    }
     const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
 
     let ticketsQuery = supabase
@@ -127,6 +133,12 @@ export async function PATCH(req: Request) {
     }
 
     const role = (adminUser.role || '').toLowerCase();
+    if (role === 'finance_manager') {
+      return NextResponse.json(
+        { error: 'Finance manager cannot access this section.' },
+        { status: 403 }
+      );
+    }
     const accessible = await getAccessibleMatchIds(supabase, adminUser.id, role);
     if (accessible !== null) {
       if (accessible.length === 0) {
