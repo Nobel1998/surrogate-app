@@ -158,8 +158,45 @@ export async function GET(req: NextRequest) {
       assignedMatchIdsCount: assignedMatchIds.length,
     });
     
-    if (isSuperAdmin) {
-      // Super admin can see all matches - no filter needed
+    const hasSpecificBranchFilter = Boolean(effectiveBranchFilter && effectiveBranchFilter !== 'all');
+    if (hasSpecificBranchFilter) {
+      // Office selected:
+      // - Super admin: show matches assigned to managers in this office
+      // - Non-super users: keep "my responsible matches only"
+      let officeScopedMatchIds: string[] = [];
+      if (isSuperAdmin) {
+        const { data: officeManagers } = await supabase
+          .from('admin_users')
+          .select('id')
+          .eq('branch_id', effectiveBranchFilter as string);
+        const officeManagerIds = (officeManagers || []).map((m: any) => m.id).filter(Boolean);
+        if (officeManagerIds.length > 0) {
+          const { data: officeMatchManagers } = await supabase
+            .from('match_managers')
+            .select('match_id')
+            .in('manager_id', officeManagerIds);
+          officeScopedMatchIds = Array.from(
+            new Set((officeMatchManagers || []).map((r: any) => r.match_id).filter(Boolean))
+          );
+        }
+        if (officeScopedMatchIds.length > 0) {
+          matchesQuery = matchesQuery.in('id', officeScopedMatchIds);
+        } else {
+          matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
+      } else if (adminUserId) {
+        if (assignedMatchIds.length > 0) {
+          matchesQuery = matchesQuery.in('id', assignedMatchIds);
+        } else {
+          matchesQuery = matchesQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
+      }
+      console.log('[matches/options] Office selected: scoped by office managers', {
+        isSuperAdmin,
+        applyResponsibleScope: !isSuperAdmin,
+      });
+    } else if (isSuperAdmin) {
+      // Super admin can see all matches when not selecting a specific office.
       console.log('[matches/options] Super admin - no filter applied');
     } else if (adminUserId) {
       // All non-admin dashboard users: only matches assigned via match_managers

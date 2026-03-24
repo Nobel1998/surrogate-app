@@ -391,15 +391,17 @@ export default function MatchesPage() {
     loadAdminInfo();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (branchFilterOverride?: string) => {
     setLoading(true);
     setError(null);
     try {
       // Build URL with branch filter if available
       let url = '/api/matches/options';
       const params = new URLSearchParams();
-      if (canViewAllBranches && selectedBranchFilter && selectedBranchFilter !== 'all') {
-        params.append('branch_id', selectedBranchFilter);
+      const effectiveSelectedBranch =
+        branchFilterOverride !== undefined ? branchFilterOverride : selectedBranchFilter;
+      if (canViewAllBranches && effectiveSelectedBranch && effectiveSelectedBranch !== 'all') {
+        params.append('branch_id', effectiveSelectedBranch);
       }
       if (params.toString()) {
         url += `?${params.toString()}`;
@@ -1475,7 +1477,7 @@ export default function MatchesPage() {
     setAvailabilityPage(1);
     setSelectedBranchFilter(branchId);
     // Reload data with branch filter
-    await loadData();
+    await loadData(branchId);
   };
 
   const createMatch = async () => {
