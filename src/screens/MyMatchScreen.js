@@ -16,10 +16,12 @@ import {
   Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useParentMatch } from '../context/ParentMatchContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
+import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
 
@@ -27,6 +29,7 @@ const { width } = Dimensions.get('window');
 
 export default function MyMatchScreen({ navigation }) {
   const { user } = useAuth();
+  const parentMatch = useParentMatch();
   const { t } = useLanguage();
   const [matchData, setMatchData] = useState(null);
   const [partnerProfile, setPartnerProfile] = useState(null);
@@ -50,11 +53,12 @@ export default function MyMatchScreen({ navigation }) {
   const [fetalHeartbeatDate, setFetalHeartbeatDate] = useState('');
   const [savingPregnancyHistory, setSavingPregnancyHistory] = useState(false);
   const [checkingApplication, setCheckingApplication] = useState(true);
+  const [showParentMatchSwitcher, setShowParentMatchSwitcher] = useState(false);
 
   useEffect(() => {
     checkUserApplication();
     loadMatchData();
-  }, [user]);
+  }, [user, parentMatch.activeMatch?.id, parentMatch.initialSyncDone]);
 
   // Listen for match creation/updates in surrogate_matches table
   useEffect(() => {
@@ -95,6 +99,7 @@ export default function MyMatchScreen({ navigation }) {
           // Reload match data when match is created or updated (status can be 'matched' or 'active')
           if (payload.new && (payload.new.status === 'matched' || payload.new.status === 'active')) {
             console.log('[MyMatch] ✅ Matched match detected, reloading match data...');
+            if (isParent) await parentMatch.refreshMatches();
             await loadMatchData();
             
             // If parent and unmatched before, also refresh surrogates list
@@ -103,6 +108,7 @@ export default function MyMatchScreen({ navigation }) {
             }
           } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
             console.log('[MyMatch] ⚠️ Match removed or deactivated, reloading...');
+            if (isParent) await parentMatch.refreshMatches();
             await loadMatchData();
             
             // If parent, refresh surrogates list
@@ -125,7 +131,7 @@ export default function MyMatchScreen({ navigation }) {
       console.log('[MyMatch] Cleaning up match updates listener');
       supabase.removeChannel(channel);
     };
-  }, [user?.id, userRole]);
+  }, [user?.id, userRole, parentMatch.refreshMatches]);
 
   const checkUserApplication = async () => {
     if (!user?.id) {
@@ -202,15 +208,12 @@ export default function MyMatchScreen({ navigation }) {
         match = data?.[0];
         matchError = error;
       } else {
-        const { data, error } = await supabase
-          .from('surrogate_matches')
-          .select('*')
-          .eq('parent_id', user.id)
-          .in('status', ['matched', 'active'])
-          .order('created_at', { ascending: false })
-          .limit(1);
-        match = data?.[0];
-        matchError = error;
+        const { activeMatch: am, matches: pm } = await parentMatch.refreshMatches();
+        match = am;
+        matchError = null;
+        if (!am && (!pm || pm.length === 0)) {
+          console.log('[MyMatch] parent: no active/matched rows');
+        }
       }
 
       if (matchError && matchError.code !== 'PGRST116') {
@@ -1001,6 +1004,18 @@ export default function MyMatchScreen({ navigation }) {
                 </View>
               </View>
             </View>
+            {userRole === 'parent' && parentMatch.matches.length > 1 && (
+              <TouchableOpacity
+                style={styles.parentSwitchHeaderBtn}
+                onPress={() => setShowParentMatchSwitcher(true)}
+                activeOpacity={0.85}
+              >
+                <Icon name="shuffle" size={18} color="#fff" />
+                <Text style={styles.parentSwitchHeaderBtnText}>
+                  Switch surrogate ({parentMatch.matches.length})
+                </Text>
+              </TouchableOpacity>
+            )}
           </SafeAreaView>
         </View>
 
@@ -1671,6 +1686,14 @@ export default function MyMatchScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
       {matchData ? renderMatchedState() : renderUnmatchedState()}
       {renderSurrogateDetailsModal()}
+      <ParentMatchSwitcher
+        visible={showParentMatchSwitcher}
+        onClose={() => setShowParentMatchSwitcher(false)}
+        matches={parentMatch.matches}
+        activeMatchId={parentMatch.activeMatchId}
+        surrogateNames={parentMatch.surrogateNames}
+        onSelectMatch={(id) => parentMatch.setActiveMatchId(id)}
+      />
     </SafeAreaView>
   );
 }
@@ -1884,6 +1907,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     bottom: -30,
     left: -30,
+  },
+  parentSwitchHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 12,
+  },
+  parentSwitchHeaderBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   headerContent: {
     paddingHorizontal: 20,

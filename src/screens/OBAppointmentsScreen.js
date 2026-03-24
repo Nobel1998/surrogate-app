@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -18,6 +19,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useParentMatch } from '../context/ParentMatchContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -33,6 +35,7 @@ const STATUS_COLORS = {
 
 export default function OBAppointmentsScreen({ navigation }) {
   const { user } = useAuth();
+  const parentMatch = useParentMatch();
   const { scheduleMedicalAppointmentReminders, cancelMedicalAppointmentReminders } = useNotifications();
   const { t } = useLanguage();
   const [appointments, setAppointments] = useState([]);
@@ -55,37 +58,37 @@ export default function OBAppointmentsScreen({ navigation }) {
   });
 
   useEffect(() => {
-    if (isParent) {
-      loadMatchedSurrogateId();
-    } else {
-      loadMatchId();
-      loadAppointments();
-    }
-  }, [user]);
+    if (!user?.id || isParent) return;
+    loadMatchId();
+    loadAppointments();
+  }, [user?.id, isParent]);
 
-  const loadMatchedSurrogateId = async () => {
-    if (!user?.id) return;
-    try {
-      const { data } = await supabase
-        .from('surrogate_matches')
-        .select('surrogate_id')
-        .eq('parent_id', user.id)
-        .in('status', ['matched', 'active'])
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const surrogateId = data?.[0]?.surrogate_id || null;
-      setMatchedSurrogateId(surrogateId);
-      if (surrogateId) {
-        loadAppointmentsForUser(surrogateId);
-      } else {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error loading matched surrogate:', error);
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || !isParent) return undefined;
+      let cancelled = false;
+      (async () => {
+        try {
+          const { activeMatch } = await parentMatch.refreshMatches();
+          if (cancelled) return;
+          const surrogateId = activeMatch?.surrogate_id || null;
+          setMatchedSurrogateId(surrogateId);
+          if (surrogateId) {
+            await loadAppointmentsForUser(surrogateId);
+          } else {
+            setAppointments([]);
+            setLoading(false);
+          }
+        } catch (e) {
+          console.error('Error loading parent OB context:', e);
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id, isParent, parentMatch.refreshMatches])
+  );
 
   const loadMatchId = async () => {
     if (!user?.id) return;
@@ -158,8 +161,24 @@ export default function OBAppointmentsScreen({ navigation }) {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    if (isParent && matchedSurrogateId) {
-      loadAppointmentsForUser(matchedSurrogateId);
+    if (isParent) {
+      (async () => {
+        try {
+          const { activeMatch } = await parentMatch.refreshMatches();
+          const sid = activeMatch?.surrogate_id || null;
+          setMatchedSurrogateId(sid);
+          if (sid) await loadAppointmentsForUser(sid);
+          else {
+            setAppointments([]);
+            setRefreshing(false);
+            setLoading(false);
+          }
+        } catch (e) {
+          console.error('OB refresh (parent):', e);
+          setRefreshing(false);
+          setLoading(false);
+        }
+      })();
     } else {
       loadAppointments();
     }

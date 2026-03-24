@@ -9,6 +9,8 @@ type Profile = {
   // profiles 表无 email 字段，保持可选仅为兼容未来扩展
   email?: string;
   phone?: string;
+  /** City, State or freeform from registration */
+  location?: string | null;
   role?: string;
   progress_stage?: string | null;
   stage_updated_by?: string | null;
@@ -169,6 +171,8 @@ export default function MatchesPage() {
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [nameSearchFilter, setNameSearchFilter] = useState<string>('');
+  const [availabilityPage, setAvailabilityPage] = useState(1);
+  const [availabilityPageSize, setAvailabilityPageSize] = useState(25);
   const [adminUserId, setAdminUserId] = useState<string>('');
   const [notesDetailModal, setNotesDetailModal] = useState<{ matchId: string; notes: string } | null>(null);
   const [canViewAllBranches, setCanViewAllBranches] = useState(true);
@@ -344,6 +348,19 @@ export default function MatchesPage() {
   // Active match = not cancelled and not completed; matched surrogates show as Not Available
   const hasActiveMatch = useCallback((surrogateId: string) => matches.some((m) => m.surrogate_id === surrogateId && !['cancelled', 'completed'].includes(m.status ?? '')), [matches]);
   const getEffectiveAvailable = useCallback((s: Profile) => Boolean(s.available) && !hasActiveMatch(s.id), [hasActiveMatch]);
+
+  const availabilityTotalPages = Math.max(1, Math.ceil(surrogates.length / availabilityPageSize) || 1);
+
+  useEffect(() => {
+    if (availabilityPage > availabilityTotalPages) {
+      setAvailabilityPage(availabilityTotalPages);
+    }
+  }, [availabilityPage, availabilityTotalPages]);
+
+  const paginatedSurrogatesForAvailability = useMemo(() => {
+    const start = (availabilityPage - 1) * availabilityPageSize;
+    return surrogates.slice(start, start + availabilityPageSize);
+  }, [surrogates, availabilityPage, availabilityPageSize]);
 
   // Load admin user info on mount
   useEffect(() => {
@@ -1455,6 +1472,7 @@ export default function MatchesPage() {
 
   // Handle branch filter change (only for admins)
   const handleBranchFilterChange = async (branchId: string) => {
+    setAvailabilityPage(1);
     setSelectedBranchFilter(branchId);
     // Reload data with branch filter
     await loadData();
@@ -2325,21 +2343,21 @@ export default function MatchesPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Surrogate Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location (City / State)</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {surrogates.map((s: Profile) => {
+                {paginatedSurrogatesForAvailability.map((s: Profile) => {
                   const effectiveAvailable = getEffectiveAvailable(s);
                   return (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {s.name || s.id.substring(0, 8)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {s.phone || 'N/A'}
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
+                      {(s.location && String(s.location).trim()) || '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
@@ -2380,6 +2398,52 @@ export default function MatchesPage() {
               </tbody>
             </table>
           </div>
+          {surrogates.length > 0 && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
+              <div>
+                Showing {(availabilityPage - 1) * availabilityPageSize + 1}–
+                {Math.min(availabilityPage * availabilityPageSize, surrogates.length)} of {surrogates.length}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2">
+                  <span className="text-gray-500">Rows per page:</span>
+                  <select
+                    value={availabilityPageSize}
+                    onChange={(e) => {
+                      setAvailabilityPageSize(Number(e.target.value));
+                      setAvailabilityPage(1);
+                    }}
+                    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={availabilityPage <= 1}
+                    onClick={() => setAvailabilityPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-gray-500">
+                    Page {availabilityPage} of {availabilityTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={availabilityPage >= availabilityTotalPages}
+                    onClick={() => setAvailabilityPage((p) => Math.min(availabilityTotalPages, p + 1))}
+                    className="px-3 py-1 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         )}
 

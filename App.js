@@ -36,6 +36,7 @@ import OnlineClaimsScreen from './src/screens/OnlineClaimsScreen';
 import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ParentMatchProvider } from './src/context/ParentMatchContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { supabase } from './src/lib/supabase';
@@ -436,7 +437,9 @@ export default function App() {
       <AppProvider>
         <NotificationProvider>
           <AuthProvider>
-            <AppContent />
+            <ParentMatchProvider>
+              <AppContent />
+            </ParentMatchProvider>
           </AuthProvider>
         </NotificationProvider>
       </AppProvider>

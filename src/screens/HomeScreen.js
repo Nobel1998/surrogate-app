@@ -70,12 +70,15 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useParentMatch } from '../context/ParentMatchContext';
 import Avatar from '../components/Avatar';
+import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
   const { user, isLoading: authLoading, updateProfile } = useAuth();
+  const parentMatch = useParentMatch();
   const { t } = useLanguage();
   const { sendSurrogateProgressUpdate } = useNotifications();
   const STAGE_OPTIONS = getStageOptions(t);
@@ -113,6 +116,81 @@ export default function HomeScreen() {
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
   const isParentRole = roleLower === 'parent';
+  // Parent: sync Home local state from shared multi-match context
+  useEffect(() => {
+    if (!isParentRole || !parentMatch.isParent || !parentMatch.initialSyncDone) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      const am = parentMatch.activeMatch;
+      setMatchCheckInProgress(true);
+
+      if (!am?.surrogate_id) {
+        realMatchIdRef.current = null;
+        setMatchedSurrogateId(null);
+        setMatchId(null);
+        setMatchedProfile(null);
+        realStageRef.current = 'pre';
+        stageDataReadyRef.current = true;
+        setServerStage('pre');
+        setPostStage('pre');
+        setStageLoaded(true);
+        setMatchCheckInProgress(false);
+        return;
+      }
+
+      const sid = am.surrogate_id;
+      realMatchIdRef.current = sid;
+      setMatchedSurrogateId(sid);
+      setMatchId(am.id);
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', sid)
+          .single();
+        if (cancelled) return;
+        setMatchedProfile(profile);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('progress_stage')
+          .eq('id', sid)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) console.log('Error loading progress_stage (parent):', error.message);
+        const stage = data?.progress_stage || 'pre';
+        realStageRef.current = stage;
+        stageDataReadyRef.current = true;
+        setServerStage(stage);
+        setPostStage(stage);
+        setStageLoaded(true);
+      } catch (e) {
+        console.error('Parent match sync error:', e);
+        if (!cancelled) {
+          setStageLoaded(true);
+        }
+      } finally {
+        if (!cancelled) setMatchCheckInProgress(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isParentRole,
+    parentMatch.isParent,
+    parentMatch.initialSyncDone,
+    parentMatch.activeMatch?.id,
+    parentMatch.activeMatch?.surrogate_id,
+  ]);
+
   const [transferDateDraft, setTransferDateDraft] = useState('');
   const [savingTransferDate, setSavingTransferDate] = useState(false);
   const [transferEmbryoDayDraft, setTransferEmbryoDayDraft] = useState('day5'); // 'day3' | 'day5'
@@ -123,6 +201,7 @@ export default function HomeScreen() {
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [hasSurrogateMatch, setHasSurrogateMatch] = useState(false);
   const [checkingMatch, setCheckingMatch] = useState(false);
+  const [showParentMatchSwitcher, setShowParentMatchSwitcher] = useState(false);
   const pointsBackfillDoneRef = React.useRef(false);
 
   useEffect(() => {
@@ -861,86 +940,9 @@ export default function HomeScreen() {
           return;
         }
 
-        // Parent: fetch match first, then get surrogate's stage
+        // Parent: surrogate_matches + stage come from ParentMatchContext (sync useEffect)
         if (isParent) {
-          console.log('🔄 Parent: fetching matched surrogate...');
-          setMatchCheckInProgress(true);
-          
-          let surrogateId = null;
-          try {
-            const { data: parentMatches, error: parentMatchError } = await supabase
-              .from('surrogate_matches')
-              .select('id, surrogate_id, status')
-              .eq('parent_id', user.id)
-              .in('status', ['matched', 'active'])
-              .order('created_at', { ascending: false })
-              .limit(1);
-            if (parentMatchError) {
-              console.log('Error loading match by parent_id:', parentMatchError.message);
-            }
-            surrogateId = parentMatches?.[0]?.surrogate_id || null;
-            if (!cancelled) setMatchId(parentMatches?.[0]?.id ?? null);
-          } catch (matchErr) {
-            console.error('Error fetching match:', matchErr);
-            if (!cancelled) setMatchId(null);
-          }
-
-          if (cancelled) return;
-
-          // Update ref FIRST (synchronous)
-          realMatchIdRef.current = surrogateId;
-          // Update matched state
-          setMatchedSurrogateId(surrogateId);
-          if (surrogateId) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', surrogateId)
-              .single();
-            if (!cancelled) {
-              console.log('📥 Fetched matched surrogate profile:', {
-                transfer_date: profile?.transfer_date,
-                transfer_embryo_day: profile?.transfer_embryo_day,
-                name: profile?.name,
-              });
-              setMatchedProfile(profile);
-            }
-          } else {
-            setMatchedProfile(null);
-          }
-          setMatchCheckInProgress(false);
-
-          console.log('Matched surrogate for parent:', surrogateId);
-
-          // Now fetch stage based on match
-          if (surrogateId) {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('progress_stage')
-              .eq('id', surrogateId)
-              .maybeSingle();
-            if (error) console.log('Error loading progress_stage (parent):', error.message);
-            const stage = data?.progress_stage || 'pre';
-            if (!cancelled) {
-              // Update ref FIRST (synchronous)
-              realStageRef.current = stage;
-              stageDataReadyRef.current = true;
-              setServerStage(stage);
-              setPostStage(stage);
-              setStageLoaded(true);
-              console.log('✅ fetchStage done (parent matched)', { stage, matchedSurrogateId: surrogateId, refStage: realStageRef.current });
-            }
-          } else {
-            // No match - default to pre
-            if (!cancelled) {
-              realStageRef.current = 'pre';
-              stageDataReadyRef.current = true;
-              setServerStage('pre');
-              setPostStage('pre');
-              setStageLoaded(true);
-              console.log('✅ fetchStage done (parent no match)', { stage: 'pre' });
-            }
-          }
+          console.log('🔄 Parent: match/stage via ParentMatchContext');
           return;
         }
 
@@ -1231,57 +1233,18 @@ export default function HomeScreen() {
       role: user?.role,
     });
     if (!user?.id || (user?.role || '').toLowerCase() !== 'parent') {
-      setMatchedSurrogateId(null);
-      setMatchId(null);
-      setMatchedProfile(null);
       return null;
     }
-    setMatchCheckInProgress(true);
-    let finalId = null;
     try {
-      const { data: parentMatches, error: parentMatchError } = await supabase
-        .from('surrogate_matches')
-        .select('id, surrogate_id, status')
-        .eq('parent_id', user.id)
-        .in('status', ['matched', 'active'])
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (parentMatchError) {
-        console.log('Error loading match by parent_id:', parentMatchError.message);
-      }
-
-      finalId = parentMatches?.[0]?.surrogate_id || null;
-      setMatchedSurrogateId(finalId);
-      setMatchId(parentMatches?.[0]?.id ?? null);
-      if (finalId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', finalId)
-          .single();
-        console.log('📥 Fetched matched surrogate profile (fetchMatchedSurrogate):', {
-          transfer_date: profile?.transfer_date,
-          transfer_embryo_day: profile?.transfer_embryo_day,
-          name: profile?.name,
-        });
-        setMatchedProfile(profile);
-      } else {
-        setMatchedProfile(null);
-      }
-      console.log('Matched surrogate for parent:', finalId);
+      const { activeMatch: am } = await parentMatch.refreshMatches();
+      const finalId = am?.surrogate_id || null;
+      console.log('🔄 fetchMatchedSurrogate done (parent)', { matchedSurrogateId: finalId });
+      return finalId;
     } catch (error) {
       console.error('Error fetching matched surrogate:', error);
-      setMatchedSurrogateId(null);
-      setMatchId(null);
-      setMatchedProfile(null);
-      finalId = null;
-    } finally {
-      setMatchCheckInProgress(false);
+      return null;
     }
-    console.log('🔄 fetchMatchedSurrogate done', { matchedSurrogateId: finalId });
-    return finalId;
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, parentMatch.refreshMatches]);
 
   // Reusable stage refresh function for pull-to-refresh
   const refreshStageData = useCallback(async () => {
@@ -1730,9 +1693,9 @@ export default function HomeScreen() {
               await checkSurrogateMatch();
             }
             
-            // Refresh matched surrogate for parent
+            // Refresh parent match list (active match syncs via context useEffect)
             if (isParent) {
-              await fetchMatchedSurrogate();
+              await parentMatch.refreshMatches();
             }
           } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
             console.log('[HomeScreen] ⚠️ Match removed or deactivated, clearing match state...');
@@ -1741,7 +1704,7 @@ export default function HomeScreen() {
             if (isSurrogate) {
               console.log('[HomeScreen] Setting hasSurrogateMatch to false');
               setHasSurrogateMatch(false);
-              setCurrentMatchId(null);
+              setMatchId(null);
             }
             if (isParent) {
               setMatchedSurrogateId(null);
@@ -1766,7 +1729,7 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Cleaning up match updates listener');
       supabase.removeChannel(channel);
     };
-  }, [user?.id, user?.role, refreshStageData, checkSurrogateMatch, fetchMatchedSurrogate]);
+  }, [user?.id, user?.role, refreshStageData, checkSurrogateMatch, fetchMatchedSurrogate, parentMatch.refreshMatches]);
 
   // 下拉刷新：刷新帖子 + 重新拉取匹配 + 阶段 + 医疗报告 + 积分 + 检查申请状态 + admin notes
   const onRefresh = useCallback(async () => {
@@ -2715,8 +2678,31 @@ export default function HomeScreen() {
                 <Text style={styles.progressText}>{t('home.inProgress')}</Text>
               </View>
             )}
+            {matchedSurrogateId &&
+              parentMatch.isParent &&
+              parentMatch.matches.length > 1 && (
+                <TouchableOpacity
+                  style={styles.parentMatchSwitchBtn}
+                  onPress={() => setShowParentMatchSwitcher(true)}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="shuffle" size={16} color="#fff" />
+                  <Text style={styles.parentMatchSwitchBtnText}>
+                    Switch surrogate ({parentMatch.matches.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
           </View>
         )}
+
+        <ParentMatchSwitcher
+          visible={showParentMatchSwitcher}
+          onClose={() => setShowParentMatchSwitcher(false)}
+          matches={parentMatch.matches}
+          activeMatchId={parentMatch.activeMatchId}
+          surrogateNames={parentMatch.surrogateNames}
+          onSelectMatch={(id) => parentMatch.setActiveMatchId(id)}
+        />
 
         {STAGE_OPTIONS.map((stage, index) => {
           const status = getStageStatus(stage.key); // past | current | future
@@ -4840,7 +4826,24 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     textAlign: 'right',
   },
-  
+  parentMatchSwitchBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignSelf: 'stretch',
+  },
+  parentMatchSwitchBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   // Enhanced Timeline Items
   iconCompleted: {
     backgroundColor: '#2A7BF6',
