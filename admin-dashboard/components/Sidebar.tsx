@@ -9,32 +9,33 @@ interface SidebarProps {
 
 export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
+  const roleLower = (userRole || '').toLowerCase();
 
   const allNavItems = [
     { href: '/', label: 'Applications', icon: '📋', allowedRoles: ['admin'] },
     { href: '/profiles', label: 'Sign Up', icon: '🪪', allowedRoles: ['admin'] },
-    { href: '/benefit-package', label: 'Benefit Package', icon: '📄', allowedRoles: ['admin', 'finance_manager'] },
-    { href: '/events', label: 'Blog', icon: '📝', allowedRoles: ['admin'] },
-    { href: '/matches', label: 'Matches', icon: '🤝', allowedRoles: ['admin', 'finance_manager'] },
+    { href: '/benefit-package', label: 'Benefit Package', icon: '📄', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
+    { href: '/events', label: 'Blog', icon: '📝', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/matches', label: 'Matches', icon: '🤝', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰', allowedRoles: ['admin', 'finance_manager'] },
-    { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️', allowedRoles: ['admin', 'finance_manager'] },
-    { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠', allowedRoles: ['admin'] },
-    { href: '/monthly-assessments', label: 'Monthly Assessments', icon: '📊', allowedRoles: ['admin'] },
-    { href: '/journey-pics', label: 'Journey Pics', icon: '📸', allowedRoles: ['admin'] },
+    { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
+    { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/monthly-assessments', label: 'Monthly Assessments', icon: '📊', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/journey-pics', label: 'Journey Pics', icon: '📸', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/business-statistics', label: 'Business Statistics', icon: '📈', adminOnly: true },
-    { href: '/support-tickets', label: 'Support Tickets', icon: '🎫', allowedRoles: ['admin'] },
-    { href: '/reward-requests', label: 'Reward Requests', icon: '🎁', allowedRoles: ['admin'] },
-    { href: '/referral-submissions', label: 'Referral Submissions', icon: '📨', allowedRoles: ['admin'] },
+    { href: '/support-tickets', label: 'Support Tickets', icon: '🎫', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/reward-requests', label: 'Reward Requests', icon: '🎁', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/referral-submissions', label: 'Referral Submissions', icon: '📨', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/branches', label: 'Branches', icon: '🏢', adminOnly: true },
     { href: '/branch-managers', label: 'Branch Managers', icon: '👥', adminOnly: true },
   ];
 
   // Filter nav items based on user role
   const navItems = allNavItems.filter(item => {
-    if (item.adminOnly && userRole !== 'admin') {
+    if (item.adminOnly && roleLower !== 'admin') {
       return false;
     }
-    if (item.allowedRoles && !item.allowedRoles.includes(userRole)) {
+    if (item.allowedRoles && !item.allowedRoles.includes(roleLower)) {
       return false;
     }
     return true;

@@ -24,13 +24,28 @@ import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
+import {
+  getPreviewStepTitle,
+  getPreviewFieldLabel,
+  getDeliveryLineLabels,
+} from '../i18n/surrogateApplicationPreviewI18n';
+
+function formatApplicationFieldKeyLabel(key) {
+  if (!key) return '';
+  return String(key)
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 const { width } = Dimensions.get('window');
 
 export default function MyMatchScreen({ navigation }) {
   const { user } = useAuth();
   const parentMatch = useParentMatch();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [matchData, setMatchData] = useState(null);
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [partnerApplication, setPartnerApplication] = useState(null);
@@ -330,7 +345,8 @@ export default function MyMatchScreen({ navigation }) {
           'parent_contract',
           'surrogate_contract',
           // 'online_claims', // Moved to User Center (ProfileScreen)
-          'trust_account',
+          // trust_account: surrogate My Match only (not shown to parents)
+          ...(isSurrogate ? ['trust_account'] : []),
         ];
 
         const { data: docs, error: docsError } = await supabase
@@ -819,9 +835,10 @@ export default function MyMatchScreen({ navigation }) {
     const isParent = userRole === 'parent';
     
     return (
-    <ScrollView 
+    <ScrollView
       contentContainerStyle={styles.unmatchedContainer}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.unmatchedContent}>
         <View style={styles.unmatchedIconContainer}>
@@ -831,28 +848,11 @@ export default function MyMatchScreen({ navigation }) {
         <Text style={styles.unmatchedDescription}>
           {t('myMatch.matchingDescription')}
         </Text>
-        
-        <View style={styles.timelineSteps}>
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepActive]} />
-            <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
-          </View>
-          <View style={styles.stepLine} />
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
-          </View>
-          <View style={styles.stepLine} />
-          <View style={styles.timelineStep}>
-            <View style={[styles.stepDot, styles.stepPending]} />
-            <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
-          </View>
-        </View>
 
           {/* Show available surrogates for parent users */}
           {isParent && (
             <View style={styles.availableSurrogatesSection}>
-              <Text style={styles.availableSurrogatesTitle}>Available Surrogates</Text>
+              <Text style={styles.availableSurrogatesTitle}>{t('myMatch.availableSurrogatesTitle')}</Text>
               {loadingSurrogates ? (
                 <ActivityIndicator size="small" color="#FF8EA4" style={styles.loadingIndicator} />
               ) : availableSurrogates.length > 0 ? (
@@ -879,7 +879,7 @@ export default function MyMatchScreen({ navigation }) {
                         </View>
                         <View style={styles.surrogateCardActions}>
                           <View style={styles.surrogateAvailableBadge}>
-                            <Text style={styles.surrogateAvailableBadgeText}>Available</Text>
+                            <Text style={styles.surrogateAvailableBadgeText}>{t('myMatch.available')}</Text>
                           </View>
                           <Icon name="chevron-right" size={20} color="#6E7191" style={styles.viewDetailsIcon} />
                         </View>
@@ -888,7 +888,7 @@ export default function MyMatchScreen({ navigation }) {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.noSurrogatesText}>No available surrogates at the moment.</Text>
+                <Text style={styles.noSurrogatesText}>{t('myMatch.noAvailableSurrogates')}</Text>
               )}
             </View>
           )}
@@ -957,13 +957,17 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'parental_rights',
       },
       // Online Claims moved to User Center (ProfileScreen)
-      ...(!isSurrogate ? [{
-        key: 'trust_account',
-        label: 'Trust Account',
-        icon: 'dollar-sign',
-        iconColor: '#2ECC71',
-        documentType: 'trust_account',
-      }] : []),
+      ...(isSurrogate
+        ? [
+            {
+              key: 'trust_account',
+              label: t('myMatch.trustAccount'),
+              icon: 'dollar-sign',
+              iconColor: '#2ECC71',
+              documentType: 'trust_account',
+            },
+          ]
+        : []),
     ];
     
     return (
@@ -1419,6 +1423,7 @@ export default function MyMatchScreen({ navigation }) {
     
     // Check if user is matched - if not matched, mask sensitive information
     const isMatched = !!matchData;
+    const naLabel = t('myMatch.notApplicable');
 
     // Resolve display value for a field (form data + profile fallback for contact info)
     const getFieldValue = (key) => {
@@ -1450,7 +1455,7 @@ export default function MyMatchScreen({ navigation }) {
 
     // Helper function to mask sensitive information
     const maskPhone = (phone) => {
-      if (!phone) return 'N/A';
+      if (!phone) return naLabel;
       if (isMatched) return phone;
       // Mask phone: show first 3 and last 4 digits
       if (phone.length >= 7) {
@@ -1460,7 +1465,7 @@ export default function MyMatchScreen({ navigation }) {
     };
     
     const maskEmail = (email) => {
-      if (!email) return 'N/A';
+      if (!email) return naLabel;
       if (isMatched) return email;
       // Mask email: show first 2 characters and domain
       const [localPart, domain] = email.split('@');
@@ -1473,7 +1478,7 @@ export default function MyMatchScreen({ navigation }) {
     
     // Mask address - hide street address with ***
     const maskAddress = (address) => {
-      if (!address) return 'N/A';
+      if (!address) return naLabel;
       if (isMatched) return address;
       // Replace street address with ***, keep city/state
       const parts = address.split(',').map(p => p.trim());
@@ -1485,24 +1490,15 @@ export default function MyMatchScreen({ navigation }) {
       return '*****';
     };
     
-    // Location doesn't need masking as it's already general information
-    const formatFieldLabel = (key) => {
-      if (!key) return '';
-      return String(key)
-        .replace(/[_-]+/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-    };
+    const resolveFieldLabel = (key) => getPreviewFieldLabel(key, language, formatApplicationFieldKeyLabel);
 
     const formatFieldValue = (key, value) => {
       const lowerKey = String(key || '').toLowerCase();
+      const dLab = getDeliveryLineLabels(language);
 
       if (lowerKey === 'deliveries') {
         let deliveriesValue = value;
 
-        // Handle JSON string payloads
         if (typeof deliveriesValue === 'string') {
           try {
             deliveriesValue = JSON.parse(deliveriesValue);
@@ -1511,7 +1507,6 @@ export default function MyMatchScreen({ navigation }) {
           }
         }
 
-        // Normalize to array
         const deliveriesArray = Array.isArray(deliveriesValue)
           ? deliveriesValue
           : deliveriesValue && typeof deliveriesValue === 'object'
@@ -1519,17 +1514,16 @@ export default function MyMatchScreen({ navigation }) {
           : [];
 
         if (deliveriesArray.length === 0) {
-          return typeof deliveriesValue === 'string' ? deliveriesValue : 'N/A';
+          return typeof deliveriesValue === 'string' ? deliveriesValue : naLabel;
         }
 
         const formatted = deliveriesArray.map((item, index) => {
           if (!item || typeof item !== 'object') {
-            return `Delivery ${index + 1}: ${String(item)}`;
+            return `${dLab.deliveryN} ${index + 1}: ${String(item)}`;
           }
 
           const parts = [];
 
-          // Date priority: full date fields, then year/month/day, then year only
           const dateValue =
             item.deliveryDate ||
             item.date ||
@@ -1541,30 +1535,32 @@ export default function MyMatchScreen({ navigation }) {
               ? String(item.year)
               : null);
 
-          if (dateValue) parts.push(`Date: ${dateValue}`);
-          if (item.conceptionMethod) parts.push(`Conception: ${item.conceptionMethod}`);
-          if (item.deliveryMethod) parts.push(`Delivery Method: ${item.deliveryMethod}`);
-          if (item.pregnancyResult) parts.push(`Pregnancy Result: ${item.pregnancyResult}`);
-          if (item.gestationWeeks) parts.push(`Gestation: ${item.gestationWeeks} weeks`);
-          if (item.fetusesCount) parts.push(`Fetuses: ${item.fetusesCount}`);
-          if (item.gender) parts.push(`Baby Gender: ${item.gender}`);
-          if (item.birthWeight) parts.push(`Birth Weight: ${item.birthWeight}`);
-          if (item.complications) parts.push(`Complications: ${item.complications}`);
+          if (dateValue) parts.push(`${dLab.date}: ${dateValue}`);
+          if (item.conceptionMethod) parts.push(`${dLab.conception}: ${item.conceptionMethod}`);
+          if (item.deliveryMethod) parts.push(`${dLab.deliveryMethod}: ${item.deliveryMethod}`);
+          if (item.pregnancyResult) parts.push(`${dLab.pregnancyResult}: ${item.pregnancyResult}`);
+          if (item.gestationWeeks) {
+            parts.push(`${dLab.gestation}: ${item.gestationWeeks} ${t('myMatch.weeksUnit')}`);
+          }
+          if (item.fetusesCount) parts.push(`${dLab.fetuses}: ${item.fetusesCount}`);
+          if (item.gender) parts.push(`${dLab.babyGender}: ${item.gender}`);
+          if (item.birthWeight) parts.push(`${dLab.birthWeight}: ${item.birthWeight}`);
+          if (item.complications) parts.push(`${dLab.complications}: ${item.complications}`);
 
           if (parts.length === 0) {
-            return `Delivery ${index + 1}: ${JSON.stringify(item)}`;
+            return `${dLab.deliveryN} ${index + 1}: ${JSON.stringify(item)}`;
           }
 
-          return `Delivery ${index + 1}\n${parts.join('\n')}`;
+          return `${dLab.deliveryN} ${index + 1}\n${parts.join('\n')}`;
         });
 
         return formatted.join('\n\n');
       }
 
-      if (value === null || value === undefined || value === '') return 'N/A';
-      if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+      if (value === null || value === undefined || value === '') return naLabel;
+      if (typeof value === 'boolean') return value ? t('profileDetail.yes') : t('profileDetail.no');
       if (Array.isArray(value)) {
-        if (value.length === 0) return 'N/A';
+        if (value.length === 0) return naLabel;
         return value
           .map((item) => {
             if (item === null || item === undefined || item === '') return null;
@@ -1652,20 +1648,21 @@ export default function MyMatchScreen({ navigation }) {
                 {SURROGATE_APPLICATION_STEPS.map(({ step, title, fields }) => {
                   const visibleFields = fields.filter((key) => hasValue(key));
                   if (visibleFields.length === 0) return null;
+                  const sectionTitle = getPreviewStepTitle(step, language, title);
                   return (
                     <View key={`step-${step}`} style={styles.detailSection}>
                       <View style={styles.detailSectionHeader}>
                         <Icon name="file-text" size={20} color="#FF8EA4" />
-                        <Text style={styles.detailSectionTitle}>{title}</Text>
+                        <Text style={styles.detailSectionTitle}>{sectionTitle}</Text>
                       </View>
                       {visibleFields.map((key) => {
                         const value = getFieldValue(key);
                         return (
                           <View key={`${step}-${key}`} style={styles.detailInfoRow}>
-                            <Text style={styles.detailLabel}>{formatFieldLabel(key)}</Text>
+                            <Text style={styles.detailLabel}>{resolveFieldLabel(key)}</Text>
                             <Text style={styles.detailValue}>{formatFieldValue(key, value)}</Text>
                             {!isMatched && (key === 'phoneNumber' || key === 'phone') && (
-                              <Text style={styles.maskedHint}>Contact information will be available after matching</Text>
+                              <Text style={styles.maskedHint}>{t('myMatch.contactVisibleAfterMatch')}</Text>
                             )}
                           </View>
                         );
@@ -1708,11 +1705,13 @@ const styles = StyleSheet.create({
   },
   // Unmatched Styles
   unmatchedContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    flexGrow: 1,
+    justifyContent: 'flex-start',
     padding: 24,
+    paddingBottom: 120,
   },
   unmatchedContent: {
+    width: '100%',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 32,
@@ -1762,44 +1761,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
-  timelineSteps: {
-    width: '100%',
-    marginBottom: 40,
-    paddingHorizontal: 20,
-  },
-  timelineStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
-  stepDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 16,
-  },
-  stepActive: {
-    backgroundColor: '#FF8EA4',
-    shadowColor: '#FF8EA4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-  },
-  stepPending: {
-    backgroundColor: '#E0E7EE',
-  },
-  stepText: {
-    fontSize: 15,
-    color: '#4E5D78',
-    fontWeight: '600',
-  },
-  stepLine: {
-    width: 2,
-    height: 24,
-    backgroundColor: '#E0E7EE',
-    marginLeft: 7,
-    marginVertical: 6,
-  },
   // Available Surrogates Section
   availableSurrogatesSection: {
     width: '100%',
@@ -1815,7 +1776,6 @@ const styles = StyleSheet.create({
   },
   surrogatesList: {
     gap: 12,
-    maxHeight: 400,
   },
   surrogateCard: {
     backgroundColor: '#fff',
