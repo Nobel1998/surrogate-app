@@ -93,11 +93,12 @@ export default function MonthlyAssessmentsPage() {
       // Load matches and enrich with surrogate and parent names
       const matchesList = matchesData.matches || [];
       const profiles = matchesData.profiles || [];
-      
+
       const profilesMap = new Map<string, Profile>(profiles.map((p: Profile) => [p.id, p]));
-      
-      const enrichedMatches = matchesList
-        .filter((m: Match) => m.status === 'active')
+
+      const terminalMatchStatuses = new Set(['cancelled', 'completed']);
+      const enrichedMatches = (matchesList as Match[])
+        .filter((m: Match) => !terminalMatchStatuses.has(String(m.status || '').toLowerCase()))
         .map((match: any) => {
           const surrogate: Profile | undefined = profilesMap.get(match.surrogate_id);
           const parent: Profile | undefined = profilesMap.get(match.parent_id);
@@ -116,7 +117,7 @@ export default function MonthlyAssessmentsPage() {
             } : undefined,
           };
         });
-      
+
       setMatches(enrichedMatches);
 
       // Load assessments
