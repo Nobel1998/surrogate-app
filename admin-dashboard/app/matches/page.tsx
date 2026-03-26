@@ -59,6 +59,7 @@ type Match = {
   due_date?: string | null;
   legal_clearance_date?: string | null;
   medication_start_date?: string | null;
+  menstrual_period_date?: string | null;
   pregnancy_test_date?: string | null;
   clinic?: string | null;
   embryos?: string | null;
@@ -202,6 +203,8 @@ export default function MatchesPage() {
   const [legalClearanceDateValue, setLegalClearanceDateValue] = useState<string>('');
   const [editingMedicationStartDate, setEditingMedicationStartDate] = useState<string | null>(null);
   const [medicationStartDateValue, setMedicationStartDateValue] = useState<string>('');
+  const [editingMenstrualPeriodDate, setEditingMenstrualPeriodDate] = useState<string | null>(null);
+  const [menstrualPeriodDateValue, setMenstrualPeriodDateValue] = useState<string>('');
   // Text fields
   const [editingClinic, setEditingClinic] = useState<string | null>(null);
   const [clinicValue, setClinicValue] = useState<string>('');
@@ -891,6 +894,32 @@ export default function MatchesPage() {
     } catch (err: any) {
       console.error('[matches] Error updating Medication Start Date:', err);
       alert(err.message || 'Failed to update Medication Start Date');
+    }
+  };
+
+  const handleUpdateMenstrualPeriodDate = async (matchId: string) => {
+    try {
+      const dateValue = menstrualPeriodDateValue.trim() || null;
+      const res = await fetch(`/api/cases/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menstrual_period_date: dateValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update Menstrual Period Date');
+      }
+
+      await loadData();
+      setEditingMenstrualPeriodDate(null);
+      setMenstrualPeriodDateValue('');
+      alert('Menstrual Period Date updated successfully');
+    } catch (err: any) {
+      console.error('[matches] Error updating Menstrual Period Date:', err);
+      alert(err.message || 'Failed to update Menstrual Period Date');
     }
   };
 
@@ -4206,6 +4235,66 @@ export default function MatchesPage() {
                                 {m.medication_start_date 
                                   ? formatDateOnly(m.medication_start_date)
                                   : <span className="text-gray-400 italic">Click to add</span>}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className={FIELD_LABEL_CLASS}>Menstrual Period Date</div>
+                            {editingMenstrualPeriodDate === m.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={menstrualPeriodDateValue}
+                                  onChange={(e) => setMenstrualPeriodDateValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleUpdateMenstrualPeriodDate(m.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingMenstrualPeriodDate(null);
+                                      setMenstrualPeriodDateValue('');
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateMenstrualPeriodDate(m.id)}
+                                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingMenstrualPeriodDate(null);
+                                    setMenstrualPeriodDateValue('');
+                                  }}
+                                  className="px-2 py-1 text-xs bg-gray-400 hover:bg-gray-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
+                                onClick={() => {
+                                  setEditingMenstrualPeriodDate(m.id);
+                                  if (m.menstrual_period_date) {
+                                    const date = new Date(m.menstrual_period_date);
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    setMenstrualPeriodDateValue(`${year}-${month}-${day}`);
+                                  } else {
+                                    setMenstrualPeriodDateValue('');
+                                  }
+                                }}
+                                title="Click to edit Menstrual Period Date"
+                              >
+                                {m.menstrual_period_date ? (
+                                  formatDateOnly(m.menstrual_period_date)
+                                ) : (
+                                  <span className="text-gray-400 italic">Click to add</span>
+                                )}
                               </div>
                             )}
                           </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
+import { getAccessibleMatchIds } from '@/lib/managerMatchScope';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -177,6 +178,9 @@ export async function PATCH(
   try {
     const cookieStore = await cookies();
     const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
     if (await isReadOnlyBranchManager(supabase, adminUserId)) {
       return NextResponse.json(
         { error: 'View-only access. You cannot modify data.' },
@@ -185,6 +189,34 @@ export async function PATCH(
     }
     const { id: matchId } = await params;
     const body = await req.json();
+
+    const { data: adminRow, error: adminErr } = await supabase
+      .from('admin_users')
+      .select('id, role, read_only')
+      .eq('id', adminUserId)
+      .single();
+    if (adminErr || !adminRow) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+    const roleLower = String(adminRow.role || '').toLowerCase();
+    const canEdit =
+      roleLower === 'admin' ||
+      (roleLower === 'branch_manager' && !adminRow.read_only);
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: 'You do not have permission to modify matches.' },
+        { status: 403 }
+      );
+    }
+
+    // Scoped managers (branch_manager / case_manager) can only update accessible matches.
+    const accessible = await getAccessibleMatchIds(supabase, adminUserId, roleLower);
+    if (accessible !== null && !accessible.includes(matchId)) {
+      return NextResponse.json(
+        { error: 'You do not have access to this match.' },
+        { status: 403 }
+      );
+    }
 
     const updateData = {
       ...body,
