@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -27,6 +27,11 @@ const ADMIN_NOTE_STAGES: { value: string; label: string }[] = [
 const ADMIN_NOTE_STAGE_LABEL: Record<string, string> = Object.fromEntries(
   ADMIN_NOTE_STAGES.map((s) => [s.value, s.label])
 );
+
+const MAX_ADMIN_NOTE_IMAGES = 6;
+const MAX_ADMIN_NOTE_IMAGE_MB = 8;
+
+type PendingAdminNoteImage = { file: File; url: string };
 
 type CaseDetail = {
   id: string;
@@ -87,6 +92,8 @@ export default function StepStatusPage() {
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [adminUpdate, setAdminUpdate] = useState('');
   const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
+  const [pendingAdminNoteImages, setPendingAdminNoteImages] = useState<PendingAdminNoteImage[]>([]);
+  const adminNoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [updates, setUpdates] = useState<any[]>([]);
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [obAppointments, setObAppointments] = useState<any[]>([]);
@@ -350,31 +357,99 @@ export default function StepStatusPage() {
     return String(value);
   };
 
+  const clearPendingAdminNoteImages = () => {
+    setPendingAdminNoteImages((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      return [];
+    });
+  };
+
+  const validateAndAppendAdminNoteFiles = (fileList: FileList | null) => {
+    if (!fileList?.length) return;
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxBytes = MAX_ADMIN_NOTE_IMAGE_MB * 1024 * 1024;
+
+    setPendingAdminNoteImages((prev) => {
+      const toAdd: PendingAdminNoteImage[] = [];
+      let count = prev.length;
+      for (let i = 0; i < fileList.length; i++) {
+        if (count >= MAX_ADMIN_NOTE_IMAGES) {
+          alert(`You can attach at most ${MAX_ADMIN_NOTE_IMAGES} images`);
+          break;
+        }
+        const file = fileList[i];
+        const mime = (file.type || '').toLowerCase();
+        const nameOk = /\.(jpe?g|png|webp)$/i.test(file.name);
+        if (mime && !allowed.includes(mime) && !nameOk) {
+          alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+          continue;
+        }
+        if (!mime && !nameOk) {
+          alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+          continue;
+        }
+        if (file.size > maxBytes) {
+          alert(`${file.name}: each image must be at most ${MAX_ADMIN_NOTE_IMAGE_MB}MB`);
+          continue;
+        }
+        toAdd.push({ file, url: URL.createObjectURL(file) });
+        count++;
+      }
+      if (toAdd.length === 0) return prev;
+      return [...prev, ...toAdd].slice(0, MAX_ADMIN_NOTE_IMAGES);
+    });
+  };
+
+  const removePendingAdminNoteImage = (index: number) => {
+    setPendingAdminNoteImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.url);
+      return next;
+    });
+  };
+
   const saveAdminUpdate = async () => {
-    if (!adminUpdate.trim()) {
-      alert('Please enter an update');
+    if (!adminUpdate.trim() && pendingAdminNoteImages.length === 0) {
+      alert('Please enter note text or add at least one image');
       return;
     }
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/cases/${caseId}/updates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          update_type: 'admin_note',
-          title: 'Admin Update',
-          content: adminUpdate,
-          stage: adminNoteStage,
-        }),
-      });
+      let res: Response;
+      if (pendingAdminNoteImages.length > 0) {
+        const fd = new FormData();
+        fd.append('update_type', 'admin_note');
+        fd.append('title', 'Admin Update');
+        fd.append('content', adminUpdate);
+        fd.append('stage', adminNoteStage);
+        pendingAdminNoteImages.forEach((p) => fd.append('images', p.file));
+        res = await fetch(`/api/cases/${caseId}/updates`, {
+          method: 'POST',
+          body: fd,
+        });
+      } else {
+        res = await fetch(`/api/cases/${caseId}/updates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            update_type: 'admin_note',
+            title: 'Admin Update',
+            content: adminUpdate,
+            stage: adminNoteStage,
+          }),
+        });
+      }
 
       if (!res.ok) {
-        throw new Error('Failed to save update');
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to save update');
       }
 
       setAdminUpdate('');
       setAdminNoteStage('pre_transfer');
+      clearPendingAdminNoteImages();
       await loadData();
       alert('Update saved successfully');
     } catch (err: any) {
@@ -894,6 +969,26 @@ export default function StepStatusPage() {
                       </button>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.content}</p>
+                    {Array.isArray(update.images) && update.images.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {update.images.map((img: any) => (
+                          <a
+                            key={img.id}
+                            href={img.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.image_url}
+                              alt={img.file_name || 'Attachment'}
+                              className="h-20 w-20 object-cover rounded-md border border-gray-200 hover:opacity-90"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -948,11 +1043,59 @@ export default function StepStatusPage() {
                 className="w-full h-32 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Images (optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Up to {MAX_ADMIN_NOTE_IMAGES} images (JPG, PNG, WebP), {MAX_ADMIN_NOTE_IMAGE_MB}MB each.
+                </p>
+                <input
+                  ref={adminNoteFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    validateAndAppendAdminNoteFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => adminNoteFileInputRef.current?.click()}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 text-gray-800"
+                >
+                  Add images
+                </button>
+                {pendingAdminNoteImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {pendingAdminNoteImages.map((p, idx) => (
+                      <div key={p.url} className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.url}
+                          alt=""
+                          className="h-20 w-20 object-cover rounded-md border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePendingAdminNoteImage(idx)}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mt-4">
                 <button
                   onClick={saveAdminUpdate}
                   disabled={saving}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
-                >
+                    >
                   {saving ? 'Saving...' : 'Save Update'}
                 </button>
               </div>

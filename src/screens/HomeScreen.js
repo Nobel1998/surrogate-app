@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Linking } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Image, Alert, Modal, TextInput, Platform, StatusBar, Share, RefreshControl, ActivityIndicator, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Linking, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -74,6 +74,44 @@ import { useParentMatch } from '../context/ParentMatchContext';
 import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 
+function AdminNoteImageThumb({ uri, onPress, style, resizeMode = 'cover' }) {
+  const [failed, setFailed] = useState(false);
+  const flat = StyleSheet.flatten(style) || {};
+  const borderRadius = flat.borderRadius ?? 12;
+  if (failed || !uri) {
+    return (
+      <View
+        style={[
+          style,
+          {
+            backgroundColor: '#E8ECF1',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden',
+            borderRadius,
+          },
+        ]}
+      >
+        <Icon name="image" size={26} color="#94A3B8" />
+      </View>
+    );
+  }
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.88}
+      style={[style, { overflow: 'hidden', borderRadius }]}
+    >
+      <Image
+        source={{ uri }}
+        style={{ width: '100%', height: '100%' }}
+        resizeMode={resizeMode}
+        onError={() => setFailed(true)}
+      />
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
@@ -107,6 +145,12 @@ export default function HomeScreen() {
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
   const [matchId, setMatchId] = useState(null); // surrogate_matches.id for fetching admin notes
   const [adminNotes, setAdminNotes] = useState([]);
+  const [adminNoteImageViewer, setAdminNoteImageViewer] = useState({
+    visible: false,
+    urls: [],
+    index: 0,
+  });
+  const adminNoteGalleryScrollRef = useRef(null);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
@@ -1364,7 +1408,7 @@ export default function HomeScreen() {
       return;
     }
     try {
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('match_updates')
         .select('id, title, content, created_at, stage')
         .eq('match_id', matchId)
@@ -1375,12 +1419,97 @@ export default function HomeScreen() {
         setAdminNotes([]);
         return;
       }
-      setAdminNotes(data || []);
+      const notes = rows || [];
+      const ids = notes.map((n) => n.id).filter(Boolean);
+      const imagesByUpdate = {};
+      if (ids.length > 0) {
+        const { data: imgs, error: imgErr } = await supabase
+          .from('match_update_images')
+          .select('id, update_id, image_url, file_name, sort_order')
+          .in('update_id', ids);
+        if (imgErr) {
+          console.warn('Error fetching admin note images:', imgErr);
+        } else {
+          for (const img of imgs || []) {
+            const uid = img.update_id;
+            if (!imagesByUpdate[uid]) imagesByUpdate[uid] = [];
+            imagesByUpdate[uid].push(img);
+          }
+          Object.keys(imagesByUpdate).forEach((k) => {
+            imagesByUpdate[k].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          });
+        }
+      }
+      setAdminNotes(notes.map((n) => ({ ...n, images: imagesByUpdate[n.id] || [] })));
     } catch (err) {
       console.error('Error in fetchAdminNotes:', err);
       setAdminNotes([]);
     }
   }, [matchId]);
+
+  useEffect(() => {
+    if (!adminNoteImageViewer.visible || !adminNoteGalleryScrollRef.current || !adminNoteImageViewer.urls.length)
+      return;
+    const w = Dimensions.get('window').width;
+    const idx = Math.min(adminNoteImageViewer.index, adminNoteImageViewer.urls.length - 1);
+    requestAnimationFrame(() => {
+      adminNoteGalleryScrollRef.current?.scrollTo?.({ x: idx * w, animated: false });
+    });
+  }, [adminNoteImageViewer.visible, adminNoteImageViewer.index, adminNoteImageViewer.urls]);
+
+  const openAdminNoteGallery = useCallback((urls, startIndex) => {
+    if (!urls?.length) return;
+    setAdminNoteImageViewer({
+      visible: true,
+      urls,
+      index: Math.min(startIndex, urls.length - 1),
+    });
+  }, []);
+
+  const renderAdminNoteImages = (note) => {
+    const sorted = (note.images || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const urls = sorted.map((i) => i.image_url).filter(Boolean);
+    if (!urls.length) return null;
+
+    const gap = 8;
+    const screenW = Dimensions.get('window').width;
+    const contentW = Math.max(220, screenW - 48);
+
+    if (urls.length === 1) {
+      const h = Math.round(contentW * 0.55);
+      return (
+        <View style={styles.adminNoteImagesWrap}>
+          <AdminNoteImageThumb
+            uri={urls[0]}
+            onPress={() => openAdminNoteGallery(urls, 0)}
+            style={{ width: contentW, height: h, borderRadius: 12 }}
+          />
+        </View>
+      );
+    }
+
+    const cell = Math.floor((contentW - gap) / 2);
+    return (
+      <View style={[styles.adminNoteImagesWrap, styles.adminNoteImageGrid]}>
+        {urls.map((u, idx) => (
+          <View
+            key={`${note.id}-img-${idx}`}
+            style={{
+              width: cell,
+              marginRight: idx % 2 === 0 ? gap : 0,
+              marginBottom: gap,
+            }}
+          >
+            <AdminNoteImageThumb
+              uri={u}
+              onPress={() => openAdminNoteGallery(urls, idx)}
+              style={{ width: cell, height: cell, borderRadius: 10 }}
+            />
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   // Fetch user points
   const backfillPointsForHistoricalMedicalReports = useCallback(async () => {
@@ -2997,6 +3126,7 @@ export default function HomeScreen() {
                       </View>
                     ) : null}
                     <Text style={styles.adminNoteContent}>{note.content || ''}</Text>
+                    {renderAdminNoteImages(note)}
                     <Text style={styles.adminNoteDate}>
                       {note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
                     </Text>
@@ -3055,6 +3185,74 @@ export default function HomeScreen() {
           </View>
         </>
       )}
+
+      {/* Admin note images full-screen viewer */}
+      <Modal
+        visible={adminNoteImageViewer.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setAdminNoteImageViewer({ visible: false, urls: [], index: 0 })
+        }
+      >
+        <View style={styles.adminNoteGalleryOverlay}>
+          <TouchableOpacity
+            style={styles.adminNoteGalleryClose}
+            onPress={() =>
+              setAdminNoteImageViewer({ visible: false, urls: [], index: 0 })
+            }
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Icon name="x" size={28} color="#fff" />
+          </TouchableOpacity>
+          <ScrollView
+            ref={adminNoteGalleryScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={styles.adminNoteGalleryScroll}
+            onMomentumScrollEnd={(e) => {
+              const w = Dimensions.get('window').width;
+              const page = Math.round(e.nativeEvent.contentOffset.x / w);
+              setAdminNoteImageViewer((v) => ({
+                ...v,
+                index: Math.max(0, Math.min(page, v.urls.length - 1)),
+              }));
+            }}
+          >
+            {adminNoteImageViewer.urls.map((uri, i) => {
+              const win = Dimensions.get('window');
+              return (
+                <View
+                  key={`admin-note-full-${i}`}
+                  style={{
+                    width: win.width,
+                    flexGrow: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 12,
+                  }}
+                >
+                  <Image
+                    source={{ uri }}
+                    style={{
+                      width: win.width - 24,
+                      height: Math.min(520, win.height * 0.72),
+                    }}
+                    resizeMode="contain"
+                  />
+                </View>
+              );
+            })}
+          </ScrollView>
+          {adminNoteImageViewer.urls.length > 1 ? (
+            <Text style={styles.adminNoteGalleryHint}>
+              Swipe — {adminNoteImageViewer.index + 1} / {adminNoteImageViewer.urls.length}
+            </Text>
+          ) : null}
+        </View>
+      </Modal>
 
       {/* Post Modal */}
       <Modal
@@ -3958,6 +4156,37 @@ const styles = StyleSheet.create({
   adminNoteDate: {
     fontSize: 12,
     color: '#94A3B8',
+    fontWeight: '500',
+  },
+  adminNoteImagesWrap: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  adminNoteImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  adminNoteGalleryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+  },
+  adminNoteGalleryScroll: {
+    flex: 1,
+  },
+  adminNoteGalleryClose: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 54 : 40,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  adminNoteGalleryHint: {
+    position: 'absolute',
+    bottom: 36,
+    alignSelf: 'center',
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
     fontWeight: '500',
   },
   adminNotesEmpty: {
