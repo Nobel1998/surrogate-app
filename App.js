@@ -37,7 +37,7 @@ import { AppProvider } from './src/context/AppContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ParentMatchProvider } from './src/context/ParentMatchContext';
-import { LanguageProvider } from './src/context/LanguageContext';
+import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { supabase } from './src/lib/supabase';
 
@@ -47,6 +47,7 @@ const Stack = createStackNavigator();
 // Main App Navigator with Tabs
 function MainTabNavigator() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [hasApplication, setHasApplication] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const refreshKey = useRef(0);
@@ -202,10 +203,26 @@ function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="My Journey" component={HomeScreen} />
-      <Tab.Screen name="My Match" component={MyMatchScreen} />
-      <Tab.Screen name="Blog" component={EventScreen} />
-      <Tab.Screen name="User Center" component={ProfileScreen} />
+      <Tab.Screen
+        name="My Journey"
+        component={HomeScreen}
+        options={{ tabBarLabel: t('tabs.myJourney') }}
+      />
+      <Tab.Screen
+        name="My Match"
+        component={MyMatchScreen}
+        options={{ tabBarLabel: t('tabs.myMatch') }}
+      />
+      <Tab.Screen
+        name="Blog"
+        component={EventScreen}
+        options={{ tabBarLabel: t('tabs.blog') }}
+      />
+      <Tab.Screen
+        name="User Center"
+        component={ProfileScreen}
+        options={{ tabBarLabel: t('tabs.userCenter') }}
+      />
     </Tab.Navigator>
   );
 }
@@ -215,6 +232,8 @@ const LoginTabPlaceholder = () => <View style={{ flex: 1, backgroundColor: '#fff
 
 // Guest Tab Navigator for unauthenticated users
 function GuestTabNavigator() {
+  const { t } = useLanguage();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -233,11 +252,15 @@ function GuestTabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Blog" component={EventScreen} />
+      <Tab.Screen
+        name="Blog"
+        component={EventScreen}
+        options={{ tabBarLabel: t('tabs.blog') }}
+      />
       <Tab.Screen 
         name="LoginTab" 
         component={LoginTabPlaceholder}
-        options={{ tabBarLabel: 'Log In' }}
+        options={{ tabBarLabel: t('tabs.logIn') }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();

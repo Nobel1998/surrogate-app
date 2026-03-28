@@ -666,7 +666,7 @@ export default function MyMatchScreen({ navigation }) {
   // Save pregnancy history
   const savePregnancyHistory = async () => {
     if (!user?.id || userRole !== 'surrogate' || !matchData?.id) {
-      Alert.alert('Error', 'You must be a surrogate with an active match to save pregnancy history.');
+      Alert.alert(t('common.error'), t('myMatch.pregnancyHistoryErrorNotSurrogate'));
       return;
     }
 
@@ -677,7 +677,12 @@ export default function MyMatchScreen({ navigation }) {
       if (medicationStartDate.trim()) {
         const parsed = parseMMDDYYToISO(medicationStartDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter medication start date in format: MM/DD/YY');
+          Alert.alert(
+            t('myMatch.pregnancyHistoryInvalidTitle'),
+            t('myMatch.pregnancyHistoryInvalidFormat', {
+              field: t('myMatch.pregnancyHistoryMedicationStart'),
+            })
+          );
           setSavingPregnancyHistory(false);
           return;
         }
@@ -689,7 +694,10 @@ export default function MyMatchScreen({ navigation }) {
       if (transferDate.trim()) {
         const parsed = parseMMDDYYToISO(transferDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter transfer date in format: MM/DD/YY');
+          Alert.alert(
+            t('myMatch.pregnancyHistoryInvalidTitle'),
+            t('myMatch.pregnancyHistoryInvalidFormat', { field: t('myMatch.pregnancyHistoryTransfer') })
+          );
           setSavingPregnancyHistory(false);
           return;
         }
@@ -701,7 +709,10 @@ export default function MyMatchScreen({ navigation }) {
       if (dueDate.trim()) {
         const parsed = parseMMDDYYToISO(dueDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter due date in format: MM/DD/YY');
+          Alert.alert(
+            t('myMatch.pregnancyHistoryInvalidTitle'),
+            t('myMatch.pregnancyHistoryInvalidFormat', { field: t('myMatch.pregnancyHistoryDue') })
+          );
           setSavingPregnancyHistory(false);
           return;
         }
@@ -713,7 +724,10 @@ export default function MyMatchScreen({ navigation }) {
       if (betaTestDate.trim()) {
         const parsed = parseMMDDYYToISO(betaTestDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter beta test date in format: MM/DD/YY');
+          Alert.alert(
+            t('myMatch.pregnancyHistoryInvalidTitle'),
+            t('myMatch.pregnancyHistoryInvalidFormat', { field: t('myMatch.pregnancyHistoryBetaTest') })
+          );
           setSavingPregnancyHistory(false);
           return;
         }
@@ -725,7 +739,12 @@ export default function MyMatchScreen({ navigation }) {
       if (fetalHeartbeatDate.trim()) {
         const parsed = parseMMDDYYToISO(fetalHeartbeatDate.trim());
         if (!parsed) {
-          Alert.alert('Invalid Format', 'Please enter fetal heartbeat date in format: MM/DD/YY');
+          Alert.alert(
+            t('myMatch.pregnancyHistoryInvalidTitle'),
+            t('myMatch.pregnancyHistoryInvalidFormat', {
+              field: t('myMatch.pregnancyHistoryFetalHeartbeat'),
+            })
+          );
           setSavingPregnancyHistory(false);
           return;
         }
@@ -744,15 +763,15 @@ export default function MyMatchScreen({ navigation }) {
 
       if (error) {
         console.error('Error updating pregnancy history:', error);
-        Alert.alert('Error', 'Failed to save pregnancy history. Please try again.');
+        Alert.alert(t('common.error'), t('myMatch.pregnancyHistorySaveError'));
         return;
       }
 
-      Alert.alert('Success', 'Pregnancy history saved successfully.');
+      Alert.alert(t('common.success'), t('myMatch.pregnancyHistorySaveSuccess'));
       loadMatchData();
     } catch (error) {
       console.error('Error in savePregnancyHistory:', error);
-      Alert.alert('Error', 'Failed to save pregnancy history. Please try again.');
+      Alert.alert(t('common.error'), t('myMatch.pregnancyHistorySaveError'));
     } finally {
       setSavingPregnancyHistory(false);
     }
@@ -1168,16 +1187,22 @@ export default function MyMatchScreen({ navigation }) {
 
         {/* Pregnancy History Section */}
         <View style={styles.pregnancyHistorySection}>
-          <Text style={styles.sectionTitle}>Pregnancy History</Text>
+          <Text style={styles.sectionTitle}>{t('myMatch.pregnancyHistoryTitle')}</Text>
           <View style={styles.pregnancyHistoryCard}>
             <View style={styles.pregnancyHistoryItem}>
-              <Text style={styles.pregnancyHistoryLabel}>Medication Start Date</Text>
+              <Text style={styles.pregnancyHistoryLabel}>
+                {t('myMatch.pregnancyHistoryMedicationStart')}
+              </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
                 <Icon name="calendar" size={18} color="#94A3B8" />
                 <TextInput
                   value={medicationStartDate}
                   onChangeText={setMedicationStartDate}
-                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholder={
+                    isSurrogate
+                      ? t('myMatch.pregnancyHistoryDatePlaceholder')
+                      : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
+                  }
                   placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
                   style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
@@ -1186,13 +1211,19 @@ export default function MyMatchScreen({ navigation }) {
             </View>
 
             <View style={styles.pregnancyHistoryItem}>
-              <Text style={styles.pregnancyHistoryLabel}>Transfer Date</Text>
+              <Text style={styles.pregnancyHistoryLabel}>
+                {t('myMatch.pregnancyHistoryTransfer')}
+              </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
                 <Icon name="calendar" size={18} color="#94A3B8" />
                 <TextInput
                   value={transferDate}
                   onChangeText={setTransferDate}
-                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholder={
+                    isSurrogate
+                      ? t('myMatch.pregnancyHistoryDatePlaceholder')
+                      : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
+                  }
                   placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
                   style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
@@ -1201,13 +1232,19 @@ export default function MyMatchScreen({ navigation }) {
             </View>
 
             <View style={styles.pregnancyHistoryItem}>
-              <Text style={styles.pregnancyHistoryLabel}>Beta Test Date</Text>
+              <Text style={styles.pregnancyHistoryLabel}>
+                {t('myMatch.pregnancyHistoryBetaTest')}
+              </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
                 <Icon name="heart" size={18} color="#94A3B8" />
                 <TextInput
                   value={betaTestDate}
                   onChangeText={setBetaTestDate}
-                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholder={
+                    isSurrogate
+                      ? t('myMatch.pregnancyHistoryDatePlaceholder')
+                      : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
+                  }
                   placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
                   style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
@@ -1216,13 +1253,19 @@ export default function MyMatchScreen({ navigation }) {
             </View>
 
             <View style={styles.pregnancyHistoryItem}>
-              <Text style={styles.pregnancyHistoryLabel}>Fetal Heartbeat Confirmation Date</Text>
+              <Text style={styles.pregnancyHistoryLabel}>
+                {t('myMatch.pregnancyHistoryFetalHeartbeat')}
+              </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
                 <Icon name="activity" size={18} color="#94A3B8" />
                 <TextInput
                   value={fetalHeartbeatDate}
                   onChangeText={setFetalHeartbeatDate}
-                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholder={
+                    isSurrogate
+                      ? t('myMatch.pregnancyHistoryDatePlaceholder')
+                      : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
+                  }
                   placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
                   style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
@@ -1231,13 +1274,17 @@ export default function MyMatchScreen({ navigation }) {
             </View>
 
             <View style={styles.pregnancyHistoryItem}>
-              <Text style={styles.pregnancyHistoryLabel}>Due Date</Text>
+              <Text style={styles.pregnancyHistoryLabel}>{t('myMatch.pregnancyHistoryDue')}</Text>
               <View style={styles.pregnancyHistoryInputContainer}>
                 <Icon name="calendar" size={18} color="#94A3B8" />
                 <TextInput
                   value={dueDate}
                   onChangeText={setDueDate}
-                  placeholder={isSurrogate ? "MM/DD/YY" : "-"}
+                  placeholder={
+                    isSurrogate
+                      ? t('myMatch.pregnancyHistoryDatePlaceholder')
+                      : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
+                  }
                   placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
                   style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
@@ -1255,7 +1302,9 @@ export default function MyMatchScreen({ navigation }) {
                 {savingPregnancyHistory ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.savePregnancyHistoryButtonText}>Save Pregnancy History</Text>
+                  <Text style={styles.savePregnancyHistoryButtonText}>
+                    {t('myMatch.savePregnancyHistory')}
+                  </Text>
                 )}
               </TouchableOpacity>
             )}
@@ -1264,7 +1313,7 @@ export default function MyMatchScreen({ navigation }) {
 
         {/* Medical & Appointments Section */}
         <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Medical & Appointments</Text>
+          <Text style={styles.sectionTitle}>{t('myMatch.medicalAppointmentsTitle')}</Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}
@@ -1282,7 +1331,7 @@ export default function MyMatchScreen({ navigation }) {
               <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
                 <Icon name="calendar" size={24} color="#10B981" />
               </View>
-              <Text style={styles.quickActionLabel}>OB Appointments</Text>
+              <Text style={styles.quickActionLabel}>{t('myMatch.obAppointments')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionCard}
@@ -1291,7 +1340,7 @@ export default function MyMatchScreen({ navigation }) {
               <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
                 <Icon name="calendar" size={24} color="#3B82F6" />
               </View>
-              <Text style={styles.quickActionLabel}>IVF Appointments</Text>
+              <Text style={styles.quickActionLabel}>{t('myMatch.ivfAppointments')}</Text>
             </TouchableOpacity>
           </View>
         </View>

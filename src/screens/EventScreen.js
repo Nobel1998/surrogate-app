@@ -1,14 +1,16 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function EventScreen() {
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const { 
     events, 
     likedEvents, 
@@ -36,26 +38,26 @@ export default function EventScreen() {
   const handleRegister = async (event) => {
     if (!isAuthenticated) {
       Alert.alert(
-        'Login Required',
-        'Please log in to register for events.',
-        [{ text: 'OK', onPress: () => navigation.navigate('LoginScreen') }]
+        t('blog.loginRequired'),
+        t('blog.loginRequiredRegister'),
+        [{ text: t('blog.ok'), onPress: () => navigation.navigate('LoginScreen') }]
       );
       return;
     }
 
     Alert.alert(
-      'Register for Event',
-      `Do you want to register for "${event.title}"?`,
+      t('blog.registerForEvent'),
+      t('blog.registerConfirm', { title: event.title }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Register', 
+          text: t('blog.register'), 
           onPress: async () => {
             const result = await registerForEvent(event.id);
             if (result.success) {
-              Alert.alert('Success', 'You have been registered for this event!');
+              Alert.alert(t('common.success'), t('blog.registerSuccess'));
             } else {
-              Alert.alert('Error', result.error || 'Failed to register for event');
+              Alert.alert(t('common.error'), result.error || t('blog.registerFailed'));
             }
           }
         }
@@ -67,9 +69,9 @@ export default function EventScreen() {
   const handleLike = async (eventId) => {
     if (!isAuthenticated) {
       Alert.alert(
-        'Login Required',
-        'Please log in to like events.',
-        [{ text: 'OK', onPress: () => navigation.navigate('LoginScreen') }]
+        t('blog.loginRequired'),
+        t('blog.loginRequiredLike'),
+        [{ text: t('blog.ok'), onPress: () => navigation.navigate('LoginScreen') }]
       );
       return;
     }
@@ -97,7 +99,7 @@ export default function EventScreen() {
             </View>
             {item.isFeatured && (
               <View style={styles.featuredBadge}>
-                <Text style={styles.featuredText}>⭐ Featured</Text>
+                <Text style={styles.featuredText}>⭐ {t('blog.featured')}</Text>
               </View>
             )}
           </View>
@@ -142,7 +144,7 @@ export default function EventScreen() {
                     handleRegister(item);
                   }}
                 >
-                  <Text style={styles.quickRegisterText}>Register</Text>
+                  <Text style={styles.quickRegisterText}>{t('blog.register')}</Text>
                 </TouchableOpacity>
               )}
               
@@ -150,7 +152,7 @@ export default function EventScreen() {
                 style={styles.viewDetailButton}
                 onPress={() => navigation.navigate('EventDetailScreen', { eventId: item.id })}
               >
-                <Text style={styles.viewDetailText}>View Details →</Text>
+                <Text style={styles.viewDetailText}>{t('blog.viewDetails')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -175,12 +177,12 @@ export default function EventScreen() {
           activeOpacity={0.7}
         >
           <Icon name="arrow-left" size={16} color="#2A7BF6" />
-          <Text style={styles.backToHomeText}>Back to Home</Text>
+          <Text style={styles.backToHomeText}>{t('blog.backToHome')}</Text>
         </TouchableOpacity>
       )}
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Blogs</Text>
-        <Text style={styles.subtitle}>News, Policies & Updates</Text>
+        <Text style={styles.title}>{t('blog.title')}</Text>
+        <Text style={styles.subtitle}>{t('blog.subtitle')}</Text>
       </View>
       
       <FlatList
@@ -199,9 +201,9 @@ export default function EventScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No Blogs Available</Text>
+            <Text style={styles.emptyTitle}>{t('blog.noBlogsTitle')}</Text>
             <Text style={styles.emptyText}>
-              {isLoading ? 'Loading blogs...' : 'Check back later for new updates!'}
+              {isLoading ? t('blog.emptyLoading') : t('blog.emptyIdle')}
             </Text>
           </View>
         }
@@ -210,13 +212,13 @@ export default function EventScreen() {
       {!isAuthenticated && (
         <View style={styles.authPromptContainer}>
           <Text style={styles.authPromptText}>
-            Join our community to access full features
+            {t('blog.joinCommunity')}
           </Text>
             <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLoginPress}
             >
-            <Text style={styles.loginButtonText}>Log In / Register</Text>
+            <Text style={styles.loginButtonText}>{t('blog.logInRegister')}</Text>
             </TouchableOpacity>
         </View>
       )}

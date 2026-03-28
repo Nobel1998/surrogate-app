@@ -151,6 +151,7 @@ export default function HomeScreen() {
     index: 0,
   });
   const adminNoteGalleryScrollRef = useRef(null);
+  const [selectedAdminNote, setSelectedAdminNote] = useState(null);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
@@ -1459,12 +1460,23 @@ export default function HomeScreen() {
 
   const openAdminNoteGallery = useCallback((urls, startIndex) => {
     if (!urls?.length) return;
+    // Close admin-note detail sheet first: nested Modal + pageSheet on iOS steals touches and freezes the app.
+    setSelectedAdminNote(null);
     setAdminNoteImageViewer({
       visible: true,
       urls,
       index: Math.min(startIndex, urls.length - 1),
     });
   }, []);
+
+  const getAdminNoteStageDisplay = (stage) => {
+    if (!stage) return '';
+    if (stage === 'pre_transfer') return 'Pre-Transfer';
+    if (stage === 'post_transfer') return 'Post-Transfer';
+    if (stage === 'ob_visit') return 'OB Office Visit';
+    if (stage === 'delivery') return 'Delivery';
+    return stage;
+  };
 
   const renderAdminNoteImages = (note) => {
     const sorted = (note.images || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -3111,27 +3123,46 @@ export default function HomeScreen() {
               </View>
               {adminNotes
                 .filter((note) => note.stage === getAdminNoteStageForFilter(stageFilter))
-                .map((note) => (
-                  <View key={note.id} style={styles.adminNoteCard}>
-                    {(note.title || note.stage) ? (
-                      <View style={styles.adminNoteHeaderRow}>
-                        {note.title ? <Text style={styles.adminNoteTitle}>{note.title}</Text> : null}
-                        {note.stage ? (
-                          <View style={styles.adminNoteStageBadge}>
-                            <Text style={styles.adminNoteStageText}>
-                              {note.stage === 'pre_transfer' ? 'Pre-Transfer' : note.stage === 'post_transfer' ? 'Post-Transfer' : note.stage === 'ob_visit' ? 'OB Office Visit' : note.stage === 'delivery' ? 'Delivery' : note.stage}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    ) : null}
-                    <Text style={styles.adminNoteContent}>{note.content || ''}</Text>
-                    {renderAdminNoteImages(note)}
-                    <Text style={styles.adminNoteDate}>
-                      {note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
-                    </Text>
-                  </View>
-                ))}
+                .map((note) => {
+                  const imageCount = (note.images || []).length;
+                  return (
+                    <TouchableOpacity
+                      key={note.id}
+                      style={styles.adminNoteCard}
+                      activeOpacity={0.75}
+                      onPress={() => setSelectedAdminNote(note)}
+                    >
+                      {(note.title || note.stage) ? (
+                        <View style={styles.adminNoteHeaderRow}>
+                          {note.title ? <Text style={styles.adminNoteTitle}>{note.title}</Text> : null}
+                          {note.stage ? (
+                            <View style={styles.adminNoteStageBadge}>
+                              <Text style={styles.adminNoteStageText}>
+                                {getAdminNoteStageDisplay(note.stage)}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      <Text
+                        style={styles.adminNoteContent}
+                        numberOfLines={4}
+                        ellipsizeMode="tail"
+                      >
+                        {note.content || ''}
+                      </Text>
+                      {imageCount > 0 ? (
+                        <Text style={styles.adminNoteImageHint}>
+                          {t('home.adminNoteImageCount', { count: imageCount })}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.adminNoteTapHint}>{t('home.adminNoteTapToView')}</Text>
+                      <Text style={styles.adminNoteDate}>
+                        {note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               {adminNotes.filter((n) => n.stage === getAdminNoteStageForFilter(stageFilter)).length === 0 && (
                 <View style={styles.adminNotesEmpty}>
                   <Text style={styles.adminNotesEmptyText}>{t('home.noAdminNotesInStage') || 'No admin notes for this stage'}</Text>
@@ -3186,16 +3217,78 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* Admin note images full-screen viewer */}
+      {/* Admin note full text + images detail */}
+      <Modal
+        visible={!!selectedAdminNote}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedAdminNote(null)}
+      >
+        <SafeAreaView style={styles.adminNoteDetailSafe} edges={['top', 'left', 'right']}>
+          <View style={styles.adminNoteDetailHeader}>
+            <Text style={styles.adminNoteDetailHeaderTitle}>{t('home.adminNotes')}</Text>
+            <TouchableOpacity
+              onPress={() => setSelectedAdminNote(null)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            >
+              <Icon name="x" size={24} color="#475569" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.adminNoteDetailScroll}
+            contentContainerStyle={styles.adminNoteDetailScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+          >
+            {selectedAdminNote ? (
+              <>
+                {(selectedAdminNote.title || selectedAdminNote.stage) ? (
+                  <View style={styles.adminNoteHeaderRow}>
+                    {selectedAdminNote.title ? (
+                      <Text style={styles.adminNoteTitle}>{selectedAdminNote.title}</Text>
+                    ) : null}
+                    {selectedAdminNote.stage ? (
+                      <View style={styles.adminNoteStageBadge}>
+                        <Text style={styles.adminNoteStageText}>
+                          {getAdminNoteStageDisplay(selectedAdminNote.stage)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text style={styles.adminNoteContentDetail}>
+                  {selectedAdminNote.content || ''}
+                </Text>
+                {renderAdminNoteImages(selectedAdminNote)}
+                <Text style={styles.adminNoteDate}>
+                  {selectedAdminNote.created_at
+                    ? new Date(selectedAdminNote.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : ''}
+                </Text>
+              </>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Admin note images full-screen viewer (must not stack over admin note detail Modal — see openAdminNoteGallery) */}
       <Modal
         visible={adminNoteImageViewer.visible}
         transparent
         animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
         onRequestClose={() =>
           setAdminNoteImageViewer({ visible: false, urls: [], index: 0 })
         }
       >
-        <View style={styles.adminNoteGalleryOverlay}>
+        <View style={styles.adminNoteGalleryOverlay} pointerEvents="box-none">
           <TouchableOpacity
             style={styles.adminNoteGalleryClose}
             onPress={() =>
@@ -3223,12 +3316,13 @@ export default function HomeScreen() {
           >
             {adminNoteImageViewer.urls.map((uri, i) => {
               const win = Dimensions.get('window');
+              const maxImgHeight = Math.max(280, win.height - (Platform.OS === 'ios' ? 140 : 120));
               return (
                 <View
                   key={`admin-note-full-${i}`}
                   style={{
                     width: win.width,
-                    flexGrow: 1,
+                    minHeight: win.height * 0.85,
                     justifyContent: 'center',
                     alignItems: 'center',
                     paddingHorizontal: 12,
@@ -3238,7 +3332,7 @@ export default function HomeScreen() {
                     source={{ uri }}
                     style={{
                       width: win.width - 24,
-                      height: Math.min(520, win.height * 0.72),
+                      height: maxImgHeight,
                     }}
                     resizeMode="contain"
                   />
@@ -4152,6 +4246,51 @@ const styles = StyleSheet.create({
     color: '#475569',
     lineHeight: 22,
     marginBottom: 8,
+  },
+  adminNoteContentDetail: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  adminNoteImageHint: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  adminNoteTapHint: {
+    fontSize: 12,
+    color: '#2A7BF6',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  adminNoteDetailSafe: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  adminNoteDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8ECF1',
+  },
+  adminNoteDetailHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1D1E',
+    flex: 1,
+    marginRight: 8,
+  },
+  adminNoteDetailScroll: {
+    flex: 1,
+  },
+  adminNoteDetailScrollContent: {
+    padding: 20,
+    paddingBottom: 36,
   },
   adminNoteDate: {
     fontSize: 12,

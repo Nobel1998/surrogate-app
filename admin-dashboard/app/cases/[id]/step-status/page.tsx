@@ -112,6 +112,7 @@ export default function StepStatusPage() {
   const [medicalProviderContact, setMedicalProviderContact] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
   const [selectedMedicalReport, setSelectedMedicalReport] = useState<any | null>(null);
+  const [selectedAdminNote, setSelectedAdminNote] = useState<any | null>(null);
   const [medicalReportData, setMedicalReportData] = useState<any>({});
 
   const handleMedicalReportDataChange = (key: string, value: any) => {
@@ -943,54 +944,49 @@ export default function StepStatusPage() {
             <div className="mb-6 space-y-4">
               {updates
                 .filter((update: any) => update.update_type === 'admin_note')
-                .map((update: any) => (
-                  <div key={update.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
-                          {update.stage && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {ADMIN_NOTE_STAGE_LABEL[update.stage] || update.stage}
-                            </span>
-                          )}
+                .map((update: any) => {
+                  const contentPreview = update.content && update.content.length > 80 
+                    ? update.content.slice(0, 80) + '...' 
+                    : update.content;
+                  const imageCount = Array.isArray(update.images) ? update.images.length : 0;
+                  return (
+                    <div 
+                      key={update.id} 
+                      onClick={() => setSelectedAdminNote(update)}
+                      className="bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium text-gray-900">{update.title || 'Admin Update'}</p>
+                            {update.stage && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                {ADMIN_NOTE_STAGE_LABEL[update.stage] || update.stage}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {update.created_at ? new Date(update.created_at).toLocaleString('en-US') : '—'}
+                            {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {update.created_at ? new Date(update.created_at).toLocaleString('en-US') : '—'}
-                          {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteAdminUpdate(update.id); }}
+                          className="ml-4 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete this update"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-700">{contentPreview}</p>
+                      {imageCount > 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {imageCount} {imageCount === 1 ? 'image' : 'images'} attached
                         </p>
-                      </div>
-                      <button
-                        onClick={() => deleteAdminUpdate(update.id)}
-                        className="ml-4 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
-                        title="Delete this update"
-                      >
-                        Delete
-                      </button>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.content}</p>
-                    {Array.isArray(update.images) && update.images.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {update.images.map((img: any) => (
-                          <a
-                            key={img.id}
-                            href={img.image_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={img.image_url}
-                              alt={img.file_name || 'Attachment'}
-                              className="h-20 w-20 object-cover rounded-md border border-gray-200 hover:opacity-90"
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           )}
 
@@ -1594,6 +1590,95 @@ export default function StepStatusPage() {
         selectedMedicalReport, 
         () => setSelectedMedicalReport(null),
         formatDateOnly
+      )}
+
+      {/* Admin Note Detail Modal */}
+      {selectedAdminNote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto pt-10 pb-10">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
+              <h3 className="text-lg font-bold text-gray-900">{selectedAdminNote.title || 'Admin Update'}</h3>
+              <button 
+                onClick={() => setSelectedAdminNote(null)} 
+                className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedAdminNote.stage && (
+                    <div>
+                      <span className="block text-xs font-semibold text-gray-500 uppercase">Stage</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                        {ADMIN_NOTE_STAGE_LABEL[selectedAdminNote.stage] || selectedAdminNote.stage}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Created</span>
+                    <span className="block text-sm font-medium text-gray-900 mt-1">
+                      {selectedAdminNote.created_at ? new Date(selectedAdminNote.created_at).toLocaleString('en-US') : '—'}
+                    </span>
+                  </div>
+                  {selectedAdminNote.updated_by_user?.name && (
+                    <div>
+                      <span className="block text-xs font-semibold text-gray-500 uppercase">Author</span>
+                      <span className="block text-sm font-medium text-gray-900 mt-1">{selectedAdminNote.updated_by_user.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <h4 className="font-semibold text-md text-gray-800 border-b border-gray-200 pb-2 mb-4">Content</h4>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap mb-6">{selectedAdminNote.content}</p>
+
+              {Array.isArray(selectedAdminNote.images) && selectedAdminNote.images.length > 0 && (
+                <>
+                  <h4 className="font-semibold text-md text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                    Images ({selectedAdminNote.images.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedAdminNote.images.map((img: any) => (
+                      <a
+                        key={img.id}
+                        href={img.image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.image_url}
+                          alt={img.file_name || 'Attachment'}
+                          className="h-24 w-24 object-cover rounded-md border border-gray-200 hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 shrink-0">
+              <button
+                onClick={() => {
+                  deleteAdminUpdate(selectedAdminNote.id);
+                  setSelectedAdminNote(null);
+                }}
+                className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setSelectedAdminNote(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
