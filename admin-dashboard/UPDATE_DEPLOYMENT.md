@@ -50,12 +50,36 @@ npx vercel --prod
 
 ## ⚙️ **环境变量检查**
 
-确保以下环境变量已设置：
+在 **Vercel → Project → Settings → Environment Variables**（或自建服务器环境）中配置。本地可参考根目录下的 **[.env.example](.env.example)** 复制为 `.env.local`。
 
-```
-NEXT_PUBLIC_SUPABASE_URL = https://fpuofgrypgabfsbqsxku.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY = sb_publishable_KozTC9kRBA8katDpT-rirA_2RQXaPwO
-```
+| 变量名 | 说明 |
+|--------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL（Dashboard → Settings → API） |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase `anon` `public` 密钥 |
+| `SUPABASE_SERVICE_ROLE_KEY` | **生产必需**：`service_role` 密钥（仅服务端，勿提交到 Git） |
+| `NEXT_PUBLIC_SITE_URL` | 站点对外根地址，**无末尾斜杠**。例如生产：`https://mysurro.com`。用于服务端回调本站 API（如代孕阶段变更通知）。本地可省略或设为 `http://localhost:3000` |
+
+未设置 `NEXT_PUBLIC_SITE_URL` 时，部署在 Vercel 上会回退使用 `VERCEL_URL`；自定义域名生产环境**建议显式设为** `https://mysurro.com`，避免内部请求仍指向 `*.vercel.app`。
+
+---
+
+## 🌐 **自定义域名（mysurro.com）**
+
+目标：浏览器访问 **https://mysurro.com** 即打开本管理后台（Next.js，非静态虚拟主机上传）。
+
+1. **Vercel 项目设置**
+   - **Root Directory** 设为 **`admin-dashboard`**（与仓库结构一致）。
+   - 完成上文环境变量，尤其 `SUPABASE_SERVICE_ROLE_KEY` 与 `NEXT_PUBLIC_SITE_URL=https://mysurro.com`。
+
+2. **绑定域名**
+   - Vercel → Project → **Settings → Domains** → Add `mysurro.com`（可选再加 `www.mysurro.com`）。
+   - 按页面提示在域名注册商或 DNS 服务商处添加 **A 记录**或 **CNAME**（以 Vercel 当前说明为准）。
+   - 等待 DNS 生效（常见数分钟至 48 小时）。
+
+3. **验证**
+   - 打开 `https://mysurro.com` 应出现后台登录页；若曾用 `*.vercel.app` 登录，需在**新域名下重新登录**（Cookie 按主机名隔离）。
+
+**自建 VPS**：`npm run build` 后使用 `standalone` 输出运行 Node，用 Nginx/Caddy 反代到应用端口，TLS 证书绑定 `mysurro.com`，环境变量与上表相同。
 
 ---
 

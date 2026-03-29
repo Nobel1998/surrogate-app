@@ -754,9 +754,12 @@ export async function PATCH(req: Request) {
       if (oldStage !== body.progress_stage) {
         try {
           // Call notification API (fire and forget - don't wait for response)
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : 'http://localhost:3000';
+          const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
+          const vercelHost = process.env.VERCEL_URL;
+          const baseUrl =
+            siteUrl ||
+            (vercelHost ? `https://${vercelHost}` : '') ||
+            'http://localhost:3000';
           
           fetch(`${baseUrl}/api/notifications/surrogate-progress`, {
             method: 'POST',
