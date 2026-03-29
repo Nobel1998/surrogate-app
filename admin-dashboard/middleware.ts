@@ -3,14 +3,9 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Public self-service admin registration removed
-  if (pathname === '/register' || pathname === '/api/auth/register') {
-    return new NextResponse(null, { status: 404 });
-  }
-
-  // Allow access to login page and other auth API routes
-  if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
+  
+  // Allow access to login/register pages and API routes
+  if (pathname === '/login' || pathname === '/register' || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
 
