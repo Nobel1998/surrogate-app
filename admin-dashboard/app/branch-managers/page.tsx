@@ -329,7 +329,7 @@ export default function BranchManagersPage() {
           </button>
         </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -455,7 +455,7 @@ export default function BranchManagersPage() {
           </table>
         </div>
 
-        <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
+        <div className="mt-8 bg-white shadow rounded-lg overflow-x-auto">
           <div className="px-6 py-4 flex justify-between items-center border-b border-gray-200">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Finance Managers</h2>
