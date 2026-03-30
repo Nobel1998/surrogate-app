@@ -18,20 +18,20 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Desktop Navigation (Placeholder for future links) */}
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8">
-              <Link href="#" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+              <a href="#home" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
                 Home
-              </Link>
-              <Link href="#" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
-                Find Programs
-              </Link>
-              <Link href="#" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
-                Surrogate Agencies
-              </Link>
-              <Link href="#" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
-                Contact Us
-              </Link>
+              </a>
+              <a href="#features" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                Features
+              </a>
+              <a href="#download" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                Download
+              </a>
+              <a href="https://babytreesurrogacy.com/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                Babytree Surrogacy
+              </a>
             </nav>
 
             {/* Login Button */}
@@ -49,66 +49,169 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="flex-grow">
-        <div className="relative bg-gray-900 h-[600px] flex items-center">
-          {/* Background Image with Overlay */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Using a placeholder image from Unsplash that fits the theme */}
-            <img
-              src="https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop"
-              alt="Family background"
-              className="w-full h-full object-cover opacity-40"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900/90"></div>
-          </div>
-
-          {/* Hero Content */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <div className="text-center md:text-left md:w-2/3">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
-                Connecting Families & <br />
-                <span className="text-blue-400">Empowering Journeys</span>
-              </h1>
-              <p className="text-xl text-gray-200 mb-10 max-w-2xl">
-                The premier platform for egg donors, intended parents, and IVF industry professionals to connect, manage, and grow together.
-              </p>
+        <div id="home" className="relative bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto">
+            <div className="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20">
+              <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+                <div className="sm:text-center lg:text-left">
+                  <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                    <span className="block xl:inline">MySurro: The First</span>{' '}
+                    <span className="block text-blue-600">3-Way Surrogacy App</span>
+                  </h1>
+                  <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                    Developed by Babytree Surrogacy. Seamlessly connecting Intended Parents, Surrogates, and Agency Coordinators in real-time. A new surrogacy experience, everything is under control.
+                  </p>
+                  <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                    <div className="rounded-md shadow">
+                      <a
+                        href="#download"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
+                      >
+                        Download App
+                      </a>
+                    </div>
+                    <div className="mt-3 sm:mt-0 sm:ml-3">
+                      <a
+                        href="https://babytreesurrogacy.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 md:py-4 md:text-lg md:px-10"
+                      >
+                        Visit Babytree
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </main>
             </div>
-
-            {/* Action Cards */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-              {/* Card 1 */}
-              <div className="bg-white rounded-xl p-8 shadow-xl transform transition hover:-translate-y-1 hover:shadow-2xl">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">Egg Donors & Intended Parents</h2>
-                <p className="text-gray-600 mb-6">
-                  Find an Egg Donor Program or start your journey to becoming a parent.
-                </p>
-                <button className="text-blue-600 font-semibold flex items-center hover:text-blue-800">
-                  Search Programs 
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </button>
-              </div>
-
-              {/* Card 2 */}
-              <div className="bg-white rounded-xl p-8 shadow-xl transform transition hover:-translate-y-1 hover:shadow-2xl">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">IVF Industry Professionals</h2>
-                <p className="text-gray-600 mb-6">
-                  Interested in our software? Learn how we can help manage your agency.
-                </p>
-                <button className="text-blue-600 font-semibold flex items-center hover:text-blue-800">
-                  Visit Software 
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </button>
+          </div>
+          <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 bg-blue-50 flex items-center justify-center p-12">
+            {/* Phone Mockup Placeholder */}
+            <div className="relative w-64 h-[500px] bg-gray-900 rounded-[3rem] border-[8px] border-gray-900 shadow-2xl overflow-hidden flex items-center justify-center">
+              <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-1/2 mx-auto z-20"></div>
+              <div className="text-center text-gray-500 px-4">
+                <div className="w-16 h-16 mx-auto bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
+                  <span className="text-blue-500 text-2xl font-bold">M</span>
+                </div>
+                <p className="font-medium text-gray-400">MySurro App Interface</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Placeholder for future sections */}
-        <div className="py-20 bg-gray-50">
+        {/* Features Section */}
+        <div id="features" className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                A Practical Real-Time APP for Surrogacy
+              </h2>
+              <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                We believe that the communication between surrogate mothers and intended parents should always be open, transparent, timely, detailed and direct.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {/* Feature 1 */}
+              <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4 text-xl">
+                  ⏱️
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Real-time Update</h3>
+                <p className="text-gray-600">
+                  Stay updated in a timely manner throughout the surrogacy process, including sharing messages, pictures and videos directly.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-4 text-xl">
+                  🤝
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Each Other</h3>
+                <p className="text-gray-600">
+                  Foster a deeper emotional connection between intended parents and surrogate moms, making the journey more personal.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-4 text-xl">
+                  👩‍💼
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Agency Support</h3>
+                <p className="text-gray-600">
+                  Contact our case manager directly via MySurro. Get professional support whenever you need it.
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center mb-4 text-xl">
+                  📱
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Easy to Manage</h3>
+                <p className="text-gray-600">
+                  Simple and understandable interface. Keep everything under control from medical updates to legal milestones.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Screenshots Section */}
+        <div className="py-20 bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-extrabold text-gray-900">
+                Inside MySurro
+              </h2>
+              <p className="mt-4 text-xl text-gray-500">
+                A glimpse into the first 3-way surrogacy communication platform.
+              </p>
+            </div>
+            
+            {/* Horizontal scrolling container for screenshots */}
+            <div className="flex space-x-6 overflow-x-auto pb-8 snap-x snap-mandatory hide-scrollbar">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="snap-center shrink-0 w-64 h-[500px] bg-gray-100 rounded-[2.5rem] border-[6px] border-gray-200 shadow-lg flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute top-0 inset-x-0 h-5 bg-gray-200 rounded-b-2xl w-1/2 mx-auto z-20"></div>
+                  <span className="text-gray-400 font-medium">App Screen {i}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Download Section */}
+        <div id="download" className="py-20 bg-blue-600">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Trusted by Leading Agencies</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Our platform provides the tools you need to deliver a first-class experience for your intended parents and donors.
-            </p>
+            <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-8">
+              Ready to start your journey?
+            </h2>
+            <div className="flex flex-col md:flex-row justify-center items-center gap-12">
+              {/* iOS Download */}
+              <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center w-72">
+                <div className="w-40 h-40 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center mb-6">
+                  <span className="text-gray-400 text-sm">iOS QR Code</span>
+                </div>
+                <button className="w-full bg-black text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-1.226 1.76-2.505 3.51-4.458 3.51-1.894 0-2.522-1.15-4.67-1.15-2.147 0-2.844 1.12-4.613 1.15-1.948.03-3.41-1.96-4.646-3.75C3.333 16.11 1.5 11.23 1.5 8.09c0-3.3 2.055-5.06 3.99-5.06 1.83 0 3.22 1.25 4.5 1.25 1.225 0 2.92-1.34 5.06-1.34 1.74 0 3.32.68 4.4 1.94-3.66 1.96-3.08 6.94.71 8.52-.16.45-.33.91-.53 1.34z"/></svg>
+                  App Store
+                </button>
+              </div>
+
+              {/* Android Download */}
+              <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center w-72">
+                <div className="w-40 h-40 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center mb-6">
+                  <span className="text-gray-400 text-sm">Android QR Code</span>
+                </div>
+                <button className="w-full bg-green-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-green-700 transition-colors">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0004.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.4162.4162 0 00-.5676.1521l-2.0218 3.503C15.5902 8.244 13.8533 7.851 12 7.851c-1.8533 0-3.5902.393-5.1373 1.0997L4.841 5.4477a.4162.4162 0 00-.5676-.1521.4159.4159 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+                  Google Play
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -123,11 +226,12 @@ export default function LandingPage() {
             <span className="font-bold text-xl text-white">MySurro</span>
           </div>
           <div className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} MySurro, LLC. All rights reserved.
+            © {new Date().getFullYear()} Babytree Surrogacy. All rights reserved.
           </div>
           <div className="flex space-x-6 mt-4 md:mt-0 text-sm text-gray-400">
             <Link href="#" className="hover:text-white transition-colors">Terms of Use</Link>
             <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <a href="https://babytreesurrogacy.com/contact-us/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Contact Us</a>
           </div>
         </div>
       </footer>
