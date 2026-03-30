@@ -10,7 +10,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Check if already logged in
   useEffect(() => {
@@ -25,12 +24,6 @@ export default function LoginPage() {
       }
     };
     checkAuth();
-
-    // Check for registration success message
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('registered') === 'true') {
-      setSuccessMessage('Registration successful! Please wait for an administrator to approve your account before logging in.');
-    }
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,12 +81,6 @@ export default function LoginPage() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {successMessage && (
-            <div className="rounded-md bg-green-50 p-4">
-              <div className="text-sm text-green-800">{successMessage}</div>
-            </div>
-          )}
-          
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="username" className="sr-only">
@@ -161,15 +148,6 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
-          </div>
-
-          <div className="text-center">
-            <a
-              href="/register"
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              Don't have an account? Register
-            </a>
           </div>
         </form>
       </div>

@@ -4,8 +4,13 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Allow access to login/register pages and API routes
-  if (pathname === '/login' || pathname === '/register' || pathname.startsWith('/api/auth/')) {
+  // Block legacy register routes
+  if (pathname === '/register' || pathname === '/api/auth/register') {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // Allow access to login page and other auth API routes
+  if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
 
