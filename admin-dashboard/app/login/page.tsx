@@ -17,7 +17,7 @@ export default function LoginPage() {
       try {
         const res = await fetch('/api/auth/check');
         if (res.ok) {
-          router.push('/');
+          router.push('/dashboard');
         }
       } catch (err) {
         // Not logged in, stay on login page
@@ -58,10 +58,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Login successful, redirect to home
+      // Login successful, redirect to dashboard
       // Use window.location for a full page reload to ensure cookies are set
       console.log('[Login] Login successful, redirecting...');
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('[Login] Login error:', err);
       setError(err.message || 'Login failed. Please try again.');

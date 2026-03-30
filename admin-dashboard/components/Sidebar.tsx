@@ -12,7 +12,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const roleLower = (userRole || '').toLowerCase();
 
   const allNavItems = [
-    { href: '/', label: 'Applications', icon: '📋', allowedRoles: ['admin'] },
+    { href: '/dashboard', label: 'Applications', icon: '📋', allowedRoles: ['admin'] },
     { href: '/profiles', label: 'Sign Up', icon: '🪪', allowedRoles: ['admin'] },
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/events', label: 'Blog', icon: '📝', allowedRoles: ['admin', 'branch_manager'] },

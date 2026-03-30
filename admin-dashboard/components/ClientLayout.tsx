@@ -8,7 +8,7 @@ import Header from './Header';
 const ADMIN_ONLY_PATHS = ['/business-statistics'];
 const PAYMENT_NODES_PATH = '/payment-nodes';
 const PAYMENT_ALLOWED_ROLES = ['admin', 'finance_manager'];
-const BRANCH_MANAGER_BLOCKED_PATHS = ['/', '/profiles'];
+const BRANCH_MANAGER_BLOCKED_PATHS = ['/dashboard', '/profiles'];
 const BRANCH_MANAGER_HOME = '/matches';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -20,8 +20,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Skip auth check for login page
-    if (pathname === '/login') {
+    // Skip auth check for public landing page and login page
+    if (pathname === '/' || pathname === '/login') {
       setLoading(false);
       return;
     }
@@ -47,14 +47,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // Redirect non-admin away from admin-only pages
   useEffect(() => {
     if (loading || !ADMIN_ONLY_PATHS.includes(pathname)) return;
-    if ((userRole || '').toLowerCase() !== 'admin') router.replace('/');
+    if ((userRole || '').toLowerCase() !== 'admin') router.replace('/dashboard');
   }, [loading, pathname, userRole, router]);
 
   // Redirect non-allowed roles away from payment-nodes
   useEffect(() => {
     if (loading || pathname !== PAYMENT_NODES_PATH) return;
     const roleLower = (userRole || '').toLowerCase();
-    if (!PAYMENT_ALLOWED_ROLES.includes(roleLower)) router.replace('/');
+    if (!PAYMENT_ALLOWED_ROLES.includes(roleLower)) router.replace('/dashboard');
   }, [loading, pathname, userRole, router]);
 
   // Branch managers cannot access Applications or Sign Up
@@ -64,7 +64,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     router.replace(BRANCH_MANAGER_HOME);
   }, [loading, pathname, userRole, router]);
 
-  if (pathname === '/login') {
+  if (pathname === '/' || pathname === '/login') {
     return <>{children}</>;
   }
 

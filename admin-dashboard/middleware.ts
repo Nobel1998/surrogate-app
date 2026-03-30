@@ -9,8 +9,8 @@ export function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  // Allow access to login page and other auth API routes
-  if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
+  // Allow access to public landing page, login page, and auth API routes
+  if (pathname === '/' || pathname === '/login' || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
 
