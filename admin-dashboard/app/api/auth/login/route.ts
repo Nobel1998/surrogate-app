@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     // Try to find admin user by username first
     let { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
-      .select('id, name, role, branch_id, username, email, password_hash')
+      .select('id, name, role, branch_id, username, email, password_hash, status')
       .eq('username', username)
       .maybeSingle();
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         console.log('[auth/login] Trying email lookup for:', username);
         const emailResult = await supabase
           .from('admin_users')
-          .select('id, name, role, branch_id, username, email, password_hash')
+          .select('id, name, role, branch_id, username, email, password_hash, status')
           .eq('email', username)
           .maybeSingle();
         
@@ -101,6 +101,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid username/email or password' },
         { status: 401 }
+      );
+    }
+
+    // Check approval status
+    if (adminUser.status === 'pending') {
+      return NextResponse.json(
+        { error: 'Your account is pending approval by an administrator.' },
+        { status: 403 }
+      );
+    }
+    
+    if (adminUser.status === 'rejected') {
+      return NextResponse.json(
+        { error: 'Your account registration was rejected.' },
+        { status: 403 }
       );
     }
 

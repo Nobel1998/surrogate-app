@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
         role,
         branch_id,
         read_only,
+        status,
         created_at,
         updated_at,
         branches:branch_id (

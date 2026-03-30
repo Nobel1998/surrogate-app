@@ -17,6 +17,7 @@ interface BranchManager {
   role: string;
   branch_id: string;
   read_only?: boolean;
+  status?: string;
   created_at: string;
   updated_at: string;
   branches?: Branch;
@@ -121,6 +122,30 @@ export default function BranchManagersPage() {
     });
     setEditingId(manager.id);
     setShowAddModal(true);
+  };
+
+  const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
+    if (!confirm(`Are you sure you want to mark this user as ${status}?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update status');
+      }
+
+      alert(`User successfully marked as ${status}`);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update status');
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -324,7 +349,13 @@ export default function BranchManagersPage() {
                   View only
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -362,10 +393,48 @@ export default function BranchManagersPage() {
                         <span className="text-gray-500">—</span>
                       )}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {manager.status === 'pending' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Pending
+                        </span>
+                      )}
+                      {manager.status === 'approved' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Approved
+                        </span>
+                      )}
+                      {manager.status === 'rejected' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Rejected
+                        </span>
+                      )}
+                      {!manager.status && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Unknown
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(manager.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {manager.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateStatus(manager.id, 'approved')}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleUpdateStatus(manager.id, 'rejected')}
+                            className="text-red-600 hover:text-red-900 mr-3"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => handleEdit(manager)}
                         className="text-blue-600 hover:text-blue-900 mr-4"
@@ -421,7 +490,13 @@ export default function BranchManagersPage() {
                   View only
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -452,8 +527,54 @@ export default function BranchManagersPage() {
                         View only
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {manager.status === 'pending' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Pending
+                        </span>
+                      )}
+                      {manager.status === 'approved' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Approved
+                        </span>
+                      )}
+                      {manager.status === 'rejected' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Rejected
+                        </span>
+                      )}
+                      {!manager.status && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Unknown
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(manager.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {manager.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateStatus(manager.id, 'approved')}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleUpdateStatus(manager.id, 'rejected')}
+                            className="text-red-600 hover:text-red-900 mr-3"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handleDelete(manager.id, manager.name)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))

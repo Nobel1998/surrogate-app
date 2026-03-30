@@ -122,8 +122,9 @@ export async function POST(req: NextRequest) {
         password_hash: passwordHash,
         role: role,
         branch_id: role === 'branch_manager' ? branch_id : null,
+        status: 'pending', // New users require approval
       })
-      .select('id, name, role, branch_id, username, email')
+      .select('id, name, role, branch_id, username, email, status')
       .single();
 
     if (insertError) {
