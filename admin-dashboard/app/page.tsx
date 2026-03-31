@@ -117,9 +117,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   📝
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">便捷资料填写</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Easy Registration Forms</h3>
                 <p className="text-gray-600">
-                  便于代孕妈妈和准父母在线填写登记资料，简化申请流程。
+                  Makes it easy for surrogates and intended parents to complete registration forms online and simplify onboarding.
                 </p>
               </div>
 
@@ -128,9 +128,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   ⏱️
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">全流程及时更新</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Real-Time Progress Updates</h3>
                 <p className="text-gray-600">
-                  全流程及时更新，准父母可以随时查看进展，无需依赖中介的手动更新。
+                  Provides timely updates across the full journey, so intended parents can track progress directly without waiting for manual agency updates.
                 </p>
               </div>
 
@@ -139,9 +139,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   🔔
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">预约提醒</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Appointment Reminders</h3>
                 <p className="text-gray-600">
-                  智能预约提醒功能，确保不会错过任何重要的医疗检查或法律节点。
+                  Smart reminder alerts help everyone stay on schedule and never miss key medical checkups or legal milestones.
                 </p>
               </div>
 
@@ -150,9 +150,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   📈
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">记录进展</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Surrogate Progress Log</h3>
                 <p className="text-gray-600">
-                  方便代孕妈妈随时记录自己的身体状况和孕期进展。
+                  Helps surrogates conveniently record their health status and pregnancy progress at any time.
                 </p>
               </div>
 
@@ -161,9 +161,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-red-100 text-red-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   📁
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">一站式资料库</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">One-Stop Document Hub</h3>
                 <p className="text-gray-600">
-                  方便准父母和代孕妈妈一站式安全储存所有的文件和医疗资料。
+                  Gives intended parents and surrogates one secure place to store all files and medical documents.
                 </p>
               </div>
 
@@ -172,9 +172,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center mb-4 text-xl">
                   🔍
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">搜索代母库</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Search Surrogate Database</h3>
                 <p className="text-gray-600">
-                  准父母可以方便地在 App 内搜索和查看代母库，寻找最合适的匹配。
+                  Allows intended parents to easily search and review the surrogate database to find the best match.
                 </p>
               </div>
             </div>
