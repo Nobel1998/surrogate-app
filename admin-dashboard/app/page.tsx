@@ -152,7 +152,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Surrogate Progress Log</h3>
                 <p className="text-gray-600">
-                  Helps surrogates conveniently record their health status and pregnancy progress at any time.
+                  Helps surrogates conveniently record their IVF process and pregnancy progress at any time.
                 </p>
               </div>
 
