@@ -11,7 +11,7 @@ export default function LandingPage() {
             {/* Logo area */}
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                <div className="w-10 h-10 bg-gradient-to-br from-rose-400 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
                   M
                 </div>
                 <span className="font-bold text-2xl text-gray-900 tracking-tight">MySurro</span>
@@ -20,16 +20,16 @@ export default function LandingPage() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8">
-              <a href="#home" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+              <a href="#home" className="text-gray-600 hover:text-rose-400 font-medium transition-colors">
                 Home
               </a>
-              <a href="#features" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+              <a href="#features" className="text-gray-600 hover:text-rose-400 font-medium transition-colors">
                 Features
               </a>
-              <a href="#download" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+              <a href="#download" className="text-gray-600 hover:text-rose-400 font-medium transition-colors">
                 Download
               </a>
-              <a href="https://babytreesurrogacy.com/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+              <a href="https://babytreesurrogacy.com/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-rose-400 font-medium transition-colors">
                 Babytree Surrogacy
               </a>
             </nav>
@@ -38,7 +38,7 @@ export default function LandingPage() {
             <div className="flex items-center">
               <Link 
                 href="/login" 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium transition-colors shadow-sm"
+                className="bg-rose-400 hover:bg-rose-500 text-white px-6 py-2.5 rounded-md font-medium transition-colors shadow-sm"
               >
                 Login
               </Link>
@@ -56,7 +56,7 @@ export default function LandingPage() {
                 <div className="sm:text-center lg:text-left">
                   <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                     <span className="block xl:inline">MySurro: The First</span>{' '}
-                    <span className="block text-blue-600">3-Way Surrogacy App</span>
+                    <span className="block text-rose-400">3-Way Surrogacy App</span>
                   </h1>
                   <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                     Developed by Babytree Surrogacy. Seamlessly connecting Intended Parents, Surrogates, and Agency Coordinators in real-time. A new surrogacy experience, everything is under control.
@@ -65,7 +65,7 @@ export default function LandingPage() {
                     <div className="rounded-md shadow">
                       <a
                         href="#download"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-rose-400 hover:bg-rose-500 md:py-4 md:text-lg md:px-10"
                       >
                         Download App
                       </a>
@@ -75,7 +75,7 @@ export default function LandingPage() {
                         href="https://babytreesurrogacy.com/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 md:py-4 md:text-lg md:px-10"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-rose-700 bg-rose-100 hover:bg-rose-200 md:py-4 md:text-lg md:px-10"
                       >
                         Visit Babytree
                       </a>
@@ -85,13 +85,13 @@ export default function LandingPage() {
               </main>
             </div>
           </div>
-          <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 bg-blue-50 flex items-center justify-center p-12">
+          <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 bg-rose-50 flex items-center justify-center p-12">
             {/* Phone Mockup Placeholder */}
             <div className="relative w-64 h-[500px] bg-gray-900 rounded-[3rem] border-[8px] border-gray-900 shadow-2xl overflow-hidden flex items-center justify-center">
               <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-1/2 mx-auto z-20"></div>
               <div className="text-center text-gray-500 px-4">
-                <div className="w-16 h-16 mx-auto bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="text-blue-500 text-2xl font-bold">M</span>
+                <div className="w-16 h-16 mx-auto bg-rose-100 rounded-2xl flex items-center justify-center mb-4">
+                  <span className="text-rose-400 text-2xl font-bold">M</span>
                 </div>
                 <p className="font-medium text-gray-400">MySurro App Interface</p>
               </div>
@@ -114,7 +114,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {/* Feature 1 */}
               <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4 text-xl">
+                <div className="w-12 h-12 bg-rose-100 text-rose-500 rounded-lg flex items-center justify-center mb-4 text-xl">
                   📝
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Easy Registration Forms</h3>
@@ -206,7 +206,7 @@ export default function LandingPage() {
         </div>
 
         {/* Download Section */}
-        <div id="download" className="py-20 bg-blue-600">
+        <div id="download" className="py-20 bg-rose-400">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-8">
               Ready to start your journey?
@@ -242,7 +242,7 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-8 h-8 bg-gradient-to-br from-rose-400 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
               M
             </div>
             <span className="font-bold text-xl text-white">MySurro</span>
