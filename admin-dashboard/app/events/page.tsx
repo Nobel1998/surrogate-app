@@ -13,6 +13,7 @@ interface Event {
   location: string;
   category: string;
   image_url: string;
+  video_url?: string;
   status: 'active' | 'cancelled' | 'completed' | 'draft';
   is_featured: boolean;
   max_participants: number;
@@ -233,6 +234,11 @@ export default function BlogManagement() {
                             {event.is_featured && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                                 ⭐ Featured
+                              </span>
+                            )}
+                            {event.video_url && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                🎬 Video
                               </span>
                             )}
                           </div>

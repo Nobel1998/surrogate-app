@@ -12,6 +12,7 @@ interface Event {
   location: string;
   category: string;
   image_url: string;
+  video_url?: string;
   status: 'active' | 'cancelled' | 'completed' | 'draft';
   is_featured: boolean;
   max_participants: number | null;
@@ -34,6 +35,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
     location: '',
     category: 'General',
     image_url: '',
+    video_url: '',
     status: 'active',
     is_featured: false,
     max_participants: null,
@@ -44,6 +46,9 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -56,6 +61,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         location: event.location,
         category: event.category,
         image_url: event.image_url,
+        video_url: event.video_url || '',
         status: event.status,
         is_featured: event.is_featured,
         max_participants: event.max_participants,
@@ -70,6 +76,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         location: '',
         category: 'General',
         image_url: '',
+        video_url: '',
         status: 'active',
         is_featured: false,
         max_participants: null,
@@ -79,6 +86,8 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
     setSelectedImageFile(null);
     setImagePreview(null);
     setUploadSuccess(false);
+    setSelectedVideoFile(null);
+    setVideoUploadSuccess(false);
   }, [event]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +105,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         location: formData.location,
         category: formData.category,
         image_url: formData.image_url,
+        video_url: formData.video_url || null,
         status: formData.status,
         is_featured: formData.is_featured,
         max_participants: formData.max_participants || null,
@@ -266,6 +276,56 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       setError(err.message || 'Failed to upload image');
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+    if (!validTypes.includes(file.type)) {
+      setError('Invalid video type. Only MP4, MOV, WebM are allowed.');
+      return;
+    }
+
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      setError('Video too large. Max size is 100MB.');
+      return;
+    }
+
+    setSelectedVideoFile(file);
+    setError(null);
+  };
+
+  const handleVideoUpload = async () => {
+    if (!selectedVideoFile) return;
+    setUploadingVideo(true);
+    setError(null);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', selectedVideoFile);
+
+      const res = await fetch('/api/events/upload-video', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload video');
+      }
+
+      handleInputChange('video_url', data.url);
+      setVideoUploadSuccess(true);
+      setSelectedVideoFile(null);
+      setTimeout(() => setVideoUploadSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload video');
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -475,6 +535,73 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                     }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Video (optional)
+              </label>
+              <div className="mb-3">
+                <label className="block text-xs text-gray-600 mb-1">
+                  Upload Video (MP4, MOV, WebM - Max 100MB)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="video/mp4,video/quicktime,video/webm"
+                    onChange={handleVideoFileSelect}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    disabled={uploadingVideo}
+                  />
+                  {selectedVideoFile && (
+                    <button
+                      type="button"
+                      onClick={handleVideoUpload}
+                      disabled={uploadingVideo}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingVideo ? 'Uploading...' : 'Upload Video'}
+                    </button>
+                  )}
+                </div>
+                {videoUploadSuccess && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    ✓ Video uploaded successfully! URL has been set.
+                  </div>
+                )}
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">OR</span>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-xs text-gray-600 mb-1">
+                  Enter Video URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.video_url || ''}
+                  onChange={(e) => handleInputChange('video_url', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/video.mp4"
+                />
+              </div>
+
+              {formData.video_url && (
+                <div className="mt-2">
+                  <video
+                    src={formData.video_url}
+                    controls
+                    className="w-full max-h-64 rounded border"
                   />
                 </div>
               )}
