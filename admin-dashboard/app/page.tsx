@@ -17,6 +17,42 @@ export default function LandingPage() {
                   height={44}
                   className="w-11 h-11 object-contain"
                   loading="eager"
+                  onLoad={() => {
+                    // #region agent log
+                    fetch('/api/debug-log', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        location: 'app/page.tsx:navbar-img',
+                        message: 'navbar logo loaded',
+                        data: { src: '/mysurro-logo.png' },
+                        runId: 'pre-fix',
+                        hypothesisId: 'H1',
+                        timestamp: Date.now(),
+                      }),
+                    }).catch(() => {});
+                    // #endregion
+                  }}
+                  onError={() => {
+                    // #region agent log
+                    fetch('/api/debug-log', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        location: 'app/page.tsx:navbar-img',
+                        message: 'navbar logo error',
+                        data: { src: '/mysurro-logo.png' },
+                        runId: 'pre-fix',
+                        hypothesisId: 'H1',
+                        timestamp: Date.now(),
+                      }),
+                    }).catch(() => {});
+                    // #endregion
+                  }}
                 />
                 <span className="font-bold text-2xl text-gray-900 tracking-tight">MySurro</span>
               </Link>
@@ -102,6 +138,42 @@ export default function LandingPage() {
                 height={56}
                 className="w-14 h-14 object-contain"
                 loading="eager"
+                onLoad={() => {
+                  // #region agent log
+                  fetch('/api/debug-log', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      location: 'app/page.tsx:hero-logo',
+                      message: 'hero logo loaded',
+                      data: { src: '/mysurro-logo.png' },
+                      runId: 'pre-fix',
+                      hypothesisId: 'H2',
+                      timestamp: Date.now(),
+                    }),
+                  }).catch(() => {});
+                  // #endregion
+                }}
+                onError={() => {
+                  // #region agent log
+                  fetch('/api/debug-log', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      location: 'app/page.tsx:hero-logo',
+                      message: 'hero logo error',
+                      data: { src: '/mysurro-logo.png' },
+                      runId: 'pre-fix',
+                      hypothesisId: 'H2',
+                      timestamp: Date.now(),
+                    }),
+                  }).catch(() => {});
+                  // #endregion
+                }}
               />
             </div>
                 <p className="font-medium text-gray-400">MySurro App Interface</p>
@@ -260,6 +332,42 @@ export default function LandingPage() {
               height={32}
               className="w-8 h-8 object-contain"
               loading="eager"
+              onLoad={() => {
+                // #region agent log
+                fetch('/api/debug-log', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    location: 'app/page.tsx:footer-logo',
+                    message: 'footer logo loaded',
+                    data: { src: '/mysurro-logo.png' },
+                    runId: 'pre-fix',
+                    hypothesisId: 'H3',
+                    timestamp: Date.now(),
+                  }),
+                }).catch(() => {});
+                // #endregion
+              }}
+              onError={() => {
+                // #region agent log
+                fetch('/api/debug-log', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    location: 'app/page.tsx:footer-logo',
+                    message: 'footer logo error',
+                    data: { src: '/mysurro-logo.png' },
+                    runId: 'pre-fix',
+                    hypothesisId: 'H3',
+                    timestamp: Date.now(),
+                  }),
+                }).catch(() => {});
+                // #endregion
+              }}
             />
             <span className="font-bold text-xl text-white">MySurro</span>
           </div>
