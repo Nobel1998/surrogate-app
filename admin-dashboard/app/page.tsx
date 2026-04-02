@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function LandingPage() {
   return (
@@ -11,13 +10,13 @@ export default function LandingPage() {
             {/* Logo area */}
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="flex items-center gap-3">
-                <Image
+                <img
                   src="/mysurro-logo.png"
                   alt="MySurro"
                   width={44}
                   height={44}
                   className="w-11 h-11 object-contain"
-                  priority
+                  loading="eager"
                 />
                 <span className="font-bold text-2xl text-gray-900 tracking-tight">MySurro</span>
               </Link>
@@ -96,13 +95,13 @@ export default function LandingPage() {
               <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-1/2 mx-auto z-20"></div>
               <div className="text-center text-gray-500 px-4">
             <div className="w-16 h-16 mx-auto bg-rose-100 rounded-2xl flex items-center justify-center mb-4">
-              <Image
+              <img
                 src="/mysurro-logo.png"
                 alt="MySurro logo"
                 width={56}
                 height={56}
                 className="w-14 h-14 object-contain"
-                priority
+                loading="eager"
               />
             </div>
                 <p className="font-medium text-gray-400">MySurro App Interface</p>
@@ -254,13 +253,13 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <Image
+            <img
               src="/mysurro-logo.png"
               alt="MySurro"
               width={32}
               height={32}
               className="w-8 h-8 object-contain"
-              priority
+              loading="eager"
             />
             <span className="font-bold text-xl text-white">MySurro</span>
           </div>
