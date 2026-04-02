@@ -9,8 +9,13 @@ export function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  // Allow access to public landing page, login page, and auth API routes
-  if (pathname === '/' || pathname === '/login' || pathname.startsWith('/api/auth/')) {
+  // Allow access to public landing page, login page, auth API routes, and public assets
+  if (
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname.startsWith('/api/auth/') ||
+    pathname === '/mysurro-logo.png'
+  ) {
     return NextResponse.next();
   }
 
@@ -35,6 +40,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|mysurro-logo.png).*)',
   ],
 };
