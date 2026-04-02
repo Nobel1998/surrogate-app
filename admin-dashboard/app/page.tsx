@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import LogoImage from '../components/LogoImage';
 
 export default function LandingPage() {
   return (
@@ -10,49 +11,13 @@ export default function LandingPage() {
             {/* Logo area */}
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="flex items-center gap-3">
-                <img
+                <LogoImage
                   src="/mysurro-logo.png"
                   alt="MySurro"
                   width={44}
                   height={44}
                   className="w-11 h-11 object-contain"
-                  loading="eager"
-                  onLoad={() => {
-                    // #region agent log
-                    fetch('/api/debug-log', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        location: 'app/page.tsx:navbar-img',
-                        message: 'navbar logo loaded',
-                        data: { src: '/mysurro-logo.png' },
-                        runId: 'pre-fix',
-                        hypothesisId: 'H1',
-                        timestamp: Date.now(),
-                      }),
-                    }).catch(() => {});
-                    // #endregion
-                  }}
-                  onError={() => {
-                    // #region agent log
-                    fetch('/api/debug-log', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        location: 'app/page.tsx:navbar-img',
-                        message: 'navbar logo error',
-                        data: { src: '/mysurro-logo.png' },
-                        runId: 'pre-fix',
-                        hypothesisId: 'H1',
-                        timestamp: Date.now(),
-                      }),
-                    }).catch(() => {});
-                    // #endregion
-                  }}
+                  location="app/page.tsx:navbar-img"
                 />
                 <span className="font-bold text-2xl text-gray-900 tracking-tight">MySurro</span>
               </Link>
@@ -131,49 +96,13 @@ export default function LandingPage() {
               <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-1/2 mx-auto z-20"></div>
               <div className="text-center text-gray-500 px-4">
             <div className="w-16 h-16 mx-auto bg-rose-100 rounded-2xl flex items-center justify-center mb-4">
-              <img
+              <LogoImage
                 src="/mysurro-logo.png"
                 alt="MySurro logo"
                 width={56}
                 height={56}
                 className="w-14 h-14 object-contain"
-                loading="eager"
-                onLoad={() => {
-                  // #region agent log
-                  fetch('/api/debug-log', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      location: 'app/page.tsx:hero-logo',
-                      message: 'hero logo loaded',
-                      data: { src: '/mysurro-logo.png' },
-                      runId: 'pre-fix',
-                      hypothesisId: 'H2',
-                      timestamp: Date.now(),
-                    }),
-                  }).catch(() => {});
-                  // #endregion
-                }}
-                onError={() => {
-                  // #region agent log
-                  fetch('/api/debug-log', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      location: 'app/page.tsx:hero-logo',
-                      message: 'hero logo error',
-                      data: { src: '/mysurro-logo.png' },
-                      runId: 'pre-fix',
-                      hypothesisId: 'H2',
-                      timestamp: Date.now(),
-                    }),
-                  }).catch(() => {});
-                  // #endregion
-                }}
+                location="app/page.tsx:hero-logo"
               />
             </div>
                 <p className="font-medium text-gray-400">MySurro App Interface</p>
@@ -325,49 +254,13 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <img
+            <LogoImage
               src="/mysurro-logo.png"
               alt="MySurro"
               width={32}
               height={32}
               className="w-8 h-8 object-contain"
-              loading="eager"
-              onLoad={() => {
-                // #region agent log
-                fetch('/api/debug-log', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    location: 'app/page.tsx:footer-logo',
-                    message: 'footer logo loaded',
-                    data: { src: '/mysurro-logo.png' },
-                    runId: 'pre-fix',
-                    hypothesisId: 'H3',
-                    timestamp: Date.now(),
-                  }),
-                }).catch(() => {});
-                // #endregion
-              }}
-              onError={() => {
-                // #region agent log
-                fetch('/api/debug-log', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    location: 'app/page.tsx:footer-logo',
-                    message: 'footer logo error',
-                    data: { src: '/mysurro-logo.png' },
-                    runId: 'pre-fix',
-                    hypothesisId: 'H3',
-                    timestamp: Date.now(),
-                  }),
-                }).catch(() => {});
-                // #endregion
-              }}
+              location="app/page.tsx:footer-logo"
             />
             <span className="font-bold text-xl text-white">MySurro</span>
           </div>
