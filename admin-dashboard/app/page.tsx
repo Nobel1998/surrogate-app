@@ -10,10 +10,15 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-20">
             {/* Logo area */}
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-rose-400 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  M
-                </div>
+              <Link href="/" className="flex items-center gap-3">
+                <Image
+                  src="/mysurro-logo.png"
+                  alt="MySurro"
+                  width={44}
+                  height={44}
+                  className="w-11 h-11 object-contain"
+                  priority
+                />
                 <span className="font-bold text-2xl text-gray-900 tracking-tight">MySurro</span>
               </Link>
             </div>
@@ -90,9 +95,16 @@ export default function LandingPage() {
             <div className="relative w-64 h-[500px] bg-gray-900 rounded-[3rem] border-[8px] border-gray-900 shadow-2xl overflow-hidden flex items-center justify-center">
               <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-1/2 mx-auto z-20"></div>
               <div className="text-center text-gray-500 px-4">
-                <div className="w-16 h-16 mx-auto bg-rose-100 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="text-rose-400 text-2xl font-bold">M</span>
-                </div>
+            <div className="w-16 h-16 mx-auto bg-rose-100 rounded-2xl flex items-center justify-center mb-4">
+              <Image
+                src="/mysurro-logo.png"
+                alt="MySurro logo"
+                width={56}
+                height={56}
+                className="w-14 h-14 object-contain"
+                priority
+              />
+            </div>
                 <p className="font-medium text-gray-400">MySurro App Interface</p>
               </div>
             </div>
@@ -242,9 +254,14 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-rose-400 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-              M
-            </div>
+            <Image
+              src="/mysurro-logo.png"
+              alt="MySurro"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain"
+              priority
+            />
             <span className="font-bold text-xl text-white">MySurro</span>
           </div>
           <div className="text-gray-400 text-sm">
