@@ -155,31 +155,36 @@ export const AppProvider = ({ children }) => {
 
       // 加载云端 events
       console.log('Loading events from cloud...');
-      const queryStartTime = Date.now();
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events_with_stats')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false }); // 改为按创建时间倒序，最新的在前面
-      const queryEndTime = Date.now();
+      try {
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
-      console.log('📊 Raw events query result:', { 
-        count: eventsData?.length || 0, 
-        error: eventsError,
-        firstEvent: eventsData?.[0]
-      });
+        if (eventsError) throw eventsError;
 
-      if (eventsError) {
-        console.error('Error loading events:', eventsError);
-        // 回退到本地存储的events
-        const storedEvents = await AsyncStorageLib.getItem('community_events');
-        if (storedEvents) {
-          setEvents(JSON.parse(storedEvents));
-        } else {
-          setEvents([]);
-        }
-      } else {
-        const formattedEvents = (eventsData || []).map(event => ({
+        const { data: registrations } = await supabase
+          .from('event_registrations')
+          .select('event_id')
+          .eq('status', 'registered');
+
+        const { data: likes } = await supabase
+          .from('event_likes')
+          .select('event_id');
+
+        const eventsWithStats = (eventsData || []).map(event => {
+          const registrationCount = registrations?.filter(r => r.event_id === event.id).length || 0;
+          const likesCount = likes?.filter(l => l.event_id === event.id).length || 0;
+          return {
+            ...event,
+            registration_count: registrationCount,
+            likes_count: likesCount,
+            current_participants: registrationCount
+          };
+        });
+
+        const formattedEvents = eventsWithStats.map(event => ({
           id: event.id,
           title: event.title,
           description: event.description,
@@ -207,6 +212,15 @@ export const AppProvider = ({ children }) => {
         // 同时保存到本地存储作为缓存
         await AsyncStorageLib.setItem('community_events', JSON.stringify(formattedEvents));
         console.log('✅ Events loaded successfully:', formattedEvents.length);
+      } catch (eventsError) {
+        console.error('Error loading events:', eventsError);
+        // 回退到本地存储的events
+        const storedEvents = await AsyncStorageLib.getItem('community_events');
+        if (storedEvents) {
+          setEvents(JSON.parse(storedEvents));
+        } else {
+          setEvents([]);
+        }
       }
 
     } catch (error) {
