@@ -11,6 +11,7 @@ import {
   Share,
   ActivityIndicator 
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import * as Clipboard from 'expo-clipboard';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -217,6 +218,17 @@ export default function EventDetailScreen({ route, navigation }) {
         {/* Event Image */}
         {event.image && (
           <Image source={{ uri: event.image }} style={styles.eventImage} />
+        )}
+
+        {/* Event Video */}
+        {event.videoUrl && (
+          <Video
+            source={{ uri: event.videoUrl }}
+            style={styles.eventVideo}
+            useNativeControls
+            resizeMode={ResizeMode.CONTAIN}
+            isLooping={false}
+          />
         )}
 
         {/* Event Content */}
@@ -434,6 +446,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 250,
     resizeMode: 'cover',
+  },
+  eventVideo: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,

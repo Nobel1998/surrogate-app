@@ -194,6 +194,7 @@ export const AppProvider = ({ children }) => {
           location: event.location || 'TBD',
           category: event.category || 'General',
           image: event.image_url,
+          videoUrl: event.video_url,
           isFeatured: event.is_featured,
           likesCount: event.likes_count || 0,
           registrationCount: event.registration_count || 0,

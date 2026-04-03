@@ -97,11 +97,18 @@ export default function EventScreen() {
             <View style={styles.badgeContainer}>
               <Text style={styles.badgeText}>{item.category}</Text>
             </View>
-            {item.isFeatured && (
-              <View style={styles.featuredBadge}>
-                <Text style={styles.featuredText}>⭐ {t('blog.featured')}</Text>
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {item.isFeatured && (
+                <View style={styles.featuredBadge}>
+                  <Text style={styles.featuredText}>⭐ {t('blog.featured')}</Text>
+                </View>
+              )}
+              {item.videoUrl && (
+                <View style={styles.videoBadge}>
+                  <Text style={styles.videoText}>🎬 Video</Text>
+                </View>
+              )}
+            </View>
           </View>
           
           <Text style={styles.cardTitle}>{item.title}</Text>
@@ -310,6 +317,17 @@ const styles = StyleSheet.create({
   },
   featuredText: {
     color: '#856404',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  videoBadge: {
+    backgroundColor: '#E8EAF6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  videoText: {
+    color: '#3F51B5',
     fontSize: 11,
     fontWeight: '600',
   },
