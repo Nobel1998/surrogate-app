@@ -14,7 +14,8 @@ export function middleware(request: NextRequest) {
     pathname === '/' ||
     pathname === '/login' ||
     pathname.startsWith('/api/auth/') ||
-    pathname === '/mysurro-logo.png'
+    pathname === '/mysurro-logo.png' ||
+    pathname.startsWith('/screenshots/')
   ) {
     return NextResponse.next();
   }
