@@ -1,5 +1,24 @@
 import Link from 'next/link';
 
+const HOMEPAGE_SCREENSHOTS = [
+  {
+    src: '/screenshots/01-login.png',
+    alt: 'MySurro sign-in screen with email and password fields',
+  },
+  {
+    src: '/screenshots/02-my-journey.png',
+    alt: 'MySurro My Journey screen showing surrogacy progress and milestones',
+  },
+  {
+    src: '/screenshots/03-my-match-documents.png',
+    alt: 'MySurro My Match screen with documents and records list',
+  },
+  {
+    src: '/screenshots/04-blogs.png',
+    alt: 'MySurro Blogs feed with news and community updates',
+  },
+] as const;
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -206,10 +225,19 @@ export default function LandingPage() {
             
             {/* Horizontal scrolling container for screenshots */}
             <div className="flex space-x-6 overflow-x-auto pb-8 snap-x snap-mandatory hide-scrollbar">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="snap-center shrink-0 w-64 h-[500px] bg-gray-100 rounded-[2.5rem] border-[6px] border-gray-200 shadow-lg flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute top-0 inset-x-0 h-5 bg-gray-200 rounded-b-2xl w-1/2 mx-auto z-20"></div>
-                  <span className="text-gray-400 font-medium">App Screen {i}</span>
+              {HOMEPAGE_SCREENSHOTS.map((shot, index) => (
+                <div
+                  key={shot.src}
+                  className="snap-center shrink-0 w-64 h-[500px] bg-gray-100 rounded-[2.5rem] border-[6px] border-gray-200 shadow-lg relative overflow-hidden"
+                >
+                  <div className="pointer-events-none absolute top-0 inset-x-0 z-20 mx-auto h-5 w-1/2 rounded-b-2xl bg-gray-200" />
+                  <img
+                    src={shot.src}
+                    alt={shot.alt}
+                    className="absolute inset-0 z-0 h-full w-full object-cover object-top"
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    draggable={false}
+                  />
                 </div>
               ))}
             </div>

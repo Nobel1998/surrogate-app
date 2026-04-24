@@ -2,7 +2,7 @@
   "expo": {
     "name": "Surrogate Agency USA",
     "slug": "surrogateagencyusa",
-    "version": "1.0.0",
+    "version": "1.7.6",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "surrogateagency",
@@ -10,7 +10,7 @@
       "**/*"
     ],
     "ios": {
-      "bundleIdentifier": "com.surrogateagencyusa",
+      "bundleIdentifier": "io.dcloud.mysurronew",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take photos for sharing your surrogacy journey.",
@@ -40,7 +40,9 @@
           "photosPermission": "The app accesses your photos to let you share them in your surrogacy journey posts.",
           "cameraPermission": "The app accesses your camera to let you take photos for your surrogacy journey posts."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-video"
     ],
     "extra": {
       "eas": {

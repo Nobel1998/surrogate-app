@@ -1,0 +1,21 @@
+What to Test (TestFlight) — copy/paste
+=======================================
+
+Build: 1.7.6 (7)
+
+Please verify login and primary flows for both roles:
+
+1) Intended Parents
+   - Sign in, complete or view profile, browse core screens, and exercise any parent-specific flows (matching, messaging, documents, etc. as applicable).
+
+2) Surrogate
+   - Sign in, complete or view profile, and exercise surrogate-specific flows (journey updates, uploads, notifications, etc. as applicable).
+
+General
+   - Camera / photo library flows if used (permissions prompts).
+   - Push notifications if applicable (accept permission, receive test notification).
+   - Report any crash, blank screen, or blocked navigation.
+
+Demo accounts (optional for testers — full credentials should also be in App Review Information for Apple):
+   - Parents: <email> / <password>
+   - Surrogate: <email> / <password>

@@ -1,0 +1,30 @@
+App Review Information — Sign-in required (copy/paste into App Store Connect)
+==============================================================================
+
+This app requires an account to access core features.
+
+--- Intended Parents (demo) ---
+Username / Email: <REPLACE_PARENTS_EMAIL>
+Password: <REPLACE_PARENTS_PASSWORD>
+
+Steps:
+1. Launch the app.
+2. On the sign-in screen, log in with the Parents demo account above.
+3. Navigate to: <REPLACE_KEY_SCREENS e.g. Home → Applications → Profile>
+
+--- Surrogate (demo) ---
+Username / Email: <REPLACE_SURROGATE_EMAIL>
+Password: <REPLACE_SURROGATE_PASSWORD>
+
+Steps:
+1. Launch the app.
+2. On the sign-in screen, log in with the Surrogate demo account above.
+3. Navigate to: <REPLACE_KEY_SCREENS e.g. Home → Journey → Upload photo>
+
+Notes for reviewer:
+- If MFA / email verification is required, use inbox: <REPLACE_INBOX_OR_DISABLE_MFA_FOR_DEMO>
+- Backend environment: <production / staging — specify>
+- Any feature flags or region restrictions: <none / describe>
+
+Encryption (for consistency with Info.plist):
+- The app uses standard encryption (e.g. HTTPS) only; no non-exempt encryption beyond Apple’s exemption. (Matches ITSAppUsesNonExemptEncryption = false in app configuration.)
