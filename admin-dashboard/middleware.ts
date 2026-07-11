@@ -9,10 +9,12 @@ export function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  // Allow access to public landing page, login page, auth API routes, and public assets
+  // Allow public pages, login, auth API routes, and public assets
   if (
     pathname === '/' ||
     pathname === '/login' ||
+    pathname === '/privacy-policy' ||
+    pathname === '/delete-account' ||
     pathname.startsWith('/api/auth/') ||
     pathname === '/mysurro-logo.png' ||
     pathname.startsWith('/screenshots/')
