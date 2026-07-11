@@ -41,6 +41,15 @@
 
 把对应链接或二维码发给远程测试用户即可安装测试。
 
+## Google Play 正式上架
+
+生产 AAB 构建与 Play Console 完整步骤见 **[GOOGLE_PLAY.md](./GOOGLE_PLAY.md)**。
+
+```bash
+npm run eas:build:android:production   # 生成 .aab
+npm run eas:submit:android             # 配置 Service Account 后可自动提交
+```
+
 ## 发布 OTA 更新（让 Branches → preview 显示最新）
 
 若希望 [Branches → preview](https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa/branches/preview) 页面上出现“最新版本”记录，需要把当前 JS 包发布到该分支：

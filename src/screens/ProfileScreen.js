@@ -7,7 +7,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 import * as StoreReview from 'expo-store-review';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { language, getLanguageLabel, t } = useLanguage();
   const [userRole, setUserRole] = useState(null);
   const [agencyRetainerDoc, setAgencyRetainerDoc] = useState(null);
@@ -21,6 +21,7 @@ export default function ProfileScreen({ navigation }) {
   const [loadingApplication, setLoadingApplication] = useState(false);
   const [intendedParentApplicationStatus, setIntendedParentApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
   const [loadingIntendedParentApplication, setLoadingIntendedParentApplication] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     loadUserRole();
@@ -574,6 +575,54 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t('profile.deleteAccountStep1Title'),
+      t('profile.deleteAccountStep1Message'),
+      [
+        { text: t('profile.deleteAccountCancel'), style: 'cancel' },
+        {
+          text: t('profile.deleteAccountContinue'),
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              t('profile.deleteAccountStep2Title'),
+              t('profile.deleteAccountStep2Message'),
+              [
+                { text: t('profile.deleteAccountCancel'), style: 'cancel' },
+                {
+                  text: t('profile.deleteAccountSubmit'),
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeletingAccount(true);
+                    try {
+                      const result = await deleteAccount();
+                      if (!result.success) {
+                        const errStr = String(result.error || '');
+                        const isUnavailable =
+                          errStr.includes('Failed to send a request') ||
+                          errStr.includes('FunctionsRelayError') ||
+                          errStr.includes('Failed to fetch');
+                        const msg = isUnavailable
+                          ? t('profile.deleteAccountFailedUnavailable')
+                          : errStr && errStr !== 'delete_failed'
+                            ? errStr
+                            : t('profile.deleteAccountFailed');
+                        Alert.alert(t('profile.deleteAccountStep2Title'), msg);
+                      }
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const renderHeaderButton = (icon, label, onPress, color) => (
     <TouchableOpacity style={styles.headerButton} onPress={onPress}>
       <View style={[styles.headerIconContainer, { backgroundColor: color }]}>
@@ -729,6 +778,18 @@ export default function ProfileScreen({ navigation }) {
           {renderMenuItem(t('profile.aboutApp'), 'info', () => Alert.alert(t('profile.aboutApp'), 'Version 1.0.0'), '#2196F3')}
         </View>
 
+        <TouchableOpacity
+          style={[styles.logoutButton, styles.deleteAccountButton]}
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}
+        >
+          {deletingAccount ? (
+            <ActivityIndicator color="#B71C1C" />
+          ) : (
+            <Text style={styles.deleteAccountButtonText}>{t('profile.deleteAccount')}</Text>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
@@ -850,9 +911,20 @@ const styles = StyleSheet.create({
     color: '#999',
     marginRight: 8,
   },
+  deleteAccountButton: {
+    marginTop: 20,
+    marginBottom: 0,
+    borderColor: '#FFCDD2',
+    backgroundColor: '#FFF5F5',
+  },
+  deleteAccountButtonText: {
+    color: '#B71C1C',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   logoutButton: {
     backgroundColor: '#fff',
-    marginTop: 20,
+    marginTop: 12,
     marginBottom: 40,
     paddingVertical: 16,
     alignItems: 'center',

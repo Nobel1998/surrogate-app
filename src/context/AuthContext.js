@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Linking } from 'react-native';
 import AsyncStorageLib from '../utils/Storage';
-import { supabase } from '../lib/supabase';
+import { supabase, DELETE_ACCOUNT_EDGE_FN_SLUG } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -835,35 +835,94 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const clearLocalSession = async () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    await AsyncStorageLib.removeItem('current_user');
+    await AsyncStorageLib.removeItem('user_applications');
+  };
+
   const logout = async () => {
     try {
       console.log('🚪 Starting logout process...');
-      
-      // Sign out from Supabase
+
       console.log('📤 Signing out from Supabase...');
       await supabase.auth.signOut();
-      
-      // Clear local state
+
       console.log('🧹 Clearing local state...');
-      setUser(null);
-      setIsAuthenticated(false);
-      
-      // Clear stored user credentials
-      console.log('💾 Clearing stored credentials...');
-      await AsyncStorageLib.removeItem('current_user');
-      
-      // Also clear application cache to ensure fresh start
-      await AsyncStorageLib.removeItem('user_applications');
-      
+      await clearLocalSession();
+
       console.log('✅ User logged out successfully');
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Even if there's an error, clear local state
-      setUser(null);
-      setIsAuthenticated(false);
-      await AsyncStorageLib.removeItem('current_user');
-      await AsyncStorageLib.removeItem('user_applications');
-      throw error; // Re-throw to let the UI handle the error
+      await clearLocalSession();
+      throw error;
+    }
+  };
+
+  /**
+   * Permanently deletes the authenticated user via Supabase Edge Function.
+   * Slug is DELETE_ACCOUNT_EDGE_FN_SLUG in lib/supabase.js (must match Dashboard Invoke URL).
+   */
+  const deleteAccount = async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        return { success: false, error: 'Not signed in' };
+      }
+
+      const baseUrl = String(supabase.supabaseUrl || '').replace(/\/$/, '');
+      const url = `${baseUrl}/functions/v1/${DELETE_ACCOUNT_EDGE_FN_SLUG}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabase.supabaseKey,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: '{}',
+      });
+
+      const text = await res.text();
+      let payload = {};
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = { _raw: text };
+        }
+      }
+
+      if (!res.ok) {
+        const msg =
+          payload.error ||
+          payload.msg ||
+          payload.message ||
+          (payload._raw != null ? String(payload._raw).trim().slice(0, 400) : '') ||
+          `HTTP ${res.status}`;
+        console.error('delete-account HTTP error:', res.status, text?.slice(0, 800));
+        return { success: false, error: String(msg).slice(0, 500) };
+      }
+
+      if (payload.error) {
+        return { success: false, error: String(payload.error) };
+      }
+
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        console.warn('Sign out after delete (expected if session invalid):', signOutErr);
+      }
+      await clearLocalSession();
+      return { success: true };
+    } catch (err) {
+      console.error('deleteAccount error:', err);
+      return {
+        success: false,
+        error: err?.message || 'delete_failed',
+      };
     }
   };
 
@@ -980,6 +1039,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    deleteAccount,
     updateProfile,
     updatePreferences,
   };

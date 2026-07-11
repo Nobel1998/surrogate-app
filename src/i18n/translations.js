@@ -65,6 +65,19 @@ export const translations = {
       contactUs: 'Contact Us',
       aboutApp: 'About App',
       signOut: 'Sign Out',
+      deleteAccount: 'Delete Account',
+      deleteAccountStep1Title: 'Delete account?',
+      deleteAccountStep1Message:
+        'This permanently deletes your account and associated profile data from our systems. You cannot undo this.',
+      deleteAccountContinue: 'Continue',
+      deleteAccountCancel: 'Cancel',
+      deleteAccountStep2Title: 'Confirm deletion',
+      deleteAccountStep2Message:
+        'Your account will be permanently deleted. You will need to register again to use the app.',
+      deleteAccountSubmit: 'Delete permanently',
+      deleteAccountFailed: 'Could not delete your account. Please try again or contact support.',
+      deleteAccountFailedUnavailable:
+        'Account deletion is temporarily unavailable. Please try again later or contact support.',
       available: 'Available',
       notAvailable: 'Not Available',
       faq: 'FAQ',
@@ -664,7 +677,13 @@ export const translations = {
           },
           signOut: {
             question: 'How do I sign out?',
-            answer: 'Go to User Center and scroll to the bottom. Tap "Sign Out" to log out of your account.',
+            answer:
+              'Go to User Center and scroll to the bottom. Tap "Sign Out" to log out. Signing out does not delete your account.',
+          },
+          deleteAccount: {
+            question: 'How do I delete my account?',
+            answer:
+              'Go to User Center, scroll to the bottom (above Sign Out), tap "Delete Account", and confirm both prompts. Your account will be permanently deleted.',
           },
         },
       },
@@ -1022,6 +1041,17 @@ export const translations = {
       contactUs: '联系我们',
       aboutApp: '关于应用',
       signOut: '退出登录',
+      deleteAccount: '删除账户',
+      deleteAccountStep1Title: '删除账户？',
+      deleteAccountStep1Message:
+        '此操作将永久删除您的账户及系统中的关联资料，且无法恢复。',
+      deleteAccountContinue: '继续',
+      deleteAccountCancel: '取消',
+      deleteAccountStep2Title: '确认删除',
+      deleteAccountStep2Message: '删除后将无法恢复，如需再次使用需重新注册。',
+      deleteAccountSubmit: '永久删除',
+      deleteAccountFailed: '无法删除账户，请重试或联系客服。',
+      deleteAccountFailedUnavailable: '账户删除服务暂时不可用，请稍后重试或联系客服。',
       available: '可用',
       notAvailable: '不可用',
       faq: '常见问题',
@@ -1678,7 +1708,13 @@ export const translations = {
           },
           signOut: {
             question: '如何退出登录？',
-            answer: '前往用户中心并滚动到底部。点击"退出登录"以注销您的账户。',
+            answer:
+              '前往用户中心并滚动到底部，点击「退出登录」。退出登录只会结束当前会话，不会删除您的账户。',
+          },
+          deleteAccount: {
+            question: '如何删除我的账户？',
+            answer:
+              '前往用户中心，滚动到底部（在「退出登录」上方），点击「删除账户」，并按两次提示确认，账户将被永久删除。',
           },
         },
       },
@@ -1982,6 +2018,19 @@ export const translations = {
       contactUs: 'Contáctanos',
       aboutApp: 'Acerca de la App',
       signOut: 'Cerrar Sesión',
+      deleteAccount: 'Eliminar cuenta',
+      deleteAccountStep1Title: '¿Eliminar cuenta?',
+      deleteAccountStep1Message:
+        'Esto eliminará permanentemente su cuenta y los datos asociados en nuestros sistemas. No se puede deshacer.',
+      deleteAccountContinue: 'Continuar',
+      deleteAccountCancel: 'Cancelar',
+      deleteAccountStep2Title: 'Confirmar eliminación',
+      deleteAccountStep2Message:
+        'Su cuenta se eliminará permanentemente. Deberá registrarse de nuevo para usar la aplicación.',
+      deleteAccountSubmit: 'Eliminar permanentemente',
+      deleteAccountFailed: 'No se pudo eliminar la cuenta. Inténtelo de nuevo o contacte a soporte.',
+      deleteAccountFailedUnavailable:
+        'La eliminación de cuenta no está disponible temporalmente. Inténtelo más tarde o contacte a soporte.',
       available: 'Disponible',
       notAvailable: 'No Disponible',
       faq: 'Preguntas Frecuentes',
@@ -2697,7 +2746,13 @@ export const translations = {
           },
           signOut: {
             question: '¿Cómo cierro sesión?',
-            answer: 'Vaya al Centro de Usuario y desplácese hasta la parte inferior. Toque "Cerrar Sesión" para cerrar sesión en su cuenta.',
+            answer:
+              'Vaya al Centro de Usuario y desplácese hasta la parte inferior. Toque "Cerrar Sesión". Cerrar sesión no elimina su cuenta.',
+          },
+          deleteAccount: {
+            question: '¿Cómo elimino mi cuenta?',
+            answer:
+              'Vaya al Centro de Usuario, desplácese hasta la parte inferior (encima de Cerrar Sesión), toque "Eliminar cuenta" y confirme ambos mensajes. Su cuenta se eliminará permanentemente.',
           },
         },
       },

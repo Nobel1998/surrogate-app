@@ -102,6 +102,10 @@ export default function FAQScreen({ navigation }) {
           question: t('faq.questions.account.signOut.question'),
           answer: t('faq.questions.account.signOut.answer'),
         },
+        {
+          question: t('faq.questions.account.deleteAccount.question'),
+          answer: t('faq.questions.account.deleteAccount.answer'),
+        },
       ],
     },
   ];

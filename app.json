@@ -3,6 +3,7 @@
     "name": "Surrogate Agency USA",
     "slug": "surrogateagencyusa",
     "version": "1.7.6",
+    "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "surrogateagency",
@@ -10,6 +11,7 @@
       "**/*"
     ],
     "ios": {
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "io.dcloud.mysurronew",
       "supportsTablet": true,
       "infoPlist": {
@@ -21,15 +23,15 @@
     "android": {
       "package": "com.surrogateagencyusa",
       "backgroundColor": "#2A7BF6",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.surrogateagencyusa",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#2A7BF6"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {},

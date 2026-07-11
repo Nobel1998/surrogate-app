@@ -295,8 +295,8 @@ export default function LandingPage() {
             © {new Date().getFullYear()} Babytree Surrogacy. All rights reserved.
           </div>
           <div className="flex space-x-6 mt-4 md:mt-0 text-sm text-gray-400">
-            <Link href="#" className="hover:text-white transition-colors">Terms of Use</Link>
-            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/delete-account" className="hover:text-white transition-colors">Delete Account</Link>
             <a href="https://babytreesurrogacy.com/contact-us/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Contact Us</a>
           </div>
         </div>

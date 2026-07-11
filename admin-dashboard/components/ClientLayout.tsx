@@ -10,6 +10,7 @@ const PAYMENT_NODES_PATH = '/payment-nodes';
 const PAYMENT_ALLOWED_ROLES = ['admin', 'finance_manager'];
 const BRANCH_MANAGER_BLOCKED_PATHS = ['/dashboard', '/profiles'];
 const BRANCH_MANAGER_HOME = '/matches';
+const PUBLIC_PATHS = ['/', '/login', '/privacy-policy', '/delete-account'];
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,8 +21,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Skip auth check for public landing page and login page
-    if (pathname === '/' || pathname === '/login') {
+    if (PUBLIC_PATHS.includes(pathname)) {
       setLoading(false);
       return;
     }
@@ -64,7 +64,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     router.replace(BRANCH_MANAGER_HOME);
   }, [loading, pathname, userRole, router]);
 
-  if (pathname === '/' || pathname === '/login') {
+  if (PUBLIC_PATHS.includes(pathname)) {
     return <>{children}</>;
   }
 

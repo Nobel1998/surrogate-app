@@ -12,6 +12,9 @@ const supabaseStorage = {
   removeItem: (key) => AsyncStorageLib.removeItem(key),
 };
 
+/** Last segment of Dashboard → Edge Functions → Invoke URL (deployment slug). */
+export const DELETE_ACCOUNT_EDGE_FN_SLUG = 'smooth-responder';
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     storage: supabaseStorage,
