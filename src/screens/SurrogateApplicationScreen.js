@@ -235,15 +235,28 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     photos: [], // Array of photo URLs
   });
 
+  const composeNameFromParts = (data) =>
+    `${data?.firstName || ''} ${data?.middleName || ''} ${data?.lastName || ''}`
+      .trim()
+      .replace(/\s+/g, ' ');
+
+  /** Prefer explicit fullName; otherwise build from first/middle/last (UI may show composed name while state.fullName is still empty). */
+  const resolveFullName = (data) => {
+    const explicit = String(data?.fullName || '').trim().replace(/\s+/g, ' ');
+    if (explicit) return explicit;
+    return composeNameFromParts(data);
+  };
+
   const updateField = (field, value) => {
     setApplicationData(prev => {
       const updated = { ...prev, [field]: value };
       // Auto-sync fullName when firstName, middleName, or lastName changes
       if (field === 'firstName' || field === 'middleName' || field === 'lastName') {
-        const firstName = field === 'firstName' ? value : prev.firstName || '';
-        const middleName = field === 'middleName' ? value : prev.middleName || '';
-        const lastName = field === 'lastName' ? value : prev.lastName || '';
-        updated.fullName = `${firstName} ${middleName} ${lastName}`.trim().replace(/\s+/g, ' ');
+        updated.fullName = composeNameFromParts({
+          firstName: field === 'firstName' ? value : prev.firstName,
+          middleName: field === 'middleName' ? value : prev.middleName,
+          lastName: field === 'lastName' ? value : prev.lastName,
+        });
       }
       // Auto-sync dateOfBirth when month, day, or year changes
       if (field === 'dateOfBirthMonth' || field === 'dateOfBirthDay' || field === 'dateOfBirthYear') {
@@ -363,7 +376,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             }]);
           }
           // ensure state updates flush before formVersion bump
-          setApplicationData(prev => ({ ...prev, ...merged }));
+          setApplicationData(prev => {
+            const next = { ...prev, ...merged };
+            if (!String(next.fullName || '').trim()) {
+              next.fullName = composeNameFromParts(next);
+            }
+            return next;
+          });
           setTimeout(() => {
             const newVersion = Date.now();
             setFormVersion(newVersion);
@@ -377,7 +396,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       const draft = await AsyncStorageLib.getItem(userIdOverride ? `application_draft_${uid}` : getDraftKey());
       if (draft) {
         const parsed = JSON.parse(draft);
-        setApplicationData(prev => ({ ...prev, ...parsed }));
+        setApplicationData(prev => {
+          const next = { ...prev, ...parsed };
+          if (!String(next.fullName || '').trim()) {
+            next.fullName = composeNameFromParts(next);
+          }
+          return next;
+        });
         setTimeout(() => {
           const newVersion = Date.now();
           setFormVersion(newVersion);
@@ -416,10 +441,16 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       if (editMode && existingData) {
         // Load existing data for editing
         console.log('📝 Loading existing application data for editing');
-        setApplicationData(prev => ({
-          ...prev,
-          ...existingData,
-        }));
+        setApplicationData(prev => {
+          const next = {
+            ...prev,
+            ...existingData,
+          };
+          if (!String(next.fullName || '').trim()) {
+            next.fullName = composeNameFromParts(next);
+          }
+          return next;
+        });
         // Set photos array if photos exist
         if (existingData.photos && Array.isArray(existingData.photos)) {
           const loadedPhotos = existingData.photos.map((url, idx) => ({
@@ -752,10 +783,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   const validateStep = (step) => {
     switch (step) {
-      case 1:
-        if (!applicationData.fullName.trim()) {
+      case 1: {
+        const resolvedFullName = resolveFullName(applicationData);
+        if (!resolvedFullName) {
           Alert.alert(t('common.error'), t('application.errorEnterFullName'));
           return false;
+        }
+        // Persist composed name when UI showed parts but fullName state was empty (drafts / older clients)
+        if (resolvedFullName !== String(applicationData.fullName || '').trim()) {
+          setApplicationData((prev) => ({ ...prev, fullName: resolvedFullName }));
         }
         if (!applicationData.age || parseInt(applicationData.age) < 21 || parseInt(applicationData.age) > 40) {
           Alert.alert(t('common.error'), t('application.errorAgeRange'));
@@ -807,6 +843,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           return false;
         }
         return true;
+      }
       
       case 2:
         // Validate totalDeliveries field (the actual field used in the form)
@@ -896,7 +933,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         options: {
           data: {
             role,
-            name: applicationData.fullName,
+            name: resolveFullName(applicationData),
             phone: applicationData.phoneNumber,
             address: applicationData.address || '',
             age: applicationData.age || '',
@@ -922,7 +959,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           const profilePayload = {
             id: userId,
             role,
-            name: applicationData.fullName,
+            name: resolveFullName(applicationData),
             phone: applicationData.phoneNumber,
             date_of_birth: applicationData.dateOfBirth || null,
             email: authEmail.trim(),
@@ -1010,7 +1047,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       
       const profileUpdate = {
         id: authUser.id,
-        name: applicationData.fullName,
+        name: resolveFullName(applicationData),
         phone: applicationData.phoneNumber,
         date_of_birth: applicationData.dateOfBirth || null,
         email: applicationData.email || authUser.email,
@@ -1032,12 +1069,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       }
 
       // Construct payload for Supabase
-      const { fullName, phoneNumber, ...otherFields } = applicationData;
+      const { fullName: _ignoredFullName, phoneNumber, ...otherFields } = applicationData;
+      const resolvedName = resolveFullName(applicationData);
       
       const payload = {
-        full_name: fullName,
+        full_name: resolvedName,
         phone: phoneNumber,
-        form_data: JSON.stringify(otherFields),
+        form_data: JSON.stringify({ ...otherFields, fullName: resolvedName }),
         user_id: authUser.id  // 添加用户ID
       };
 
@@ -1088,7 +1126,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         status: editMode ? 'updated' : 'pending',
         submittedDate: new Date().toISOString().split('T')[0],
         lastUpdated: new Date().toISOString().split('T')[0],
-        description: `Surrogacy Application - ${applicationData.fullName}`,
+        description: `Surrogacy Application - ${resolveFullName(applicationData)}`,
         nextStep: 'Wait for initial review and medical screening',
         documents: ['Application Form', 'Medical History', 'Background Check'],
         notes: editMode ? 'Application updated successfully.' : 'Application submitted successfully. Our team will review and contact you within 5-7 business days.',
@@ -1182,7 +1220,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         {/* Also keep fullName for backward compatibility */}
         <TextInput
           style={[styles.input, { marginTop: 10 }]}
-          value={applicationData.fullName || `${applicationData.firstName} ${applicationData.middleName} ${applicationData.lastName}`.trim()}
+          value={resolveFullName(applicationData)}
           onChangeText={(value) => updateField('fullName', value)}
           placeholder="Full Name (or auto-filled from above)"
         />
@@ -1238,6 +1276,30 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           onChangeText={(value) => updateField('age', value)}
           placeholder="Age (21-40)"
           keyboardType="numeric"
+        />
+      </View>
+
+      {/* Contact — required by step 1 validation; was previously only on step 8 (read-only) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Phone Number *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.phoneNumber || ''}
+          onChangeText={(value) => updateField('phoneNumber', value)}
+          placeholder="Phone number"
+          keyboardType="phone-pad"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Email *</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.email || ''}
+          onChangeText={(value) => updateField('email', value)}
+          placeholder="Email address"
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
       </View>
 
@@ -4166,8 +4228,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <TextInput
           style={styles.input}
           value={applicationData.email || ''}
+          onChangeText={(value) => updateField('email', value)}
           placeholder="Email"
-          editable={false}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
     </View>
 
@@ -4176,8 +4240,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         <TextInput
           style={styles.input}
           value={applicationData.phoneNumber || ''}
+          onChangeText={(value) => updateField('phoneNumber', value)}
           placeholder="Phone"
-          editable={false}
+          keyboardType="phone-pad"
         />
       </View>
 
