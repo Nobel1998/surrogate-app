@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -1242,6 +1242,32 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     }
   };
 
+  const renderNavigationButtons = () => (
+    <View style={styles.navigationContainer}>
+      {currentStep > 1 && (
+        <TouchableOpacity style={styles.navButton} onPress={prevStep}>
+          <Text style={styles.navButtonText}>Previous</Text>
+        </TouchableOpacity>
+      )}
+      <View style={styles.navButtonSpacer} />
+      {currentStep < totalSteps ? (
+        <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
+          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>Next</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonPrimary, isLoading && styles.navButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
+          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
+            {isLoading ? 'Submitting...' : 'Submit'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -1533,6 +1559,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           value={applicationData.parent1AddressZip}
           onChangeText={(text) => updateField('parent1AddressZip', text)}
         />
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
@@ -1541,14 +1568,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     // Only show if not single parent
     if (applicationData.familyStructure === 'single_father' || applicationData.familyStructure === 'single_mother') {
       return (
-        <ScrollView style={styles.stepContent}>
+        <ScrollView
+          style={styles.stepContent}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
           <Text style={styles.infoText}>This step is not applicable for single parents.</Text>
+          {renderNavigationButtons()}
         </ScrollView>
       );
     }
 
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Intended Parent 2 Name *</Text>
         <View style={styles.row}>
           <TextInput
@@ -1679,13 +1717,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep3 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Family Background</Text>
         
         <Text style={styles.label}>How long have you been together? *</Text>
@@ -1724,13 +1768,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             />
           </>
         )}
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep4 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Medical & Fertility History</Text>
         
         <Text style={styles.label}>Reason for pursuing surrogacy *</Text>
@@ -1907,13 +1957,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           multiline
           numberOfLines={4}
         />
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep5 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Surrogate Preferences</Text>
         
         <Text style={styles.label}>What is your preferred surrogate age range? *</Text>
@@ -2123,13 +2179,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.preferOBGYNGuidelines === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep6 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Surrogate Preferences (Continued)</Text>
         
         <Text style={styles.label}>Prefer surrogate to avoid heavy lifting? *</Text>
@@ -2312,13 +2374,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.preferComfortableWithBirth === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep8 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>General Questions</Text>
         
         <Text style={styles.label}>Will you transfer more than one embryo? *</Text>
@@ -2450,13 +2518,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             {applicationData.ableToHandleDelays === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
 
   const renderStep9 = () => {
     return (
-      <ScrollView style={styles.stepContent}>
+      <ScrollView
+        style={styles.stepContent}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <Text style={styles.sectionTitle}>Letter to Surrogate</Text>
         
         <Text style={styles.label}>Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *</Text>
@@ -2533,6 +2607,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             );
           })}
         </View>
+        {renderNavigationButtons()}
       </ScrollView>
     );
   };
@@ -2541,7 +2616,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
@@ -2568,35 +2643,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           <Text style={styles.progressText}>Step {currentStep} of {totalSteps}</Text>
         </View>
 
-        {/* Step Content */}
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          {renderStepContent()}
-        </TouchableWithoutFeedback>
-
-        {/* Navigation Buttons */}
-        <View style={styles.navigationContainer}>
-          {currentStep > 1 && (
-            <TouchableOpacity style={styles.navButton} onPress={prevStep}>
-              <Text style={styles.navButtonText}>Previous</Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.navButtonSpacer} />
-          {currentStep < totalSteps ? (
-            <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
-              <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>Next</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.navButton, styles.navButtonPrimary, isLoading && styles.navButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
-              <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
-                {isLoading ? 'Submitting...' : 'Submit'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Step Content (Next/Previous live inside each step ScrollView) */}
+        {renderStepContent()}
 
         {/* Auth Prompt Modal */}
         {showAuthPrompt && (
@@ -2714,7 +2762,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 40,
+    flexGrow: 1,
   },
   sectionTitle: {
     fontSize: 20,
@@ -2781,7 +2830,9 @@ const styles = StyleSheet.create({
   },
   navigationContainer: {
     flexDirection: 'row',
-    padding: 16,
+    marginTop: 24,
+    marginBottom: 8,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
     backgroundColor: '#fff',
