@@ -20,6 +20,7 @@ import { useParentMatch } from '../context/ParentMatchContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import { TextInput } from 'react-native';
@@ -74,6 +75,14 @@ export default function MyMatchScreen({ navigation }) {
     checkUserApplication();
     loadMatchData();
   }, [user, parentMatch.activeMatch?.id, parentMatch.initialSyncDone]);
+
+  // Re-check application whenever My Match tab is focused (stale after submit otherwise)
+  useFocusEffect(
+    React.useCallback(() => {
+      checkUserApplication();
+      loadMatchData();
+    }, [user?.id])
+  );
 
   // Listen for match creation/updates in surrogate_matches table
   useEffect(() => {
@@ -472,6 +481,7 @@ export default function MyMatchScreen({ navigation }) {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await checkUserApplication();
     await loadMatchData();
     // If parent and unmatched, also refresh surrogates list
     if (userRole === 'parent' && !matchData) {

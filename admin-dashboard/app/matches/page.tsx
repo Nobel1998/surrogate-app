@@ -586,13 +586,17 @@ export default function MatchesPage() {
       let heightInCm: number;
       let weightInKg: number;
       
-      // Parse height - can be in format "5'6" (feet'inches) or number (cm or inches)
+      // Parse height - can be in format "5'6" / "5'6\"" / "168 cm" or number
       if (typeof height === 'string') {
-        // Check for feet'inches format (e.g., "5'6", "5'10")
-        const feetInchesMatch = height.match(/^(\d+)[''](\d+)$/);
+        const cmMatch = height.match(/^([\d.]+)\s*cm$/i);
+        if (cmMatch) {
+          heightInCm = parseFloat(cmMatch[1]);
+        } else {
+        // Check for feet'inches format (e.g., "5'6", "5'10", "5'6\"")
+        const feetInchesMatch = height.match(/^(\d+)\s*['′]\s*(\d+(?:\.\d+)?)\s*["″]?$/);
         if (feetInchesMatch) {
           const feet = parseInt(feetInchesMatch[1], 10);
-          const inches = parseInt(feetInchesMatch[2], 10);
+          const inches = parseFloat(feetInchesMatch[2]);
           const totalInches = feet * 12 + inches;
           heightInCm = totalInches * 2.54; // Convert inches to cm
         } else {
@@ -618,6 +622,7 @@ export default function MatchesPage() {
             heightInCm = heightNum;
           }
         }
+        }
       } else {
         // Height is already a number - smart unit detection
         if (height < 10) {
@@ -634,14 +639,20 @@ export default function MatchesPage() {
         }
       }
       
-      // Parse weight - can be in lbs or kg
+      // Parse weight - can be in lbs or kg (e.g., "140 lbs", "65 kg")
       if (typeof weight === 'string') {
         const weightNum = parseFloat(weight);
         if (isNaN(weightNum) || weightNum <= 0) {
           return null;
         }
-        // If weight is less than 50, assume it's already in kg, otherwise assume lbs
-        weightInKg = weightNum < 50 ? weightNum : weightNum / 2.20462;
+        if (/\bkg\b/i.test(weight)) {
+          weightInKg = weightNum;
+        } else if (/\blbs?\b|\bpounds?\b/i.test(weight)) {
+          weightInKg = weightNum / 2.20462;
+        } else {
+          // If weight is less than 50, assume it's already in kg, otherwise assume lbs
+          weightInKg = weightNum < 50 ? weightNum : weightNum / 2.20462;
+        }
       } else {
         // Weight is already a number - assume kg if < 50, otherwise lbs
         weightInKg = weight < 50 ? weight : weight / 2.20462;

@@ -20,6 +20,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: supabaseStorage,
     autoRefreshToken: true,
     persistSession: true,
+    // PKCE puts ?code= in query (survives iOS better than #access_token hash fragments)
+    flowType: 'pkce',
     // In Expo native runtime, app launch URL is usually exp://... and should not be treated as auth callback.
     detectSessionInUrl: false,
   },

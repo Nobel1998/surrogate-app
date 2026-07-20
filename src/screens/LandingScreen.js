@@ -2,10 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, Dimensions, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function LandingScreen({ navigation }) {
+  const { user, isAuthenticated } = useAuth();
+  const loggedIn = !!(isAuthenticated && user);
+
   return (
     <ImageBackground 
       source={{ uri: 'https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop' }} // Warm, high-quality family/support background
@@ -67,18 +71,26 @@ export default function LandingScreen({ navigation }) {
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
 
-            {/* Auth Path (parents & surrogates) */}
+            {/* Auth Path (parents & surrogates) / Enter app when already logged in */}
             <TouchableOpacity
               style={styles.actionCard}
               activeOpacity={0.9}
-              onPress={() => navigation.navigate('LoginScreen')}
+              onPress={() =>
+                loggedIn
+                  ? navigation.navigate('MainTabs')
+                  : navigation.navigate('LoginScreen')
+              }
             >
               <View style={[styles.iconCircle, { backgroundColor: '#FFF0F3' }]}>
                 <Icon name="users" size={24} color="#FF8EA4" />
               </View>
               <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>Login / Sign Up</Text>
-                <Text style={styles.cardSubtitle}>Access your portal to apply or connect</Text>
+                <Text style={styles.cardTitle}>{loggedIn ? 'Enter App' : 'Login / Sign Up'}</Text>
+                <Text style={styles.cardSubtitle}>
+                  {loggedIn
+                    ? 'Continue to your journey and matches'
+                    : 'Access your portal to apply or connect'}
+                </Text>
               </View>
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
@@ -88,7 +100,11 @@ export default function LandingScreen({ navigation }) {
           <View style={styles.footer}>
             <TouchableOpacity 
               style={styles.blogLink}
-              onPress={() => navigation.navigate('GuestTabs', { screen: 'Blog' })}
+              onPress={() =>
+                loggedIn
+                  ? navigation.navigate('MainTabs', { screen: 'Blog' })
+                  : navigation.navigate('GuestTabs', { screen: 'Blog' })
+              }
             >
               <Icon name="book-open" size={16} color="rgba(255,255,255,0.9)" />
               <Text style={styles.blogLinkText}>Read Our Blog</Text>

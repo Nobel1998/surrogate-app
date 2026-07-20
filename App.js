@@ -13,6 +13,8 @@ import ProtectionScreen from './src/screens/ProtectionScreen';
 import CompanyScreen from './src/screens/CompanyScreen';
 import ContactUsScreen from './src/screens/ContactUsScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ApplicationHistoryScreen from './src/screens/ApplicationHistoryScreen';
 import SurrogateApplicationScreen from './src/screens/SurrogateApplicationScreen';
@@ -273,14 +275,16 @@ function GuestTabNavigator() {
 }
 
 // Guest Stack Navigator
-function GuestStackNavigator() {
+function GuestStackNavigator({ initialRouteName = 'Landing' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="GuestTabs" component={GuestTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
       <Stack.Screen name="LoginScreen" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="IntendedParentApplication" component={IntendedParentApplicationScreen} />
@@ -293,6 +297,12 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+      <Stack.Screen name="Landing" component={LandingScreen} />
+      <Stack.Screen name="LoginScreen" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+      <Stack.Screen name="GuestTabs" component={GuestTabNavigator} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EventDetailScreen" component={EventDetailScreen} />
       <Stack.Screen name="ApplicationHistory" component={ApplicationHistoryScreen} />
@@ -321,7 +331,7 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
 
 // Deep Link configuration
 const linking = {
-  prefixes: ['surrogateagency://', 'https://surrogateagency.app'],
+  prefixes: ['surrogateagency://', 'https://surrogateagency.app', 'https://mysurro.com'],
   config: {
     screens: {
       MainTabs: {
@@ -340,6 +350,8 @@ const linking = {
       },
       LoginScreen: 'login',
       RegisterScreen: 'register',
+      ForgotPassword: 'forgot-password',
+      ResetPassword: 'reset-password',
     },
   },
   // 添加深度链接处理的回调
@@ -368,7 +380,7 @@ const linking = {
 
 // Main App Component with Auth Logic
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, passwordRecoveryPending } = useAuth();
   const [forceShowApp, setForceShowApp] = useState(false);
   const [resumeApplication, setResumeApplication] = useState(false);
 
@@ -428,12 +440,17 @@ function AppContent() {
     );
   }
 
-  const navKey = isAuthenticated
-    ? (resumeApplication ? 'auth-resume' : 'auth-nav')
-    : 'guest-nav';
+  const navKey = passwordRecoveryPending
+    ? 'recovery-nav'
+    : isAuthenticated
+      ? (resumeApplication ? 'auth-resume' : 'auth-nav')
+      : 'guest-nav';
 
-  // Determine initial route based on resume application type
+  // Determine initial route based on resume application type / password recovery
   const getInitialRoute = () => {
+    if (passwordRecoveryPending) {
+      return 'ResetPassword';
+    }
     if (resumeApplication) {
       if (resumeApplicationType === 'intended_parent') {
         return 'IntendedParentApplication';
@@ -445,7 +462,13 @@ function AppContent() {
 
   return (
     <NavigationContainer linking={linking} key={navKey}>
-      {isAuthenticated ? (
+      {passwordRecoveryPending ? (
+        isAuthenticated ? (
+          <AppStackNavigator initialRouteName="ResetPassword" />
+        ) : (
+          <GuestStackNavigator initialRouteName="ResetPassword" />
+        )
+      ) : isAuthenticated ? (
         <AppStackNavigator initialRouteName={getInitialRoute()} />
       ) : (
         <GuestStackNavigator />

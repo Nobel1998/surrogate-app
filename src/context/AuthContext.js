@@ -57,6 +57,105 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(false);
+
+  const PASSWORD_RECOVERY_KEY = 'password_recovery_pending';
+  // HTTPS bridge on mysurro.com — mobile browsers often block direct https→custom-scheme redirects
+  const PASSWORD_RESET_REDIRECT = 'https://mysurro.com/reset-password';
+
+  const markPasswordRecoveryPending = async (pending) => {
+    setPasswordRecoveryPending(pending);
+    try {
+      if (pending) {
+        await AsyncStorageLib.setItem(PASSWORD_RECOVERY_KEY, 'true');
+      } else {
+        await AsyncStorageLib.removeItem(PASSWORD_RECOVERY_KEY);
+      }
+    } catch (e) {
+      console.warn('Failed to persist password recovery flag:', e?.message);
+    }
+  };
+
+  const isPasswordRecoveryUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    const lower = url.toLowerCase();
+    return (
+      lower.includes('reset-password') ||
+      lower.includes('type=recovery') ||
+      lower.includes('type%3drecovery')
+    );
+  };
+
+  const parseAuthParamsFromUrl = (url) => {
+    if (!url || typeof url !== 'string') return {};
+    const params = {};
+    const collect = (raw) => {
+      if (!raw) return;
+      raw.replace(/^[?#]/, '').split('&').forEach((pair) => {
+        if (!pair) return;
+        const eq = pair.indexOf('=');
+        const k = eq >= 0 ? pair.slice(0, eq) : pair;
+        const v = eq >= 0 ? pair.slice(eq + 1) : '';
+        if (!k) return;
+        try {
+          params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+        } catch (_) {
+          params[k] = v;
+        }
+      });
+    };
+    try {
+      // iOS / some mail clients strip or keep hash; normalize # → ? for parsing
+      const normalized = url.includes('#') ? url.replace('#', '?') : url;
+      const qIndex = normalized.indexOf('?');
+      if (qIndex >= 0) {
+        collect(normalized.slice(qIndex + 1));
+      }
+      // Also parse original hash if still present
+      const hIndex = url.indexOf('#');
+      if (hIndex >= 0) {
+        collect(url.slice(hIndex + 1));
+      }
+    } catch (e) {
+      console.warn('Failed to parse auth URL params:', e?.message);
+    }
+    return params;
+  };
+
+  const handlePasswordRecoveryUrl = async (url) => {
+    if (!isPasswordRecoveryUrl(url)) return false;
+    console.log('🔑 Handling password recovery URL:', url);
+
+    // Always force Reset Password UI first — iOS often strips #tokens so params may be empty
+    await markPasswordRecoveryPending(true);
+
+    try {
+      const params = parseAuthParamsFromUrl(url);
+      console.log('🔑 Recovery URL params keys:', Object.keys(params));
+
+      if (params.code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+        if (error) throw error;
+        console.log('✅ Recovery session via exchangeCodeForSession');
+        return true;
+      }
+      if (params.access_token && params.refresh_token) {
+        const { error } = await supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token,
+        });
+        if (error) throw error;
+        console.log('✅ Recovery session via setSession');
+        return true;
+      }
+      console.log('⚠️ Recovery URL had no code/tokens (hash may have been stripped by OS/mail client)');
+      return true;
+    } catch (error) {
+      console.error('Password recovery URL handling failed:', error);
+      // Keep pending so user still sees Reset Password and can request a new link
+      return true;
+    }
+  };
 
   const getStoredUser = async () => {
     try {
@@ -112,6 +211,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Prefer metadata.role=parent when profile.role is missing or wrongly defaulted to surrogate
+  // (soft signup can race the handle_new_user trigger and leave profile as surrogate).
+  const resolveRoleFromProfileAndMetadata = (profileData, metadata = {}) => {
+    const profileRole = (profileData?.role || '').toLowerCase();
+    const metaRole = (metadata?.role || '').toLowerCase();
+    if (metaRole === 'parent' && (!profileRole || profileRole === 'surrogate')) {
+      return 'parent';
+    }
+    return profileRole || metaRole || 'surrogate';
+  };
+
+  const ensureParentRoleInProfile = async (userId, resolvedRole, profileRole) => {
+    if (!userId || resolvedRole !== 'parent') return;
+    const current = (profileRole || '').toLowerCase();
+    if (current === 'parent') return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'parent' })
+        .eq('id', userId);
+      if (error) {
+        console.log('⚠️ Failed to correct profiles.role to parent:', error.message);
+      } else {
+        console.log('✅ Corrected profiles.role to parent for', userId);
+      }
+    } catch (e) {
+      console.log('⚠️ ensureParentRoleInProfile error:', e?.message || e);
+    }
+  };
+
   const buildUserDataFromSession = (sessionUser, profileData = null, fallbackEmail = '') => {
     const email = sessionUser?.email || fallbackEmail || '';
     const metadata = sessionUser?.user_metadata || {};
@@ -121,6 +250,7 @@ export const AuthProvider = ({ children }) => {
     const transferEmbryoDay = (profileData?.transfer_embryo_day || '').trim() ||
       (metadata?.transfer_embryo_day || '').trim() ||
       '';
+    const role = resolveRoleFromProfileAndMetadata(profileData, metadata);
 
     return {
       id: sessionUser?.id || '',
@@ -132,7 +262,7 @@ export const AuthProvider = ({ children }) => {
       race: profileData?.race || metadata?.race || '',
       inviteCode: profileData?.invite_code || '',
       referredBy: profileData?.referred_by || '',
-      role: profileData?.role || metadata?.role || 'surrogate',
+      role,
       location: profileData?.location || metadata?.location || '',
       transfer_date: transferDate,
       transfer_embryo_day: transferEmbryoDay,
@@ -140,6 +270,36 @@ export const AuthProvider = ({ children }) => {
       lastLogin: new Date().toISOString(),
       user_metadata: metadata,
     };
+  };
+
+  const refreshUserProfile = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.user) {
+        return { success: false, error: sessionError?.message || 'No session' };
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.log('⚠️ refreshUserProfile profile fetch:', profileError.message);
+      }
+
+      const userData = buildUserDataFromSession(session.user, profileData);
+      await ensureParentRoleInProfile(session.user.id, userData.role, profileData?.role);
+      setUser(userData);
+      setIsAuthenticated(true);
+      await storeUser(userData);
+      console.log('✅ User profile refreshed, role:', userData.role);
+      return { success: true, user: userData };
+    } catch (error) {
+      console.error('refreshUserProfile error:', error);
+      return { success: false, error: error?.message || 'Failed to refresh profile' };
+    }
   };
 
   const checkAuthStatus = async (retryCount = 0) => {
@@ -272,11 +432,14 @@ export const AuthProvider = ({ children }) => {
             transfer_date: transferDate,
             transfer_embryo_day: transferEmbryoDay,
           });
+
+          await ensureParentRoleInProfile(session.user.id, userData.role, profileData?.role);
           
           console.log('✅ User data prepared:', {
             transfer_date: userData.transfer_date,
             transfer_embryo_day: userData.transfer_embryo_day,
             userId: userData.id,
+            role: userData.role,
             userDataKeys: Object.keys(userData),
           });
           
@@ -405,6 +568,7 @@ export const AuthProvider = ({ children }) => {
 
         if (initialUrl) {
           console.log('📱 App opened via link/QR, using standard loading timeout (12s)');
+          await handlePasswordRecoveryUrl(initialUrl);
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
         await checkAuthStatus();
@@ -421,12 +585,39 @@ export const AuthProvider = ({ children }) => {
     return () => { if (emergencyTimeoutRef.current) clearTimeout(emergencyTimeoutRef.current); };
   }, []);
 
+  // Restore password-recovery flag after cold start
+  useEffect(() => {
+    (async () => {
+      try {
+        const flag = await AsyncStorageLib.getItem(PASSWORD_RECOVERY_KEY);
+        if (flag === 'true') {
+          setPasswordRecoveryPending(true);
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    const onUrl = ({ url }) => {
+      handlePasswordRecoveryUrl(url);
+    };
+    const sub = Linking.addEventListener('url', onUrl);
+    Linking.getInitialURL().then((url) => {
+      if (url) handlePasswordRecoveryUrl(url);
+    });
+    return () => sub?.remove();
+  }, []);
+
   useEffect(() => {
     // 监听 Supabase 认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
+
+      if (event === 'PASSWORD_RECOVERY') {
+        await markPasswordRecoveryPending(true);
+      }
       
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
         if (session?.user) {
           try {
             // Fast path: authenticate immediately with metadata to avoid blocking on profile fetch.
@@ -449,6 +640,7 @@ export const AuthProvider = ({ children }) => {
 
             if (!profileError && profileData) {
               const enrichedUserData = buildUserDataFromSession(session.user, profileData);
+              await ensureParentRoleInProfile(session.user.id, enrichedUserData.role, profileData?.role);
               setUser(enrichedUserData);
               await storeUser(enrichedUserData);
               console.log('✅ User profile enriched via auth state change');
@@ -462,6 +654,7 @@ export const AuthProvider = ({ children }) => {
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsAuthenticated(false);
+        await markPasswordRecoveryPending(false);
         await AsyncStorageLib.removeItem('current_user');
         console.log('🚪 User signed out via auth state change');
       }
@@ -609,11 +802,14 @@ export const AuthProvider = ({ children }) => {
           transfer_date: transferDate,
           transfer_embryo_day: transferEmbryoDay,
         }, email);
+
+        await ensureParentRoleInProfile(authData.user.id, userData.role, profileData?.role);
         
         console.log('✅ Login - User data prepared:', {
           transfer_date: userData.transfer_date,
           transfer_embryo_day: userData.transfer_embryo_day,
           userId: userData.id,
+          role: userData.role,
         });
         
         setUser(userData);
@@ -838,6 +1034,7 @@ export const AuthProvider = ({ children }) => {
   const clearLocalSession = async () => {
     setUser(null);
     setIsAuthenticated(false);
+    await markPasswordRecoveryPending(false);
     await AsyncStorageLib.removeItem('current_user');
     await AsyncStorageLib.removeItem('user_applications');
   };
@@ -861,8 +1058,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Permanently deletes the authenticated user via Supabase Edge Function.
-   * Slug is DELETE_ACCOUNT_EDGE_FN_SLUG in lib/supabase.js (must match Dashboard Invoke URL).
+   * Permanently deletes the authenticated user.
+   * Prefer RPC delete_own_account (SQL migration); fall back to Edge Function.
    */
   const deleteAccount = async () => {
     try {
@@ -871,6 +1068,31 @@ export const AuthProvider = ({ children }) => {
       } = await supabase.auth.getSession();
       if (!session) {
         return { success: false, error: 'Not signed in' };
+      }
+
+      // 1) Preferred: DB SECURITY DEFINER RPC (no Edge Function deploy needed)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('delete_own_account');
+
+      if (!rpcError && rpcData?.success === true) {
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutErr) {
+          console.warn('Sign out after delete (expected if session invalid):', signOutErr);
+        }
+        await clearLocalSession();
+        return { success: true };
+      }
+
+      // If RPC exists but returned a business error, surface it (do not hide behind edge fn)
+      if (!rpcError && rpcData && rpcData.success === false) {
+        const msg = rpcData.error || 'Delete failed';
+        console.error('delete_own_account RPC business error:', msg, rpcData.sqlstate);
+        return { success: false, error: String(msg).slice(0, 500) };
+      }
+
+      // RPC missing / not migrated yet → fall back to Edge Function
+      if (rpcError) {
+        console.warn('delete_own_account RPC unavailable, falling back to edge fn:', rpcError.message);
       }
 
       const baseUrl = String(supabase.supabaseUrl || '').replace(/\/$/, '');
@@ -1032,16 +1254,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const resetPassword = async (email) => {
+    try {
+      if (!email || !String(email).trim()) {
+        return { success: false, error: 'Please enter your email address' };
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(String(email).trim(), {
+        redirectTo: PASSWORD_RESET_REDIRECT,
+      });
+      if (error) {
+        return { success: false, error: error.message || 'Failed to send reset email' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('resetPassword error:', error);
+      return { success: false, error: error.message || 'Failed to send reset email' };
+    }
+  };
+
+  const updatePassword = async (newPassword) => {
+    try {
+      if (!newPassword || String(newPassword).length < 6) {
+        return { success: false, error: 'Password must be at least 6 characters' };
+      }
+      const { error } = await supabase.auth.updateUser({ password: String(newPassword) });
+      if (error) {
+        return { success: false, error: error.message || 'Failed to update password' };
+      }
+      await markPasswordRecoveryPending(false);
+      return { success: true };
+    } catch (error) {
+      console.error('updatePassword error:', error);
+      return { success: false, error: error.message || 'Failed to update password' };
+    }
+  };
+
+  const clearPasswordRecoveryPending = async () => {
+    await markPasswordRecoveryPending(false);
+  };
+
   const value = {
     user,
     isLoading,
     isAuthenticated,
+    passwordRecoveryPending,
     login,
     register,
     logout,
     deleteAccount,
     updateProfile,
     updatePreferences,
+    refreshUserProfile,
+    resetPassword,
+    updatePassword,
+    clearPasswordRecoveryPending,
   };
 
   return (

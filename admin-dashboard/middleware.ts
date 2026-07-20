@@ -15,6 +15,7 @@ export function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname === '/privacy-policy' ||
     pathname === '/delete-account' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/api/auth/') ||
     pathname === '/mysurro-logo.png' ||
     pathname.startsWith('/screenshots/')

@@ -48,7 +48,13 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     referralCode: user?.user_metadata?.referred_by || '',
     bloodType: '',
     height: '',
+    heightUnit: 'ft_in', // 'ft_in' | 'cm'
+    heightFeet: '',
+    heightInches: '',
+    heightCm: '',
     weight: '',
+    weightUnit: 'lbs', // 'lbs' | 'kg'
+    weightValue: '',
     significantWeightChange: false,
     religiousBackground: '',
     practicingReligion: false,
@@ -247,6 +253,81 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     return composeNameFromParts(data);
   };
 
+  const composeHeightDisplay = (data) => {
+    const unit = data.heightUnit || 'ft_in';
+    if (unit === 'cm') {
+      const cm = String(data.heightCm || '').trim();
+      return cm ? `${cm} cm` : '';
+    }
+    const feet = String(data.heightFeet || '').trim();
+    const inches = String(data.heightInches || '').trim();
+    if (!feet && !inches) return '';
+    if (feet && inches) return `${feet}'${inches}"`;
+    if (feet) return `${feet}'0"`;
+    return `0'${inches}"`;
+  };
+
+  const composeWeightDisplay = (data) => {
+    const unit = data.weightUnit || 'lbs';
+    const value = String(data.weightValue || '').trim();
+    return value ? `${value} ${unit}` : '';
+  };
+
+  /** Fill unit/number fields from legacy free-text height/weight when editing old drafts */
+  const hydrateHeightWeightFields = (data) => {
+    const next = { ...data };
+
+    const hasHeightParts =
+      String(next.heightFeet || '').trim() ||
+      String(next.heightInches || '').trim() ||
+      String(next.heightCm || '').trim();
+    if (!hasHeightParts && next.height) {
+      const h = String(next.height).trim();
+      const cmMatch = h.match(/^([\d.]+)\s*cm$/i);
+      const ftInMatch = h.match(/^(\d+)\s*['′]\s*([\d.]+)?\s*["″]?$/);
+      const ftInSpace = h.match(/^(\d+)\s*ft(?:\s*([\d.]+)\s*in)?$/i);
+      if (cmMatch) {
+        next.heightUnit = 'cm';
+        next.heightCm = cmMatch[1];
+      } else if (ftInMatch) {
+        next.heightUnit = 'ft_in';
+        next.heightFeet = ftInMatch[1];
+        next.heightInches = ftInMatch[2] || '0';
+      } else if (ftInSpace) {
+        next.heightUnit = 'ft_in';
+        next.heightFeet = ftInSpace[1];
+        next.heightInches = ftInSpace[2] || '0';
+      }
+    }
+    if (!next.heightUnit) next.heightUnit = 'ft_in';
+
+    const hasWeightValue = String(next.weightValue || '').trim();
+    if (!hasWeightValue && next.weight) {
+      const w = String(next.weight).trim();
+      const kgMatch = w.match(/^([\d.]+)\s*kg$/i);
+      const lbsMatch = w.match(/^([\d.]+)\s*(lbs?|pounds?)$/i);
+      const numOnly = w.match(/^([\d.]+)$/);
+      if (kgMatch) {
+        next.weightUnit = 'kg';
+        next.weightValue = kgMatch[1];
+      } else if (lbsMatch) {
+        next.weightUnit = 'lbs';
+        next.weightValue = lbsMatch[1];
+      } else if (numOnly) {
+        next.weightUnit = next.weightUnit || 'lbs';
+        next.weightValue = numOnly[1];
+      }
+    }
+    if (!next.weightUnit) next.weightUnit = 'lbs';
+
+    // Prefer composed display from structured fields when available
+    const composedH = composeHeightDisplay(next);
+    const composedW = composeWeightDisplay(next);
+    if (composedH) next.height = composedH;
+    if (composedW) next.weight = composedW;
+    return next;
+  };
+
   const updateField = (field, value) => {
     setApplicationData(prev => {
       const updated = { ...prev, [field]: value };
@@ -266,6 +347,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         if (month && day && year) {
           updated.dateOfBirth = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
         }
+      }
+      // Auto-sync height display string when unit/parts change
+      if (
+        field === 'heightUnit' ||
+        field === 'heightFeet' ||
+        field === 'heightInches' ||
+        field === 'heightCm'
+      ) {
+        updated.height = composeHeightDisplay(updated);
+      }
+      // Auto-sync weight display string when unit/value change
+      if (field === 'weightUnit' || field === 'weightValue') {
+        updated.weight = composeWeightDisplay(updated);
       }
       return updated;
     });
@@ -377,7 +471,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           }
           // ensure state updates flush before formVersion bump
           setApplicationData(prev => {
-            const next = { ...prev, ...merged };
+            const next = hydrateHeightWeightFields({ ...prev, ...merged });
             if (!String(next.fullName || '').trim()) {
               next.fullName = composeNameFromParts(next);
             }
@@ -397,7 +491,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       if (draft) {
         const parsed = JSON.parse(draft);
         setApplicationData(prev => {
-          const next = { ...prev, ...parsed };
+          const next = hydrateHeightWeightFields({ ...prev, ...parsed });
           if (!String(next.fullName || '').trim()) {
             next.fullName = composeNameFromParts(next);
           }
@@ -442,10 +536,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         // Load existing data for editing
         console.log('📝 Loading existing application data for editing');
         setApplicationData(prev => {
-          const next = {
+          const next = hydrateHeightWeightFields({
             ...prev,
             ...existingData,
-          };
+          });
           if (!String(next.fullName || '').trim()) {
             next.fullName = composeNameFromParts(next);
           }
@@ -945,6 +1039,30 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         },
       });
 
+      const isAlreadyRegistered =
+        (authError?.message &&
+          (authError.message.includes('already registered') ||
+            authError.message.includes('User already registered'))) ||
+        (authData?.user?.identities && authData.user.identities.length === 0);
+
+      if (isAlreadyRegistered) {
+        Alert.alert(
+          t('application.emailAlreadyRegisteredTitle'),
+          t('application.emailAlreadyRegisteredMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('application.goToLogin'),
+              onPress: () => {
+                setShowAuthPrompt(false);
+                navigation.navigate('LoginScreen');
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (authError) throw authError;
 
       const userId = authData?.user?.id;
@@ -1008,6 +1126,27 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       Alert.alert(t('application.progressSaved'), t('application.accountCreatedProgressSaved'));
     } catch (error) {
       console.error('Lazy signup error:', error);
+      const alreadyRegistered =
+        error?.message &&
+        (error.message.includes('already registered') ||
+          error.message.includes('User already registered'));
+      if (alreadyRegistered) {
+        Alert.alert(
+          t('application.emailAlreadyRegisteredTitle'),
+          t('application.emailAlreadyRegisteredMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('application.goToLogin'),
+              onPress: () => {
+                setShowAuthPrompt(false);
+                navigation.navigate('LoginScreen');
+              },
+            },
+          ]
+        );
+        return;
+      }
       Alert.alert(t('application.errorSavingProgress'), error.message || t('application.errorSavingProgressMessage'));
       await AsyncStorageLib.removeItem('resume_application_flow');
     } finally {
@@ -1071,11 +1210,18 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       // Construct payload for Supabase
       const { fullName: _ignoredFullName, phoneNumber, ...otherFields } = applicationData;
       const resolvedName = resolveFullName(applicationData);
+      const heightDisplay = composeHeightDisplay(applicationData) || applicationData.height || '';
+      const weightDisplay = composeWeightDisplay(applicationData) || applicationData.weight || '';
       
       const payload = {
         full_name: resolvedName,
         phone: phoneNumber,
-        form_data: JSON.stringify({ ...otherFields, fullName: resolvedName }),
+        form_data: JSON.stringify({
+          ...otherFields,
+          fullName: resolvedName,
+          height: heightDisplay,
+          weight: weightDisplay,
+        }),
         user_id: authUser.id  // 添加用户ID
       };
 
@@ -1360,23 +1506,83 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {/* Height */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>What is your height? *</Text>
-        <TextInput
-          style={styles.input}
-          value={applicationData.height || ''}
-          onChangeText={(value) => updateField('height', value)}
-          placeholder="e.g., 5'6 or 168 cm"
-        />
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, (applicationData.heightUnit || 'ft_in') === 'ft_in' && styles.radioButtonSelected]}
+            onPress={() => updateField('heightUnit', 'ft_in')}
+          >
+            <Text style={[styles.radioText, (applicationData.heightUnit || 'ft_in') === 'ft_in' && styles.radioTextSelected]}>
+              ft / in
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.heightUnit === 'cm' && styles.radioButtonSelected]}
+            onPress={() => updateField('heightUnit', 'cm')}
+          >
+            <Text style={[styles.radioText, applicationData.heightUnit === 'cm' && styles.radioTextSelected]}>
+              cm
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {(applicationData.heightUnit || 'ft_in') === 'ft_in' ? (
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={applicationData.heightFeet || ''}
+                onChangeText={(value) => updateField('heightFeet', value.replace(/[^0-9]/g, ''))}
+                placeholder="Feet"
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={applicationData.heightInches || ''}
+                onChangeText={(value) => updateField('heightInches', value.replace(/[^0-9.]/g, ''))}
+                placeholder="Inches"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        ) : (
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={applicationData.heightCm || ''}
+            onChangeText={(value) => updateField('heightCm', value.replace(/[^0-9.]/g, ''))}
+            placeholder="Height in cm"
+            keyboardType="decimal-pad"
+          />
+        )}
       </View>
 
       {/* Weight */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>What is your weight? *</Text>
+        <View style={styles.radioContainer}>
+          <TouchableOpacity
+            style={[styles.radioButton, (applicationData.weightUnit || 'lbs') === 'lbs' && styles.radioButtonSelected]}
+            onPress={() => updateField('weightUnit', 'lbs')}
+          >
+            <Text style={[styles.radioText, (applicationData.weightUnit || 'lbs') === 'lbs' && styles.radioTextSelected]}>
+              lbs
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, applicationData.weightUnit === 'kg' && styles.radioButtonSelected]}
+            onPress={() => updateField('weightUnit', 'kg')}
+          >
+            <Text style={[styles.radioText, applicationData.weightUnit === 'kg' && styles.radioTextSelected]}>
+              kg
+            </Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
-          style={styles.input}
-          value={applicationData.weight || ''}
-          onChangeText={(value) => updateField('weight', value)}
-          placeholder="Weight in lbs or kg"
-          keyboardType="numeric"
+          style={[styles.input, { marginTop: 10 }]}
+          value={applicationData.weightValue || ''}
+          onChangeText={(value) => updateField('weightValue', value.replace(/[^0-9.]/g, ''))}
+          placeholder={(applicationData.weightUnit || 'lbs') === 'kg' ? 'Weight in kg' : 'Weight in lbs'}
+          keyboardType="decimal-pad"
         />
       </View>
 

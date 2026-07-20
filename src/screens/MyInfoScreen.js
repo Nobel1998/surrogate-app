@@ -365,9 +365,9 @@ export default function MyInfoScreen({ navigation }) {
             <Text style={styles.infoValue}>
               {(() => {
                 const role = (user?.role || '').toLowerCase();
-                if (role === 'surrogate') return t('myInfo.roleSurrogate');
-                if (role === 'parent') return t('myInfo.roleParent');
-                return user?.role || 'N/A';
+                if (role === 'surrogate') return t('myInfo.roleSurrogate') || 'surrogate';
+                if (role === 'parent') return t('myInfo.roleParent') || 'parent';
+                return role || 'N/A';
               })()}
             </Text>
           </View>

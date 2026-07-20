@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function IntendedParentApplicationScreen({ navigation, route }) {
-  const { user } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
   const { t } = useLanguage();
   
   // Edit mode parameters
@@ -48,6 +48,100 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     } while (!hasDigit(code));
     return code;
   };
+
+  /** Map parent application form fields → profiles columns used by My Info */
+  const formatParentPhoneForProfile = (data) => {
+    const cc = String(data.parent1PhoneCountryCode || '')
+      .trim()
+      .replace(/^\+/, '');
+    const area = String(data.parent1PhoneAreaCode || '').trim();
+    const num = String(data.parent1PhoneNumber || '').trim();
+    const parts = [];
+    if (cc) parts.push(`(+${cc})`);
+    if (area) parts.push(area);
+    if (num) parts.push(num);
+    return parts.join(' ').trim();
+  };
+
+  const buildParentProfileFromApplication = (data, { userId, email, inviteCode } = {}) => {
+    const first = (data.parent1FirstName || '').trim();
+    const last = (data.parent1LastName || '').trim();
+    const name = [first, last].filter(Boolean).join(' ').trim();
+
+    const y = String(data.parent1DateOfBirthYear || '').trim();
+    const m = String(data.parent1DateOfBirthMonth || '').trim().padStart(2, '0');
+    const d = String(data.parent1DateOfBirthDay || '').trim().padStart(2, '0');
+    let dateOfBirth = null;
+    if (y.length === 4 && m !== '00' && d !== '00') {
+      dateOfBirth = `${y}-${m}-${d}`;
+    }
+
+    const city = (data.parent1AddressCity || '').trim();
+    const state = (data.parent1AddressState || '').trim();
+    const street = (data.parent1AddressStreet || '').trim();
+    const zip = (data.parent1AddressZip || '').trim();
+    let location = '';
+    if (city && state) location = `${city}, ${state}`;
+    else if (city || state) location = city || state;
+    else if (street) location = street;
+    if (zip && location) location = `${location} ${zip}`;
+    else if (zip) location = zip;
+
+    const payload = {
+      id: userId,
+      name: name || undefined,
+      phone: formatParentPhoneForProfile(data),
+      email: (email || data.parent1Email || '').trim() || undefined,
+      date_of_birth: dateOfBirth,
+      location: location || '',
+      race: (data.parent1Race || '').trim() || '',
+      role: 'parent',
+    };
+    if (inviteCode) payload.invite_code = inviteCode;
+    // Drop undefined so we don't wipe existing name/email with empty upserts
+    Object.keys(payload).forEach((k) => {
+      if (payload[k] === undefined) delete payload[k];
+    });
+    return payload;
+  };
+
+  const syncParentProfileToMyInfo = async (userId, data, email) => {
+    if (!userId) return { error: new Error('Missing user id') };
+
+    let existingInviteCode = null;
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('invite_code')
+        .eq('id', userId)
+        .maybeSingle();
+      existingInviteCode = existingProfile?.invite_code || null;
+    } catch (_) {
+      existingInviteCode = null;
+    }
+
+    const inviteCode = existingInviteCode || generateInviteCode();
+    const payload = buildParentProfileFromApplication(data, {
+      userId,
+      email,
+      inviteCode,
+    });
+
+    let attempts = 0;
+    while (attempts < 3) {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(payload, { onConflict: 'id' });
+      if (!error) return { error: null };
+      if (error.code === '23505' && !existingInviteCode) {
+        payload.invite_code = generateInviteCode();
+        attempts += 1;
+        continue;
+      }
+      return { error };
+    }
+    return { error: new Error('Failed to sync profile') };
+  };
   
   const [applicationData, setApplicationData] = useState({
     // Step 1: Family Structure & Basic Information
@@ -62,6 +156,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     parent1DateOfBirthYear: '',
     parent1Gender: '', // male, female
     parent1BloodType: '',
+    parent1Race: '',
     parent1Citizenship: '',
     parent1CountryState: '',
     parent1Occupation: '',
@@ -85,6 +180,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     parent2DateOfBirthYear: '',
     parent2Gender: '', // male, female
     parent2BloodType: '',
+    parent2Race: '',
     parent2Citizenship: '',
     parent2CountryState: '',
     parent2Occupation: '',
@@ -627,17 +723,33 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   const nextStep = () => {
-    if (currentStep < totalSteps) {
-      // Validate current step before proceeding
-      if (validateStep(currentStep)) {
-        setCurrentStep(currentStep + 1);
+    if (currentStep >= totalSteps) return;
+    if (!validateStep(currentStep)) return;
+
+    // Soft register: must create account before leaving step 1
+    if (!user) {
+      AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData)).catch(() => {});
+      if (applicationData.parent1Email && !authEmail) {
+        setAuthEmail(applicationData.parent1Email);
       }
+      setShowAuthPrompt(true);
+      return;
     }
+
+    setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleAuthPromptCancel = () => {
+    setShowAuthPrompt(false);
+    // Cannot skip registration — stay on / return to step 1 until signed up
+    if (!user) {
+      setCurrentStep(1);
     }
   };
 
@@ -666,6 +778,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         }
         if (!applicationData.parent1BloodType) {
           Alert.alert('Required Field', 'Please enter Intended Parent 1 blood type.');
+          return false;
+        }
+        if (!applicationData.parent1Race?.trim()) {
+          Alert.alert('Required Field', 'Please enter Intended Parent 1 race/ethnic background.');
           return false;
         }
         if (!applicationData.parent1Citizenship) {
@@ -718,6 +834,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           }
           if (!applicationData.parent2BloodType) {
             Alert.alert('Required Field', 'Please enter Intended Parent 2 blood type.');
+            return false;
+          }
+          if (!applicationData.parent2Race?.trim()) {
+            Alert.alert('Required Field', 'Please enter Intended Parent 2 race/ethnic background.');
             return false;
           }
           if (!applicationData.parent2Citizenship) {
@@ -994,61 +1114,122 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           data: {
             role,
             name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
-            phone: applicationData.parent1PhoneNumber || '',
+            phone: formatParentPhoneForProfile(applicationData),
           },
         },
       });
 
+      const isAlreadyRegistered =
+        (authError?.message &&
+          (authError.message.includes('already registered') ||
+            authError.message.includes('User already registered'))) ||
+        (authData?.user?.identities && authData.user.identities.length === 0);
+
+      if (isAlreadyRegistered) {
+        Alert.alert(
+          t('application.emailAlreadyRegisteredTitle'),
+          t('application.emailAlreadyRegisteredMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('application.goToLogin'),
+              onPress: () => {
+                setShowAuthPrompt(false);
+                navigation.navigate('LoginScreen');
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (authError) throw authError;
 
       const userId = authData?.user?.id;
-      if (userId) {
-        // Upsert profile with invite_code
-        let inviteCode = generateInviteCode();
-        let attempts = 0;
-        while (attempts < 3) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: userId,
-              name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
-              phone: applicationData.parent1PhoneNumber || '',
-              email: authEmail.trim(),
-              role: 'parent',
-              invite_code: inviteCode,
-            }, { onConflict: 'id' });
+      if (!userId) {
+        throw new Error('Registration failed. Please try again.');
+      }
 
-          if (!profileError) break;
+      // Wait for handle_new_user trigger to insert profile (same as AuthContext.register)
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-          if (profileError.code === '23505') {
-            // duplicate invite_code, regenerate and retry
-            inviteCode = generateInviteCode();
-            attempts += 1;
-            continue;
-          }
+      // Upsert profile with form fields so My Info is populated after soft register
+      let inviteCode = generateInviteCode();
+      let attempts = 0;
+      let profileUpserted = false;
+      while (attempts < 3) {
+        const profilePayload = buildParentProfileFromApplication(applicationData, {
+          userId,
+          email: authEmail.trim(),
+          inviteCode,
+        });
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert(profilePayload, { onConflict: 'id' });
 
-          throw profileError;
+        if (!profileError) {
+          profileUpserted = true;
+          break;
         }
 
-        // Save draft under the new user key
-        await AsyncStorageLib.setItem(`intended_parent_draft_${userId}`, JSON.stringify(applicationData));
-        
-        // Mark that we should stay on intended parent application flow after auth switch
-        console.log('🔖 setting resume_application_flow=intended_parent after lazy signup');
-        await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
-        await AsyncStorageLib.setItem('resume_application_type', 'intended_parent');
+        if (profileError.code === '23505') {
+          // duplicate invite_code, regenerate and retry
+          inviteCode = generateInviteCode();
+          attempts += 1;
+          continue;
+        }
 
-        // Force state reapply immediately by reloading draft with the new user id
-        await loadDraft(userId);
-        const newVersion = Date.now();
-        setFormVersion(newVersion);
-        setCurrentStep(1);
+        throw profileError;
       }
+
+      if (!profileUpserted) {
+        throw new Error('Failed to save profile. Please try again.');
+      }
+
+      // Refresh AuthContext so My Journey uses parent role immediately
+      if (typeof refreshUserProfile === 'function') {
+        await refreshUserProfile();
+      }
+
+      // Save draft under the new user key
+      await AsyncStorageLib.setItem(`intended_parent_draft_${userId}`, JSON.stringify(applicationData));
+      
+      // Mark that we should stay on intended parent application flow after auth switch
+      console.log('🔖 setting resume_application_flow=intended_parent after lazy signup');
+      await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
+      await AsyncStorageLib.setItem('resume_application_type', 'intended_parent');
+
+      // Force state reapply immediately by reloading draft with the new user id
+      await loadDraft(userId);
+      const newVersion = Date.now();
+      setFormVersion(newVersion);
+      setCurrentStep(1);
 
       setShowAuthPrompt(false);
       Alert.alert('Success', 'Account created! Your progress has been saved. You can now continue with your application.');
     } catch (error) {
       console.error('Lazy signup error:', error);
+      const alreadyRegistered =
+        error?.message &&
+        (error.message.includes('already registered') ||
+          error.message.includes('User already registered'));
+      if (alreadyRegistered) {
+        Alert.alert(
+          t('application.emailAlreadyRegisteredTitle'),
+          t('application.emailAlreadyRegisteredMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('application.goToLogin'),
+              onPress: () => {
+                setShowAuthPrompt(false);
+                navigation.navigate('LoginScreen');
+              },
+            },
+          ]
+        );
+        return;
+      }
       Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
       await AsyncStorageLib.removeItem('resume_application_flow');
       await AsyncStorageLib.removeItem('resume_application_type');
@@ -1070,6 +1251,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     setIsLoading(true);
 
     try {
+      // Keep My Info (profiles) in sync with latest form answers
+      const { error: profileSyncError } = await syncParentProfileToMyInfo(
+        user.id,
+        applicationData,
+        applicationData.parent1Email || user.email
+      );
+      if (profileSyncError) {
+        console.warn('Profile sync for My Info failed:', profileSyncError.message);
+      } else if (typeof refreshUserProfile === 'function') {
+        await refreshUserProfile();
+      }
+
       const formDataToSave = JSON.stringify(applicationData);
 
       if (editMode && applicationId) {
@@ -1439,6 +1632,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           onFocus={handleInputFocus('bloodType')}
         />
 
+        <Text style={styles.label}>Race/Ethnic Background *</Text>
+        <TextInput
+          ref={(ref) => { step1InputRefs.current.race = ref; }}
+          style={styles.input}
+          placeholder="Enter race/ethnic background"
+          value={applicationData.parent1Race}
+          onChangeText={(text) => updateField('parent1Race', text)}
+          onFocus={handleInputFocus('race')}
+        />
+
         <Text style={styles.label}>Citizenship *</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.citizenship = ref; }}
@@ -1649,6 +1852,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           placeholder="Enter blood type"
           value={applicationData.parent2BloodType}
           onChangeText={(text) => updateField('parent2BloodType', text)}
+        />
+
+        <Text style={styles.label}>Race/Ethnic Background *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter race/ethnic background"
+          value={applicationData.parent2Race}
+          onChangeText={(text) => updateField('parent2Race', text)}
         />
 
         <Text style={styles.label}>Citizenship *</Text>
@@ -2679,7 +2890,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonCancel]}
-                  onPress={() => setShowAuthPrompt(false)}
+                  onPress={handleAuthPromptCancel}
                 >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>

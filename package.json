@@ -16,7 +16,7 @@
     "eas:submit:ios": "eas submit --platform ios --profile production --latest",
     "eas:update": "eas update --branch preview --message \"Latest update\"",
     "eas:update:auto": "EAS_SKIP_AUTO_FINGERPRINT=1 eas update --branch preview --non-interactive",
-    "supabase:deploy-delete-account": "npx --yes supabase@latest functions deploy delete-account --project-ref fpuofgrypgabfsbqsxku"
+    "supabase:deploy-delete-account": "npx --yes supabase@latest functions deploy delete-account --project-ref fpuofgrypgabfsbqsxku && npx --yes supabase@latest functions deploy smooth-responder --project-ref fpuofgrypgabfsbqsxku"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
