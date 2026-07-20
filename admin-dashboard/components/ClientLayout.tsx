@@ -10,7 +10,7 @@ const PAYMENT_NODES_PATH = '/payment-nodes';
 const PAYMENT_ALLOWED_ROLES = ['admin', 'finance_manager'];
 const BRANCH_MANAGER_BLOCKED_PATHS = ['/dashboard', '/profiles'];
 const BRANCH_MANAGER_HOME = '/matches';
-const PUBLIC_PATHS = ['/', '/login', '/privacy-policy', '/delete-account'];
+const PUBLIC_PATHS = ['/', '/login', '/privacy-policy', '/delete-account', '/reset-password'];
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
