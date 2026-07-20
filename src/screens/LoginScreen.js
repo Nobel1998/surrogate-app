@@ -4,20 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, passwordRecoveryPending } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginProgress, setLoginProgress] = useState('');
   const [showCancelButton, setShowCancelButton] = useState(false);
 
-  // 如果用户已经认证，自动导航到主界面
+  // AppContent remounts to AppStack when authenticated — do NOT replace('MainTabs')
+  // here (MainTabs is missing on GuestStack and causes crashes / bad deep-link UX).
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('✅ User already authenticated, navigating away from login');
-      navigation.replace('MainTabs');
+    if (isAuthenticated && passwordRecoveryPending) {
+      console.log('🔑 Authenticated during password recovery — stay on recovery flow');
     }
-  }, [isAuthenticated, navigation]);
+  }, [isAuthenticated, passwordRecoveryPending]);
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

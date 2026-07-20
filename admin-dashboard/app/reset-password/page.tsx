@@ -3,8 +3,111 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-/** Path-style deep link so React Native treats reset-password as path, not host */
-const APP_DEEP_LINK_BASE = 'surrogateagency:///reset-password';
+/** Short deep link only — never put JWTs in the URL (causes iOS/Android crashes). */
+const APP_OPEN_LOGIN = 'surrogateagency://login';
+const APP_OPEN_RESET = 'surrogateagency://reset-password?type=recovery';
+
+type Lang = 'en' | 'zh' | 'es';
+
+const COPY: Record<
+  Lang,
+  {
+    brand: string;
+    title: string;
+    loading: string;
+    invalidLink: string;
+    successTitle: string;
+    successBody: string;
+    openAppLogin: string;
+    needAppBody: string;
+    openAppReset: string;
+    needAppHint: string;
+    formIntro: string;
+    newPassword: string;
+    confirmPassword: string;
+    show: string;
+    hide: string;
+    submit: string;
+    submitting: string;
+    errShort: string;
+    errMismatch: string;
+    afterWebHint: string;
+  }
+> = {
+  en: {
+    brand: 'Surrogate Agency USA',
+    title: 'Reset Password',
+    loading: 'Verifying your link…',
+    invalidLink:
+      'This link is invalid or has expired. Please request a new reset email from the app login screen.',
+    successTitle: 'Password updated',
+    successBody: 'Your password has been changed. Open the app and sign in with your new password.',
+    openAppLogin: 'Open App to Sign In',
+    needAppBody:
+      'We could not finish reset in the browser. Please set your new password on this page after requesting a fresh email, or open the app if it shows the reset screen.',
+    openAppReset: 'Open App',
+    needAppHint:
+      'Tip: Prefer resetting on this webpage. Opening the app from here will not pass your secure session (that can crash the app).',
+    formIntro: 'Choose a new password (at least 6 characters).',
+    newPassword: 'New Password',
+    confirmPassword: 'Confirm Password',
+    show: 'Show',
+    hide: 'Hide',
+    submit: 'Update Password',
+    submitting: 'Updating…',
+    errShort: 'Password must be at least 6 characters',
+    errMismatch: 'Passwords do not match',
+    afterWebHint: 'After updating here, open the app and sign in — no need to reset again in the app.',
+  },
+  zh: {
+    brand: 'Surrogate Agency USA',
+    title: '重置密码',
+    loading: '正在验证链接…',
+    invalidLink: '链接无效或已过期。请回到 App 登录页重新发送重置邮件。',
+    successTitle: '密码已更新',
+    successBody: '请打开 App，使用新密码登录。',
+    openAppLogin: '打开 App 登录',
+    needAppBody: '网页无法完成验证。请重新发送重置邮件后在本页设置密码。',
+    openAppReset: '打开 App',
+    needAppHint: '建议在本网页直接重置。从网页跳进 App 时不会携带安全会话，强行带 token 可能导致闪退。',
+    formIntro: '请设置新密码（至少 6 位）。',
+    newPassword: '新密码',
+    confirmPassword: '确认密码',
+    show: '显示',
+    hide: '隐藏',
+    submit: '确认更新密码',
+    submitting: '更新中…',
+    errShort: '密码至少 6 位',
+    errMismatch: '两次输入的密码不一致',
+    afterWebHint: '在本页更新后，打开 App 用新密码登录即可，无需再在 App 里重置。',
+  },
+  es: {
+    brand: 'Surrogate Agency USA',
+    title: 'Restablecer contraseña',
+    loading: 'Verificando el enlace…',
+    invalidLink:
+      'Este enlace no es válido o ha caducado. Solicite un nuevo correo desde la pantalla de inicio de sesión de la app.',
+    successTitle: 'Contraseña actualizada',
+    successBody: 'Abra la app e inicie sesión con su nueva contraseña.',
+    openAppLogin: 'Abrir la app para iniciar sesión',
+    needAppBody:
+      'No se pudo completar el restablecimiento en el navegador. Solicite un correo nuevo y restablezca aquí.',
+    openAppReset: 'Abrir la app',
+    needAppHint:
+      'Recomendamos restablecer en esta página. Abrir la app desde aquí no transfiere la sesión segura.',
+    formIntro: 'Elija una nueva contraseña (mínimo 6 caracteres).',
+    newPassword: 'Nueva contraseña',
+    confirmPassword: 'Confirmar contraseña',
+    show: 'Mostrar',
+    hide: 'Ocultar',
+    submit: 'Actualizar contraseña',
+    submitting: 'Actualizando…',
+    errShort: 'La contraseña debe tener al menos 6 caracteres',
+    errMismatch: 'Las contraseñas no coinciden',
+    afterWebHint:
+      'Después de actualizar aquí, abra la app e inicie sesión. No es necesario restablecer de nuevo en la app.',
+  },
+};
 
 function collectParams(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -28,16 +131,6 @@ function collectParams(): Record<string, string> {
   return params;
 }
 
-function buildAppDeepLink(params: Record<string, string>): string {
-  const qs = new URLSearchParams();
-  if (params.code) qs.set('code', params.code);
-  if (params.access_token) qs.set('access_token', params.access_token);
-  if (params.refresh_token) qs.set('refresh_token', params.refresh_token);
-  qs.set('type', params.type || 'recovery');
-  const query = qs.toString();
-  return `${APP_DEEP_LINK_BASE}?${query}`;
-}
-
 function getBrowserSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -55,13 +148,14 @@ function getBrowserSupabase(): SupabaseClient | null {
 type Phase = 'loading' | 'form' | 'success' | 'need_app' | 'error';
 
 export default function ResetPasswordBridgePage() {
+  const [lang, setLang] = useState<Lang>('en');
+  const t = COPY[lang];
   const [phase, setPhase] = useState<Phase>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [deepLink, setDeepLink] = useState(APP_DEEP_LINK_BASE);
   const [client] = useState(() => getBrowserSupabase());
 
   const canSubmit = useMemo(
@@ -74,15 +168,13 @@ export default function ResetPasswordBridgePage() {
 
     (async () => {
       const params = collectParams();
-      setDeepLink(buildAppDeepLink(params));
-
       const hasTokens = !!(params.access_token && params.refresh_token);
       const hasCode = !!params.code;
 
       if (!hasTokens && !hasCode) {
         if (!cancelled) {
           setPhase('error');
-          setErrorMsg('链接无效或已过期。请回到 App 登录页重新发送重置邮件。');
+          setErrorMsg(COPY.en.invalidLink);
         }
         return;
       }
@@ -100,19 +192,16 @@ export default function ResetPasswordBridgePage() {
           });
           if (error) throw error;
           if (!cancelled) setPhase('form');
-          // Clean tokens from address bar after session is set
           window.history.replaceState({}, '', '/reset-password');
           return;
         }
 
-        // PKCE code from the mobile app usually cannot be exchanged in the browser
-        // (code_verifier lives on the phone). Try once, then fall back to Open App.
         const { error } = await client.auth.exchangeCodeForSession(params.code);
         if (error) throw error;
         if (!cancelled) setPhase('form');
         window.history.replaceState({}, '', '/reset-password');
       } catch (e: unknown) {
-        console.warn('Web recovery session failed, fall back to app:', e);
+        console.warn('Web recovery session failed:', e);
         if (!cancelled) setPhase('need_app');
       }
     })();
@@ -122,15 +211,21 @@ export default function ResetPasswordBridgePage() {
     };
   }, [client]);
 
+  useEffect(() => {
+    if (phase === 'error') {
+      setErrorMsg(t.invalidLink);
+    }
+  }, [lang, phase, t.invalidLink]);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!client) return;
     if (password.length < 6) {
-      setErrorMsg('密码至少 6 位 / Password must be at least 6 characters');
+      setErrorMsg(t.errShort);
       return;
     }
     if (password !== confirm) {
-      setErrorMsg('两次输入的密码不一致 / Passwords do not match');
+      setErrorMsg(t.errMismatch);
       return;
     }
 
@@ -142,7 +237,7 @@ export default function ResetPasswordBridgePage() {
       setPhase('success');
       await client.auth.signOut();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '更新失败，请重试';
+      const message = err instanceof Error ? err.message : 'Update failed';
       setErrorMsg(message);
     } finally {
       setSubmitting(false);
@@ -151,9 +246,29 @@ export default function ResetPasswordBridgePage() {
 
   return (
     <div className="min-h-[100dvh] bg-[#F4F7FB] flex flex-col">
-      <header className="px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
-        <p className="text-sm font-semibold text-[#2A7BF6]">Surrogate Agency USA</p>
-        <p className="text-xs text-slate-500 mt-0.5">MySurro</p>
+      <header className="px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[#2A7BF6]">{t.brand}</p>
+          <p className="text-xs text-slate-500 mt-0.5">MySurro</p>
+        </div>
+        <div className="flex rounded-full bg-white border border-slate-200 p-0.5 shrink-0">
+          {([
+            ['en', 'EN'],
+            ['zh', '中文'],
+            ['es', 'ES'],
+          ] as const).map(([code, label]) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setLang(code)}
+              className={`min-h-9 min-w-11 px-2.5 rounded-full text-xs font-bold ${
+                lang === code ? 'bg-[#2A7BF6] text-white' : 'text-slate-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col justify-center px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -165,64 +280,52 @@ export default function ResetPasswordBridgePage() {
           </div>
 
           <h1 className="text-[1.75rem] leading-tight font-extrabold text-slate-900 tracking-tight">
-            重置密码
+            {t.title}
           </h1>
-          <p className="mt-1 text-base font-medium text-slate-500">Reset Password</p>
 
           {phase === 'loading' && (
-            <p className="mt-6 text-[15px] leading-6 text-slate-700">正在验证链接，请稍候…</p>
+            <p className="mt-6 text-[15px] leading-6 text-slate-700">{t.loading}</p>
           )}
 
           {phase === 'error' && (
-            <p className="mt-6 text-[15px] leading-6 text-red-600">{errorMsg}</p>
+            <p className="mt-6 text-[15px] leading-6 text-red-600">{errorMsg || t.invalidLink}</p>
           )}
 
           {phase === 'success' && (
             <div className="mt-6 space-y-4">
-              <p className="text-[15px] leading-6 text-slate-700">
-                密码已更新成功。请打开 App，用新密码登录。
-              </p>
-              <p className="text-sm text-slate-500">
-                Password updated. Open the app and sign in with your new password.
-              </p>
+              <p className="text-[15px] font-semibold text-slate-900">{t.successTitle}</p>
+              <p className="text-[15px] leading-6 text-slate-700">{t.successBody}</p>
               <a
-                href={APP_DEEP_LINK_BASE}
+                href={APP_OPEN_LOGIN}
                 className="mt-2 flex w-full min-h-[56px] items-center justify-center rounded-2xl bg-[#2A7BF6] px-4 text-[17px] font-bold text-white"
               >
-                打开 App
+                {t.openAppLogin}
               </a>
             </div>
           )}
 
           {phase === 'need_app' && (
             <div className="mt-6 space-y-4">
-              <p className="text-[15px] leading-6 text-slate-700">
-                请点击下方按钮，在 App 里完成新密码设置。
-              </p>
-              <p className="text-sm text-slate-500">
-                Tap below to finish resetting your password in the app.
-              </p>
+              <p className="text-[15px] leading-6 text-slate-700">{t.needAppBody}</p>
               <a
-                href={deepLink}
-                className="flex w-full min-h-[56px] items-center justify-center rounded-2xl bg-[#2A7BF6] px-4 text-[17px] font-bold text-white shadow-[0_10px_24px_rgba(42,123,246,0.35)]"
+                href={APP_OPEN_RESET}
+                className="flex w-full min-h-[56px] items-center justify-center rounded-2xl bg-[#2A7BF6] px-4 text-[17px] font-bold text-white"
               >
-                打开 App 设置新密码
+                {t.openAppReset}
               </a>
               <p className="text-xs leading-5 text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
-                若 App 打开后没有重置页：请完全关闭 App 再点一次，或更新到最新版本后再试。也可重新点一次「Forgot Password?」发新邮件。
+                {t.needAppHint}
               </p>
             </div>
           )}
 
           {phase === 'form' && (
             <form className="mt-6 space-y-4" onSubmit={handleUpdatePassword}>
-              <p className="text-[15px] leading-6 text-slate-700">
-                请设置新密码（至少 6 位）。
-              </p>
+              <p className="text-[15px] leading-6 text-slate-700">{t.formIntro}</p>
 
               <label className="block text-left">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  New Password
+                  {t.newPassword}
                 </span>
                 <div className="mt-1 relative">
                   <input
@@ -239,14 +342,14 @@ export default function ResetPasswordBridgePage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500"
                     onClick={() => setShowPassword((v) => !v)}
                   >
-                    {showPassword ? 'Hide' : 'Show'}
+                    {showPassword ? t.hide : t.show}
                   </button>
                 </div>
               </label>
 
               <label className="block text-left">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Confirm Password
+                  {t.confirmPassword}
                 </span>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -266,12 +369,10 @@ export default function ResetPasswordBridgePage() {
                 disabled={!canSubmit}
                 className="flex w-full min-h-[56px] items-center justify-center rounded-2xl bg-[#2A7BF6] px-4 text-[17px] font-bold text-white disabled:bg-slate-300 shadow-[0_10px_24px_rgba(42,123,246,0.35)] disabled:shadow-none"
               >
-                {submitting ? '更新中…' : '确认更新密码'}
+                {submitting ? t.submitting : t.submit}
               </button>
 
-              <a href={deepLink} className="block text-center text-sm font-semibold text-[#2A7BF6] pt-1">
-                或在 App 中设置 / Or set in the app
-              </a>
+              <p className="text-xs leading-5 text-slate-500 text-center pt-1">{t.afterWebHint}</p>
             </form>
           )}
         </div>

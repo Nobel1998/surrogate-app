@@ -26,13 +26,15 @@ export default function ResetPasswordScreen({ navigation }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Give deep-link setSession a moment before deciding session is missing
+      await new Promise((r) => setTimeout(r, 600));
       const { data: { session } } = await supabase.auth.getSession();
       if (!cancelled) {
         setHasRecoverySession(!!session);
         if (!session) {
           Alert.alert(
-            'Link incomplete',
-            'The app opened from your email, but the reset session was missing (common when iOS strips the link token). Please go to Login → Forgot Password and request a new email, then open the new link on this phone.',
+            'Use the website to reset',
+            'For security, reset your password on the mysurro.com page from your email link. After that, open the app and sign in with the new password.',
             [
               {
                 text: 'OK',
