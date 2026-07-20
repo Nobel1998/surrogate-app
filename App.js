@@ -351,7 +351,15 @@ const linking = {
       LoginScreen: 'login',
       RegisterScreen: 'register',
       ForgotPassword: 'forgot-password',
-      ResetPassword: 'reset-password',
+      ResetPassword: {
+        path: 'reset-password',
+        parse: {
+          code: (code) => code,
+          access_token: (access_token) => access_token,
+          refresh_token: (refresh_token) => refresh_token,
+          type: (type) => type,
+        },
+      },
     },
   },
   // 添加深度链接处理的回调

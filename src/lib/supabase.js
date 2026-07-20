@@ -20,8 +20,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: supabaseStorage,
     autoRefreshToken: true,
     persistSession: true,
-    // PKCE puts ?code= in query (survives iOS better than #access_token hash fragments)
-    flowType: 'pkce',
+    // Prefer implicit for recovery redirects to HTTPS (mysurro.com can read #access_token).
+    // PKCE codes can only be exchanged on the device that requested the email.
+    flowType: 'implicit',
     // In Expo native runtime, app launch URL is usually exp://... and should not be treated as auth callback.
     detectSessionInUrl: false,
   },
