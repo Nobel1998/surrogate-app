@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNotifications } from '../context/NotificationContext';
 
-export default function NotificationHistoryScreen() {
+export default function NotificationHistoryScreen({ navigation }) {
   const { 
     notifications, 
     unreadCount, 
@@ -91,7 +91,9 @@ export default function NotificationHistoryScreen() {
     // Handle navigation based on notification type
     switch (notification.type) {
       case 'status_update':
-        // Navigate to application status screen
+        if (navigation?.navigate) {
+          navigation.navigate('ViewApplication');
+        }
         break;
       case 'event_reminder':
         // Navigate to events screen
@@ -100,6 +102,9 @@ export default function NotificationHistoryScreen() {
         // Show message details
         break;
       default:
+        if (notification?.data?.screen === 'ViewApplication' && navigation?.navigate) {
+          navigation.navigate('ViewApplication');
+        }
         break;
     }
   };

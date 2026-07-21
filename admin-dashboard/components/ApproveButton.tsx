@@ -23,7 +23,7 @@ export default function ApproveButton({ id, currentStatus, onUpdate }: ApproveBu
           status: newStatus
         })
         .eq('id', id)
-        .select();
+        .select('id, user_id, status');
 
       console.log('Update result:', { data, error });
 
@@ -38,6 +38,24 @@ export default function ApproveButton({ id, currentStatus, onUpdate }: ApproveBu
       }
       
       console.log('Application updated successfully:', data);
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.user_id) {
+        try {
+          await fetch('/api/notifications/application-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: row.user_id,
+              status: newStatus,
+              applicationId: row.id ?? id,
+              applicationType: 'surrogate',
+            }),
+          });
+        } catch (notifyErr) {
+          console.error('Failed to write app notification:', notifyErr);
+        }
+      }
       
       // 触发页面刷新
       if (onUpdate) {
@@ -120,4 +138,3 @@ export default function ApproveButton({ id, currentStatus, onUpdate }: ApproveBu
     </div>
   );
 }
-

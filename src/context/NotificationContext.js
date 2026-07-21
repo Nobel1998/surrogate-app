@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import NotificationService from '../services/RealNotificationService';
+import { supabase } from '../lib/supabase';
 
 const NotificationContext = createContext();
 
@@ -10,6 +11,17 @@ export const useNotifications = () => {
   }
   return context;
 };
+
+const mapRemoteNotification = (row) => ({
+  id: String(row.id),
+  type: row.type || 'status_update',
+  title: row.title,
+  message: row.message,
+  data: row.data || {},
+  timestamp: row.created_at,
+  read: !!row.read,
+  remote: true,
+});
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
@@ -24,23 +36,121 @@ export const NotificationProvider = ({ children }) => {
     weeklyUpdates: false,
     marketingMessages: false,
   });
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     initializeNotifications();
   }, []);
 
+  const mergeRemoteRows = useCallback((rows) => {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    setNotifications((prev) => {
+      const byId = new Map(prev.map((n) => [String(n.id), n]));
+      rows.forEach((row) => {
+        const mapped = mapRemoteNotification(row);
+        byId.set(mapped.id, mapped);
+      });
+      const merged = Array.from(byId.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setUnreadCount(merged.filter((n) => !n.read).length);
+      return merged;
+    });
+  }, []);
+
+  const loadRemoteNotifications = useCallback(async (userId) => {
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
+        .from('app_notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        // Table may not exist yet — fail soft
+        console.warn('[notifications] load remote failed:', error.message);
+        return;
+      }
+      mergeRemoteRows(data || []);
+    } catch (err) {
+      console.warn('[notifications] load remote error:', err);
+    }
+  }, [mergeRemoteRows]);
+
+  useEffect(() => {
+    let channel;
+    let mounted = true;
+
+    const setup = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+      if (!mounted) return;
+      setCurrentUserId(userId);
+      if (!userId) return;
+
+      await loadRemoteNotifications(userId);
+
+      channel = supabase
+        .channel(`app-notifications-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'app_notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            if (!payload.new) return;
+            const mapped = mapRemoteNotification(payload.new);
+            setNotifications((prev) => {
+              if (prev.some((n) => String(n.id) === mapped.id)) return prev;
+              return [mapped, ...prev];
+            });
+            setUnreadCount((c) => c + 1);
+            if (settings.statusUpdates !== false) {
+              NotificationService.sendLocalNotification(
+                mapped.title,
+                mapped.message,
+                { ...mapped.data, type: mapped.type, screen: 'ViewApplication' }
+              );
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    setup();
+
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id || null;
+      setCurrentUserId(userId);
+      if (userId) {
+        loadRemoteNotifications(userId);
+      } else {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      if (channel) supabase.removeChannel(channel);
+      authSub?.subscription?.unsubscribe?.();
+    };
+  }, [loadRemoteNotifications, settings.statusUpdates]);
+
   const initializeNotifications = async () => {
     try {
-      // Check notification permissions
       const perms = await NotificationService.checkNotificationPermissions();
       setPermissions(perms);
 
-      // Request permissions if not granted
       if (!perms.alert) {
         await NotificationService.requestPermissions();
       }
 
-      // Load notification settings from storage
       loadNotificationSettings();
     } catch (error) {
       console.error('Error initializing notifications:', error);
@@ -49,12 +159,10 @@ export const NotificationProvider = ({ children }) => {
 
   const loadNotificationSettings = () => {
     // In a real app, this would load from AsyncStorage or similar
-    // For now, we'll use the default settings
   };
 
   const saveNotificationSettings = (newSettings) => {
     setSettings(newSettings);
-    // In a real app, this would save to AsyncStorage
   };
 
   const addNotification = (notification) => {
@@ -68,11 +176,10 @@ export const NotificationProvider = ({ children }) => {
     setNotifications(prev => [newNotification, ...prev]);
     setUnreadCount(prev => prev + 1);
     
-    // Update badge count
     NotificationService.setBadgeCount(unreadCount + 1);
   };
 
-  const markAsRead = (notificationId) => {
+  const markAsRead = async (notificationId) => {
     setNotifications(prev => 
       prev.map(notification => 
         notification.id === notificationId 
@@ -81,17 +188,42 @@ export const NotificationProvider = ({ children }) => {
       )
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
+
+    const target = notifications.find((n) => String(n.id) === String(notificationId));
+    if (target?.remote && currentUserId) {
+      try {
+        await supabase
+          .from('app_notifications')
+          .update({ read: true })
+          .eq('id', notificationId)
+          .eq('user_id', currentUserId);
+      } catch (err) {
+        console.warn('[notifications] mark remote read failed:', err);
+      }
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications(prev => 
       prev.map(notification => ({ ...notification, read: true }))
     );
     setUnreadCount(0);
     NotificationService.clearBadgeCount();
+
+    if (currentUserId) {
+      try {
+        await supabase
+          .from('app_notifications')
+          .update({ read: true })
+          .eq('user_id', currentUserId)
+          .eq('read', false);
+      } catch (err) {
+        console.warn('[notifications] mark all remote read failed:', err);
+      }
+    }
   };
 
-  const deleteNotification = (notificationId) => {
+  const deleteNotification = async (notificationId) => {
     const notification = notifications.find(n => n.id === notificationId);
     if (notification && !notification.read) {
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -100,6 +232,18 @@ export const NotificationProvider = ({ children }) => {
     setNotifications(prev => 
       prev.filter(notification => notification.id !== notificationId)
     );
+
+    if (notification?.remote && currentUserId) {
+      try {
+        await supabase
+          .from('app_notifications')
+          .delete()
+          .eq('id', notificationId)
+          .eq('user_id', currentUserId);
+      } catch (err) {
+        console.warn('[notifications] delete remote failed:', err);
+      }
+    }
   };
 
   const clearAllNotifications = () => {
@@ -117,7 +261,7 @@ export const NotificationProvider = ({ children }) => {
       type: 'status_update',
       title: 'Application Status Update',
       message: getStatusMessage(status),
-      data: { status, applicationId },
+      data: { status, applicationId, screen: 'ViewApplication' },
     };
     
     addNotification(notification);
@@ -139,7 +283,6 @@ export const NotificationProvider = ({ children }) => {
   };
 
   const sendImportantMessage = (title, message, priority = 'normal') => {
-    // Important messages are always sent regardless of settings
     const notification = {
       type: 'important_message',
       title: `Important: ${title}`,
@@ -222,7 +365,6 @@ export const NotificationProvider = ({ children }) => {
   };
 
   const sendSurrogateProgressUpdate = (surrogateName, oldStage, newStage, stageLabels) => {
-    // Progress updates are important, always send regardless of settings
     const oldStageLabel = stageLabels[oldStage] || oldStage;
     const newStageLabel = stageLabels[newStage] || newStage;
     
@@ -281,6 +423,7 @@ export const NotificationProvider = ({ children }) => {
     sendWeeklyUpdate,
     sendMarketingMessage,
     sendSurrogateProgressUpdate,
+    refreshRemoteNotifications: () => loadRemoteNotifications(currentUserId),
   };
 
   return (

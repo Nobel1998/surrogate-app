@@ -15,11 +15,12 @@ import { Video, ResizeMode } from 'expo-av';
 import * as Clipboard from 'expo-clipboard';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { trackBlogArticleView } from '../utils/blogViewTracker';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, handleEventLike, registerForEvent, likedEvents, registeredEvents } = useAppContext();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -30,7 +31,12 @@ export default function EventDetailScreen({ route, navigation }) {
     setEvent(foundEvent);
     setLoading(false);
   }, [eventId, events]);
-  
+
+  // Record blog article view (throttled; silent on failure)
+  useEffect(() => {
+    if (!eventId || !event) return;
+    trackBlogArticleView(eventId, user);
+  }, [eventId, event?.id, user?.id]); 
   // 监听点赞状态变化，确保正确显示
   useEffect(() => {
     console.log('EventDetailScreen: Liked events state updated', {

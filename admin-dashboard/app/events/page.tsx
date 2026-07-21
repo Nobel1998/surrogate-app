@@ -22,6 +22,14 @@ interface Event {
   updated_at: string;
   registration_count?: number;
   likes_count?: number;
+  views_count?: number;
+  visitors_count?: number;
+}
+
+function visitorIdentity(row: { user_id?: string | null; visitor_key?: string | null }) {
+  if (row.user_id) return `u:${row.user_id}`;
+  if (row.visitor_key) return `v:${row.visitor_key}`;
+  return null;
 }
 
 export default function BlogManagement() {
@@ -30,6 +38,8 @@ export default function BlogManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewsUnavailable, setViewsUnavailable] = useState(false);
+  const [globalUniqueVisitors, setGlobalUniqueVisitors] = useState(0);
 
   useEffect(() => {
     loadEvents();
@@ -38,6 +48,7 @@ export default function BlogManagement() {
   const loadEvents = async () => {
     try {
       setLoading(true);
+      setViewsUnavailable(false);
       
       // Use a filter that always returns true to bypass cache
       const { data: eventsData, error: eventsError } = await supabase
@@ -50,25 +61,58 @@ export default function BlogManagement() {
       
 
       // Get registration counts
-      const { data: registrations, error: regError } = await supabase
+      const { data: registrations } = await supabase
         .from('event_registrations')
         .select('event_id')
         .eq('status', 'registered');
 
       // Get likes counts  
-      const { data: likes, error: likesError } = await supabase
+      const { data: likes } = await supabase
         .from('event_likes')
         .select('event_id');
+
+      // Get blog article views
+      let views: { event_id: string; user_id?: string | null; visitor_key?: string | null }[] = [];
+      const { data: viewsData, error: viewsError } = await supabase
+        .from('event_views')
+        .select('event_id, user_id, visitor_key');
+
+      if (viewsError) {
+        console.warn('event_views not available:', viewsError.message);
+        setViewsUnavailable(true);
+      } else {
+        views = viewsData || [];
+      }
+
+      const viewsByEvent = new Map<string, { views: number; visitors: Set<string> }>();
+      const globalVisitors = new Set<string>();
+
+      views.forEach((row) => {
+        const identity = visitorIdentity(row);
+        if (identity) globalVisitors.add(identity);
+        if (!row.event_id) return;
+        if (!viewsByEvent.has(row.event_id)) {
+          viewsByEvent.set(row.event_id, { views: 0, visitors: new Set() });
+        }
+        const bucket = viewsByEvent.get(row.event_id)!;
+        bucket.views += 1;
+        if (identity) bucket.visitors.add(identity);
+      });
+
+      setGlobalUniqueVisitors(globalVisitors.size);
 
       // Combine data
       const eventsWithStats = (eventsData || []).map(event => {
         const registrationCount = registrations?.filter(r => r.event_id === event.id).length || 0;
         const likesCount = likes?.filter(l => l.event_id === event.id).length || 0;
+        const viewStats = viewsByEvent.get(event.id);
         
         return {
           ...event,
           registration_count: registrationCount,
           likes_count: likesCount,
+          views_count: viewStats?.views || 0,
+          visitors_count: viewStats?.visitors.size || 0,
           current_participants: registrationCount
         };
       });
@@ -171,19 +215,24 @@ export default function BlogManagement() {
     );
   }
 
+  const totalViews = events.reduce((sum, e) => sum + (e.views_count || 0), 0);
+
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Blog Management</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              App article opens are counted when a user opens the blog detail screen.
+            </p>
           </div>
           <div className="flex space-x-3">
             <button
               onClick={loadEvents}
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
-              🔄 Refresh
+              Refresh
             </button>
             <button
               onClick={handleCreate}
@@ -191,6 +240,25 @@ export default function BlogManagement() {
             >
               Create New Blog
             </button>
+          </div>
+        </div>
+
+        {viewsUnavailable && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            View tracking table is not available yet. Run{' '}
+            <code className="font-mono text-xs">migrations/create_event_views_table.sql</code> in
+            Supabase to enable Visitors / Views.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="text-sm font-medium text-gray-500">Total article opens (Views)</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{totalViews}</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="text-sm font-medium text-gray-500">Unique visitors (all articles)</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{globalUniqueVisitors}</div>
           </div>
         </div>
         
@@ -233,12 +301,12 @@ export default function BlogManagement() {
                             <h3 className="text-sm font-medium text-gray-900">{event.title}</h3>
                             {event.is_featured && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                ⭐ Featured
+                                Featured
                               </span>
                             )}
                             {event.video_url && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                                🎬 Video
+                                Video
                               </span>
                             )}
                           </div>
@@ -270,8 +338,12 @@ export default function BlogManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div>
-                        <div>👥 {event.registration_count || 0} registered</div>
-                        <div>❤️ {event.likes_count || 0} likes</div>
+                        <div className="font-medium text-gray-800">
+                          Visitors: {event.visitors_count || 0}
+                        </div>
+                        <div>Views: {event.views_count || 0}</div>
+                        <div className="mt-1">{event.registration_count || 0} registered</div>
+                        <div>{event.likes_count || 0} likes</div>
                         {event.max_participants && (
                           <div className="text-xs">Max: {event.max_participants}</div>
                         )}

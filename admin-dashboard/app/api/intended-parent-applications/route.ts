@@ -6,6 +6,7 @@ import {
   canFetchApplicationsByUserId,
   type AdminSessionResult,
 } from '@/lib/adminSession';
+import { notifyApplicationStatusChange } from '@/lib/appNotifications';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -123,6 +124,19 @@ export async function PATCH(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    const status = updates?.status;
+    if (
+      data?.user_id &&
+      (status === 'approved' || status === 'rejected' || status === 'pending')
+    ) {
+      await notifyApplicationStatusChange(supabase, {
+        userId: data.user_id,
+        status,
+        applicationId: data.id,
+        applicationType: 'intended_parent',
+      });
+    }
 
     return NextResponse.json({ data });
   } catch (error: any) {

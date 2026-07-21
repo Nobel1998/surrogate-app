@@ -1271,6 +1271,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           .from('intended_parent_applications')
           .update({
             form_data: formDataToSave,
+            status: 'pending',
             updated_at: new Date().toISOString(),
           })
           .eq('id', applicationId)

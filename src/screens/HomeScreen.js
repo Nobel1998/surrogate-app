@@ -5,9 +5,15 @@ import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import AsyncStorageLib from '../utils/Storage';
+import {
+  APPLICATION_STATUS,
+  fetchLatestApplication,
+  getApplicationStatusCopy,
+  normalizeApplicationStatus,
+} from '../utils/applicationStatus';
 
 // Normalize stage values to lowercase for consistent filtering
 const normalizeStage = (value = 'pregnancy') => {
@@ -243,6 +249,7 @@ export default function HomeScreen() {
   const [userPoints, setUserPoints] = useState(0);
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
+  const [applicationReviewStatus, setApplicationReviewStatus] = useState(APPLICATION_STATUS.NONE);
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [hasSurrogateMatch, setHasSurrogateMatch] = useState(false);
   const [checkingMatch, setCheckingMatch] = useState(false);
@@ -254,39 +261,40 @@ export default function HomeScreen() {
     pointsBackfillDoneRef.current = false;
   }, [user?.id]);
 
-  // Check if surrogate user has submitted application
+  // Check latest application review status (surrogate + parent)
   const checkApplication = useCallback(async () => {
-    if (!user?.id || !isSurrogateRole) {
+    if (!user?.id || (!isSurrogateRole && !isParentRole)) {
       setCheckingApplication(false);
-      setHasApplication(true); // For non-surrogates, always show content
+      setHasApplication(true);
+      setApplicationReviewStatus(APPLICATION_STATUS.NONE);
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking application:', error);
-        setHasApplication(false);
-      } else {
-        setHasApplication(!!data);
-      }
+      const role = isParentRole ? 'parent' : 'surrogate';
+      const latest = await fetchLatestApplication(supabase, user.id, role);
+      setHasApplication(!!latest.id);
+      setApplicationReviewStatus(
+        latest.id ? latest.status : APPLICATION_STATUS.NONE
+      );
     } catch (error) {
       console.error('Failed to check application:', error);
       setHasApplication(false);
+      setApplicationReviewStatus(APPLICATION_STATUS.NONE);
     } finally {
       setCheckingApplication(false);
     }
-  }, [user?.id, isSurrogateRole]);
+  }, [user?.id, isSurrogateRole, isParentRole]);
 
   useEffect(() => {
     checkApplication();
   }, [checkApplication]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkApplication();
+    }, [checkApplication])
+  );
 
   const getCurrentStageKey = React.useCallback(() => {
     // 如果后台有设置，优先使用后台控制阶段
@@ -2932,22 +2940,36 @@ export default function HomeScreen() {
     );
   }
 
-  // Check if surrogate user has submitted application or has match
+  // Check if surrogate/parent user has submitted application or has match
   const shouldShowNoMatchMessage = isSurrogateRole && !hasApplication;
-  const shouldShowMatchingInProgress = isSurrogateRole && hasApplication && !hasSurrogateMatch;
-  
-  // Debug log for display logic
-  console.log('[HomeScreen] Display logic check:', {
-    isSurrogateRole,
-    hasApplication,
-    hasSurrogateMatch,
-    shouldShowNoMatchMessage,
-    shouldShowMatchingInProgress,
-    checkingApplication
-  });
-  const shouldShowNoMatchForParent = isParentRole && !matchedSurrogateId;
+  const reviewStatus = normalizeApplicationStatus(applicationReviewStatus);
+  const shouldShowUnderReview =
+    ((isSurrogateRole && hasApplication) || (isParentRole && hasApplication)) &&
+    !hasSurrogateMatch &&
+    !(isParentRole && matchedSurrogateId) &&
+    reviewStatus === APPLICATION_STATUS.PENDING;
+  const shouldShowRejected =
+    ((isSurrogateRole && hasApplication) || (isParentRole && hasApplication)) &&
+    !hasSurrogateMatch &&
+    !(isParentRole && matchedSurrogateId) &&
+    reviewStatus === APPLICATION_STATUS.REJECTED;
+  const shouldShowMatchingInProgress =
+    isSurrogateRole &&
+    hasApplication &&
+    !hasSurrogateMatch &&
+    reviewStatus === APPLICATION_STATUS.APPROVED;
+  const shouldShowNoMatchForParent =
+    isParentRole &&
+    !matchedSurrogateId &&
+    (!hasApplication || reviewStatus === APPLICATION_STATUS.APPROVED);
 
-  // Render Matching in Progress state (surrogate with application but no match)
+  const statusCopy = getApplicationStatusCopy(
+    isParentRole ? 'parent' : 'surrogate',
+    reviewStatus,
+    t
+  );
+
+  // Render Matching in Progress state (approved, no match yet)
   const renderMatchingInProgress = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -2967,25 +2989,25 @@ export default function HomeScreen() {
             <View style={styles.unmatchedIconContainer}>
               <Icon name="search" size={64} color="#FF8EA4" />
             </View>
-            <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
+            <Text style={styles.unmatchedTitle}>{statusCopy.title}</Text>
             <Text style={styles.unmatchedDescription}>
-              {t('myMatch.matchingDescription')}
+              {statusCopy.description}
             </Text>
             
             <View style={styles.timelineSteps}>
               <View style={styles.timelineStep}>
                 <View style={[styles.stepDot, styles.stepActive]} />
-                <Text style={styles.stepText}>{t('myMatch.profileReview')}</Text>
+                <Text style={styles.stepText}>{t('applicationStatus.submitReview')}</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={styles.timelineStep}>
+                <View style={[styles.stepDot, styles.stepActive]} />
+                <Text style={styles.stepText}>{t('applicationStatus.matchingStep')}</Text>
               </View>
               <View style={styles.stepLine} />
               <View style={styles.timelineStep}>
                 <View style={[styles.stepDot, styles.stepPending]} />
-                <Text style={styles.stepText}>{t('myMatch.matching')}</Text>
-              </View>
-              <View style={styles.stepLine} />
-              <View style={styles.timelineStep}>
-                <View style={[styles.stepDot, styles.stepPending]} />
-                <Text style={styles.stepText}>{t('myMatch.confirmation')}</Text>
+                <Text style={styles.stepText}>{t('applicationStatus.confirmationStep')}</Text>
               </View>
             </View>
           </View>
@@ -2994,7 +3016,107 @@ export default function HomeScreen() {
     );
   };
 
-  if (shouldShowNoMatchMessage || shouldShowNoMatchForParent) {
+  const renderUnderReview = () => (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView
+        contentContainerStyle={styles.unmatchedContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A7BF6']}
+            tintColor="#2A7BF6"
+          />
+        }
+      >
+        <View style={styles.unmatchedContent}>
+          <View style={styles.unmatchedIconContainer}>
+            <Icon name="clock" size={64} color="#FF9800" />
+          </View>
+          <Text style={styles.unmatchedTitle}>{statusCopy.title}</Text>
+          <Text style={styles.unmatchedDescription}>{statusCopy.description}</Text>
+          <View style={styles.timelineSteps}>
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepActive]} />
+              <Text style={styles.stepText}>{t('applicationStatus.submitReview')}</Text>
+            </View>
+            <View style={styles.stepLine} />
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepActive]} />
+              <Text style={styles.stepText}>{t('profile.statusPending')}</Text>
+            </View>
+            <View style={styles.stepLine} />
+            <View style={styles.timelineStep}>
+              <View style={[styles.stepDot, styles.stepPending]} />
+              <Text style={styles.stepText}>{t('applicationStatus.matchingStep')}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, marginTop: 24 }}
+            onPress={() => navigation.navigate('ViewApplication')}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              {t('applicationStatus.viewApplication')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  const renderRejected = () => (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView
+        contentContainerStyle={styles.unmatchedContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A7BF6']}
+            tintColor="#2A7BF6"
+          />
+        }
+      >
+        <View style={styles.unmatchedContent}>
+          <View style={styles.unmatchedIconContainer}>
+            <Icon name="x-circle" size={64} color="#F44336" />
+          </View>
+          <Text style={styles.unmatchedTitle}>{statusCopy.title}</Text>
+          <Text style={styles.unmatchedDescription}>{statusCopy.description}</Text>
+          <TouchableOpacity
+            style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, marginTop: 20 }}
+            onPress={() => navigation.navigate('ViewApplication')}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              {t('applicationStatus.viewApplication')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ backgroundColor: '#FFF', borderWidth: 1, borderColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, marginTop: 12 }}
+            onPress={() =>
+              navigation.navigate(isParentRole ? 'IntendedParentApplication' : 'SurrogateApplication')
+            }
+          >
+            <Text style={{ color: '#2A7BF6', fontSize: 16, fontWeight: '600' }}>
+              {t('applicationStatus.editApplication')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ marginTop: 16 }}
+            onPress={() => navigation.navigate('ContactUs')}
+          >
+            <Text style={{ color: '#6E7191', fontSize: 15, fontWeight: '600' }}>
+              {t('applicationStatus.contactSupport')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  if (shouldShowNoMatchMessage) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" />
@@ -3015,16 +3137,61 @@ export default function HomeScreen() {
               No Match Yet
             </Text>
             <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-              {shouldShowNoMatchMessage 
-                ? "You haven't submitted an application yet, so we cannot display match information. Please submit your application first."
+              You haven't submitted an application yet, so we cannot display match information. Please submit your application first.
+            </Text>
+            <TouchableOpacity 
+              style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 }}
+              onPress={() => navigation.navigate('SurrogateApplication')}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Submit Application</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  if (shouldShowRejected) {
+    return renderRejected();
+  }
+
+  if (shouldShowUnderReview) {
+    return renderUnderReview();
+  }
+
+  if (shouldShowNoMatchForParent) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView 
+          contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A7BF6']}
+              tintColor="#2A7BF6"
+            />
+          }
+        >
+          <View style={{ alignItems: 'center' }}>
+            <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
+              {hasApplication ? statusCopy.title : 'No Match Yet'}
+            </Text>
+            <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
+              {hasApplication
+                ? statusCopy.description
                 : 'We are finding the perfect match for you.'}
             </Text>
-            {shouldShowNoMatchMessage && (
-              <TouchableOpacity 
+            {!hasApplication && (
+              <TouchableOpacity
                 style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 }}
-                onPress={() => navigation.navigate('SurrogateApplication')}
+                onPress={() => navigation.navigate('IntendedParentApplication')}
               >
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Submit Application</Text>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                  {t('profile.submitApplication')}
+                </Text>
               </TouchableOpacity>
             )}
           </View>

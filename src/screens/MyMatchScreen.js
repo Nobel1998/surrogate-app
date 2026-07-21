@@ -30,6 +30,12 @@ import {
   getPreviewFieldLabel,
   getDeliveryLineLabels,
 } from '../i18n/surrogateApplicationPreviewI18n';
+import {
+  APPLICATION_STATUS,
+  fetchLatestApplication,
+  getApplicationStatusCopy,
+  normalizeApplicationStatus,
+} from '../utils/applicationStatus';
 
 function formatApplicationFieldKeyLabel(key) {
   if (!key) return '';
@@ -61,6 +67,7 @@ export default function MyMatchScreen({ navigation }) {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showSurrogateModal, setShowSurrogateModal] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
+  const [applicationReviewStatus, setApplicationReviewStatus] = useState(APPLICATION_STATUS.NONE);
   // Pregnancy History states
   const [medicationStartDate, setMedicationStartDate] = useState('');
   const [transferDate, setTransferDate] = useState('');
@@ -165,27 +172,31 @@ export default function MyMatchScreen({ navigation }) {
 
     try {
       const role = (user?.role || '').toLowerCase();
-      if (role === 'surrogate') {
-        const { data, error } = await supabase
-          .from('applications')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1)
-          .maybeSingle();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error checking application:', error);
-          setHasApplication(false);
-        } else {
-          setHasApplication(!!data);
+      if (role === 'surrogate' || role === 'parent') {
+        const latest = await fetchLatestApplication(supabase, user.id, role);
+        setHasApplication(!!latest.id);
+        setApplicationReviewStatus(
+          latest.id ? latest.status : APPLICATION_STATUS.NONE
+        );
+        // Parents only see surrogate list after approval (and when unmatched)
+        if (
+          role === 'parent' &&
+          latest.id &&
+          latest.status === APPLICATION_STATUS.APPROVED &&
+          !matchData
+        ) {
+          loadAvailableSurrogates();
+        } else if (role === 'parent' && latest.status !== APPLICATION_STATUS.APPROVED) {
+          setAvailableSurrogates([]);
         }
       } else {
-        // For non-surrogates, always show content
         setHasApplication(true);
+        setApplicationReviewStatus(APPLICATION_STATUS.NONE);
       }
     } catch (error) {
       console.error('Failed to check application:', error);
       setHasApplication(false);
+      setApplicationReviewStatus(APPLICATION_STATUS.NONE);
     } finally {
       setCheckingApplication(false);
     }
@@ -378,9 +389,17 @@ export default function MyMatchScreen({ navigation }) {
         setPartnerApplication(null);
         setDocuments([]);
         
-        // If parent user and unmatched, load available surrogates
+        // Parents only browse surrogates after application is approved
         if (!isSurrogate) {
-          loadAvailableSurrogates();
+          const latest = await fetchLatestApplication(supabase, user.id, 'parent');
+          const review = latest.id ? latest.status : APPLICATION_STATUS.NONE;
+          setHasApplication(!!latest.id);
+          setApplicationReviewStatus(review);
+          if (review === APPLICATION_STATUS.APPROVED) {
+            loadAvailableSurrogates();
+          } else {
+            setAvailableSurrogates([]);
+          }
         }
       }
     } catch (error) {
@@ -862,6 +881,97 @@ export default function MyMatchScreen({ navigation }) {
   // Render Unmatched State
   const renderUnmatchedState = () => {
     const isParent = userRole === 'parent';
+    const reviewStatus = normalizeApplicationStatus(applicationReviewStatus);
+    const statusCopy = getApplicationStatusCopy(
+      isParent ? 'parent' : 'surrogate',
+      reviewStatus,
+      t
+    );
+
+    if (hasApplication && reviewStatus === APPLICATION_STATUS.REJECTED) {
+      return (
+        <ScrollView
+          contentContainerStyle={styles.unmatchedContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.unmatchedContent}>
+            <View style={styles.unmatchedIconContainer}>
+              <Icon name="x-circle" size={64} color="#F44336" />
+            </View>
+            <Text style={styles.unmatchedTitle}>{statusCopy.title}</Text>
+            <Text style={styles.unmatchedDescription}>{statusCopy.description}</Text>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => navigation.navigate('ViewApplication')}
+            >
+              <Text style={styles.contactButtonText}>{t('applicationStatus.viewApplication')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contactButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#2A7BF6', marginTop: 12 }]}
+              onPress={() =>
+                navigation.navigate(isParent ? 'IntendedParentApplication' : 'SurrogateApplication')
+              }
+            >
+              <Text style={[styles.contactButtonText, { color: '#2A7BF6' }]}>
+                {t('applicationStatus.editApplication')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      );
+    }
+
+    if (hasApplication && reviewStatus === APPLICATION_STATUS.PENDING) {
+      return (
+        <ScrollView
+          contentContainerStyle={styles.unmatchedContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.unmatchedContent}>
+            <View style={styles.unmatchedIconContainer}>
+              <Icon name="clock" size={64} color="#FF9800" />
+            </View>
+            <Text style={styles.unmatchedTitle}>{statusCopy.title}</Text>
+            <Text style={styles.unmatchedDescription}>{statusCopy.description}</Text>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => navigation.navigate('ViewApplication')}
+            >
+              <Text style={styles.contactButtonText}>{t('applicationStatus.viewApplication')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      );
+    }
+
+    // Parent with no application yet
+    if (isParent && !hasApplication) {
+      return (
+        <ScrollView
+          contentContainerStyle={styles.unmatchedContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.unmatchedContent}>
+            <View style={styles.unmatchedIconContainer}>
+              <Icon name="file-text" size={64} color="#FF8EA4" />
+            </View>
+            <Text style={styles.unmatchedTitle}>{t('applicationStatus.noApplicationTitle')}</Text>
+            <Text style={styles.unmatchedDescription}>
+              {t('applicationStatus.noApplicationDescription')}
+            </Text>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => navigation.navigate('IntendedParentApplication')}
+            >
+              <Text style={styles.contactButtonText}>{t('profile.submitApplication')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      );
+    }
     
     return (
     <ScrollView
@@ -873,13 +983,13 @@ export default function MyMatchScreen({ navigation }) {
         <View style={styles.unmatchedIconContainer}>
           <Icon name="search" size={64} color="#FF8EA4" />
         </View>
-        <Text style={styles.unmatchedTitle}>{t('myMatch.matchingInProgress')}</Text>
+        <Text style={styles.unmatchedTitle}>{statusCopy.title || t('myMatch.matchingInProgress')}</Text>
         <Text style={styles.unmatchedDescription}>
-          {t('myMatch.matchingDescription')}
+          {statusCopy.description || t('myMatch.matchingDescription')}
         </Text>
 
-          {/* Show available surrogates for parent users */}
-          {isParent && (
+          {/* Show available surrogates for approved parent users only */}
+          {isParent && reviewStatus === APPLICATION_STATUS.APPROVED && (
             <View style={styles.availableSurrogatesSection}>
               <Text style={styles.availableSurrogatesTitle}>{t('myMatch.availableSurrogatesTitle')}</Text>
               {loadingSurrogates ? (
@@ -930,7 +1040,7 @@ export default function MyMatchScreen({ navigation }) {
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
+    );
   };
 
   // Render Matched State with Premium Design

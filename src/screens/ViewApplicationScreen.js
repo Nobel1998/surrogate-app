@@ -8,12 +8,18 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Image,
+  Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import {
+  APPLICATION_STATUS,
+  normalizeApplicationStatus,
+  getApplicationStatusCopy,
+} from '../utils/applicationStatus';
 
 export default function ViewApplicationScreen({ navigation }) {
   const { user } = useAuth();
@@ -170,47 +176,74 @@ export default function ViewApplicationScreen({ navigation }) {
   }
 
   const handleEditApplication = () => {
-    if (formData.applicationType === 'intended_parent') {
-      navigation.navigate('IntendedParentApplication', {
-        editMode: true,
-        applicationId: application.id,
-        existingData: formData
-      });
-    } else {
-      navigation.navigate('SurrogateApplication', {
-        editMode: true,
-        applicationId: application.id,
-        existingData: {
-          ...formData,
-          fullName: application.full_name,
-          phoneNumber: application.phone,
-        }
-      });
+    const goEdit = () => {
+      if (formData.applicationType === 'intended_parent') {
+        navigation.navigate('IntendedParentApplication', {
+          editMode: true,
+          applicationId: application.id,
+          existingData: formData
+        });
+      } else {
+        navigation.navigate('SurrogateApplication', {
+          editMode: true,
+          applicationId: application.id,
+          existingData: {
+            ...formData,
+            fullName: application.full_name,
+            phoneNumber: application.phone,
+          }
+        });
+      }
+    };
+
+    const normalized = normalizeApplicationStatus(application?.status);
+    if (normalized === APPLICATION_STATUS.APPROVED) {
+      Alert.alert(
+        t('applicationStatus.editApplication'),
+        t('applicationStatus.editMayNeedReReview'),
+        [
+          { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+          { text: t('common.ok') || 'OK', onPress: goEdit },
+        ]
+      );
+      return;
     }
+    goEdit();
   };
+
+  const reviewStatus = normalizeApplicationStatus(application?.status);
+  const statusCopy = getApplicationStatusCopy(
+    formData.applicationType === 'intended_parent' ? 'parent' : 'surrogate',
+    reviewStatus,
+    t
+  );
+  const submittedAt = application.created_at || application.submitted_at;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Status Banner */}
         <View style={[styles.statusBanner, 
-          application.status === 'approved' ? styles.statusApproved :
-          application.status === 'rejected' ? styles.statusRejected :
+          reviewStatus === APPLICATION_STATUS.APPROVED ? styles.statusApproved :
+          reviewStatus === APPLICATION_STATUS.REJECTED ? styles.statusRejected :
           styles.statusPending
         ]}>
           <Icon 
-            name={application.status === 'approved' ? 'check-circle' : application.status === 'rejected' ? 'x-circle' : 'clock'} 
+            name={reviewStatus === APPLICATION_STATUS.APPROVED ? 'check-circle' : reviewStatus === APPLICATION_STATUS.REJECTED ? 'x-circle' : 'clock'} 
             size={24} 
             color="#fff" 
           />
           <View style={styles.statusTextContainer}>
             <Text style={styles.statusTitle}>
-              {application.status === 'approved' ? 'Application Approved' :
-               application.status === 'rejected' ? 'Application Rejected' :
-               'Application Under Review'}
+              {reviewStatus === APPLICATION_STATUS.APPROVED
+                ? t('applicationStatus.statusUpdateApprovedTitle')
+                : reviewStatus === APPLICATION_STATUS.REJECTED
+                ? t('applicationStatus.statusUpdateRejectedTitle')
+                : t('applicationStatus.underReviewTitle')}
             </Text>
             <Text style={styles.statusDate}>
-              Submitted: {new Date(application.created_at).toLocaleDateString('en-US')}
+              {statusCopy.badge}
+              {submittedAt ? ` · ${new Date(submittedAt).toLocaleDateString()}` : ''}
             </Text>
           </View>
         </View>
@@ -218,7 +251,7 @@ export default function ViewApplicationScreen({ navigation }) {
         {/* Edit Button */}
         <TouchableOpacity style={styles.editButton} onPress={handleEditApplication}>
           <Icon name="edit-2" size={18} color="#fff" />
-          <Text style={styles.editButtonText}>Edit Application</Text>
+          <Text style={styles.editButtonText}>{t('applicationStatus.editApplication')}</Text>
         </TouchableOpacity>
 
         {/* Step 1: Personal Information */}

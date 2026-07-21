@@ -29,12 +29,29 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [formVersion, setFormVersion] = useState(0);
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
-  const [applicationData, setApplicationData] = useState({
+  const [applicationData, setApplicationData] = useState(() => {
+    const profileName = user?.name || user?.user_metadata?.name || '';
+    const nameParts = (() => {
+      const parts = String(profileName)
+        .trim()
+        .replace(/\s+/g, ' ')
+        .split(' ')
+        .filter(Boolean);
+      if (parts.length === 0) return { firstName: '', middleName: '', lastName: '' };
+      if (parts.length === 1) return { firstName: parts[0], middleName: '', lastName: '' };
+      if (parts.length === 2) return { firstName: parts[0], middleName: '', lastName: parts[1] };
+      return {
+        firstName: parts[0],
+        middleName: parts.slice(1, -1).join(' '),
+        lastName: parts[parts.length - 1],
+      };
+    })();
+    return {
     // Step 1: Personal Information (Extended)
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    fullName: user?.name || '',
+    firstName: nameParts.firstName,
+    middleName: nameParts.middleName,
+    lastName: nameParts.lastName,
+    fullName: profileName,
     age: user?.user_metadata?.age || '',
     dateOfBirth: user?.user_metadata?.date_of_birth || user?.dateOfBirth || '',
     dateOfBirthMonth: '',
@@ -239,6 +256,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     
     // Surrogate Photos (up to 6 lifestyle photos)
     photos: [], // Array of photo URLs
+  };
   });
 
   const composeNameFromParts = (data) =>
@@ -246,11 +264,56 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       .trim()
       .replace(/\s+/g, ' ');
 
+  /** Split a full legal/display name into first / middle / last for the form row. */
+  const splitFullName = (fullName) => {
+    const parts = String(fullName || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .split(' ')
+      .filter(Boolean);
+    if (parts.length === 0) {
+      return { firstName: '', middleName: '', lastName: '' };
+    }
+    if (parts.length === 1) {
+      return { firstName: parts[0], middleName: '', lastName: '' };
+    }
+    if (parts.length === 2) {
+      return { firstName: parts[0], middleName: '', lastName: parts[1] };
+    }
+    return {
+      firstName: parts[0],
+      middleName: parts.slice(1, -1).join(' '),
+      lastName: parts[parts.length - 1],
+    };
+  };
+
   /** Prefer explicit fullName; otherwise build from first/middle/last (UI may show composed name while state.fullName is still empty). */
   const resolveFullName = (data) => {
     const explicit = String(data?.fullName || '').trim().replace(/\s+/g, ' ');
     if (explicit) return explicit;
     return composeNameFromParts(data);
+  };
+
+  /** Fill empty first/middle/last from fullName / profile name without overwriting user edits. */
+  const applyNamePartsFromFullName = (data, fullNameSource) => {
+    const next = { ...data };
+    const hasParts =
+      String(next.firstName || '').trim() ||
+      String(next.middleName || '').trim() ||
+      String(next.lastName || '').trim();
+    const source =
+      String(fullNameSource || next.fullName || '').trim() ||
+      composeNameFromParts(next);
+    if (!hasParts && source) {
+      const parts = splitFullName(source);
+      next.firstName = parts.firstName;
+      next.middleName = parts.middleName;
+      next.lastName = parts.lastName;
+    }
+    if (!String(next.fullName || '').trim() && source) {
+      next.fullName = source;
+    }
+    return next;
   };
 
   const composeHeightDisplay = (data) => {
@@ -472,10 +535,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           // ensure state updates flush before formVersion bump
           setApplicationData(prev => {
             const next = hydrateHeightWeightFields({ ...prev, ...merged });
-            if (!String(next.fullName || '').trim()) {
-              next.fullName = composeNameFromParts(next);
+            const withNames = applyNamePartsFromFullName(next, next.fullName);
+            if (!String(withNames.fullName || '').trim()) {
+              withNames.fullName = composeNameFromParts(withNames);
             }
-            return next;
+            return withNames;
           });
           setTimeout(() => {
             const newVersion = Date.now();
@@ -492,10 +556,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         const parsed = JSON.parse(draft);
         setApplicationData(prev => {
           const next = hydrateHeightWeightFields({ ...prev, ...parsed });
-          if (!String(next.fullName || '').trim()) {
-            next.fullName = composeNameFromParts(next);
+          const withNames = applyNamePartsFromFullName(next, next.fullName);
+          if (!String(withNames.fullName || '').trim()) {
+            withNames.fullName = composeNameFromParts(withNames);
           }
-          return next;
+          return withNames;
         });
         setTimeout(() => {
           const newVersion = Date.now();
@@ -512,23 +577,28 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     loadDraft();
   }, [user?.id]);
 
-  // Fallback: when user logs in and has user_metadata, update form fields directly
+  // Fallback: when user logs in and has profile/metadata, update form fields directly
   useEffect(() => {
-    if (user?.user_metadata) {
-      const meta = user.user_metadata;
-      setApplicationData(prev => ({
+    if (!user) return;
+    const meta = user.user_metadata || {};
+    const profileName = user.name || meta.name || '';
+    setApplicationData((prev) => {
+      let next = {
         ...prev,
         age: prev.age || meta.age || '',
-        dateOfBirth: prev.dateOfBirth || meta.date_of_birth || '',
+        dateOfBirth: prev.dateOfBirth || meta.date_of_birth || user.dateOfBirth || '',
         hearAboutUs: prev.hearAboutUs || meta.hear_about_us || '',
-        fullName: prev.fullName || meta.name || user?.name || '',
-        phoneNumber: prev.phoneNumber || meta.phone || user?.phone || '',
-        address: prev.address || meta.address || user?.address || '',
-        race: prev.race || meta.race || user?.race || '',
+        fullName: prev.fullName || profileName,
+        phoneNumber: prev.phoneNumber || meta.phone || user.phone || '',
+        email: prev.email || user.email || '',
+        address: prev.address || meta.address || user.address || '',
+        race: prev.race || meta.race || user.race || '',
         referralCode: prev.referralCode || meta.referred_by || '',
-      }));
-    }
-  }, [user?.user_metadata]);
+      };
+      next = applyNamePartsFromFullName(next, profileName);
+      return next;
+    });
+  }, [user?.id, user?.name, user?.user_metadata]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -540,10 +610,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             ...prev,
             ...existingData,
           });
-          if (!String(next.fullName || '').trim()) {
-            next.fullName = composeNameFromParts(next);
+          const withNames = applyNamePartsFromFullName(next, next.fullName);
+          if (!String(withNames.fullName || '').trim()) {
+            withNames.fullName = composeNameFromParts(withNames);
           }
-          return next;
+          return withNames;
         });
         // Set photos array if photos exist
         if (existingData.photos && Array.isArray(existingData.photos)) {
@@ -966,6 +1037,28 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       case 5:
         // Step 5 validation can be optional
         return true;
+
+      case 8: {
+        // Lifestyle photos are required before submit (step 8)
+        const urls = new Set([
+          ...photos.filter((p) => p && p.url).map((p) => p.url),
+          ...((Array.isArray(applicationData.photos) ? applicationData.photos : []).filter(Boolean)),
+        ]);
+        const uploadedCount = urls.size;
+
+        if (uploadedCount < 1) {
+          Alert.alert(
+            t('common.error'),
+            'Please upload at least one photo before submitting your application.'
+          );
+          return false;
+        }
+        if (photos.some((p) => p && p.uploading) || uploadingPhotoIndex !== null) {
+          Alert.alert(t('common.error'), 'Please wait for photo uploads to finish.');
+          return false;
+        }
+        return true;
+      }
       
       default:
         return true;
@@ -1155,7 +1248,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
+    // Always enforce photo requirement on final submit (step 8)
+    if (!validateStep(8)) return;
+    if (currentStep !== 8 && !validateStep(currentStep)) return;
 
     setIsLoading(true);
     
@@ -1222,7 +1317,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           height: heightDisplay,
           weight: weightDisplay,
         }),
-        user_id: authUser.id  // 添加用户ID
+        user_id: authUser.id,  // 添加用户ID
+        status: 'pending',
       };
 
       let resultData;
@@ -1237,6 +1333,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             full_name: payload.full_name,
             phone: payload.phone,
             form_data: payload.form_data,
+            status: 'pending',
           })
           .eq('id', applicationId)
           .select();
@@ -1269,13 +1366,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       const application = {
         id: resultData && resultData[0] ? resultData[0].id : `APP-${Date.now()}`,
         type: 'Surrogacy Application',
-        status: editMode ? 'updated' : 'pending',
+        status: 'pending',
         submittedDate: new Date().toISOString().split('T')[0],
         lastUpdated: new Date().toISOString().split('T')[0],
         description: `Surrogacy Application - ${resolveFullName(applicationData)}`,
         nextStep: 'Wait for initial review and medical screening',
         documents: ['Application Form', 'Medical History', 'Background Check'],
-        notes: editMode ? 'Application updated successfully.' : 'Application submitted successfully. Our team will review and contact you within 5-7 business days.',
+        notes: editMode
+          ? 'Application updated and returned to pending review.'
+          : 'Application submitted successfully. Our team will review and contact you within 5-7 business days.',
         data: applicationData,
       };
 
@@ -4490,7 +4589,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Surrogate Lifestyle Photos Upload (6 photos) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Please upload your 6 pictures *</Text>
+        <Text style={styles.label}>Please upload your pictures * (at least 1, up to 6)</Text>
         <View style={styles.photosContainer}>
           {[0, 1, 2, 3, 4, 5].map((index) => {
             const photo = photos[index];

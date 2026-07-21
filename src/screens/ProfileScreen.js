@@ -5,6 +5,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import * as StoreReview from 'expo-store-review';
+import {
+  APPLICATION_STATUS,
+  fetchLatestApplication,
+  getApplicationStatusCopy,
+} from '../utils/applicationStatus';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, deleteAccount } = useAuth();
@@ -17,9 +22,10 @@ export default function ProfileScreen({ navigation }) {
   const [loadingHipaaDoc, setLoadingHipaaDoc] = useState(false);
   const [loadingPhotoDoc, setLoadingPhotoDoc] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
+  // null = loading; APPLICATION_STATUS.* once loaded
+  const [applicationStatus, setApplicationStatus] = useState(null);
   const [loadingApplication, setLoadingApplication] = useState(false);
-  const [intendedParentApplicationStatus, setIntendedParentApplicationStatus] = useState(null); // null = loading, 'none' = no application, 'submitted' = has application
+  const [intendedParentApplicationStatus, setIntendedParentApplicationStatus] = useState(null);
   const [loadingIntendedParentApplication, setLoadingIntendedParentApplication] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -146,29 +152,17 @@ export default function ProfileScreen({ navigation }) {
 
   const loadApplicationStatus = async () => {
     if (!user?.id) {
-      setApplicationStatus('none');
+      setApplicationStatus(APPLICATION_STATUS.NONE);
       return;
     }
     
     setLoadingApplication(true);
     try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select('id, status, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading application status:', error);
-        setApplicationStatus('none');
-      } else {
-        setApplicationStatus(data ? 'submitted' : 'none');
-      }
+      const latest = await fetchLatestApplication(supabase, user.id, 'surrogate');
+      setApplicationStatus(latest.id ? latest.status : APPLICATION_STATUS.NONE);
     } catch (error) {
       console.error('Failed to load application status:', error);
-      setApplicationStatus('none');
+      setApplicationStatus(APPLICATION_STATUS.NONE);
     } finally {
       setLoadingApplication(false);
     }
@@ -176,40 +170,26 @@ export default function ProfileScreen({ navigation }) {
 
   const loadIntendedParentApplicationStatus = async () => {
     if (!user?.id) {
-      setIntendedParentApplicationStatus('none');
+      setIntendedParentApplicationStatus(APPLICATION_STATUS.NONE);
       return;
     }
     
     setLoadingIntendedParentApplication(true);
     try {
-      const { data, error } = await supabase
-        .from('intended_parent_applications')
-        .select('id, status, submitted_at')
-        .eq('user_id', user.id)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading intended parent application status:', error);
-        setIntendedParentApplicationStatus('none');
-      } else {
-        setIntendedParentApplicationStatus(data ? 'submitted' : 'none');
-      }
+      const latest = await fetchLatestApplication(supabase, user.id, 'parent');
+      setIntendedParentApplicationStatus(latest.id ? latest.status : APPLICATION_STATUS.NONE);
     } catch (error) {
       console.error('Failed to load intended parent application status:', error);
-      setIntendedParentApplicationStatus('none');
+      setIntendedParentApplicationStatus(APPLICATION_STATUS.NONE);
     } finally {
       setLoadingIntendedParentApplication(false);
     }
   };
 
   const handleApplicationPress = () => {
-    if (applicationStatus === 'submitted') {
-      // Navigate to view application
+    if (applicationStatus && applicationStatus !== APPLICATION_STATUS.NONE) {
       navigation.navigate('ViewApplication');
     } else {
-      // Navigate to submit application
       navigation.navigate('SurrogateApplication');
     }
   };
@@ -264,11 +244,9 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleIntendedParentApplicationPress = () => {
-    if (intendedParentApplicationStatus === 'submitted') {
-      // Load and navigate to edit the application
-      loadIntendedParentApplication();
+    if (intendedParentApplicationStatus && intendedParentApplicationStatus !== APPLICATION_STATUS.NONE) {
+      navigation.navigate('ViewApplication');
     } else {
-      // Navigate to submit intended parent application
       navigation.navigate('IntendedParentApplication');
     }
   };
@@ -305,7 +283,7 @@ export default function ProfileScreen({ navigation }) {
       const refreshPromises = [loadAgencyRetainerDoc()];
       
       if (userRole === 'surrogate') {
-        refreshPromises.push(loadHipaaReleaseDoc(), loadPhotoReleaseDoc());
+        refreshPromises.push(loadHipaaReleaseDoc(), loadPhotoReleaseDoc(), loadApplicationStatus());
       }
       
       if (userRole === 'parent') {
@@ -736,11 +714,15 @@ export default function ProfileScreen({ navigation }) {
           {userRole === 'parent' && (
             <>
               {renderMenuItem(
-                intendedParentApplicationStatus === 'submitted' ? 'View Intended Parent Application' : 'Submit Intended Parent Application',
-                intendedParentApplicationStatus === 'submitted' ? 'file-text' : 'edit-3',
+                intendedParentApplicationStatus && intendedParentApplicationStatus !== APPLICATION_STATUS.NONE
+                  ? t('profile.viewApplication')
+                  : t('profile.submitApplication'),
+                intendedParentApplicationStatus && intendedParentApplicationStatus !== APPLICATION_STATUS.NONE
+                  ? 'file-text'
+                  : 'edit-3',
                 handleIntendedParentApplicationPress,
-                intendedParentApplicationStatus === 'submitted' ? '#4CAF50' : '#E91E63',
-                intendedParentApplicationStatus === 'submitted' ? 'Submitted' : 'Not Submitted',
+                getApplicationStatusCopy('parent', intendedParentApplicationStatus, t).badgeColor,
+                getApplicationStatusCopy('parent', intendedParentApplicationStatus, t).badge,
                 loadingIntendedParentApplication
               )}
             </>
@@ -749,11 +731,15 @@ export default function ProfileScreen({ navigation }) {
           {userRole === 'surrogate' && (
             <>
               {renderMenuItem(
-                applicationStatus === 'submitted' ? t('profile.viewApplication') : t('profile.submitApplication'),
-                applicationStatus === 'submitted' ? 'file-text' : 'edit-3',
+                applicationStatus && applicationStatus !== APPLICATION_STATUS.NONE
+                  ? t('profile.viewApplication')
+                  : t('profile.submitApplication'),
+                applicationStatus && applicationStatus !== APPLICATION_STATUS.NONE
+                  ? 'file-text'
+                  : 'edit-3',
                 handleApplicationPress,
-                applicationStatus === 'submitted' ? '#4CAF50' : '#E91E63',
-                applicationStatus === 'submitted' ? t('profile.submitted') : t('profile.notSubmitted'),
+                getApplicationStatusCopy('surrogate', applicationStatus, t).badgeColor,
+                getApplicationStatusCopy('surrogate', applicationStatus, t).badge,
                 loadingApplication
               )}
               {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
