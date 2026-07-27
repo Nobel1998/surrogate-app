@@ -8,6 +8,8 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
+
 export async function GET(req: NextRequest) {
   const auth = await requireMedicalRecordAccess();
   if (!auth.ok) {
@@ -55,6 +57,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * Initialize upload: create DB row + signed upload URL.
+ * Client uploads the PDF directly to storage (avoids Next/Vercel body size limits).
+ */
 export async function POST(req: NextRequest) {
   const auth = await requireMedicalRecordAccess({ requireWrite: true });
   if (!auth.ok) {
@@ -62,21 +68,37 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const formData = await req.formData();
-    const file = formData.get('file') as File | null;
-    const title = (formData.get('title') as string | null)?.trim() || null;
-    const surrogateUserId = (formData.get('surrogate_user_id') as string | null)?.trim() || null;
-    const matchId = (formData.get('match_id') as string | null)?.trim() || null;
+    const body = await req.json();
+    const title = typeof body?.title === 'string' ? body.title.trim() || null : null;
+    const fileName = typeof body?.file_name === 'string' ? body.file_name.trim() : '';
+    const contentType =
+      typeof body?.content_type === 'string' && body.content_type
+        ? body.content_type
+        : 'application/pdf';
+    const fileSize = Number(body?.file_size);
+    const surrogateUserId =
+      typeof body?.surrogate_user_id === 'string' ? body.surrogate_user_id.trim() || null : null;
+    const matchId = typeof body?.match_id === 'string' ? body.match_id.trim() || null : null;
 
-    if (!file) {
-      return NextResponse.json({ error: 'Missing file' }, { status: 400 });
+    if (!fileName) {
+      return NextResponse.json({ error: 'Missing file_name' }, { status: 400 });
     }
 
-    const ext = file.name.includes('.')
-      ? file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+    const ext = fileName.includes('.')
+      ? fileName.substring(fileName.lastIndexOf('.')).toLowerCase()
       : '';
-    if (ext !== '.pdf' && file.type !== 'application/pdf') {
+    if (ext !== '.pdf' && contentType !== 'application/pdf') {
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
+    }
+
+    if (!Number.isFinite(fileSize) || fileSize <= 0) {
+      return NextResponse.json({ error: 'Missing or invalid file_size' }, { status: 400 });
+    }
+    if (fileSize > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.` },
+        { status: 400 }
+      );
     }
 
     const { data: inserted, error: insertError } = await auth.supabase
@@ -84,10 +106,10 @@ export async function POST(req: NextRequest) {
       .insert({
         title,
         file_url: 'pending',
-        file_name: file.name,
+        file_name: fileName,
         storage_path: 'pending',
-        surrogate_user_id: surrogateUserId || null,
-        match_id: matchId || null,
+        surrogate_user_id: surrogateUserId,
+        match_id: matchId,
         status: 'uploaded',
         created_by: auth.adminUserId,
       })
@@ -98,40 +120,42 @@ export async function POST(req: NextRequest) {
       throw insertError || new Error('Failed to create review record');
     }
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${MEDICAL_RECORD_STORAGE_PREFIX}/${inserted.id}/${Date.now()}-${safeName}`;
 
-    const { error: uploadError } = await auth.supabase.storage
+    const { data: signed, error: signedError } = await auth.supabase.storage
       .from(MEDICAL_RECORD_STORAGE_BUCKET)
-      .upload(path, file, {
-        contentType: file.type || 'application/pdf',
-        upsert: false,
-      });
+      .createSignedUploadUrl(path);
 
-    if (uploadError) {
+    if (signedError || !signed?.signedUrl || !signed?.token) {
       await auth.supabase.from('medical_record_reviews').delete().eq('id', inserted.id);
-      throw uploadError;
+      throw signedError || new Error('Failed to create signed upload URL');
     }
 
-    const publicUrl = buildDocumentsPublicUrl(path);
-    const { data: updated, error: updateError } = await auth.supabase
+    const { error: pathUpdateError } = await auth.supabase
       .from('medical_record_reviews')
       .update({
-        file_url: publicUrl,
         storage_path: path,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', inserted.id)
-      .select()
-      .single();
+      .eq('id', inserted.id);
 
-    if (updateError) throw updateError;
+    if (pathUpdateError) {
+      await auth.supabase.from('medical_record_reviews').delete().eq('id', inserted.id);
+      throw pathUpdateError;
+    }
 
-    return NextResponse.json({ review: updated });
+    return NextResponse.json({
+      reviewId: inserted.id,
+      path,
+      token: signed.token,
+      signedUrl: signed.signedUrl,
+      publicUrl: buildDocumentsPublicUrl(path),
+    });
   } catch (error: any) {
-    console.error('[medical-record-reviews] POST error:', error);
+    console.error('[medical-record-reviews] POST init error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to upload medical record' },
+      { error: error.message || 'Failed to start medical record upload' },
       { status: 500 }
     );
   }

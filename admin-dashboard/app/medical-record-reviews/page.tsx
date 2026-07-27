@@ -152,22 +152,63 @@ export default function MedicalRecordReviewsPage() {
 
     try {
       setUploading(true);
-      const body = new FormData();
-      body.append('file', formData.file);
-      if (formData.title.trim()) body.append('title', formData.title.trim());
-      if (formData.surrogate_user_id) body.append('surrogate_user_id', formData.surrogate_user_id);
-      if (formData.match_id) body.append('match_id', formData.match_id);
+      const file = formData.file;
 
-      const res = await fetch('/api/medical-record-reviews', {
+      const initRes = await fetch('/api/medical-record-reviews', {
         method: 'POST',
-        body,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title.trim() || null,
+          file_name: file.name,
+          content_type: file.type || 'application/pdf',
+          file_size: file.size,
+          surrogate_user_id: formData.surrogate_user_id || null,
+          match_id: formData.match_id || null,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const initRaw = await initRes.text();
+      let initData: any = null;
+      try {
+        initData = initRaw ? JSON.parse(initRaw) : null;
+      } catch {
+        throw new Error(`Upload init failed (${initRes.status}): ${initRaw.slice(0, 180)}`);
+      }
+      if (!initRes.ok) {
+        throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
+      }
+
+      const putRes = await fetch(initData.signedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/pdf',
+        },
+        body: file,
+      });
+
+      if (!putRes.ok) {
+        const putText = await putRes.text().catch(() => '');
+        throw new Error(`Storage upload failed (${putRes.status}): ${putText.slice(0, 180)}`);
+      }
+
+      const finalizeRes = await fetch(`/api/medical-record-reviews/${initData.reviewId}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: initData.path }),
+      });
+      const finalizeRaw = await finalizeRes.text();
+      let finalizeData: any = null;
+      try {
+        finalizeData = finalizeRaw ? JSON.parse(finalizeRaw) : null;
+      } catch {
+        throw new Error(`Finalize failed (${finalizeRes.status}): ${finalizeRaw.slice(0, 180)}`);
+      }
+      if (!finalizeRes.ok) {
+        throw new Error(finalizeData?.error || `Finalize failed (${finalizeRes.status})`);
+      }
 
       setShowUploadModal(false);
       setFormData({ title: '', surrogate_user_id: '', match_id: '', file: null });
-      setSelectedId(data.review?.id || null);
+      setSelectedId(finalizeData.review?.id || initData.reviewId || null);
       await loadData();
     } catch (error: any) {
       alert(`Upload failed: ${error.message}`);

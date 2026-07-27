@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   output: 'standalone',
   experimental: {
     serverActions: {
-      bodySizeLimit: '150mb',
+      bodySizeLimit: '100mb',
     },
+    // Next clones request bodies through proxy; default 10MB truncates large PDFs.
+    proxyClientMaxBodySize: '100mb',
   },
 };
 
