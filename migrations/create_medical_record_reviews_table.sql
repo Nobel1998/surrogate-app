@@ -1,12 +1,12 @@
--- Medical record PDF reviews (admin-only Claude complication extraction)
+-- Medical record PDF reviews (admin-only AI complication extraction)
 -- Run this in Supabase SQL Editor
 
 CREATE TABLE IF NOT EXISTS medical_record_reviews (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT,
-  file_url TEXT NOT NULL,
+  file_url TEXT,
   file_name TEXT,
-  storage_path TEXT NOT NULL,
+  storage_path TEXT,
   surrogate_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   match_id UUID REFERENCES surrogate_matches(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'uploaded'
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS medical_record_reviews (
   reviewed_at TIMESTAMP WITH TIME ZONE,
   reviewed_by UUID,
   created_by UUID,
+  file_deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -34,8 +35,10 @@ CREATE INDEX IF NOT EXISTS idx_medical_record_reviews_match_id
 ALTER TABLE medical_record_reviews ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE medical_record_reviews IS
-  'Admin-uploaded medical record PDFs reviewed by Kimi K3 for complications + page numbers';
+  'Admin-uploaded medical record PDFs reviewed for complications + page numbers; PDF may be purged after review';
 COMMENT ON COLUMN medical_record_reviews.complications IS
   'JSON array: [{ "complication": string, "page": number, "note"?: string }]';
 COMMENT ON COLUMN medical_record_reviews.storage_path IS
-  'Path inside documents bucket, e.g. medical-record-reviews/{id}/{filename}.pdf';
+  'Path inside documents bucket, e.g. medical-record-reviews/{id}/{filename}.pdf; null after purge';
+COMMENT ON COLUMN medical_record_reviews.file_deleted_at IS
+  'Set when the uploaded PDF is removed from storage after review to save space';

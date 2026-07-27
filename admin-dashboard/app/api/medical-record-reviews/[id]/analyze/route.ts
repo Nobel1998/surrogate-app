@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzeMedicalRecordPdf } from '@/lib/kimiMedicalReview';
 import {
   MEDICAL_RECORD_STORAGE_BUCKET,
+  purgeMedicalRecordPdf,
   requireMedicalRecordAccess,
 } from '@/lib/medicalRecordReviews';
 
@@ -36,8 +37,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
   if (!hasKimiApiKey()) {
     return NextResponse.json(
       {
-        error:
-          'Missing MOONSHOT_API_KEY (or KIMI_API_KEY). Configure it in server environment variables.',
+        error: 'AI review is not configured on the server. Please contact the administrator.',
       },
       { status: 500 }
     );
@@ -47,7 +47,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
   if (isRateLimited(id)) {
     return NextResponse.json(
-      { error: 'Please wait a few seconds before running Kimi review again.' },
+      { error: 'Please wait a few seconds before running review again.' },
       { status: 429 }
     );
   }
@@ -107,9 +107,28 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
     if (updateError) throw updateError;
 
+    // Free storage space: keep findings, delete the uploaded PDF.
+    let finalReview = updated;
+    let pdfDeleted = false;
+    try {
+      const purge = await purgeMedicalRecordPdf(auth.supabase, {
+        id,
+        storage_path: existing.storage_path,
+        file_deleted_at: existing.file_deleted_at,
+      });
+      if (purge.purged && purge.review) {
+        finalReview = purge.review;
+        pdfDeleted = true;
+      }
+    } catch (purgeError: any) {
+      console.error('[medical-record-reviews/:id/analyze] PDF purge failed:', purgeError);
+      // Analysis succeeded; PDF cleanup failure should not fail the whole request.
+    }
+
     return NextResponse.json({
-      review: updated,
+      review: finalReview,
       pageCount: result.pageCount,
+      pdfDeleted,
     });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id/analyze] error:', error);

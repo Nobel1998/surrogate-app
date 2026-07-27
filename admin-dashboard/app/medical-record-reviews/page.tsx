@@ -11,9 +11,9 @@ type Complication = {
 type Review = {
   id: string;
   title: string | null;
-  file_url: string;
+  file_url: string | null;
   file_name: string | null;
-  storage_path: string;
+  storage_path: string | null;
   surrogate_user_id: string | null;
   match_id: string | null;
   status: 'uploaded' | 'analyzing' | 'analyzed' | 'failed' | 'reviewed';
@@ -22,6 +22,7 @@ type Review = {
   error_message: string | null;
   analyzed_at: string | null;
   reviewed_at: string | null;
+  file_deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -186,7 +187,7 @@ export default function MedicalRecordReviewsPage() {
       await loadData();
       setSelectedId(id);
     } catch (error: any) {
-      alert(`Kimi review failed: ${error.message}`);
+      alert(`Review failed: ${error.message}`);
       await loadData();
     } finally {
       setAnalyzingId(null);
@@ -222,6 +223,12 @@ export default function MedicalRecordReviewsPage() {
   };
 
   const complications = Array.isArray(selected?.complications) ? selected!.complications : [];
+  const selectedHasPdf = !!(
+    selected &&
+    !selected.file_deleted_at &&
+    selected.storage_path &&
+    selected.file_url
+  );
 
   return (
     <div className="container mx-auto p-6">
@@ -229,7 +236,8 @@ export default function MedicalRecordReviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Medical Record Reviews</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Upload medical PDFs and run Kimi K3 to list complications with page numbers.
+            Upload medical PDFs and extract complications with page numbers.
+            PDFs are deleted from storage after a successful review to save space.
           </p>
         </div>
         <button
@@ -333,7 +341,7 @@ export default function MedicalRecordReviewsPage() {
           <div className="bg-white rounded shadow p-5 min-h-[420px]">
             {!selected ? (
               <div className="text-gray-500 h-full flex items-center justify-center">
-                Select a record to view Kimi findings.
+                Select a record to view findings.
               </div>
             ) : (
               <div className="space-y-4">
@@ -361,25 +369,42 @@ export default function MedicalRecordReviewsPage() {
                   </div>
                 )}
 
+                {selected.file_deleted_at && (
+                  <div className="bg-amber-50 text-amber-800 text-sm p-3 rounded">
+                    PDF deleted after review to save storage space. Findings below are kept.
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
-                  <a
-                    href={selected.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="border px-3 py-2 rounded hover:bg-gray-50 text-sm"
-                  >
-                    Open PDF
-                  </a>
+                  {selectedHasPdf ? (
+                    <a
+                      href={selected.file_url!}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="border px-3 py-2 rounded hover:bg-gray-50 text-sm"
+                    >
+                      Open PDF
+                    </a>
+                  ) : (
+                    <span className="border px-3 py-2 rounded text-sm text-gray-400 cursor-not-allowed">
+                      PDF removed
+                    </span>
+                  )}
                   <button
                     onClick={() => handleAnalyze(selected.id)}
-                    disabled={analyzingId === selected.id || selected.status === 'analyzing'}
+                    disabled={
+                      analyzingId === selected.id ||
+                      selected.status === 'analyzing' ||
+                      !selectedHasPdf
+                    }
                     className="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+                    title={!selectedHasPdf ? 'PDF already deleted; re-upload to run again' : undefined}
                   >
                     {analyzingId === selected.id || selected.status === 'analyzing'
-                      ? 'Running Kimi K3...'
+                      ? 'Analyzing...'
                       : selected.status === 'failed'
-                        ? 'Retry Kimi Review'
-                        : 'Run Kimi Review'}
+                        ? 'Retry Review'
+                        : 'Run Review'}
                   </button>
                   {(selected.status === 'analyzed' || selected.status === 'reviewed') && (
                     <button
@@ -394,7 +419,7 @@ export default function MedicalRecordReviewsPage() {
                     onClick={() => handleDelete(selected.id)}
                     className="border border-red-300 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-50"
                   >
-                    Delete
+                    Delete Record
                   </button>
                 </div>
 
@@ -406,7 +431,7 @@ export default function MedicalRecordReviewsPage() {
                     <p className="text-sm text-gray-500">
                       {selected.status === 'analyzed' || selected.status === 'reviewed'
                         ? 'No complications found.'
-                        : 'Run Kimi review to extract complications.'}
+                        : 'Run review to extract complications.'}
                     </p>
                   ) : (
                     <table className="min-w-full text-sm border rounded overflow-hidden">

@@ -38,7 +38,7 @@ function extractJsonObject(text: string): unknown {
     if (start >= 0 && end > start) {
       return JSON.parse(trimmed.slice(start, end + 1));
     }
-    throw new Error('Kimi did not return valid JSON');
+    throw new Error('AI review did not return valid JSON');
   }
 }
 
@@ -100,18 +100,18 @@ async function uploadPdfForExtract(pdfBytes: Uint8Array, fileName: string): Prom
 
   const bodyText = await resp.text();
   if (!resp.ok) {
-    throw new Error(`Kimi file upload failed (${resp.status}): ${bodyText.slice(0, 500)}`);
+    throw new Error(`File upload failed (${resp.status}): ${bodyText.slice(0, 500)}`);
   }
 
   let data: { id?: string };
   try {
     data = JSON.parse(bodyText);
   } catch {
-    throw new Error('Kimi file upload returned non-JSON response');
+    throw new Error('File upload returned non-JSON response');
   }
 
   if (!data.id) {
-    throw new Error('Kimi file upload did not return a file id');
+    throw new Error('File upload did not return a file id');
   }
   return data.id;
 }
@@ -127,10 +127,10 @@ async function getExtractedFileContent(fileId: string): Promise<string> {
 
   const bodyText = await resp.text();
   if (!resp.ok) {
-    throw new Error(`Kimi file content failed (${resp.status}): ${bodyText.slice(0, 500)}`);
+    throw new Error(`File content failed (${resp.status}): ${bodyText.slice(0, 500)}`);
   }
   if (!bodyText.trim()) {
-    throw new Error('Kimi returned empty extracted file content');
+    throw new Error('Extracted file content was empty');
   }
   return bodyText;
 }
@@ -179,7 +179,7 @@ async function callKimiChat(extractedText: string, pageCount: number): Promise<{
 
   const bodyText = await resp.text();
   if (!resp.ok) {
-    throw new Error(`Kimi chat failed (${resp.status}): ${bodyText.slice(0, 500)}`);
+    throw new Error(`AI review failed (${resp.status}): ${bodyText.slice(0, 500)}`);
   }
 
   let data: {
@@ -188,7 +188,7 @@ async function callKimiChat(extractedText: string, pageCount: number): Promise<{
   try {
     data = JSON.parse(bodyText);
   } catch {
-    throw new Error('Kimi chat returned non-JSON response');
+    throw new Error('AI review returned non-JSON response');
   }
 
   const content = data.choices?.[0]?.message?.content;
@@ -203,7 +203,7 @@ async function callKimiChat(extractedText: string, pageCount: number): Promise<{
   }
 
   if (!text) {
-    throw new Error('Kimi chat returned empty content');
+    throw new Error('AI review returned empty content');
   }
 
   return { text, raw: bodyText };

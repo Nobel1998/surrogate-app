@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   MEDICAL_RECORD_STORAGE_BUCKET,
+  purgeMedicalRecordPdf,
   requireMedicalRecordAccess,
 } from '@/lib/medicalRecordReviews';
 
@@ -49,7 +50,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { data: existing, error: fetchError } = await auth.supabase
       .from('medical_record_reviews')
-      .select('id')
+      .select('id, storage_path, file_deleted_at, status')
       .eq('id', id)
       .single();
 
@@ -81,7 +82,21 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ review: data });
+
+    let finalReview = data;
+    // If marking reviewed and PDF still exists, purge it to free space.
+    if (status === 'reviewed' && !existing.file_deleted_at && existing.storage_path) {
+      try {
+        const purge = await purgeMedicalRecordPdf(auth.supabase, existing);
+        if (purge.purged && purge.review) {
+          finalReview = purge.review;
+        }
+      } catch (purgeError) {
+        console.error('[medical-record-reviews/:id] PDF purge on review failed:', purgeError);
+      }
+    }
+
+    return NextResponse.json({ review: finalReview });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id] PATCH error:', error);
     return NextResponse.json(
