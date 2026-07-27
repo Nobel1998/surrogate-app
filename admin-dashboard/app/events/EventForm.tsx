@@ -21,7 +21,7 @@ interface Event {
 interface EventFormProps {
   event?: Event | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (result?: { translationStatus?: 'done' | 'failed' | 'pending'; message?: string }) => void;
 }
 
 const categories = ['News', 'Policy', 'Medical', 'Legal', 'Event', 'Health', 'General'];
@@ -49,6 +49,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
+  const [translationNotice, setTranslationNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (event) {
@@ -109,9 +110,11 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
         status: formData.status,
         is_featured: formData.is_featured,
         max_participants: formData.max_participants || null,
+        translation_status: 'pending',
       };
 
 
+      let eventId = event?.id || '';
       if (event?.id) {
         // 更新文章 - 使用 .match() 确保精确匹配
         console.log('Updating article with ID:', event.id);
@@ -183,16 +186,43 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
             });
           }
         }
+        eventId = event.id;
       } else {
         // 创建新文章
-        const { error } = await supabase
+        const { data: createdRows, error } = await supabase
           .from('events')
-          .insert([submitData]);
+          .insert([submitData])
+          .select('id')
+          .limit(1);
 
         if (error) throw error;
+        eventId = createdRows?.[0]?.id || '';
       }
 
-      onSuccess();
+      let translationStatus: 'done' | 'failed' | 'pending' = 'pending';
+      let message = 'Article saved. Translation is pending.';
+      if (eventId) {
+        try {
+          const res = await fetch('/api/events/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data?.error || 'Translation failed');
+          }
+          translationStatus = 'done';
+          message = 'Article saved and translated to Chinese/Spanish.';
+          setTranslationNotice(message);
+        } catch (translateError: any) {
+          translationStatus = 'failed';
+          message = `Article saved, but auto-translation failed: ${translateError?.message || 'unknown error'}`;
+          setTranslationNotice(message);
+        }
+      }
+
+      onSuccess({ translationStatus, message });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -350,6 +380,11 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
+            </div>
+          )}
+          {translationNotice && (
+            <div className="mb-4 p-3 bg-blue-100 border border-blue-300 text-blue-800 rounded">
+              {translationNotice}
             </div>
           )}
 

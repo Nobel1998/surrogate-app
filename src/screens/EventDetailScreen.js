@@ -15,12 +15,15 @@ import { Video, ResizeMode } from 'expo-av';
 import * as Clipboard from 'expo-clipboard';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { trackBlogArticleView } from '../utils/blogViewTracker';
+import { getLocalizedBlog } from '../utils/blogTranslation';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, handleEventLike, registerForEvent, likedEvents, registeredEvents } = useAppContext();
   const { isAuthenticated, user } = useAuth();
+  const { language } = useLanguage();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -97,7 +100,7 @@ export default function EventDetailScreen({ route, navigation }) {
 
     Alert.alert(
       'Register for Event',
-      `Do you want to register for "${event.title}"?`,
+      `Do you want to register for "${localizedEvent.title}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -122,10 +125,10 @@ export default function EventDetailScreen({ route, navigation }) {
 
   const handleShare = async () => {
     try {
-      let shareMessage = `📅 ${event.title}\n\n`;
+      let shareMessage = `📅 ${localizedEvent.title}\n\n`;
       
-      if (event.description) {
-        shareMessage += `${event.description}\n\n`;
+      if (localizedEvent.description) {
+        shareMessage += `${localizedEvent.description}\n\n`;
       }
       
       if (event.date) {
@@ -152,7 +155,7 @@ export default function EventDetailScreen({ route, navigation }) {
             try {
               await Share.share({
                 message: shareMessage,
-                title: event.title,
+                title: localizedEvent.title,
               });
             } catch (error) {
               await Clipboard.setStringAsync(shareMessage);
@@ -200,6 +203,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const isLiked = likedEvents?.has(eventId) || false;
   const isRegistered = registeredEvents?.has(eventId) || false;
   const isUpcoming = new Date(event.eventDate) > new Date();
+  const localizedEvent = getLocalizedBlog(event, language);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -252,16 +256,16 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{event.title}</Text>
+          <Text style={styles.title}>{localizedEvent.title}</Text>
 
           {/* Description */}
-          <Text style={styles.description}>{event.description}</Text>
+          <Text style={styles.description}>{localizedEvent.description}</Text>
 
           {/* Detailed Content */}
-          {event.content && (
+          {localizedEvent.content && (
             <View style={styles.detailSection}>
               <Text style={styles.sectionTitle}>Event Details</Text>
-              <Text style={styles.detailContent}>{event.content}</Text>
+              <Text style={styles.detailContent}>{localizedEvent.content}</Text>
             </View>
           )}
 

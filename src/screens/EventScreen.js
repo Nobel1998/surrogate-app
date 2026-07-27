@@ -6,11 +6,12 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
+import { getLocalizedBlog } from '../utils/blogTranslation';
 
 export default function EventScreen() {
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { 
     events, 
     likedEvents, 
@@ -36,6 +37,7 @@ export default function EventScreen() {
 
   // 处理事件报名
   const handleRegister = async (event) => {
+    const localizedEvent = getLocalizedBlog(event, language);
     if (!isAuthenticated) {
       Alert.alert(
         t('blog.loginRequired'),
@@ -47,7 +49,7 @@ export default function EventScreen() {
 
     Alert.alert(
       t('blog.registerForEvent'),
-      t('blog.registerConfirm', { title: event.title }),
+      t('blog.registerConfirm', { title: localizedEvent.title }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         { 
@@ -80,6 +82,7 @@ export default function EventScreen() {
   };
 
   const renderEventItem = ({ item }) => {
+    const localizedItem = getLocalizedBlog(item, language);
     const isLiked = likedEvents?.has(item.id) || false;
     const isUpcoming = new Date(item.eventDate) > new Date();
     
@@ -111,10 +114,10 @@ export default function EventScreen() {
             </View>
           </View>
           
-          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardTitle}>{localizedItem.title}</Text>
           <Text style={styles.cardDate}>{item.date} • {item.location}</Text>
           <Text style={styles.cardDescription} numberOfLines={2}>
-            {item.description}
+            {localizedItem.description}
           </Text>
 
           {/* 事件统计和快速操作 */}

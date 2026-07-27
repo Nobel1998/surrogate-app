@@ -24,6 +24,8 @@ interface Event {
   likes_count?: number;
   views_count?: number;
   visitors_count?: number;
+  translation_status?: 'pending' | 'done' | 'failed';
+  translation_updated_at?: string | null;
 }
 
 function visitorIdentity(row: { user_id?: string | null; visitor_key?: string | null }) {
@@ -40,6 +42,7 @@ export default function BlogManagement() {
   const [error, setError] = useState<string | null>(null);
   const [viewsUnavailable, setViewsUnavailable] = useState(false);
   const [globalUniqueVisitors, setGlobalUniqueVisitors] = useState(0);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadEvents();
@@ -141,14 +144,34 @@ export default function BlogManagement() {
     setEditingEvent(null);
   };
 
-  const handleFormSuccess = async () => {
+  const handleFormSuccess = async (result?: { translationStatus?: 'done' | 'failed' | 'pending'; message?: string }) => {
     setShowForm(false);
     setEditingEvent(null);
+    setStatusNotice(result?.message || null);
     
     // Small delay to ensure database transaction is committed
     setTimeout(() => {
       loadEvents();
     }, 500);
+  };
+
+  const handleRetranslate = async (eventId: string) => {
+    try {
+      setStatusNotice('Re-translation started...');
+      const res = await fetch('/api/events/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, force: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Re-translation failed');
+      }
+      setStatusNotice('Re-translation completed successfully.');
+      loadEvents();
+    } catch (err: any) {
+      setStatusNotice(`Re-translation failed: ${err.message}`);
+    }
   };
 
   const handleDelete = async (eventId: string) => {
@@ -261,6 +284,11 @@ export default function BlogManagement() {
             <div className="mt-2 text-3xl font-bold text-gray-900">{globalUniqueVisitors}</div>
           </div>
         </div>
+        {statusNotice && (
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {statusNotice}
+          </div>
+        )}
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
           <div className="overflow-x-auto">
@@ -275,6 +303,9 @@ export default function BlogManagement() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Translation
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Stats
@@ -335,6 +366,25 @@ export default function BlogManagement() {
                       }`}>
                         {event.status.toUpperCase()}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex flex-col gap-2">
+                        <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full w-fit ${
+                          event.translation_status === 'done'
+                            ? 'bg-green-100 text-green-800'
+                            : event.translation_status === 'failed'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {(event.translation_status || 'pending').toUpperCase()}
+                        </span>
+                        <button
+                          onClick={() => handleRetranslate(event.id)}
+                          className="text-indigo-600 hover:text-indigo-900 text-xs text-left"
+                        >
+                          Re-translate
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div>
