@@ -186,7 +186,7 @@ export default function MedicalRecordReviewsPage() {
       await loadData();
       setSelectedId(id);
     } catch (error: any) {
-      alert(`Claude review failed: ${error.message}`);
+      alert(`Kimi review failed: ${error.message}`);
       await loadData();
     } finally {
       setAnalyzingId(null);
@@ -229,7 +229,7 @@ export default function MedicalRecordReviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Medical Record Reviews</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Upload medical PDFs and run Claude to list complications with page numbers.
+            Upload medical PDFs and run Kimi K3 to list complications with page numbers.
           </p>
         </div>
         <button
@@ -333,7 +333,7 @@ export default function MedicalRecordReviewsPage() {
           <div className="bg-white rounded shadow p-5 min-h-[420px]">
             {!selected ? (
               <div className="text-gray-500 h-full flex items-center justify-center">
-                Select a record to view Claude findings.
+                Select a record to view Kimi findings.
               </div>
             ) : (
               <div className="space-y-4">
@@ -376,10 +376,10 @@ export default function MedicalRecordReviewsPage() {
                     className="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
                   >
                     {analyzingId === selected.id || selected.status === 'analyzing'
-                      ? 'Running Claude...'
+                      ? 'Running Kimi K3...'
                       : selected.status === 'failed'
-                        ? 'Retry Claude Review'
-                        : 'Run Claude Review'}
+                        ? 'Retry Kimi Review'
+                        : 'Run Kimi Review'}
                   </button>
                   {(selected.status === 'analyzed' || selected.status === 'reviewed') && (
                     <button
@@ -406,7 +406,7 @@ export default function MedicalRecordReviewsPage() {
                     <p className="text-sm text-gray-500">
                       {selected.status === 'analyzed' || selected.status === 'reviewed'
                         ? 'No complications found.'
-                        : 'Run Claude review to extract complications.'}
+                        : 'Run Kimi review to extract complications.'}
                     </p>
                   ) : (
                     <table className="min-w-full text-sm border rounded overflow-hidden">

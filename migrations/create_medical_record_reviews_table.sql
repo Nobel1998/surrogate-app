@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_medical_record_reviews_match_id
 ALTER TABLE medical_record_reviews ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE medical_record_reviews IS
-  'Admin-uploaded medical record PDFs reviewed by Claude for complications + page numbers';
+  'Admin-uploaded medical record PDFs reviewed by Kimi K3 for complications + page numbers';
 COMMENT ON COLUMN medical_record_reviews.complications IS
   'JSON array: [{ "complication": string, "page": number, "note"?: string }]';
 COMMENT ON COLUMN medical_record_reviews.storage_path IS

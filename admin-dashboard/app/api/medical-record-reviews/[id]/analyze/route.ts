@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeMedicalRecordPdf } from '@/lib/claudeMedicalReview';
+import { analyzeMedicalRecordPdf } from '@/lib/kimiMedicalReview';
 import {
   MEDICAL_RECORD_STORAGE_BUCKET,
   requireMedicalRecordAccess,
@@ -23,15 +23,22 @@ function isRateLimited(id: string) {
   return false;
 }
 
+function hasKimiApiKey() {
+  return !!(process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY);
+}
+
 export async function POST(_req: NextRequest, context: RouteContext) {
   const auth = await requireMedicalRecordAccess({ requireWrite: true });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!hasKimiApiKey()) {
     return NextResponse.json(
-      { error: 'Missing ANTHROPIC_API_KEY. Configure it in server environment variables.' },
+      {
+        error:
+          'Missing MOONSHOT_API_KEY (or KIMI_API_KEY). Configure it in server environment variables.',
+      },
       { status: 500 }
     );
   }
@@ -40,7 +47,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
   if (isRateLimited(id)) {
     return NextResponse.json(
-      { error: 'Please wait a few seconds before running Claude review again.' },
+      { error: 'Please wait a few seconds before running Kimi review again.' },
       { status: 429 }
     );
   }
@@ -80,7 +87,9 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     const arrayBuffer = await fileData.arrayBuffer();
     const pdfBytes = new Uint8Array(arrayBuffer);
 
-    const result = await analyzeMedicalRecordPdf(pdfBytes);
+    const result = await analyzeMedicalRecordPdf(pdfBytes, {
+      fileName: existing.file_name || 'medical-record.pdf',
+    });
 
     const { data: updated, error: updateError } = await auth.supabase
       .from('medical_record_reviews')
