@@ -34,14 +34,16 @@ function isRateLimited(key: string) {
 
 async function deeplTranslate(text: string, targetLang: 'ZH' | 'ES'): Promise<string> {
   const payload = new URLSearchParams();
-  payload.append('auth_key', translateApiKey);
   payload.append('text', text);
   payload.append('source_lang', 'EN');
   payload.append('target_lang', targetLang);
 
   const resp = await fetch(translateApiUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `DeepL-Auth-Key ${translateApiKey}`,
+    },
     body: payload.toString(),
   });
 
