@@ -60,6 +60,8 @@ npx vercel --prod
 | `NEXT_PUBLIC_SITE_URL` | 站点对外根地址，**无末尾斜杠**。例如生产：`https://mysurro.com`。用于服务端回调本站 API（如代孕阶段变更通知）。本地可省略或设为 `http://localhost:3000` |
 | `TRANSLATE_API_KEY` | Blog 自动翻译密钥（服务端使用；当前 `api/events/translate` 默认按 DeepL 接口调用） |
 | `TRANSLATE_API_URL` | 可选，翻译接口地址；默认 `https://api-free.deepl.com/v2/translate` |
+| `ANTHROPIC_API_KEY` | 医疗记录 Claude 审核（服务端使用；`api/medical-record-reviews/[id]/analyze`） |
+| `ANTHROPIC_MODEL` | 可选，Claude 模型名；默认 `claude-sonnet-4-20250514` |
 
 未设置 `NEXT_PUBLIC_SITE_URL` 时，部署在 Vercel 上会回退使用 `VERCEL_URL`；自定义域名生产环境**建议显式设为** `https://mysurro.com`，避免内部请求仍指向 `*.vercel.app`。
 

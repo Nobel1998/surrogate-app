@@ -20,6 +20,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰', allowedRoles: ['admin', 'finance_manager'] },
     { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠', allowedRoles: ['admin', 'branch_manager'] },
+    { href: '/medical-record-reviews', label: 'Medical Record Reviews', icon: '🩺', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/monthly-assessments', label: 'Monthly Assessments', icon: '📊', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/journey-pics', label: 'Journey Pics', icon: '📸', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/business-statistics', label: 'Business Statistics', icon: '📈', adminOnly: true },
