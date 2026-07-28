@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
 export default function ResetPasswordScreen({ navigation }) {
   const { updatePassword, clearPasswordRecoveryPending } = useAuth();
+  const { t } = useLanguage();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -33,11 +35,11 @@ export default function ResetPasswordScreen({ navigation }) {
         setHasRecoverySession(!!session);
         if (!session) {
           Alert.alert(
-            'Use the website to reset',
-            'For security, reset your password on the mysurro.com page from your email link. After that, open the app and sign in with the new password.',
+            t('auth.useWebsiteToReset'),
+            t('auth.useWebsiteToResetMessage'),
             [
               {
-                text: 'OK',
+                text: t('auth.ok'),
                 onPress: async () => {
                   await clearPasswordRecoveryPending();
                 },
@@ -54,15 +56,15 @@ export default function ResetPasswordScreen({ navigation }) {
 
   const handleUpdatePassword = async () => {
     if (!password.trim()) {
-      Alert.alert('Error', 'Please enter a new password');
+      Alert.alert(t('common.error'), t('auth.enterNewPasswordError'));
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('auth.passwordMinError'));
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -71,20 +73,20 @@ export default function ResetPasswordScreen({ navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         Alert.alert(
-          'Session expired',
-          'Please request a new password reset email and open the link again.'
+          t('auth.sessionExpired'),
+          t('auth.sessionExpiredMessage')
         );
         return;
       }
       const result = await updatePassword(password);
       if (result.success) {
         // Clearing passwordRecoveryPending remounts App to MainTabs / Login automatically
-        Alert.alert('Success', 'Your password has been updated.');
+        Alert.alert(t('common.success'), t('auth.passwordUpdated'));
       } else {
-        Alert.alert('Error', result.error || 'Failed to update password');
+        Alert.alert(t('common.error'), result.error || t('auth.updatePasswordFailed'));
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      Alert.alert(t('common.error'), t('auth.unexpectedError'));
       console.error('Reset password error:', error);
     } finally {
       setIsSubmitting(false);
@@ -105,21 +107,21 @@ export default function ResetPasswordScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Set New Password</Text>
+            <Text style={styles.title}>{t('auth.setNewPassword')}</Text>
             <Text style={styles.subtitle}>
-              Choose a new password for your account. It must be at least 6 characters.
+              {t('auth.setNewPasswordSubtitle')}
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>New Password</Text>
+              <Text style={styles.label}>{t('auth.newPassword')}</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Enter new password"
+                  placeholder={t('auth.enterNewPassword')}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -135,12 +137,12 @@ export default function ResetPasswordScreen({ navigation }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Re-enter new password"
+                placeholder={t('auth.reenterNewPassword')}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -157,7 +159,7 @@ export default function ResetPasswordScreen({ navigation }) {
               disabled={isSubmitting || hasRecoverySession === false}
             >
               <Text style={styles.primaryButtonText}>
-                {isSubmitting ? 'Updating...' : 'Update Password'}
+                {isSubmitting ? t('auth.updating') : t('auth.updatePassword')}
               </Text>
             </TouchableOpacity>
           </View>

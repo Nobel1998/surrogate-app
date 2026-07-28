@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function RegisterScreen({ navigation }) {
   const { register, isLoading, isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,19 +36,19 @@ export default function RegisterScreen({ navigation }) {
 
   const validateStep1 = () => {
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      Alert.alert(t('common.error'), t('auth.enterNameError'));
       return false;
     }
     if (!formData.email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert(t('common.error'), t('auth.enterEmailError'));
       return false;
     }
     if (!validateEmail(formData.email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('auth.invalidEmailError'));
       return false;
     }
     if (!formData.phone.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+      Alert.alert(t('common.error'), t('auth.enterPhoneError'));
       return false;
     }
     return true;
@@ -54,15 +56,15 @@ export default function RegisterScreen({ navigation }) {
 
   const validateStep2 = () => {
     if (!formData.password.trim()) {
-      Alert.alert('Error', 'Please enter a password');
+      Alert.alert(t('common.error'), t('auth.enterPasswordNewError'));
       return false;
     }
     if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('auth.passwordMinError'));
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('auth.passwordsDoNotMatch'));
       return false;
     }
     return true;
@@ -70,7 +72,7 @@ export default function RegisterScreen({ navigation }) {
 
   const validateStep3 = () => {
     if (!formData.dateOfBirth.trim()) {
-      Alert.alert('Error', 'Please enter your date of birth');
+      Alert.alert(t('common.error'), t('auth.enterDobError'));
       return false;
     }
     
@@ -82,7 +84,7 @@ export default function RegisterScreen({ navigation }) {
     // }
 
     if (!formData.address.trim()) {
-      Alert.alert('Error', 'Please enter your location');
+      Alert.alert(t('common.error'), t('auth.enterLocationError'));
       return false;
     }
     return true;
@@ -108,11 +110,11 @@ export default function RegisterScreen({ navigation }) {
     const result = await register(formData);
     
     if (result.success) {
-      Alert.alert('Registration Successful', 'Welcome to our community!', [
-        { text: 'OK' }
+      Alert.alert(t('auth.registrationSuccessful'), t('auth.welcomeCommunity'), [
+        { text: t('auth.ok') }
       ]);
     } else {
-      Alert.alert('Registration Failed', result.error);
+      Alert.alert(t('auth.registrationFailed'), result.error);
     }
   };
 
@@ -122,26 +124,26 @@ export default function RegisterScreen({ navigation }) {
 
   const renderStep1 = () => (
     <View>
-      <Text style={styles.stepTitle}>Basic Information</Text>
-      <Text style={styles.stepDescription}>Please provide your basic information</Text>
+      <Text style={styles.stepTitle}>{t('auth.basicInfo')}</Text>
+      <Text style={styles.stepDescription}>{t('auth.basicInfoDesc')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Name *</Text>
+        <Text style={styles.label}>{t('auth.fullName')}</Text>
         <TextInput
           style={styles.input}
           value={formData.name}
           onChangeText={(value) => updateFormData('name', value)}
-          placeholder="Enter your full name"
+          placeholder={t('auth.enterFullName')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email Address *</Text>
+        <Text style={styles.label}>{t('auth.emailRequired')}</Text>
         <TextInput
           style={styles.input}
           value={formData.email}
           onChangeText={(value) => updateFormData('email', value)}
-          placeholder="Enter your email address"
+          placeholder={t('auth.enterEmail')}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -149,25 +151,25 @@ export default function RegisterScreen({ navigation }) {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number *</Text>
+        <Text style={styles.label}>{t('auth.phoneRequired')}</Text>
         <TextInput
           style={styles.input}
           value={formData.phone}
           onChangeText={(value) => updateFormData('phone', value)}
-          placeholder="Enter your phone number"
+          placeholder={t('auth.enterPhone')}
           keyboardType="phone-pad"
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>I am *</Text>
+        <Text style={styles.label}>{t('auth.iAm')}</Text>
         <View style={styles.roleRow}>
           <TouchableOpacity
             style={[styles.roleOption, formData.role === 'surrogate' && styles.roleOptionActive]}
             onPress={() => updateFormData('role', 'surrogate')}
           >
             <Text style={[styles.roleText, formData.role === 'surrogate' && styles.roleTextActive]}>
-              Surrogate
+              {t('auth.roleSurrogate')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -175,7 +177,7 @@ export default function RegisterScreen({ navigation }) {
             onPress={() => updateFormData('role', 'parent')}
           >
             <Text style={[styles.roleText, formData.role === 'parent' && styles.roleTextActive]}>
-              Parent
+              {t('auth.roleParent')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -185,17 +187,17 @@ export default function RegisterScreen({ navigation }) {
 
   const renderStep2 = () => (
     <View>
-      <Text style={styles.stepTitle}>Account Security</Text>
-      <Text style={styles.stepDescription}>Please set up your login password</Text>
+      <Text style={styles.stepTitle}>{t('auth.accountSecurity')}</Text>
+      <Text style={styles.stepDescription}>{t('auth.accountSecurityDesc')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Password *</Text>
+        <Text style={styles.label}>{t('auth.passwordRequired')}</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
             value={formData.password}
             onChangeText={(value) => updateFormData('password', value)}
-            placeholder="Enter password (at least 6 characters)"
+            placeholder={t('auth.enterPasswordMin')}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
@@ -210,13 +212,13 @@ export default function RegisterScreen({ navigation }) {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Confirm Password *</Text>
+        <Text style={styles.label}>{t('auth.confirmPasswordRequired')}</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
             value={formData.confirmPassword}
             onChangeText={(value) => updateFormData('confirmPassword', value)}
-            placeholder="Re-enter your password"
+            placeholder={t('auth.reenterPassword')}
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
             autoCorrect={false}
@@ -234,11 +236,11 @@ export default function RegisterScreen({ navigation }) {
 
   const renderStep3 = () => (
     <View>
-      <Text style={styles.stepTitle}>Additional Details</Text>
-      <Text style={styles.stepDescription}>Please provide your additional information</Text>
+      <Text style={styles.stepTitle}>{t('auth.additionalDetails')}</Text>
+      <Text style={styles.stepDescription}>{t('auth.additionalDetailsDesc')}</Text>
       
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Date of Birth *</Text>
+        <Text style={styles.label}>{t('auth.dateOfBirth')}</Text>
         <TextInput
           style={styles.input}
           value={formData.dateOfBirth}
@@ -248,34 +250,34 @@ export default function RegisterScreen({ navigation }) {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Location *</Text>
+        <Text style={styles.label}>{t('auth.location')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={formData.address}
           onChangeText={(value) => updateFormData('address', value)}
-          placeholder="Enter your location"
+          placeholder={t('auth.enterLocation')}
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Race</Text>
+        <Text style={styles.label}>{t('auth.race')}</Text>
         <TextInput
           style={styles.input}
           value={formData.emergencyContact}
           onChangeText={(value) => updateFormData('emergencyContact', value)}
-          placeholder="Enter your race"
+          placeholder={t('auth.enterRace')}
         />
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Referral Code (Optional)</Text>
+        <Text style={styles.label}>{t('auth.referralCodeOptional')}</Text>
         <TextInput
           style={styles.input}
           value={formData.referralCode}
           onChangeText={(value) => updateFormData('referralCode', value)}
-          placeholder="Enter referral code if you have one"
+          placeholder={t('auth.enterReferralCode')}
           autoCapitalize="characters"
         />
       </View>
@@ -295,17 +297,17 @@ export default function RegisterScreen({ navigation }) {
           activeOpacity={0.7}
         >
           <Icon name="arrow-left" size={16} color="#2A7BF6" />
-          <Text style={styles.backHomeText}>Back to Home</Text>
+          <Text style={styles.backHomeText}>{t('auth.backToHome')}</Text>
         </TouchableOpacity>
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join our surrogacy community</Text>
+          <Text style={styles.title}>{t('auth.createAccount')}</Text>
+          <Text style={styles.subtitle}>{t('auth.joinCommunity')}</Text>
           
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${(currentStep / totalSteps) * 100}%` }]} />
             </View>
-            <Text style={styles.progressText}>Step {currentStep} / {totalSteps}</Text>
+            <Text style={styles.progressText}>{t('auth.stepProgress', { current: currentStep, total: totalSteps })}</Text>
           </View>
         </View>
 
@@ -317,13 +319,13 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.buttonContainer}>
             {currentStep > 1 && (
               <TouchableOpacity style={styles.previousButton} onPress={handlePrevious}>
-                <Text style={styles.previousButtonText}>Previous</Text>
+                <Text style={styles.previousButtonText}>{t('auth.previous')}</Text>
               </TouchableOpacity>
             )}
             
             {currentStep < totalSteps ? (
               <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={styles.nextButtonText}>{t('auth.next')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -332,7 +334,7 @@ export default function RegisterScreen({ navigation }) {
                 disabled={isLoading}
               >
                 <Text style={styles.registerButtonText}>
-                  {isLoading ? 'Creating Account...' : 'Complete Registration'}
+                  {isLoading ? t('auth.creatingAccount') : t('auth.completeRegistration')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -341,9 +343,9 @@ export default function RegisterScreen({ navigation }) {
 
         {!isAuthenticated && (
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account?</Text>
+            <Text style={styles.footerText}>{t('auth.alreadyHaveAccount')}</Text>
             <TouchableOpacity onPress={navigateToLogin}>
-              <Text style={styles.loginLink}>Sign In</Text>
+              <Text style={styles.loginLink}>{t('auth.signIn')}</Text>
             </TouchableOpacity>
           </View>
         )}

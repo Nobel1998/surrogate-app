@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Surrogate Agency USA",
+    "name": "mysurro",
     "slug": "surrogateagencyusa",
-    "version": "1.7.6",
+    "version": "1.7.9",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -13,14 +13,17 @@
     "ios": {
       "icon": "./assets/icon.png",
       "bundleIdentifier": "io.dcloud.mysurronew",
+      "appStoreUrl": "https://apps.apple.com/app/id1492213410",
       "supportsTablet": true,
       "infoPlist": {
+        "CFBundleDisplayName": "mysurro",
         "NSCameraUsageDescription": "This app needs access to camera to take photos for sharing your surrogacy journey.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select photos for sharing your surrogacy journey.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "label": "mysurro",
       "package": "com.surrogateagencyusa",
       "backgroundColor": "#2A7BF6",
       "playStoreUrl": "https://play.google.com/store/apps/details?id=com.surrogateagencyusa",
@@ -44,7 +47,9 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-video"
+      "expo-video",
+      "expo-font",
+      "expo-localization"
     ],
     "extra": {
       "eas": {

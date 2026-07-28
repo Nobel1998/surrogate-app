@@ -404,7 +404,7 @@ export default function MyMatchScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error in loadMatchData:', error);
-      Alert.alert('Error', 'Failed to load match information');
+      Alert.alert(t('common.error'), t('myMatch.loadMatchError'));
     } finally {
       setLoading(false);
     }
@@ -626,7 +626,7 @@ export default function MyMatchScreen({ navigation }) {
       setSurrogateDetails(details);
     } catch (error) {
       console.error('Error loading surrogate details:', error);
-      Alert.alert(t('common.error'), 'Failed to load surrogate details');
+      Alert.alert(t('common.error'), t('myMatch.loadSurrogateDetailsError'));
     } finally {
       setLoadingDetails(false);
     }
@@ -670,6 +670,22 @@ export default function MyMatchScreen({ navigation }) {
 
     if (rawName.length <= 1) return '*';
     return `${rawName[0]}${'*'.repeat(Math.min(3, rawName.length - 1))}`;
+  };
+
+  const maskPhone = (phone, shouldMask = true) => {
+    if (!phone) return 'N/A';
+    const raw = String(phone).trim();
+    if (!raw) return 'N/A';
+    if (!shouldMask) return raw;
+
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      return `${digits.substring(0, 3)}***${digits.substring(digits.length - 4)}`;
+    }
+    if (digits.length >= 4) {
+      return `${digits.substring(0, 1)}***${digits.substring(digits.length - 2)}`;
+    }
+    return '***';
   };
 
   // Helper functions for date parsing
@@ -1008,7 +1024,7 @@ export default function MyMatchScreen({ navigation }) {
                         <View style={styles.surrogateCardInfo}>
                           <Text style={styles.surrogateName}>{maskName(surrogate.name, true)}</Text>
                           {surrogate.phone && (
-                            <Text style={styles.surrogatePhone}>{surrogate.phone}</Text>
+                            <Text style={styles.surrogatePhone}>{maskPhone(surrogate.phone)}</Text>
                           )}
                           {surrogate.location && (
                             <Text style={styles.surrogateLocation}>
@@ -1155,7 +1171,7 @@ export default function MyMatchScreen({ navigation }) {
               >
                 <Icon name="shuffle" size={18} color="#fff" />
                 <Text style={styles.parentSwitchHeaderBtnText}>
-                  Switch surrogate ({parentMatch.matches.length})
+                  {t('myMatch.switchSurrogate')} ({parentMatch.matches.length})
                 </Text>
               </TouchableOpacity>
             )}
@@ -1510,7 +1526,7 @@ export default function MyMatchScreen({ navigation }) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF8EA4" />
         <Text style={styles.loadingText}>
-          {checkingApplication ? 'Checking application status...' : t('myMatch.loadingMatchInfo')}
+          {checkingApplication ? t('applicationStatus.checkingStatus') : t('myMatch.loadingMatchInfo')}
         </Text>
       </View>
     );
@@ -1529,15 +1545,15 @@ export default function MyMatchScreen({ navigation }) {
             <View style={styles.unmatchedIconContainer}>
               <Icon name="file-text" size={64} color="#FF8EA4" />
             </View>
-            <Text style={styles.unmatchedTitle}>No Match Yet</Text>
+            <Text style={styles.unmatchedTitle}>{t('myMatch.noMatchYet')}</Text>
             <Text style={styles.unmatchedDescription}>
-              You haven't submitted an application yet, so we cannot display match information. Please submit your application first.
+              {t('myMatch.noMatchNeedsApplication')}
             </Text>
             <TouchableOpacity 
               style={styles.contactButton}
               onPress={() => navigation.navigate('SurrogateApplication')}
             >
-              <Text style={styles.contactButtonText}>Submit Application</Text>
+              <Text style={styles.contactButtonText}>{t('profile.submitApplication')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -1623,14 +1639,9 @@ export default function MyMatchScreen({ navigation }) {
     };
 
     // Helper function to mask sensitive information
-    const maskPhone = (phone) => {
+    const maskPhoneForDetail = (phone) => {
       if (!phone) return naLabel;
-      if (isMatched) return phone;
-      // Mask phone: show first 3 and last 4 digits
-      if (phone.length >= 7) {
-        return phone.substring(0, 3) + '***' + phone.substring(phone.length - 4);
-      }
-      return '***';
+      return maskPhone(phone, !isMatched);
     };
     
     const maskEmail = (email) => {
@@ -1712,8 +1723,19 @@ export default function MyMatchScreen({ navigation }) {
             parts.push(`${dLab.gestation}: ${item.gestationWeeks} ${t('myMatch.weeksUnit')}`);
           }
           if (item.fetusesCount) parts.push(`${dLab.fetuses}: ${item.fetusesCount}`);
-          if (item.gender) parts.push(`${dLab.babyGender}: ${item.gender}`);
-          if (item.birthWeight) parts.push(`${dLab.birthWeight}: ${item.birthWeight}`);
+          if (Array.isArray(item.babies) && item.babies.length > 0) {
+            item.babies.forEach((baby, babyIndex) => {
+              const babyParts = [];
+              if (baby?.gender) babyParts.push(`${dLab.babyGender}: ${baby.gender}`);
+              if (baby?.birthWeight) babyParts.push(`${dLab.birthWeight}: ${baby.birthWeight}`);
+              if (babyParts.length > 0) {
+                parts.push(`#${babyIndex + 1}: ${babyParts.join(', ')}`);
+              }
+            });
+          } else {
+            if (item.gender) parts.push(`${dLab.babyGender}: ${item.gender}`);
+            if (item.birthWeight) parts.push(`${dLab.birthWeight}: ${item.birthWeight}`);
+          }
           if (item.complications) parts.push(`${dLab.complications}: ${item.complications}`);
 
           if (parts.length === 0) {
@@ -1745,7 +1767,7 @@ export default function MyMatchScreen({ navigation }) {
 
       const strValue = String(value);
       if (!isMatched && lowerKey.includes('name')) return maskName(strValue, true);
-      if (!isMatched && lowerKey.includes('phone')) return maskPhone(strValue);
+      if (!isMatched && lowerKey.includes('phone')) return maskPhoneForDetail(strValue);
       if (!isMatched && lowerKey.includes('email')) return maskEmail(strValue);
       if (!isMatched && lowerKey.includes('address')) return maskAddress(strValue);
       return strValue;

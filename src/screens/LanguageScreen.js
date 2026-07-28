@@ -10,12 +10,7 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-
-const languages = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
-  { code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-];
+import { APP_LANGUAGES } from '../constants/languages';
 
 export default function LanguageScreen({ navigation }) {
   const { language, changeLanguage, getLanguageLabel, t } = useLanguage();
@@ -53,19 +48,19 @@ export default function LanguageScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Language Settings</Text>
+        <Text style={styles.headerTitle}>{t('language.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Language</Text>
+          <Text style={styles.sectionTitle}>{t('language.selectLanguage')}</Text>
           <Text style={styles.sectionDescription}>
-            Choose your preferred language for the app interface.
+            {t('language.description')}
           </Text>
 
           <View style={styles.languageList}>
-            {languages.map((lang) => {
+            {APP_LANGUAGES.map((lang) => {
               const isSelected = language === lang.code;
               return (
                 <TouchableOpacity

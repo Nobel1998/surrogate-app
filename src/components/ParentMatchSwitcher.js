@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * Bottom-sheet style modal to pick which surrogate match is active (parent only).
@@ -21,9 +22,10 @@ export default function ParentMatchSwitcher({
   surrogateNames = {},
   onSelectMatch,
 }) {
+  const { t } = useLanguage();
   const renderItem = ({ item }) => {
     const sid = item.surrogate_id;
-    const name = (sid && surrogateNames[sid]) || 'Surrogate';
+    const name = (sid && surrogateNames[sid]) || t('myMatch.surrogateFallbackName');
     const selected = item.id === activeMatchId;
     return (
       <TouchableOpacity
@@ -40,7 +42,7 @@ export default function ParentMatchSwitcher({
           </Text>
           <Text style={styles.rowSub} numberOfLines={1}>
             {item.status ? String(item.status) : ''}
-            {item.transfer_date ? ` · Transfer ${item.transfer_date}` : ''}
+            {item.transfer_date ? ` · ${t('myMatch.transferLabel')} ${item.transfer_date}` : ''}
           </Text>
         </View>
         {selected ? (
@@ -69,7 +71,7 @@ export default function ParentMatchSwitcher({
             <View style={styles.sheet}>
               <View style={styles.handle} />
               <View style={styles.header}>
-                <Text style={styles.headerTitle}>Switch surrogate</Text>
+                <Text style={styles.headerTitle}>{t('myMatch.switchSurrogate')}</Text>
                 <TouchableOpacity onPress={onClose} hitSlop={12}>
                   <Icon name="x" size={22} color="#6E7191" />
                 </TouchableOpacity>
@@ -79,7 +81,7 @@ export default function ParentMatchSwitcher({
                 keyExtractor={(m) => m.id}
                 renderItem={renderItem}
                 ListEmptyComponent={
-                  <Text style={styles.empty}>No active matches</Text>
+                  <Text style={styles.empty}>{t('myMatch.noActiveMatches')}</Text>
                 }
               />
             </View>

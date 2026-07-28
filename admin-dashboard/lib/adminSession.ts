@@ -18,14 +18,15 @@ export type AdminSessionResult =
  * Resolve current dashboard user from admin_user_id cookie and admin_users row.
  */
 export async function getAdminSession(): Promise<AdminSessionResult> {
+  
   const cookieStore = await cookies();
   const adminUserId = cookieStore.get('admin_user_id')?.value;
   if (!adminUserId) {
-    return { ok: false, status: 401, error: 'Not authenticated' };
+        return { ok: false, status: 401, error: 'Not authenticated' };
   }
 
   if (!supabaseUrl || !serviceKey) {
-    return { ok: false, status: 403, error: 'Missing Supabase env vars' };
+        return { ok: false, status: 403, error: 'Missing Supabase env vars' };
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
@@ -39,9 +40,10 @@ export async function getAdminSession(): Promise<AdminSessionResult> {
     .single();
 
   if (error || !adminUser) {
-    return { ok: false, status: 401, error: 'Invalid admin session' };
+        return { ok: false, status: 401, error: 'Invalid admin session' };
   }
 
+  
   return {
     ok: true,
     role: (adminUser.role || '').toLowerCase(),

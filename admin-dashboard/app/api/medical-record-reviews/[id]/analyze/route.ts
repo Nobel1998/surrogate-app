@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeMedicalRecordPdf } from '@/lib/kimiMedicalReview';
+import { after } from 'next/server';
 import {
-  MEDICAL_RECORD_STORAGE_BUCKET,
-  purgeMedicalRecordPdf,
-  requireMedicalRecordAccess,
-} from '@/lib/medicalRecordReviews';
+  markMedicalRecordAnalysisFailed,
+  runMedicalRecordAnalysis,
+  saveMedicalRecordTempPdf,
+} from '@/lib/runMedicalRecordAnalysis';
+import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -28,7 +29,7 @@ function hasKimiApiKey() {
   return !!(process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY);
 }
 
-export async function POST(_req: NextRequest, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   const auth = await requireMedicalRecordAccess({ requireWrite: true });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -55,7 +56,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
   try {
     const { data: existing, error: fetchError } = await auth.supabase
       .from('medical_record_reviews')
-      .select('*')
+      .select('id, status, storage_path, file_url, file_deleted_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -63,8 +64,28 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
-    if (!existing.storage_path || existing.storage_path === 'pending') {
-      return NextResponse.json({ error: 'PDF file is missing' }, { status: 400 });
+    if (existing.status === 'analyzing') {
+      const updatedAt = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
+      const staleMs = 10 * 60 * 1000;
+      if (updatedAt && Date.now() - updatedAt < staleMs) {
+        return NextResponse.json({ started: true, reviewId: id, alreadyRunning: true }, { status: 202 });
+      }
+    }
+
+    let providedPdfBytes: Uint8Array | null = null;
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file');
+      if (file instanceof File && file.size > 0) {
+        const arrayBuffer = await file.arrayBuffer();
+        providedPdfBytes = new Uint8Array(arrayBuffer);
+        try {
+          await saveMedicalRecordTempPdf(id, providedPdfBytes);
+        } catch (tempError) {
+          console.warn('[analyze] temp cache failed:', tempError);
+        }
+      }
     }
 
     await auth.supabase
@@ -76,73 +97,22 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
       .eq('id', id);
 
-    const { data: fileData, error: downloadError } = await auth.supabase.storage
-      .from(MEDICAL_RECORD_STORAGE_BUCKET)
-      .download(existing.storage_path);
-
-    if (downloadError || !fileData) {
-      throw new Error(downloadError?.message || 'Failed to download PDF from storage');
-    }
-
-    const arrayBuffer = await fileData.arrayBuffer();
-    const pdfBytes = new Uint8Array(arrayBuffer);
-
-    const result = await analyzeMedicalRecordPdf(pdfBytes, {
-      fileName: existing.file_name || 'medical-record.pdf',
-    });
-
-    const { data: updated, error: updateError } = await auth.supabase
-      .from('medical_record_reviews')
-      .update({
-        status: 'analyzed',
-        complications: result.complications,
-        raw_ai_response: result.rawAiResponse,
-        error_message: null,
-        analyzed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    // Free storage space: keep findings, delete the uploaded PDF.
-    let finalReview = updated;
-    let pdfDeleted = false;
-    try {
-      const purge = await purgeMedicalRecordPdf(auth.supabase, {
-        id,
-        storage_path: existing.storage_path,
-        file_deleted_at: existing.file_deleted_at,
-      });
-      if (purge.purged && purge.review) {
-        finalReview = purge.review;
-        pdfDeleted = true;
+    const supabase = auth.supabase;
+    after(async () => {
+      try {
+        await runMedicalRecordAnalysis(supabase, id, providedPdfBytes);
+      } catch (error: any) {
+        console.error('[medical-record-reviews/:id/analyze] background error:', error);
+        const message = error?.message || 'Failed to analyze medical record';
+        await markMedicalRecordAnalysisFailed(supabase, id, message);
       }
-    } catch (purgeError: any) {
-      console.error('[medical-record-reviews/:id/analyze] PDF purge failed:', purgeError);
-      // Analysis succeeded; PDF cleanup failure should not fail the whole request.
-    }
-
-    return NextResponse.json({
-      review: finalReview,
-      pageCount: result.pageCount,
-      pdfDeleted,
     });
+
+    return NextResponse.json({ started: true, reviewId: id }, { status: 202 });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id/analyze] error:', error);
-    const message = error?.message || 'Failed to analyze medical record';
-
-    await auth.supabase
-      .from('medical_record_reviews')
-      .update({
-        status: 'failed',
-        error_message: message.slice(0, 1000),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
+    const message = error?.message || 'Failed to start analysis';
+    await markMedicalRecordAnalysisFailed(auth.supabase, id, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

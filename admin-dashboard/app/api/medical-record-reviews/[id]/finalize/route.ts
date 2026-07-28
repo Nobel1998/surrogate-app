@@ -47,6 +47,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const fileName = path.includes('/') ? path.slice(path.lastIndexOf('/') + 1) : path;
     const found = (listed || []).some((item) => item.name === fileName);
+
     if (!found) {
       return NextResponse.json(
         { error: 'Upload not found in storage. Please retry.' },

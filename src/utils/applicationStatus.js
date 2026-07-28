@@ -18,7 +18,7 @@ export function normalizeApplicationStatus(status) {
   const s = String(status || '')
     .trim()
     .toLowerCase();
-  if (!s) return APPLICATION_STATUS.NONE;
+  if (!s || s === 'none') return APPLICATION_STATUS.NONE;
   if (s === 'approved') return APPLICATION_STATUS.APPROVED;
   if (s === 'rejected') return APPLICATION_STATUS.REJECTED;
   // pending, under_review, in_progress, updated, etc.

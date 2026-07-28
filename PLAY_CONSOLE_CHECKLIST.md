@@ -17,7 +17,7 @@
 
 ## 3. 首次上传 AAB（Internal testing）
 
-- [ ] 下载 AAB：https://expo.dev/artifacts/eas/mjM7YjLZfcGyviFeYe7pN833QwPx8dYOd1T5q8CVhMk.aab
+- [ ] 下载 AAB：https://expo.dev/artifacts/eas/dx2cv8-oyazGuU8pwW6BhY2O2bnA0nyjxDR6K7g4lDg.aab （1.7.7 / versionCode 11）
 - [ ] Play Console → Testing → Internal testing → Create release
 - [ ] Upload AAB → Release notes → Review → Start rollout
 

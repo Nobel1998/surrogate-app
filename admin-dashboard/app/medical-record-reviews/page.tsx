@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { uploadMedicalRecordPdfViaServer } from '@/lib/uploadMedicalRecordPdf';
 
 type Complication = {
   complication: string;
@@ -65,6 +66,7 @@ export default function MedicalRecordReviewsPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -87,11 +89,12 @@ export default function MedicalRecordReviewsPage() {
   }, [filterStatus]);
 
   const loadData = async () => {
+    
     try {
       setLoading(true);
 
       const matchesRes = await fetch('/api/matches/options');
-      if (matchesRes.ok) {
+            if (matchesRes.ok) {
         const matchesData = await matchesRes.json();
         const profiles: Profile[] = matchesData.profiles || [];
         const surList = profiles.filter((p) => (p.role || '').toLowerCase() === 'surrogate');
@@ -119,14 +122,14 @@ export default function MedicalRecordReviewsPage() {
       if (filterQ.trim()) params.set('q', filterQ.trim());
 
       const reviewsRes = await fetch(`/api/medical-record-reviews?${params.toString()}`);
-      if (!reviewsRes.ok) {
+            if (!reviewsRes.ok) {
         const err = await reviewsRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to load reviews');
+                throw new Error(err.error || 'Failed to load reviews');
       }
       const reviewsData = await reviewsRes.json();
       setReviews(reviewsData.reviews || []);
     } catch (error: any) {
-      console.error('Error loading medical record reviews:', error);
+            console.error('Error loading medical record reviews:', error);
       alert(`Failed to load data: ${error.message}`);
     } finally {
       setLoading(false);
@@ -152,6 +155,7 @@ export default function MedicalRecordReviewsPage() {
 
     try {
       setUploading(true);
+      setUploadProgress(0);
       const file = formData.file;
 
       const initRes = await fetch('/api/medical-record-reviews', {
@@ -177,18 +181,13 @@ export default function MedicalRecordReviewsPage() {
         throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
       }
 
-      const putRes = await fetch(initData.signedUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/pdf',
-        },
-        body: file,
-      });
-
-      if (!putRes.ok) {
-        const putText = await putRes.text().catch(() => '');
-        throw new Error(`Storage upload failed (${putRes.status}): ${putText.slice(0, 180)}`);
+      if (!initData?.token || !initData?.path) {
+        throw new Error('Upload init missing signed token or storage path');
       }
+
+      await uploadMedicalRecordPdfViaServer(initData.reviewId, file, (progress) => {
+        setUploadProgress(progress.percentage);
+      });
 
       const finalizeRes = await fetch(`/api/medical-record-reviews/${initData.reviewId}/finalize`, {
         method: 'POST',
@@ -214,22 +213,90 @@ export default function MedicalRecordReviewsPage() {
       alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
+  };
+
+  const patchReviewInList = (review: Review) => {
+    setReviews((prev) => {
+      const idx = prev.findIndex((r) => r.id === review.id);
+      if (idx < 0) return [review, ...prev];
+      const next = [...prev];
+      next[idx] = review;
+      return next;
+    });
   };
 
   const handleAnalyze = async (id: string) => {
     try {
       setAnalyzingId(id);
+
+      const current = reviews.find((r) => r.id === id) || null;
+      const formData = new FormData();
+
+      // Avoid slow server→Supabase download: browser fetches the public PDF and posts it.
+      if (current?.file_url && current.file_url !== 'pending' && !current.file_deleted_at) {
+        try {
+          const pdfRes = await fetch(current.file_url);
+          if (!pdfRes.ok) {
+            throw new Error(`Browser PDF fetch failed (${pdfRes.status})`);
+          }
+          const blob = await pdfRes.blob();
+          formData.append('file', blob, current.file_name || 'medical-record.pdf');
+        } catch {
+          // Continue without file; server will try local temp / storage fallbacks.
+        }
+      }
+
       const res = await fetch(`/api/medical-record-reviews/${id}/analyze`, {
         method: 'POST',
+        body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Analyze failed');
-      await loadData();
-      setSelectedId(id);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 202) {
+        throw new Error(data.error || 'Analyze failed');
+      }
+
+      // Mark local row as analyzing without full-page reload.
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, status: 'analyzing', error_message: null, updated_at: new Date().toISOString() }
+            : r
+        )
+      );
+
+      const deadline = Date.now() + 45 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+
+        const statusRes = await fetch(`/api/medical-record-reviews/${id}`);
+        const statusData = await statusRes.json().catch(() => ({}));
+        const review = statusData?.review as Review | undefined;
+        if (!review) continue;
+
+        patchReviewInList(review);
+
+        if (review.status === 'analyzed' || review.status === 'reviewed') {
+          setSelectedId(id);
+          return;
+        }
+        if (review.status === 'failed') {
+          throw new Error(review.error_message || 'Analysis failed');
+        }
+      }
+
+      throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
       alert(`Review failed: ${error.message}`);
-      await loadData();
+      // Soft refresh only the single review; avoid full-page load flicker.
+      try {
+        const statusRes = await fetch(`/api/medical-record-reviews/${id}`);
+        const statusData = await statusRes.json().catch(() => ({}));
+        if (statusData?.review) patchReviewInList(statusData.review);
+      } catch {
+        // ignore
+      }
     } finally {
       setAnalyzingId(null);
     }
@@ -255,7 +322,8 @@ export default function MedicalRecordReviewsPage() {
     try {
       const res = await fetch(`/api/medical-record-reviews/${id}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      // 404 is treated as already deleted (safe idempotent UX).
+      if (!res.ok && res.status !== 404) throw new Error(data.error || 'Delete failed');
       if (selectedId === id) setSelectedId(null);
       await loadData();
     } catch (error: any) {
@@ -266,9 +334,16 @@ export default function MedicalRecordReviewsPage() {
   const complications = Array.isArray(selected?.complications) ? selected!.complications : [];
   const selectedHasPdf = !!(
     selected &&
-    !selected.file_deleted_at &&
     selected.storage_path &&
-    selected.file_url
+    selected.storage_path !== 'pending' &&
+    selected.file_url &&
+    selected.file_url !== 'pending' &&
+    !selected.file_deleted_at
+  );
+  const selectedUploadIncomplete = !!(
+    selected &&
+    !selected.file_deleted_at &&
+    (selected.file_url === 'pending' || selected.storage_path === 'pending')
   );
 
   return (
@@ -404,6 +479,12 @@ export default function MedicalRecordReviewsPage() {
                   </span>
                 </div>
 
+                {selectedUploadIncomplete && (
+                  <div className="bg-amber-50 text-amber-800 text-sm p-3 rounded">
+                    PDF upload did not finish. Delete this record and upload the file again.
+                  </div>
+                )}
+
                 {selected.error_message && (
                   <div className="bg-red-50 text-red-700 text-sm p-3 rounded">
                     {selected.error_message}
@@ -433,19 +514,17 @@ export default function MedicalRecordReviewsPage() {
                   )}
                   <button
                     onClick={() => handleAnalyze(selected.id)}
-                    disabled={
-                      analyzingId === selected.id ||
-                      selected.status === 'analyzing' ||
-                      !selectedHasPdf
-                    }
+                    disabled={analyzingId === selected.id || !selectedHasPdf}
                     className="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
                     title={!selectedHasPdf ? 'PDF already deleted; re-upload to run again' : undefined}
                   >
-                    {analyzingId === selected.id || selected.status === 'analyzing'
-                      ? 'Analyzing...'
-                      : selected.status === 'failed'
-                        ? 'Retry Review'
-                        : 'Run Review'}
+                    {analyzingId === selected.id
+                      ? 'Analyzing in background...'
+                      : selected.status === 'analyzing'
+                        ? 'Check Analysis Status'
+                        : selected.status === 'failed'
+                          ? 'Retry Review'
+                          : 'Run Review'}
                   </button>
                   {(selected.status === 'analyzed' || selected.status === 'reviewed') && (
                     <button
@@ -570,6 +649,20 @@ export default function MedicalRecordReviewsPage() {
                   required
                 />
               </div>
+              {uploading && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Uploading to storage…</span>
+                    <span>{Math.round(uploadProgress)}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300"
+                      style={{ width: `${Math.min(100, uploadProgress)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -584,7 +677,7 @@ export default function MedicalRecordReviewsPage() {
                   disabled={uploading}
                   className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {uploading ? 'Uploading...' : 'Upload'}
+                  {uploading ? `Uploading… ${Math.round(uploadProgress)}%` : 'Upload'}
                 </button>
               </div>
             </form>

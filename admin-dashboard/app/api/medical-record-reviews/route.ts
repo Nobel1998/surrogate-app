@@ -10,7 +10,25 @@ export const dynamic = 'force-dynamic';
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 
+async function runReviewsQueryWithRetry(run: () => Promise<{ data: any; error: any }>) {
+  const first = await run();
+  if (!first.error) return first;
+
+  const msg = String(first.error?.message || '').toLowerCase();
+  const code = String(first.error?.code || '').toUpperCase();
+  const details = String(first.error?.details || '').toLowerCase();
+  const transient =
+    msg.includes('fetch failed') ||
+    msg.includes('econnreset') ||
+    details.includes('econnreset') ||
+    code == 'ECONNRESET';
+
+  if (!transient) return first;
+  return await run();
+}
+
 export async function GET(req: NextRequest) {
+  
   const auth = await requireMedicalRecordAccess();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -44,9 +62,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const { data, error } = await runReviewsQueryWithRetry(() => query);
+    if (error) {
+            throw error;
+    }
 
+    
     return NextResponse.json({ reviews: data || [] });
   } catch (error: any) {
     console.error('[medical-record-reviews] GET error:', error);
@@ -125,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     const { data: signed, error: signedError } = await auth.supabase.storage
       .from(MEDICAL_RECORD_STORAGE_BUCKET)
-      .createSignedUploadUrl(path);
+      .createSignedUploadUrl(path, { upsert: true });
 
     if (signedError || !signed?.signedUrl || !signed?.token) {
       await auth.supabase.from('medical_record_reviews').delete().eq('id', inserted.id);

@@ -1,5 +1,7 @@
 import { Platform, Alert, Linking, AppState } from 'react-native';
 import AsyncStorageLib from '../utils/Storage';
+import { getDeviceAppLanguage } from '../utils/deviceLanguage';
+import { LANGUAGE_MANUAL_KEY, LANGUAGE_STORAGE_KEY } from '../utils/languagePreference';
 
 const APPOINTMENT_REMINDER_STORAGE_KEY = 'appointment_reminder_schedule_v1';
 const MAX_TIMER_DELAY_MS = 2147480000;
@@ -9,7 +11,7 @@ class RealNotificationService {
     this.notifications = [];
     this.badgeCount = 0;
     this.isAppInForeground = true;
-    this.language = 'en';
+    this.language = getDeviceAppLanguage();
     this.appointmentReminderTimers = new Map();
     this.scheduledAppointmentReminders = {};
     this.setupAppStateListener();
@@ -29,11 +31,17 @@ class RealNotificationService {
 
   async refreshLanguage() {
     try {
-      const savedLanguage = await AsyncStorageLib.getItem('app_language');
-      this.language = savedLanguage || 'en';
+      const isManual = await AsyncStorageLib.getItem(LANGUAGE_MANUAL_KEY);
+      if (isManual === '1') {
+        const savedLanguage = await AsyncStorageLib.getItem(LANGUAGE_STORAGE_KEY);
+        this.language = savedLanguage || getDeviceAppLanguage();
+        return;
+      }
+
+      this.language = getDeviceAppLanguage();
     } catch (error) {
       console.error('Failed to load notification language:', error);
-      this.language = 'en';
+      this.language = getDeviceAppLanguage();
     }
   }
 

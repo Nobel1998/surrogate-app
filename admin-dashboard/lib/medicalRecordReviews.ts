@@ -31,6 +31,79 @@ export function buildDocumentsPublicUrl(path: string) {
   return `${supabaseUrl}/storage/v1/object/public/${MEDICAL_RECORD_STORAGE_BUCKET}/${path}`;
 }
 
+export function isMedicalRecordPdfReady(review: {
+  file_url?: string | null;
+  storage_path?: string | null;
+  file_deleted_at?: string | null;
+}) {
+  return !!(
+    review.storage_path &&
+    review.storage_path !== 'pending' &&
+    review.file_url &&
+    review.file_url !== 'pending' &&
+    !review.file_deleted_at
+  );
+}
+
+export async function formatStorageDownloadError(error: unknown): Promise<string> {
+  const err = error as {
+    message?: string;
+    status?: number;
+    originalError?: Response;
+  };
+
+  const orig = err?.originalError;
+  if (orig && typeof orig.text === 'function') {
+    try {
+      const bodyText = await orig.clone().text();
+      let parsed: { message?: string; error?: string; statusCode?: string } | null = null;
+      try {
+        parsed = JSON.parse(bodyText);
+      } catch {
+        parsed = null;
+      }
+      const detail = parsed?.message || parsed?.error || bodyText.slice(0, 200);
+      const status = orig.status || err.status;
+      if (status === 404 || parsed?.error === 'not_found') {
+        return 'PDF file not found in storage. Please delete this record and upload the PDF again.';
+      }
+      if (detail) {
+        return `Failed to download PDF from storage (${status || 'error'}): ${detail}`;
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  const message = err?.message || '';
+  if (message.startsWith('{') && message.includes('"url"')) {
+    return 'PDF file not found in storage. Please delete this record and upload the PDF again.';
+  }
+
+  return message || 'Failed to download PDF from storage';
+}
+
+export async function medicalRecordPdfExists(
+  supabase: SupabaseClient,
+  storagePath: string
+): Promise<boolean> {
+  if (!storagePath || storagePath === 'pending') return false;
+
+  const folder = storagePath.includes('/')
+    ? storagePath.slice(0, storagePath.lastIndexOf('/'))
+    : '';
+  const fileName = storagePath.includes('/')
+    ? storagePath.slice(storagePath.lastIndexOf('/') + 1)
+    : storagePath;
+
+  const { data, error } = await supabase.storage
+    .from(MEDICAL_RECORD_STORAGE_BUCKET)
+    .list(folder, { search: fileName, limit: 10 });
+
+  if (error) return false;
+  return (data || []).some((item) => item.name === fileName);
+}
+
 /** Remove PDF from storage after review; keep DB row + complications. */
 export async function purgeMedicalRecordPdf(
   supabase: SupabaseClient,

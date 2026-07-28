@@ -2803,12 +2803,14 @@ export default function HomeScreen() {
             <View style={styles.heroContent}>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>
-                  {matchedSurrogateId ? 'Your Surrogate' : 'Matching Status'}
+                  {matchedSurrogateId ? t('home.yourSurrogate') : t('home.matchingStatus')}
                 </Text>
                 <Text style={styles.heroSubtitle}>
                   {matchedSurrogateId 
-                    ? `Journey with ${matchedProfile?.name || 'your surrogate'}`
-                    : 'We are finding the perfect match for you.'}
+                    ? t('home.journeyWithSurrogate', {
+                        surrogate: matchedProfile?.name || t('home.yourSurrogateLowercase'),
+                      })
+                    : t('applicationStatus.approvedDescriptionParent')}
                 </Text>
               </View>
               {matchedSurrogateId ? (
@@ -2837,7 +2839,7 @@ export default function HomeScreen() {
                 >
                   <Icon name="shuffle" size={16} color="#fff" />
                   <Text style={styles.parentMatchSwitchBtnText}>
-                    Switch surrogate ({parentMatch.matches.length})
+                    {t('myMatch.switchSurrogate')} ({parentMatch.matches.length})
                   </Text>
                 </TouchableOpacity>
               )}
@@ -2933,7 +2935,11 @@ export default function HomeScreen() {
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color="#2A7BF6" />
           <Text style={styles.loadingText}>
-            {authLoading ? 'Loading user data...' : checkingApplication ? 'Checking application status...' : 'Loading journey stage...'}
+            {authLoading
+              ? t('home.loadingUserData')
+              : checkingApplication
+              ? t('applicationStatus.checkingStatus')
+              : t('home.loadingJourneyStage')}
           </Text>
         </View>
       </SafeAreaView>
@@ -3134,16 +3140,16 @@ export default function HomeScreen() {
           <View style={{ alignItems: 'center' }}>
             <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
-              No Match Yet
+              {t('myMatch.noMatchYet')}
             </Text>
             <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-              You haven't submitted an application yet, so we cannot display match information. Please submit your application first.
+              {t('myMatch.noMatchNeedsApplication')}
             </Text>
             <TouchableOpacity 
               style={{ backgroundColor: '#2A7BF6', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8 }}
               onPress={() => navigation.navigate('SurrogateApplication')}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Submit Application</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{t('profile.submitApplication')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -3177,12 +3183,12 @@ export default function HomeScreen() {
           <View style={{ alignItems: 'center' }}>
             <Icon name="heart" size={64} color="#FF8EA4" style={{ marginBottom: 20 }} />
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
-              {hasApplication ? statusCopy.title : 'No Match Yet'}
+              {hasApplication ? statusCopy.title : t('myMatch.noMatchYet')}
             </Text>
             <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
               {hasApplication
                 ? statusCopy.description
-                : 'We are finding the perfect match for you.'}
+                : t('applicationStatus.approvedDescriptionParent')}
             </Text>
             {!hasApplication && (
               <TouchableOpacity

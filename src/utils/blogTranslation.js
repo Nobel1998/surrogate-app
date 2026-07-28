@@ -27,3 +27,28 @@ export const getLocalizedBlog = (event, language) => {
     content: resolveBlogField(event, 'content', language),
   };
 };
+
+const LOCALE_BY_LANGUAGE = {
+  en: 'en-US',
+  zh: 'zh-CN',
+  es: 'es-ES',
+};
+
+export const formatEventDate = (eventDate, language = 'en') => {
+  if (!eventDate) return '';
+  const locale = LOCALE_BY_LANGUAGE[language] || LOCALE_BY_LANGUAGE.en;
+  return new Date(eventDate).toLocaleString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+export const translateBlogCategory = (category, t) => {
+  const raw = normalize(category) || 'General';
+  const key = `blog.categories.${raw}`;
+  const translated = t(key);
+  return translated === key ? raw : translated;
+};

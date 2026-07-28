@@ -6,7 +6,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
-import { getLocalizedBlog } from '../utils/blogTranslation';
+import { getLocalizedBlog, translateBlogCategory } from '../utils/blogTranslation';
 
 export default function EventScreen() {
   const navigation = useNavigation();
@@ -98,7 +98,7 @@ export default function EventScreen() {
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{item.category}</Text>
+              <Text style={styles.badgeText}>{translateBlogCategory(item.category, t)}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {item.isFeatured && (

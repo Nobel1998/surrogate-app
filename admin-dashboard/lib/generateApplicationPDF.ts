@@ -393,12 +393,20 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
 
   if (app.deliveries && Array.isArray(app.deliveries)) {
     app.deliveries.forEach((delivery: any, index: number) => {
-      if (delivery && (delivery.year || delivery.gender || delivery.birthWeight)) {
+      if (delivery && (delivery.year || delivery.gender || delivery.birthWeight || delivery.babies?.length)) {
         deliveryData.push([`Delivery #${index + 1}`, '']);
         deliveryData.push(['  Year', formatValue(delivery.year)]);
-        deliveryData.push(['  Gender', formatValue(delivery.gender)]);
-        deliveryData.push(['  Birth Weight', formatValue(delivery.birthWeight)]);
         deliveryData.push(['  Gestation Weeks', formatValue(delivery.gestationWeeks)]);
+        deliveryData.push(['  No Of Fetuses', formatValue(delivery.fetusesCount)]);
+        if (Array.isArray(delivery.babies) && delivery.babies.length > 0) {
+          delivery.babies.forEach((baby: any, babyIndex: number) => {
+            deliveryData.push([`  Baby #${babyIndex + 1} Gender`, formatValue(baby?.gender)]);
+            deliveryData.push([`  Baby #${babyIndex + 1} Birth Weight`, formatValue(baby?.birthWeight)]);
+          });
+        } else {
+          deliveryData.push(['  Gender', formatValue(delivery.gender)]);
+          deliveryData.push(['  Birth Weight', formatValue(delivery.birthWeight)]);
+        }
         deliveryData.push(['  Delivery Method', formatValue(delivery.deliveryMethod)]);
         deliveryData.push(['  Conception Method', formatValue(delivery.conceptionMethod)]);
         deliveryData.push(['  Pregnancy Result', formatValue(delivery.pregnancyResult)]);

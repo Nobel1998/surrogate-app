@@ -2,14 +2,14 @@ App Store Connect + TestFlight — 操作检查清单
 ===============================================
 项目: Surrogate Agency USA (My Surro)
 Bundle ID: io.dcloud.mysurronew
-当前 app 版本 (expo.version): 1.7.6
+当前 app 版本 (expo.version): 1.7.7
 说明: 以下步骤须在浏览器登录 App Store Connect 完成；本文件与仓库内模板配合使用。
 
 ────────────────────────────────────────
 [ ] 1. Export Compliance（对应 TestFlight 灰掉 / 无法分配 build）
 ────────────────────────────────────────
 路径: App Store Connect → 你的 App → TestFlight → iOS Builds
-1) 打开 build 1.7.6 (7)（或当前最新 Complete 的 build）。
+1) 打开 build 1.7.7 (14)（或当前最新 Complete 的 build）。
 2) 若显示 “Missing Compliance” 或黄色提示：
    - 点击进入合规问答。
    - 与工程声明一致：app.json 中 ITSAppUsesNonExemptEncryption = false
@@ -26,7 +26,7 @@ Bundle ID: io.dcloud.mysurronew
 
 路径 B — 把 build 分给组:
   TestFlight → Internal Testing → App Store Connect Users
-  - Builds: 确认已包含 1.7.6 (7)。
+  - Builds: 确认已包含 1.7.7 (14)。
   - Testers: 添加已接受的内部用户。
 
 若 “Add Group” 弹窗里复选框灰、Next 不可用:
@@ -53,8 +53,8 @@ What to Test:
 前置: Agreements, Tax, and Banking 无待办（含付费协议若涉及内购/付费 App）。
 
 路径: App Store Connect → App → Distribution / App Store
-1) 创建或打开版本 1.7.6（与 expo.version 一致或按你上架策略调整）。
-2) Build: 选择已处理完成的构建（如 1.7.6 (7) 或更新 build）。
+1) 创建或打开版本 1.7.7（与 expo.version 一致或按你上架策略调整）。
+2) Build: 选择已处理完成的构建（如 1.7.7 (14)）。
 3) 必填: 截图、描述、关键词、支持 URL、隐私政策 URL、App Privacy 问卷、分级等。
 4) 确认 App Review Information 与加密/出口合规一致。
 5) Submit for Review。

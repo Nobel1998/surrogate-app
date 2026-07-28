@@ -1546,13 +1546,25 @@ export default function Home() {
                             <p className="text-sm font-medium text-gray-700">Delivery #{index + 1}</p>
                             <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
                               <div><span className="text-gray-500">Year:</span> {delivery.year || 'N/A'}</div>
-                              <div><span className="text-gray-500">Gender:</span> {delivery.gender || 'N/A'}</div>
-                              <div><span className="text-gray-500">Weight:</span> {delivery.birthWeight || 'N/A'}</div>
                               <div><span className="text-gray-500">Method:</span> {delivery.deliveryMethod || 'N/A'}</div>
                               <div><span className="text-gray-500">Weeks:</span> {delivery.gestationWeeks || 'N/A'}</div>
+                              <div><span className="text-gray-500">Fetuses:</span> {delivery.fetusesCount || 'N/A'}</div>
                               <div><span className="text-gray-500">Conception:</span> {delivery.conceptionMethod || 'N/A'}</div>
                               <div><span className="text-gray-500">Result:</span> {delivery.pregnancyResult || 'N/A'}</div>
-                              <div><span className="text-gray-500">Complications:</span> {delivery.complications || 'None'}</div>
+                              <div className="col-span-2"><span className="text-gray-500">Complications:</span> {delivery.complications || 'None'}</div>
+                              {Array.isArray(delivery.babies) && delivery.babies.length > 0 ? (
+                                delivery.babies.map((baby: any, babyIndex: number) => (
+                                  <div key={babyIndex} className="col-span-4">
+                                    <span className="text-gray-500">Baby #{babyIndex + 1}:</span>{' '}
+                                    Gender {baby?.gender || 'N/A'}, Weight {baby?.birthWeight || 'N/A'}
+                                  </div>
+                                ))
+                              ) : (
+                                <>
+                                  <div><span className="text-gray-500">Gender:</span> {delivery.gender || 'N/A'}</div>
+                                  <div><span className="text-gray-500">Weight:</span> {delivery.birthWeight || 'N/A'}</div>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}

@@ -1,20 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, Dimensions, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-
-const { width } = Dimensions.get('window');
+import { useLanguage } from '../context/LanguageContext';
+import { APP_LANGUAGES } from '../constants/languages';
 
 export default function LandingScreen({ navigation }) {
   const { user, isAuthenticated } = useAuth();
+  const { language, changeLanguage, t } = useLanguage();
   const loggedIn = !!(isAuthenticated && user);
 
   return (
     <ImageBackground 
-      source={{ uri: 'https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop' }} // Warm, high-quality family/support background
+      source={{ uri: 'https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop' }}
       style={styles.backgroundImage}
-      blurRadius={Platform.OS === 'ios' ? 8 : 3} // Soft blur for readability
+      blurRadius={Platform.OS === 'ios' ? 8 : 3}
     >
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" />
@@ -22,24 +23,40 @@ export default function LandingScreen({ navigation }) {
         <View style={styles.overlay} />
 
         <View style={styles.contentContainer}>
-          {/* Header / Brand */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Icon name="heart" size={32} color="#fff" />
+            <View style={styles.headerBrand}>
+              <View style={styles.logoContainer}>
+                <Icon name="heart" size={32} color="#fff" />
+              </View>
+              <Text style={styles.brandName}>BabyTree</Text>
             </View>
-            <Text style={styles.brandName}>BabyTree</Text>
+            <View style={styles.languageRow}>
+              {APP_LANGUAGES.map((lang, index) => {
+                const isActive = language === lang.code;
+                return (
+                  <React.Fragment key={lang.code}>
+                    {index > 0 && <Text style={styles.langDivider}>|</Text>}
+                    <TouchableOpacity
+                      onPress={() => changeLanguage(lang.code)}
+                      style={[styles.langChip, isActive && styles.langChipActive]}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    >
+                      <Text style={[styles.langChipText, isActive && styles.langChipTextActive]}>
+                        {lang.label}
+                      </Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
+            </View>
           </View>
 
           <View style={styles.mainContent}>
-            <Text style={styles.tagline}>Creating Families,{'\n'}Together.</Text>
-            <Text style={styles.description}>
-              Join a trusted community dedicated to bringing new life into the world. Whether you're here to help or to grow your family, we're with you every step.
-            </Text>
+            <Text style={styles.tagline}>{t('landing.tagline')}</Text>
+            <Text style={styles.description}>{t('landing.description')}</Text>
           </View>
 
-          {/* Action Cards */}
           <View style={styles.actionsContainer}>
-            {/* Surrogate Path */}
             <TouchableOpacity
               style={styles.actionCard}
               activeOpacity={0.9}
@@ -49,13 +66,12 @@ export default function LandingScreen({ navigation }) {
                 <Icon name="gift" size={24} color="#2A7BF6" />
               </View>
               <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>Become a Surrogate</Text>
-                <Text style={styles.cardSubtitle}>Start your application journey</Text>
+                <Text style={styles.cardTitle}>{t('landing.becomeSurrogate')}</Text>
+                <Text style={styles.cardSubtitle}>{t('landing.becomeSurrogateSubtitle')}</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
 
-            {/* Intended Parents Path */}
             <TouchableOpacity
               style={styles.actionCard}
               activeOpacity={0.9}
@@ -65,13 +81,12 @@ export default function LandingScreen({ navigation }) {
                 <Icon name="heart" size={24} color="#22C55E" />
               </View>
               <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>Become Intended Parents</Text>
-                <Text style={styles.cardSubtitle}>Start your family journey</Text>
+                <Text style={styles.cardTitle}>{t('landing.becomeParents')}</Text>
+                <Text style={styles.cardSubtitle}>{t('landing.becomeParentsSubtitle')}</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
 
-            {/* Auth Path (parents & surrogates) / Enter app when already logged in */}
             <TouchableOpacity
               style={styles.actionCard}
               activeOpacity={0.9}
@@ -85,18 +100,17 @@ export default function LandingScreen({ navigation }) {
                 <Icon name="users" size={24} color="#FF8EA4" />
               </View>
               <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>{loggedIn ? 'Enter App' : 'Login / Sign Up'}</Text>
+                <Text style={styles.cardTitle}>
+                  {loggedIn ? t('landing.enterApp') : t('landing.loginSignUp')}
+                </Text>
                 <Text style={styles.cardSubtitle}>
-                  {loggedIn
-                    ? 'Continue to your journey and matches'
-                    : 'Access your portal to apply or connect'}
+                  {loggedIn ? t('landing.enterAppSubtitle') : t('landing.loginSubtitle')}
                 </Text>
               </View>
               <Icon name="chevron-right" size={20} color="#A0A3BD" />
             </TouchableOpacity>
           </View>
 
-          {/* Footer Links */}
           <View style={styles.footer}>
             <TouchableOpacity 
               style={styles.blogLink}
@@ -107,7 +121,7 @@ export default function LandingScreen({ navigation }) {
               }
             >
               <Icon name="book-open" size={16} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.blogLinkText}>Read Our Blog</Text>
+              <Text style={styles.blogLinkText}>{t('landing.readBlog')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -126,7 +140,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(26, 29, 30, 0.65)', // Dark overlay for text contrast
+    backgroundColor: 'rgba(26, 29, 30, 0.65)',
   },
   contentContainer: {
     flex: 1,
@@ -137,7 +151,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 10,
+    gap: 12,
+  },
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
   },
   logoContainer: {
     width: 48,
@@ -155,6 +176,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     letterSpacing: 0.5,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  langChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  langChipActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  langChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.75)',
+  },
+  langChipTextActive: {
+    color: '#fff',
+  },
+  langDivider: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    marginHorizontal: 2,
   },
   mainContent: {
     marginTop: 40,
@@ -180,7 +232,7 @@ const styles = StyleSheet.create({
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slight transparency
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
     padding: 20,
     shadowColor: '#000',

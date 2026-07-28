@@ -20,13 +20,20 @@ import {
   normalizeApplicationStatus,
   getApplicationStatusCopy,
 } from '../utils/applicationStatus';
+import { translateViewLabel } from '../i18n/viewApplicationLabels';
+import { translateFormUi } from '../i18n/formUiStrings';
 
 export default function ViewApplicationScreen({ navigation }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const tv = (text) => translateViewLabel(language, text);
   const [loading, setLoading] = useState(true);
   const [application, setApplication] = useState(null);
   const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    navigation.setOptions?.({ title: tv('My Application') });
+  }, [language, navigation]);
 
   // Reload data when screen comes into focus (e.g., after editing)
   useFocusEffect(
@@ -111,26 +118,31 @@ export default function ViewApplicationScreen({ navigation }) {
   };
 
   const formatBoolean = (value) => {
-    if (value === true) return 'Yes';
-    if (value === false) return 'No';
-    return 'N/A';
+    if (value === true) return tv('Yes');
+    if (value === false) return tv('No');
+    return tv('N/A');
   };
 
   const formatValue = (value) => {
-    if (value === null || value === undefined || value === '') return 'N/A';
-    return String(value);
+    if (value === null || value === undefined || value === '') return tv('N/A');
+    if (value === true) return tv('Yes');
+    if (value === false) return tv('No');
+    const str = String(value);
+    const labeled = tv(str);
+    if (labeled !== str) return labeled;
+    return translateFormUi(language, str);
   };
 
   const renderField = (label, value) => (
     <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>{tv(label)}</Text>
       <Text style={styles.fieldValue}>{formatValue(value)}</Text>
     </View>
   );
 
   const renderBooleanField = (label, value) => (
     <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>{tv(label)}</Text>
       <Text style={[styles.fieldValue, value === true ? styles.yesValue : value === false ? styles.noValue : null]}>
         {formatBoolean(value)}
       </Text>
@@ -141,7 +153,7 @@ export default function ViewApplicationScreen({ navigation }) {
     <View style={[styles.section, { borderLeftColor: color }]}>
       <View style={styles.sectionHeader}>
         <Icon name={icon} size={20} color={color} />
-        <Text style={[styles.sectionTitle, { color }]}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color }]}>{tv(title)}</Text>
       </View>
       {children}
     </View>
@@ -152,7 +164,7 @@ export default function ViewApplicationScreen({ navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2A7BF6" />
-          <Text style={styles.loadingText}>Loading application...</Text>
+          <Text style={styles.loadingText}>{tv('Loading application...')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -163,12 +175,12 @@ export default function ViewApplicationScreen({ navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
           <Icon name="file-text" size={60} color="#ccc" />
-          <Text style={styles.emptyText}>No application found</Text>
+          <Text style={styles.emptyText}>{tv('No application found')}</Text>
           <TouchableOpacity
             style={styles.submitButton}
             onPress={() => navigation.navigate('SurrogateApplication')}
           >
-            <Text style={styles.submitButtonText}>Submit Application</Text>
+            <Text style={styles.submitButtonText}>{tv('Submit Application')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -263,11 +275,11 @@ export default function ViewApplicationScreen({ navigation }) {
                 <Text style={styles.fieldLabel}>
                   {formData.applicationType === 'intended_parent'
                     ? (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
-                        ? `Intended Parent Photos (${formData.photos.length} photos)`
-                        : 'Intended Parent Photo')
+                        ? `${tv('Intended Parent Photos')} (${formData.photos.length} ${tv('photos')})`
+                        : tv('Intended Parent Photo'))
                     : (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
-                        ? `Lifestyle Photos (${formData.photos.length} photos)`
-                        : 'Surrogate Photo')}
+                        ? `${tv('Lifestyle Photos')} (${formData.photos.length} ${tv('photos')})`
+                        : tv('Surrogate Photo'))}
                 </Text>
                 {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0 ? (
                   <View style={styles.photosGrid}>
@@ -278,7 +290,7 @@ export default function ViewApplicationScreen({ navigation }) {
                           style={styles.photoThumbnail}
                           resizeMode="cover"
                         />
-                        <Text style={styles.photoLabel}>Photo {index + 1}</Text>
+                        <Text style={styles.photoLabel}>{tv('Photo')} {index + 1}</Text>
                       </View>
                     ))}
                   </View>
@@ -331,9 +343,9 @@ export default function ViewApplicationScreen({ navigation }) {
         {renderSection('Marital Status & Family', 'heart', '#E91E63',
           <>
             {renderField('Marital Status', formData.maritalStatus)}
-            {renderField('Are you single?', formData.isSingle === true ? 'Yes' : formData.isSingle === false ? 'No' : 'N/A')}
-            {renderField('Are you married?', formData.isMarried === true ? 'Yes' : formData.isMarried === false ? 'No' : 'N/A')}
-            {renderField('Are you widowed?', formData.isWidowed === true ? 'Yes' : formData.isWidowed === false ? 'No' : 'N/A')}
+            {renderBooleanField('Are you single?', formData.isSingle)}
+            {renderBooleanField('Are you married?', formData.isMarried)}
+            {renderBooleanField('Are you widowed?', formData.isWidowed)}
             {renderBooleanField('Life Partner', formData.lifePartner)}
             {renderBooleanField('Engaged', formData.engaged)}
             {renderField('Spouse/Partner Name', formData.spouseName || formData.partnerName)}
@@ -360,14 +372,26 @@ export default function ViewApplicationScreen({ navigation }) {
             {formData.deliveries && formData.deliveries.length > 0 && (
               <View style={styles.deliveriesContainer}>
                 {formData.deliveries.map((delivery, index) => (
-                  delivery && (delivery.year || delivery.gender) && (
+                  delivery && (delivery.year || delivery.gender || delivery.babies?.length) && (
                     <View key={index} style={styles.deliveryCard}>
-                      <Text style={styles.deliveryTitle}>Delivery #{index + 1}</Text>
+                      <Text style={styles.deliveryTitle}>{tv('Delivery')} #{index + 1}</Text>
                       <View style={styles.deliveryGrid}>
-                        <Text style={styles.deliveryItem}>Year: {delivery.year || 'N/A'}</Text>
-                        <Text style={styles.deliveryItem}>Gender: {delivery.gender || 'N/A'}</Text>
-                        <Text style={styles.deliveryItem}>Weight: {delivery.birthWeight || 'N/A'}</Text>
-                        <Text style={styles.deliveryItem}>Method: {delivery.deliveryMethod || 'N/A'}</Text>
+                        <Text style={styles.deliveryItem}>{tv('Year')}: {delivery.year || tv('N/A')}</Text>
+                        <Text style={styles.deliveryItem}>{tv('Method')}: {delivery.deliveryMethod || tv('N/A')}</Text>
+                        {Array.isArray(delivery.babies) && delivery.babies.length > 0 ? (
+                          delivery.babies.map((baby, babyIndex) => (
+                            <View key={`baby-${babyIndex}`} style={{ width: '100%', marginTop: 6 }}>
+                              <Text style={styles.deliveryItem}>
+                                {tv('Baby')} #{babyIndex + 1}: {tv('Gender')} {baby?.gender || tv('N/A')}, {tv('Weight')} {baby?.birthWeight || tv('N/A')}
+                              </Text>
+                            </View>
+                          ))
+                        ) : (
+                          <>
+                            <Text style={styles.deliveryItem}>{tv('Gender')}: {delivery.gender || tv('N/A')}</Text>
+                            <Text style={styles.deliveryItem}>{tv('Weight')}: {delivery.birthWeight || tv('N/A')}</Text>
+                          </>
+                        )}
                       </View>
                     </View>
                   )
@@ -445,9 +469,9 @@ export default function ViewApplicationScreen({ navigation }) {
         {renderSection('Employment Information', 'briefcase', '#FF9800',
           <>
             {renderField('Current Employment', formData.currentEmployment)}
-            {renderField('Monthly Income', formData.monthlyIncome ? `$${formData.monthlyIncome}` : 'N/A')}
+            {renderField('Monthly Income', formData.monthlyIncome ? `$${formData.monthlyIncome}` : tv('N/A'))}
             {renderField('Spouse Employment', formData.spouseEmployment)}
-            {renderField('Spouse Monthly Income', formData.spouseMonthlyIncome ? `$${formData.spouseMonthlyIncome}` : 'N/A')}
+            {renderField('Spouse Monthly Income', formData.spouseMonthlyIncome ? `$${formData.spouseMonthlyIncome}` : tv('N/A'))}
             {renderField('Persons Supported', formData.personsSupported)}
             {renderBooleanField('Public Assistance', formData.publicAssistance)}
           </>
@@ -457,10 +481,10 @@ export default function ViewApplicationScreen({ navigation }) {
         {renderSection('Education', 'book', '#3F51B5',
           <>
             {renderField('Education Level', 
-              formData.educationLevel === 'highSchool' ? 'High School' :
-              formData.educationLevel === 'college' ? 'College' :
-              formData.educationLevel === 'tradeSchool' ? 'Trade School' :
-              formData.educationLevel || 'N/A'
+              formData.educationLevel === 'highSchool' ? tv('High School') :
+              formData.educationLevel === 'college' ? tv('College') :
+              formData.educationLevel === 'tradeSchool' ? tv('Trade School') :
+              formData.educationLevel || tv('N/A')
             )}
             {renderField('Trade School Specify', formData.tradeSchoolDetails)}
           </>

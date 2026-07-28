@@ -17,13 +17,13 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { trackBlogArticleView } from '../utils/blogViewTracker';
-import { getLocalizedBlog } from '../utils/blogTranslation';
+import { getLocalizedBlog, formatEventDate, translateBlogCategory } from '../utils/blogTranslation';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, handleEventLike, registerForEvent, likedEvents, registeredEvents } = useAppContext();
   const { isAuthenticated, user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -124,51 +124,55 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const handleShare = async () => {
+    if (!event) return;
+
     try {
-      let shareMessage = `📅 ${localizedEvent.title}\n\n`;
-      
-      if (localizedEvent.description) {
-        shareMessage += `${localizedEvent.description}\n\n`;
+      const localized = getLocalizedBlog(event, language);
+      const formattedDate = formatEventDate(event.eventDate, language);
+      let shareMessage = `📅 ${localized.title}\n\n`;
+
+      if (localized.description) {
+        shareMessage += `${localized.description}\n\n`;
       }
-      
-      if (event.date) {
-        shareMessage += `📅 Date: ${event.date}\n`;
+
+      if (formattedDate) {
+        shareMessage += `📅 ${t('blog.dateTime')}: ${formattedDate}\n`;
       }
-      
+
       if (event.location) {
-        shareMessage += `📍 Location: ${event.location}\n`;
+        shareMessage += `📍 ${t('blog.location')}: ${event.location}\n`;
       }
-      
-      shareMessage += '\n📱 Download BabyTree Surrogacy App to join our community!';
+
+      shareMessage += `\n📱 ${t('blog.shareFooter')}`;
 
       const shareOptions = [
         {
-          text: '📋 Copy Text',
+          text: `📋 ${t('blog.shareCopyText')}`,
           onPress: async () => {
             await Clipboard.setStringAsync(shareMessage);
-            Alert.alert('Copied!', 'Event details copied to clipboard.');
+            Alert.alert(t('blog.shareCopied'), t('blog.shareCopiedDetail'));
           },
         },
         {
-          text: '📤 Share via Apps',
+          text: `📤 ${t('blog.shareViaApps')}`,
           onPress: async () => {
             try {
               await Share.share({
                 message: shareMessage,
-                title: localizedEvent.title,
+                title: localized.title,
               });
             } catch (error) {
               await Clipboard.setStringAsync(shareMessage);
-              Alert.alert('Copied!', 'Share failed. Content copied to clipboard instead.');
+              Alert.alert(t('blog.shareCopied'), t('blog.shareFailedCopied'));
             }
           },
         },
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
       ];
 
-      Alert.alert('Share Event', 'Choose how to share:', shareOptions);
+      Alert.alert(t('blog.shareTitle'), t('blog.shareChoose'), shareOptions);
     } catch (error) {
-      Alert.alert('Error', 'Failed to share event');
+      Alert.alert(t('common.error'), t('blog.shareFailed'));
     }
   };
 
@@ -204,26 +208,39 @@ export default function EventDetailScreen({ route, navigation }) {
   const isRegistered = registeredEvents?.has(eventId) || false;
   const isUpcoming = new Date(event.eventDate) > new Date();
   const localizedEvent = getLocalizedBlog(event, language);
+  const formattedEventDate = formatEventDate(event.eventDate, language);
+  const hasHeroMedia = Boolean(event.image || event.videoUrl);
+
+  const renderHeaderButtons = (overlay = false) => (
+    <>
+      <TouchableOpacity
+        style={overlay ? styles.backIcon : styles.backIconInline}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.backIconText}>←</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={overlay ? styles.shareIcon : styles.shareIconInline}
+        onPress={handleShare}
+      >
+        <Text style={styles.shareIconText}>📤</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backIcon}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backIconText}>←</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.shareIcon}
-            onPress={handleShare}
-          >
-            <Text style={styles.shareIconText}>📤</Text>
-          </TouchableOpacity>
+      {!hasHeroMedia && (
+        <View style={styles.headerBar}>
+          {renderHeaderButtons(false)}
         </View>
+      )}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {hasHeroMedia && (
+          <View style={styles.headerOverlay}>
+            {renderHeaderButtons(true)}
+          </View>
+        )}
 
         {/* Event Image */}
         {event.image && (
@@ -246,7 +263,7 @@ export default function EventDetailScreen({ route, navigation }) {
           {/* Category and Featured Badge */}
           <View style={styles.badgeContainer}>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{event.category || 'General'}</Text>
+              <Text style={styles.categoryText}>{translateBlogCategory(event.category, t)}</Text>
             </View>
             {event.isFeatured && (
               <View style={styles.featuredBadge}>
@@ -264,7 +281,7 @@ export default function EventDetailScreen({ route, navigation }) {
           {/* Detailed Content */}
           {localizedEvent.content && (
             <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Event Details</Text>
+              <Text style={styles.sectionTitle}>{t('blog.eventDetails')}</Text>
               <Text style={styles.detailContent}>{localizedEvent.content}</Text>
             </View>
           )}
@@ -274,15 +291,15 @@ export default function EventDetailScreen({ route, navigation }) {
             <View style={styles.infoItem}>
               <Text style={styles.infoIcon}>📅</Text>
               <View>
-                <Text style={styles.infoLabel}>Date & Time</Text>
-                <Text style={styles.infoText}>{event.date}</Text>
+                <Text style={styles.infoLabel}>{t('blog.dateTime')}</Text>
+                <Text style={styles.infoText}>{formattedEventDate}</Text>
               </View>
             </View>
 
             <View style={styles.infoItem}>
               <Text style={styles.infoIcon}>📍</Text>
               <View>
-                <Text style={styles.infoLabel}>Location</Text>
+                <Text style={styles.infoLabel}>{t('blog.location')}</Text>
                 <Text style={styles.infoText}>{event.location}</Text>
               </View>
             </View>
@@ -291,9 +308,12 @@ export default function EventDetailScreen({ route, navigation }) {
               <View style={styles.infoItem}>
                 <Text style={styles.infoIcon}>👥</Text>
                 <View>
-                  <Text style={styles.infoLabel}>Capacity</Text>
+                  <Text style={styles.infoLabel}>{t('blog.capacity')}</Text>
                   <Text style={styles.infoText}>
-                    {event.registrationCount || 0} / {event.maxParticipants} registered
+                    {t('blog.capacityCount', {
+                      current: event.registrationCount || 0,
+                      max: event.maxParticipants,
+                    })}
                   </Text>
                 </View>
               </View>
@@ -304,12 +324,12 @@ export default function EventDetailScreen({ route, navigation }) {
           <View style={styles.statsSection}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{event.likesCount || 0}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
+              <Text style={styles.statLabel}>{t('blog.likes')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{event.registrationCount || 0}</Text>
-              <Text style={styles.statLabel}>Registered</Text>
+              <Text style={styles.statLabel}>{t('blog.registered')}</Text>
             </View>
           </View>
         </View>
@@ -406,7 +426,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  header: {
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FB',
+  },
+  headerOverlay: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -431,6 +459,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  backIconInline: {
+    backgroundColor: '#fff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   backIconText: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -448,6 +486,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  shareIconInline: {
+    backgroundColor: '#fff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   shareIconText: {
     fontSize: 18,

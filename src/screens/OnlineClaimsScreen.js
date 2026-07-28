@@ -19,15 +19,19 @@ import { Feather as Icon } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 
 const MAX_SUBMISSIONS = 5;
 const BUCKET = 'documents';
 const STORAGE_PREFIX = 'online_claim_submissions';
 
+const DATE_LOCALES = { en: 'en-US', zh: 'zh-CN', es: 'es-ES' };
+
 export default function OnlineClaimsScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,7 +73,7 @@ export default function OnlineClaimsScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please allow photo library access to upload invoice/receipt.');
+        Alert.alert(t('onlineClaims.permissionNeeded'), t('onlineClaims.photoLibraryPermission'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -81,21 +85,21 @@ export default function OnlineClaimsScreen() {
       if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
     } catch (e) {
       console.warn(e);
-      Alert.alert('Error', 'Failed to select image.');
+      Alert.alert(t('common.error'), t('onlineClaims.selectImageFailed'));
     }
   };
 
   const submitClaim = async () => {
     if (!user?.id) {
-      Alert.alert('Error', 'Please sign in to submit a claim.');
+      Alert.alert(t('common.error'), t('onlineClaims.signInRequired'));
       return;
     }
     if (list.length >= MAX_SUBMISSIONS) {
-      Alert.alert('Limit reached', `You can submit up to ${MAX_SUBMISSIONS} claims.`);
+      Alert.alert(t('onlineClaims.limitReached'), t('onlineClaims.limitReachedMessage', { max: MAX_SUBMISSIONS }));
       return;
     }
     if (!image?.uri) {
-      Alert.alert('Image required', 'Please select an invoice or receipt image.');
+      Alert.alert(t('onlineClaims.imageRequired'), t('onlineClaims.imageRequiredMessage'));
       return;
     }
 
@@ -141,10 +145,10 @@ export default function OnlineClaimsScreen() {
       setDescription('');
       setImage(null);
       await loadSubmissions();
-      Alert.alert('Submitted', 'Your claim has been submitted for review.');
+      Alert.alert(t('onlineClaims.submittedTitle'), t('onlineClaims.submittedMessage'));
     } catch (e) {
       console.warn('Submit error:', e);
-      Alert.alert('Error', e.message || 'Failed to submit claim.');
+      Alert.alert(t('common.error'), e.message || t('onlineClaims.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -153,13 +157,19 @@ export default function OnlineClaimsScreen() {
   const formatDate = (iso) => {
     if (!iso) return '';
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(DATE_LOCALES[language] || 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const statusLabel = (status) => {
+    if (status === 'approved') return t('onlineClaims.statusApproved');
+    if (status === 'rejected') return t('onlineClaims.statusRejected');
+    return t('onlineClaims.statusPending');
   };
 
   const openFile = (url) => {
@@ -173,7 +183,7 @@ export default function OnlineClaimsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Icon name="arrow-left" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Online Claims</Text>
+        <Text style={styles.headerTitle}>{t('onlineClaims.title')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -186,7 +196,7 @@ export default function OnlineClaimsScreen() {
         }
       >
         <Text style={styles.sectionTitle}>
-          My submissions ({list.length}/{MAX_SUBMISSIONS})
+          {t('onlineClaims.mySubmissions', { current: list.length, max: MAX_SUBMISSIONS })}
         </Text>
 
         {loading ? (
@@ -200,19 +210,19 @@ export default function OnlineClaimsScreen() {
                   ${item.amount != null ? Number(item.amount).toFixed(2) : '0.00'}
                 </Text>
                 <View style={[styles.badge, item.status === 'approved' && styles.badgeGreen, item.status === 'rejected' && styles.badgeRed]}>
-                  <Text style={styles.badgeText}>{item.status === 'pending' ? 'Pending' : item.status === 'approved' ? 'Approved' : 'Rejected'}</Text>
+                  <Text style={styles.badgeText}>{statusLabel(item.status)}</Text>
                 </View>
               </View>
               {item.description ? <Text style={styles.cardDesc}>{item.description}</Text> : null}
               <TouchableOpacity onPress={() => openFile(item.file_url)} style={styles.viewFile}>
-                <Text style={styles.viewFileText}>View file</Text>
+                <Text style={styles.viewFileText}>{t('onlineClaims.viewFile')}</Text>
                 <Icon name="external-link" size={14} color="#6C5CE7" />
               </TouchableOpacity>
             </View>
           ))
         )}
 
-        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Submit new claim (invoice/receipt)</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('onlineClaims.submitNewClaim')}</Text>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.inputWrap}>
@@ -221,7 +231,7 @@ export default function OnlineClaimsScreen() {
               style={styles.input}
               value={amount}
               onChangeText={setAmount}
-              placeholder="Amount (optional)"
+              placeholder={t('onlineClaims.amountOptional')}
               placeholderTextColor="#999"
               keyboardType="decimal-pad"
             />
@@ -230,13 +240,13 @@ export default function OnlineClaimsScreen() {
             style={[styles.input, styles.inputFull]}
             value={description}
             onChangeText={setDescription}
-            placeholder="Description (optional)"
+            placeholder={t('onlineClaims.descriptionOptional')}
             placeholderTextColor="#999"
           />
           <TouchableOpacity style={styles.selectImageBtn} onPress={pickImage}>
             <Icon name="image" size={22} color="#666" />
             <Text style={styles.selectImageText}>
-              {image ? 'Image selected' : 'Select invoice/receipt image'}
+              {image ? t('onlineClaims.imageSelected') : t('onlineClaims.selectImage')}
             </Text>
           </TouchableOpacity>
 
@@ -248,7 +258,7 @@ export default function OnlineClaimsScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>Submit</Text>
+              <Text style={styles.submitBtnText}>{t('onlineClaims.submit')}</Text>
             )}
           </TouchableOpacity>
         </KeyboardAvoidingView>

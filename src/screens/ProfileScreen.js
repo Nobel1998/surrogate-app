@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
-import * as StoreReview from 'expo-store-review';
+import { handleRateApp as openRateApp, handleRateUs as openRateUs } from '../utils/rateApp';
+import { APP_DEVELOPER_NAME, APP_DISPLAY_VERSION } from '../constants/appInfo';
+import { getInjectionVideoUrl } from '../constants/injectionVideos';
 import {
   APPLICATION_STATUS,
   fetchLatestApplication,
@@ -196,7 +198,7 @@ export default function ProfileScreen({ navigation }) {
 
   const loadIntendedParentApplication = async () => {
     if (!user?.id) {
-      Alert.alert('Error', 'Please log in to view your application.');
+      Alert.alert(t('common.error'), t('common.pleaseLoginViewApplication'));
       return;
     }
 
@@ -212,7 +214,7 @@ export default function ProfileScreen({ navigation }) {
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error loading intended parent application:', error);
-        Alert.alert('Error', 'Failed to load application data.');
+        Alert.alert(t('common.error'), t('common.failedLoadApplication'));
         return;
       }
 
@@ -237,7 +239,7 @@ export default function ProfileScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error loading application:', error);
-      Alert.alert('Error', 'Failed to load application data.');
+      Alert.alert(t('common.error'), t('common.failedLoadApplication'));
     } finally {
       setLoadingIntendedParentApplication(false);
     }
@@ -352,191 +354,33 @@ export default function ProfileScreen({ navigation }) {
     navigation.navigate('OnlineClaims');
   };
 
-  const handleRateApp = async () => {
-    console.log('⭐ [Rate App] handleRateApp called');
-    
+  const handleRateApp = () => openRateApp(t);
+  const handleRateUs = () => openRateUs(t);
+
+  const handleInjectionVideos = async () => {
+    const url = getInjectionVideoUrl(language);
     try {
-      console.log('⭐ [Rate App] Checking StoreReview availability...');
-      console.log('⭐ [Rate App] StoreReview object:', StoreReview ? 'exists' : 'null/undefined');
-      console.log('⭐ [Rate App] StoreReview.hasAction type:', typeof StoreReview?.hasAction);
-      
-      // Check if StoreReview is available (may not be available if app is not published)
-      if (!StoreReview || typeof StoreReview.hasAction !== 'function') {
-        console.log('⚠️ [Rate App] StoreReview not available or hasAction is not a function');
-        console.log('⚠️ [Rate App] Showing unpublished app message');
-        // App is not published yet, show friendly message
-        Alert.alert(
-          t('profile.rateApp'),
-          t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-        );
+      const isHttp = /^https?:\/\//i.test(url);
+      const supported = isHttp ? true : await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert(t('common.error'), t('profile.injectionVideosError'));
         return;
       }
-
-      console.log('✅ [Rate App] StoreReview is available');
-      
-      // Check if the device supports in-app review
-      console.log('⭐ [Rate App] Checking hasAction()...');
-      const isAvailable = await StoreReview.hasAction();
-      console.log('⭐ [Rate App] hasAction() result:', isAvailable);
-      
-      if (isAvailable) {
-        console.log('✅ [Rate App] In-app review is available, requesting review...');
-        // Try to request in-app review (iOS/Android native prompt)
-        // Note: Platform may not show the prompt if it was recently shown
-        try {
-          await StoreReview.requestReview();
-          console.log('✅ [Rate App] requestReview() called successfully');
-        } catch (reviewError) {
-          console.error('❌ [Rate App] Error calling requestReview():', reviewError);
-        }
-        
-        // After attempting to show the review prompt, always offer to open store page
-        // This handles the case where the prompt doesn't appear (due to platform limits)
-        console.log('⭐ [Rate App] Setting timeout to show store option...');
-        setTimeout(() => {
-          console.log('⭐ [Rate App] Timeout fired, getting store URL...');
-          try {
-            const storeUrl = StoreReview.storeUrl();
-            console.log('⭐ [Rate App] Store URL:', storeUrl);
-            
-            if (storeUrl) {
-              console.log('✅ [Rate App] Store URL exists, showing alert to open store');
-              Alert.alert(
-                t('profile.rateApp'),
-                t('profile.rateAppOpenStore') || 'Would you like to open the App Store to rate our app?',
-                [
-                  {
-                    text: t('common.cancel') || 'Cancel',
-                    style: 'cancel',
-                    onPress: () => console.log('⭐ [Rate App] User cancelled opening store'),
-                  },
-                  {
-                    text: t('profile.openStore') || 'Open Store',
-                    onPress: async () => {
-                      console.log('⭐ [Rate App] User chose to open store');
-                      try {
-                        console.log('⭐ [Rate App] Checking if URL can be opened:', storeUrl);
-                        const supported = await Linking.canOpenURL(storeUrl);
-                        console.log('⭐ [Rate App] URL can be opened:', supported);
-                        
-                        if (supported) {
-                          console.log('✅ [Rate App] Opening store URL...');
-                          await Linking.openURL(storeUrl);
-                          console.log('✅ [Rate App] Store URL opened successfully');
-                        } else {
-                          console.log('❌ [Rate App] URL cannot be opened');
-                          Alert.alert(
-                            t('common.error'),
-                            t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
-                          );
-                        }
-                      } catch (linkError) {
-                        console.error('❌ [Rate App] Error opening store URL:', linkError);
-                        Alert.alert(
-                          t('common.error'),
-                          t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
-                        );
-                      }
-                    },
-                  },
-                ]
-              );
-            } else {
-              console.log('⚠️ [Rate App] Store URL is null/undefined - app may not be published yet');
-              // App is not published yet, show friendly message
-              Alert.alert(
-                t('profile.rateApp'),
-                t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-              );
-            }
-          } catch (urlError) {
-            console.error('❌ [Rate App] Error getting store URL:', urlError);
-            // Show friendly message on error
-            Alert.alert(
-              t('profile.rateApp'),
-              t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-            );
-          }
-        }, 500); // Small delay to let the review prompt appear first if it will
-      } else {
-        console.log('⚠️ [Rate App] In-app review is not available, trying to open store directly...');
-        // Fallback: Open the app store page directly
-        try {
-          const storeUrl = StoreReview.storeUrl();
-          console.log('⭐ [Rate App] Store URL (fallback):', storeUrl);
-          
-          if (storeUrl) {
-            const supported = await Linking.canOpenURL(storeUrl);
-            console.log('⭐ [Rate App] URL can be opened (fallback):', supported);
-            
-            if (supported) {
-              console.log('✅ [Rate App] Opening store URL directly...');
-              await Linking.openURL(storeUrl);
-              console.log('✅ [Rate App] Store URL opened successfully (fallback)');
-            } else {
-              console.log('❌ [Rate App] URL cannot be opened (fallback)');
-              Alert.alert(
-                t('common.error'),
-                t('profile.rateAppError') || 'Unable to open app store. Please search for our app in the App Store or Google Play Store.'
-              );
-            }
-          } else {
-            console.log('⚠️ [Rate App] Store URL is null/undefined (fallback)');
-            // App not published, show friendly message
-            Alert.alert(
-              t('profile.rateApp'),
-              t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-            );
-          }
-        } catch (fallbackError) {
-          console.error('❌ [Rate App] Error in fallback logic:', fallbackError);
-        }
-      }
+      await Linking.openURL(url);
     } catch (error) {
-      console.error('❌ [Rate App] Error in handleRateApp:', error);
-      console.error('❌ [Rate App] Error stack:', error.stack);
-      console.error('❌ [Rate App] Error message:', error.message);
-      
-      // Fallback: Try to open store URL directly
-      console.log('⭐ [Rate App] Trying fallback: open store URL directly');
-      try {
-        const storeUrl = StoreReview?.storeUrl();
-        console.log('⭐ [Rate App] Store URL (error fallback):', storeUrl);
-        
-        if (storeUrl) {
-          const supported = await Linking.canOpenURL(storeUrl);
-          console.log('⭐ [Rate App] URL can be opened (error fallback):', supported);
-          
-          if (supported) {
-            console.log('✅ [Rate App] Opening store URL (error fallback)...');
-            await Linking.openURL(storeUrl);
-            console.log('✅ [Rate App] Store URL opened successfully (error fallback)');
-            return;
-          }
-        } else {
-          console.log('⚠️ [Rate App] Store URL is null/undefined (error fallback)');
-        }
-      } catch (fallbackError) {
-        console.error('❌ [Rate App] Error in error fallback:', fallbackError);
-      }
-      
-      // Final fallback: Show friendly message
-      console.log('⚠️ [Rate App] Showing final fallback message');
-      Alert.alert(
-        t('profile.rateApp'),
-        t('profile.rateAppNotPublished') || 'Thank you for your interest! Our app is currently in development and will be available on the App Store and Google Play Store soon. We appreciate your support!'
-      );
+      console.error('Error opening injection videos:', error);
+      Alert.alert(t('common.error'), t('profile.injectionVideosError'));
     }
   };
 
   const handleLogout = () => {
     Alert.alert(
-      'Confirm Sign Out',
-      'Are you sure you want to sign out?',
+      t('profile.confirmSignOutTitle'),
+      t('profile.confirmSignOutMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('profile.deleteAccountCancel'), style: 'cancel' },
         { 
-          text: 'Sign Out', 
+          text: t('profile.signOut'), 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -545,7 +389,7 @@ export default function ProfileScreen({ navigation }) {
               console.log('✅ Logout completed successfully');
             } catch (error) {
               console.error('❌ Logout failed:', error);
-              Alert.alert('Logout Error', 'Failed to sign out. Please try again.');
+              Alert.alert(t('common.logoutError'), t('common.logoutErrorMessage'));
             }
           }
         }
@@ -702,11 +546,11 @@ export default function ProfileScreen({ navigation }) {
                 loadingPhotoDoc
               )}
               {renderMenuItem(
-                t('myMatch.onlineClaims') || 'Online Claims',
+                t('myMatch.onlineClaims'),
                 'check-circle',
                 handleOnlineClaimsPress,
                 '#6C5CE7',
-                'Submit & view claims'
+                t('profile.submitAndViewClaims')
               )}
             </>
           )}
@@ -743,7 +587,7 @@ export default function ProfileScreen({ navigation }) {
                 loadingApplication
               )}
               {renderMenuItem(t('profile.benefitPackage'), 'gift', () => navigation.navigate('Benefits'), '#333')}
-              {renderMenuItem(t('profile.injectionVideos'), 'play-circle', () => Alert.alert(t('profile.injectionVideos'), 'Coming Soon'), '#FFC107')}
+              {renderMenuItem(t('profile.injectionVideos'), 'play-circle', handleInjectionVideos, '#FFC107')}
             </>
           )}
         </View>
@@ -759,9 +603,21 @@ export default function ProfileScreen({ navigation }) {
           )}
           {renderMenuItem(t('profile.refer'), 'user-plus', () => navigation.navigate('Ambassador'), '#9C27B0')}
           {renderMenuItem(t('profile.rateApp'), 'star', handleRateApp, '#4CAF50')}
-          {renderMenuItem(t('profile.rateUs'), 'thumbs-up', () => Alert.alert(t('profile.rateUs'), 'Coming Soon'), '#FF9800')}
+          {renderMenuItem(t('profile.rateUs'), 'thumbs-up', handleRateUs, '#FF9800')}
           {renderMenuItem(t('profile.contactUs'), 'phone', () => navigation.navigate('ContactUs'), '#4CAF50')}
-          {renderMenuItem(t('profile.aboutApp'), 'info', () => Alert.alert(t('profile.aboutApp'), 'Version 1.0.0'), '#2196F3')}
+          {renderMenuItem(
+            t('profile.aboutApp'),
+            'info',
+            () =>
+              Alert.alert(
+                t('profile.aboutApp'),
+                t('common.aboutAppMessage', {
+                  version: APP_DISPLAY_VERSION,
+                  developer: APP_DEVELOPER_NAME,
+                })
+              ),
+            '#2196F3'
+          )}
         </View>
 
         <TouchableOpacity

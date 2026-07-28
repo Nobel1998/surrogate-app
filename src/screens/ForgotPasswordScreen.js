@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ForgotPasswordScreen({ navigation, route }) {
   const { resetPassword } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState(route?.params?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,11 +29,11 @@ export default function ForgotPasswordScreen({ navigation, route }) {
   const handleSendReset = async () => {
     const trimmed = email.trim();
     if (!trimmed) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert(t('common.error'), t('auth.enterEmailError'));
       return;
     }
     if (!validateEmail(trimmed)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('auth.invalidEmailError'));
       return;
     }
 
@@ -40,15 +42,15 @@ export default function ForgotPasswordScreen({ navigation, route }) {
       const result = await resetPassword(trimmed);
       if (result.success) {
         Alert.alert(
-          'Check your email',
-          'If an account exists for this email, you will receive a reset link. Open it on this phone — a short webpage will open first, then tap “Open App” to set your new password.',
-          [{ text: 'OK', onPress: () => navigation.navigate('LoginScreen') }]
+          t('auth.checkYourEmail'),
+          t('auth.resetEmailSent'),
+          [{ text: t('auth.ok'), onPress: () => navigation.navigate('LoginScreen') }]
         );
       } else {
-        Alert.alert('Error', result.error || 'Failed to send reset email');
+        Alert.alert(t('common.error'), result.error || t('auth.resetEmailFailed'));
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      Alert.alert(t('common.error'), t('auth.unexpectedError'));
       console.error('Forgot password error:', error);
     } finally {
       setIsSubmitting(false);
@@ -73,24 +75,24 @@ export default function ForgotPasswordScreen({ navigation, route }) {
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <Text style={styles.backButtonText}>← Back to Login</Text>
+            <Text style={styles.backButtonText}>{t('auth.backToLogin')}</Text>
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Forgot Password</Text>
+            <Text style={styles.title}>{t('auth.forgotPasswordTitle')}</Text>
             <Text style={styles.subtitle}>
-              Enter your account email and we will send you a link to reset your password.
+              {t('auth.forgotPasswordSubtitle')}
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t('auth.emailAddress')}</Text>
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter your email address"
+                placeholder={t('auth.enterEmail')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -104,7 +106,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
               disabled={isSubmitting}
             >
               <Text style={styles.primaryButtonText}>
-                {isSubmitting ? 'Sending...' : 'Send Reset Link'}
+                {isSubmitting ? t('auth.sending') : t('auth.sendResetLink')}
               </Text>
             </TouchableOpacity>
           </View>

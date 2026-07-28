@@ -55,7 +55,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .single();
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+      // Idempotent delete: treat already-deleted record as success.
+      return NextResponse.json({ success: true, alreadyDeleted: true });
     }
 
     const updateData: Record<string, unknown> = {
@@ -121,7 +122,8 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       .single();
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+      // Idempotent delete: treat already-deleted record as success.
+      return NextResponse.json({ success: true, alreadyDeleted: true });
     }
 
     if (existing.storage_path && existing.storage_path !== 'pending') {

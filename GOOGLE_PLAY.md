@@ -7,10 +7,10 @@ EAS 项目：https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa
 
 | 字段 | 值 |
 |------|-----|
-| 版本 | 1.7.6 (versionCode **6**) |
-| Build ID | `8ac4f081-f00c-491a-92d6-bda8f9eb1e10` |
-| AAB 下载 | https://expo.dev/artifacts/eas/mjM7YjLZfcGyviFeYe7pN833QwPx8dYOd1T5q8CVhMk.aab |
-| Expo Builds 页 | https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa/builds/8ac4f081-f00c-491a-92d6-bda8f9eb1e10 |
+| 版本 | 1.7.7 (versionCode **11**) |
+| Build ID | `63002d29-bd9b-40d1-a62b-6026c9e42692` |
+| AAB 下载 | https://expo.dev/artifacts/eas/dx2cv8-oyazGuU8pwW6BhY2O2bnA0nyjxDR6K7g4lDg.aab |
+| Expo Builds 页 | https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa/builds/63002d29-bd9b-40d1-a62b-6026c9e42692 |
 
 重新构建：`npm run eas:build:android:production`
 
@@ -93,7 +93,7 @@ Google 要求**第一次**在 Play Console 手动上传 AAB：
 
 1. Play Console → **Testing → Internal testing**
 2. **Create new release** → Upload → 选择 EAS 下载的 `.aab`
-3. Release name: `1.7.6 (1)`（或当前 versionCode）
+3. Release name: `1.7.7 (11)`（或当前 versionCode）
 4. Release notes（英文示例）：
 
 ```
@@ -217,4 +217,4 @@ Steps:
 
 **Keystore 丢失？** 使用 EAS 管理的 Keystore，勿删除 EAS 项目凭证。
 
-**与 iOS 版本号** 可共用 `app.json` 的 `version`（如 1.7.6）；Android `versionCode` 由 EAS `autoIncrement` 管理。
+**与 iOS 版本号** 可共用 `app.json` 的 `version`（如 1.7.7）；Android `versionCode` 由 EAS `autoIncrement` 管理。

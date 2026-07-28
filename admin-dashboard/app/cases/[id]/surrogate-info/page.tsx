@@ -220,14 +220,25 @@ export default function SurrogateInfoPage() {
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-700 mb-2">Delivery Records:</p>
               {formData.deliveries.map((delivery: any, index: number) => (
-                delivery && (delivery.year || delivery.gender) && (
+                delivery && (delivery.year || delivery.gender || delivery.babies?.length) && (
                   <div key={index} className="bg-gray-50 p-3 rounded mb-2 text-sm">
                     <p className="font-medium">Delivery #{index + 1}</p>
                     <div className="grid grid-cols-4 gap-2 mt-1 text-gray-600">
                       <span>Year: {delivery.year || 'N/A'}</span>
-                      <span>Gender: {delivery.gender || 'N/A'}</span>
-                      <span>Weight: {delivery.birthWeight || 'N/A'}</span>
                       <span>Method: {delivery.deliveryMethod || 'N/A'}</span>
+                      <span>Fetuses: {delivery.fetusesCount || 'N/A'}</span>
+                      {Array.isArray(delivery.babies) && delivery.babies.length > 0 ? (
+                        delivery.babies.map((baby: any, babyIndex: number) => (
+                          <span key={babyIndex} className="col-span-4">
+                            Baby #{babyIndex + 1}: Gender {baby?.gender || 'N/A'}, Weight {baby?.birthWeight || 'N/A'}
+                          </span>
+                        ))
+                      ) : (
+                        <>
+                          <span>Gender: {delivery.gender || 'N/A'}</span>
+                          <span>Weight: {delivery.birthWeight || 'N/A'}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

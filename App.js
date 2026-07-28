@@ -288,6 +288,7 @@ function GuestStackNavigator({ initialRouteName = 'Landing' }) {
       <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
       <Stack.Screen name="SurrogateApplication" component={SurrogateApplicationScreen} />
       <Stack.Screen name="IntendedParentApplication" component={IntendedParentApplicationScreen} />
+      <Stack.Screen name="Language" component={LanguageScreen} />
     </Stack.Navigator>
   );
 }
@@ -321,7 +322,11 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen name="MyInfo" component={MyInfoScreen} />
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="SurrogateMedicalInfo" component={SurrogateMedicalInfoScreen} />
-      <Stack.Screen name="ViewApplication" component={ViewApplicationScreen} options={{ title: 'My Application' }} />
+      <Stack.Screen
+        name="ViewApplication"
+        component={ViewApplicationScreen}
+        options={{ title: 'My Application', headerShown: true }}
+      />
       <Stack.Screen name="OBAppointments" component={OBAppointmentsScreen} />
       <Stack.Screen name="IVFAppointments" component={IVFAppointmentsScreen} />
       <Stack.Screen name="OnlineClaims" component={OnlineClaimsScreen} />
@@ -389,6 +394,7 @@ const linking = {
 // Main App Component with Auth Logic
 function AppContent() {
   const { isAuthenticated, isLoading, passwordRecoveryPending } = useAuth();
+  const { t } = useLanguage();
   const [forceShowApp, setForceShowApp] = useState(false);
   const [resumeApplication, setResumeApplication] = useState(false);
 
@@ -406,43 +412,55 @@ function AppContent() {
 
   // Detect if we should resume the application flow after lazy signup
   const [resumeApplicationType, setResumeApplicationType] = useState(null);
+  // Gate navigator until resume flag is read — prevents soft-register landing on MainTabs
+  const [resumeChecked, setResumeChecked] = useState(false);
   
   useEffect(() => {
+    let cancelled = false;
     const checkResume = async () => {
-      if (isAuthenticated) {
-        const flag = await AsyncStorageLib.getItem('resume_application_flow');
-        const appType = await AsyncStorageLib.getItem('resume_application_type');
-        console.log('🔁 resume_application_flow flag (auth):', flag, 'type:', appType);
-        
-        if (flag === 'true' || flag === 'intended_parent') {
-          setResumeApplication(true);
-          setResumeApplicationType(appType || 'surrogate'); // default to surrogate for backward compatibility
-          await AsyncStorageLib.removeItem('resume_application_flow');
-          await AsyncStorageLib.removeItem('resume_application_type');
-          console.log('🧹 cleared resume_application_flow after consume');
-        } else {
-          setResumeApplication(false);
-          setResumeApplicationType(null);
-        }
-      } else {
+      if (!isAuthenticated) {
         console.log('🔁 resume_application_flow cleared (not authenticated)');
         setResumeApplication(false);
         setResumeApplicationType(null);
         await AsyncStorageLib.removeItem('resume_application_flow');
         await AsyncStorageLib.removeItem('resume_application_type');
+        if (!cancelled) setResumeChecked(true);
+        return;
       }
+
+      setResumeChecked(false);
+      const flag = await AsyncStorageLib.getItem('resume_application_flow');
+      const appType = await AsyncStorageLib.getItem('resume_application_type');
+      console.log('🔁 resume_application_flow flag (auth):', flag, 'type:', appType);
+
+      if (cancelled) return;
+      if (flag === 'true' || flag === 'intended_parent') {
+        setResumeApplication(true);
+        setResumeApplicationType(appType || 'surrogate'); // default to surrogate for backward compatibility
+        await AsyncStorageLib.removeItem('resume_application_flow');
+        await AsyncStorageLib.removeItem('resume_application_type');
+        console.log('🧹 cleared resume_application_flow after consume');
+      } else {
+        setResumeApplication(false);
+        setResumeApplicationType(null);
+      }
+      if (!cancelled) setResumeChecked(true);
     };
     checkResume();
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   // 如果还在加载且没有达到强制显示条件，显示加载界面
-  if (isLoading && !forceShowApp) {
+  // Also wait for resume flag when auth flips true so soft-register doesn't land on MainTabs first
+  if ((isLoading && !forceShowApp) || !resumeChecked) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FB' }}>
         <ActivityIndicator size="large" color="#2A7BF6" />
-        <Text style={{ fontSize: 18, color: '#2A7BF6', marginTop: 16 }}>Loading...</Text>
+        <Text style={{ fontSize: 18, color: '#2A7BF6', marginTop: 16 }}>{t('common.loading')}</Text>
         <Text style={{ fontSize: 14, color: '#6E7191', marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
-          Connecting to server...
+          {t('common.connectingServer')}
         </Text>
       </View>
     );

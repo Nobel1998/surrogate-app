@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
@@ -8,10 +8,12 @@ import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
+import { translateFormUi } from '../i18n/formUiStrings';
 
 export default function IntendedParentApplicationScreen({ navigation, route }) {
   const { user, refreshUserProfile } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const tf = (text) => translateFormUi(language, text);
   
   // Edit mode parameters
   const editMode = route?.params?.editMode || false;
@@ -29,10 +31,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [formVersion, setFormVersion] = useState(0);
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
+  const photoUploadTokenRef = useRef({});
   
   // Refs for Step 1 scroll view and input fields
-  const step1ScrollViewRef = React.useRef(null);
-  const step1InputRefs = React.useRef({});
+  const step1ScrollViewRef = useRef(null);
+  const step1InputRefs = useRef({});
   
   // Generate invite code helper
   const generateInviteCode = () => {
@@ -491,14 +494,35 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   // Upload intended parent photo to Supabase Storage
-  const uploadIntendedParentPhoto = async (uri, index) => {
-    setUploadingPhotoIndex(index);
+  const beginPhotoUpload = (index) => {
+    const token = (photoUploadTokenRef.current[index] || 0) + 1;
+    photoUploadTokenRef.current[index] = token;
+    return token;
+  };
+
+  const isPhotoUploadCurrent = (index, token) =>
+    photoUploadTokenRef.current[index] === token;
+
+  const syncPhotoUrls = (nextPhotos) => {
+    const photoUrls = (nextPhotos || []).filter((p) => p && p.url).map((p) => p.url);
+    updateField('photos', photoUrls.length > 0 ? photoUrls : []);
+  };
+
+  const uploadIntendedParentPhoto = async (uri, index, uploadToken) => {
     try {
+      if (isPhotoUploadCurrent(index, uploadToken)) {
+        setUploadingPhotoIndex(index);
+      }
+
       // Check user authentication
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !authUser) {
         throw new Error('User not authenticated. Please log in again.');
+      }
+
+      if (!isPhotoUploadCurrent(index, uploadToken)) {
+        return null;
       }
       
       // Get file extension
@@ -514,6 +538,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       const response = await fetch(uri);
       const blob = await response.blob();
       const fileSize = blob.size;
+
+      if (!isPhotoUploadCurrent(index, uploadToken)) {
+        return null;
+      }
       
       // Create FormData
       const formData = new FormData();
@@ -535,6 +563,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         console.error('Error uploading photo:', error);
         throw error;
       }
+
+      if (!isPhotoUploadCurrent(index, uploadToken)) {
+        return null;
+      }
       
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -550,7 +582,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       console.error('Upload failed:', error);
       throw error;
     } finally {
-      setUploadingPhotoIndex(null);
+      if (isPhotoUploadCurrent(index, uploadToken)) {
+        setUploadingPhotoIndex((current) => (current === index ? null : current));
+      }
     }
   };
 
@@ -563,22 +597,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  // Remove photo at index
+  // Remove photo at index (also cancels an in-flight / stuck upload)
   const removePhoto = (index) => {
-    const newPhotos = [...photos];
-    newPhotos[index] = null;
-    setPhotos(newPhotos.filter(p => p !== null));
-    
-    // Update applicationData
-    const photoUrls = newPhotos.filter(p => p && p.url).map(p => p.url);
-    if (applicationData.photos && Array.isArray(applicationData.photos)) {
-      const updatedPhotos = [...applicationData.photos];
-      updatedPhotos[index] = null;
-      const filteredPhotos = updatedPhotos.filter(p => p !== null);
-      updateField('photos', filteredPhotos.length > 0 ? filteredPhotos : []);
-    } else {
-      updateField('photos', photoUrls.length > 0 ? photoUrls : []);
-    }
+    beginPhotoUpload(index); // invalidate any in-flight upload for this slot
+    setUploadingPhotoIndex((current) => (current === index ? null : current));
+    setPhotos((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      const filtered = next.filter((p) => p !== null);
+      syncPhotoUrls(filtered);
+      return filtered;
+    });
   };
 
   // Pick image from library (for a specific index)
@@ -599,6 +628,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
+        const uploadToken = beginPhotoUpload(index);
         
         // Create temporary photo object
         const tempPhoto = {
@@ -609,14 +639,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           uploading: true,
         };
         
-        // Update photos array
-        const newPhotos = [...photos];
-        newPhotos[index] = tempPhoto;
-        setPhotos(newPhotos);
+        setPhotos((prev) => {
+          const next = [...prev];
+          while (next.length <= index) next.push(null);
+          next[index] = tempPhoto;
+          return next;
+        });
         
         // Upload immediately
         try {
-          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index);
+          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index, uploadToken);
+          if (!uploadResult || !isPhotoUploadCurrent(index, uploadToken)) {
+            return;
+          }
           const updatedPhoto = {
             uri: selectedUri,
             url: uploadResult.url,
@@ -625,18 +660,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             uploading: false,
           };
           
-          const updatedPhotos = [...photos];
-          updatedPhotos[index] = updatedPhoto;
-          setPhotos(updatedPhotos);
-          
-          // Update applicationData
-          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
-          updateField('photos', photoUrls);
+          setPhotos((prev) => {
+            const next = [...prev];
+            while (next.length <= index) next.push(null);
+            next[index] = updatedPhoto;
+            syncPhotoUrls(next);
+            return next;
+          });
         } catch (error) {
+          if (!isPhotoUploadCurrent(index, uploadToken)) {
+            return;
+          }
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          const updatedPhotos = [...photos];
-          updatedPhotos[index] = null;
-          setPhotos(updatedPhotos.filter(p => p !== null));
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[index] = null;
+            const filtered = next.filter((p) => p !== null);
+            syncPhotoUrls(filtered);
+            return filtered;
+          });
         }
       }
     } catch (error) {
@@ -663,6 +705,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets[0]) {
         const selectedUri = result.assets[0].uri;
+        const uploadToken = beginPhotoUpload(index);
         
         // Create temporary photo object
         const tempPhoto = {
@@ -673,14 +716,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           uploading: true,
         };
         
-        // Update photos array
-        const newPhotos = [...photos];
-        newPhotos[index] = tempPhoto;
-        setPhotos(newPhotos);
+        setPhotos((prev) => {
+          const next = [...prev];
+          while (next.length <= index) next.push(null);
+          next[index] = tempPhoto;
+          return next;
+        });
         
         // Upload immediately
         try {
-          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index);
+          const uploadResult = await uploadIntendedParentPhoto(selectedUri, index, uploadToken);
+          if (!uploadResult || !isPhotoUploadCurrent(index, uploadToken)) {
+            return;
+          }
           const updatedPhoto = {
             uri: selectedUri,
             url: uploadResult.url,
@@ -689,18 +737,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             uploading: false,
           };
           
-          const updatedPhotos = [...photos];
-          updatedPhotos[index] = updatedPhoto;
-          setPhotos(updatedPhotos);
-          
-          // Update applicationData
-          const photoUrls = updatedPhotos.filter(p => p && p.url).map(p => p.url);
-          updateField('photos', photoUrls);
+          setPhotos((prev) => {
+            const next = [...prev];
+            while (next.length <= index) next.push(null);
+            next[index] = updatedPhoto;
+            syncPhotoUrls(next);
+            return next;
+          });
         } catch (error) {
+          if (!isPhotoUploadCurrent(index, uploadToken)) {
+            return;
+          }
           Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-          const updatedPhotos = [...photos];
-          updatedPhotos[index] = null;
-          setPhotos(updatedPhotos.filter(p => p !== null));
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[index] = null;
+            const filtered = next.filter((p) => p !== null);
+            syncPhotoUrls(filtered);
+            return filtered;
+          });
         }
       }
     } catch (error) {
@@ -757,63 +812,63 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     switch (step) {
       case 1:
         if (!applicationData.familyStructure) {
-          Alert.alert('Required Field', 'Please select your family structure.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.familyStructure'));
           return false;
         }
         if (!applicationData.hearAboutUs) {
-          Alert.alert('Required Field', 'Please select how you heard about us.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.hearAboutUs'));
           return false;
         }
         if (!applicationData.parent1FirstName || !applicationData.parent1LastName) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 name.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Name'));
           return false;
         }
         if (!applicationData.parent1DateOfBirthMonth || !applicationData.parent1DateOfBirthDay || !applicationData.parent1DateOfBirthYear) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 date of birth.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Dob'));
           return false;
         }
         if (!applicationData.parent1Gender) {
-          Alert.alert('Required Field', 'Please select Intended Parent 1 gender.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Gender'));
           return false;
         }
         if (!applicationData.parent1BloodType) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 blood type.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1BloodType'));
           return false;
         }
         if (!applicationData.parent1Race?.trim()) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 race/ethnic background.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Race'));
           return false;
         }
         if (!applicationData.parent1Citizenship) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 citizenship.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Citizenship'));
           return false;
         }
         if (!applicationData.parent1CountryState) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 country/state of residence.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1CountryState'));
           return false;
         }
         if (!applicationData.parent1Occupation) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 occupation.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Occupation'));
           return false;
         }
         if (!applicationData.parent1Languages) {
-          Alert.alert('Required Field', 'Please enter languages spoken by Intended Parent 1.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Languages'));
           return false;
         }
         if (!applicationData.parent1PhoneNumber) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 phone number.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Phone'));
           return false;
         }
         if (!applicationData.parent1Email) {
-          Alert.alert('Required Field', 'Please enter Intended Parent 1 email.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.parent1Email'));
           return false;
         }
         if (!applicationData.parent1EmergencyContact) {
-          Alert.alert('Required Field', 'Please enter emergency contact person.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.emergencyContact'));
           return false;
         }
         if (!applicationData.parent1AddressStreet || !applicationData.parent1AddressCity || !applicationData.parent1AddressState || !applicationData.parent1AddressZip) {
-          Alert.alert('Required Field', 'Please enter complete address.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.completeAddress'));
           return false;
         }
         break;
@@ -821,262 +876,262 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         // Only validate if family structure requires parent 2
         if (applicationData.familyStructure !== 'single_father' && applicationData.familyStructure !== 'single_mother') {
           if (!applicationData.parent2FirstName || !applicationData.parent2LastName) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 name.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Name'));
             return false;
           }
           if (!applicationData.parent2DateOfBirthMonth || !applicationData.parent2DateOfBirthDay || !applicationData.parent2DateOfBirthYear) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 date of birth.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Dob'));
             return false;
           }
           if (!applicationData.parent2Gender) {
-            Alert.alert('Required Field', 'Please select Intended Parent 2 gender.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Gender'));
             return false;
           }
           if (!applicationData.parent2BloodType) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 blood type.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2BloodType'));
             return false;
           }
           if (!applicationData.parent2Race?.trim()) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 race/ethnic background.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Race'));
             return false;
           }
           if (!applicationData.parent2Citizenship) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 citizenship.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Citizenship'));
             return false;
           }
           if (!applicationData.parent2CountryState) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 country/state of residence.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2CountryState'));
             return false;
           }
           if (!applicationData.parent2Occupation) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 occupation.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Occupation'));
             return false;
           }
           if (!applicationData.parent2Languages) {
-            Alert.alert('Required Field', 'Please enter languages spoken by Intended Parent 2.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Languages'));
             return false;
           }
           if (!applicationData.parent2PhoneNumber) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 phone number.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Phone'));
             return false;
           }
           if (!applicationData.parent2Email) {
-            Alert.alert('Required Field', 'Please enter Intended Parent 2 email.');
+            Alert.alert(t('common.requiredField'), t('parentApplication.parent2Email'));
             return false;
           }
         }
         break;
       case 3:
         if (!applicationData.howLongTogether) {
-          Alert.alert('Required Field', 'Please enter how long you have been together.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.howLongTogether'));
           return false;
         }
         if (applicationData.haveChildren === null) {
-          Alert.alert('Required Field', 'Please indicate if you have children.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.haveChildren'));
           return false;
         }
         if (applicationData.haveChildren && !applicationData.childrenDetails) {
-          Alert.alert('Required Field', 'Please provide details about your children.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.childrenDetails'));
           return false;
         }
         break;
       case 4:
         if (!applicationData.reasonForSurrogacy || applicationData.reasonForSurrogacy.length === 0) {
-          Alert.alert('Required Field', 'Please select at least one reason for pursuing surrogacy.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.reasonForSurrogacy'));
           return false;
         }
         if (applicationData.undergoneIVF === null) {
-          Alert.alert('Required Field', 'Please indicate if you have undergone IVF.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.undergoneIVF'));
           return false;
         }
         if (applicationData.needDonorEggs === null) {
-          Alert.alert('Required Field', 'Please indicate if you need donor eggs.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.needDonorEggs'));
           return false;
         }
         if (applicationData.needDonorSperm === null) {
-          Alert.alert('Required Field', 'Please indicate if you need donor sperm.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.needDonorSperm'));
           return false;
         }
         if (applicationData.haveEmbryos === null) {
-          Alert.alert('Required Field', 'Please indicate if you currently have embryos.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.haveEmbryos'));
           return false;
         }
         if (applicationData.haveEmbryos && !applicationData.numberOfEmbryos) {
-          Alert.alert('Required Field', 'Please enter number of embryos.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.numberOfEmbryos'));
           return false;
         }
         if (applicationData.haveEmbryos && applicationData.pgtATested === null) {
-          Alert.alert('Required Field', 'Please indicate if embryos are PGT-A tested.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.pgtATested'));
           return false;
         }
         if (applicationData.haveEmbryos && !applicationData.embryoDevelopmentDay) {
-          Alert.alert('Required Field', 'Please indicate development day of embryos.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.embryoDevelopmentDay'));
           return false;
         }
         if (applicationData.haveEmbryos && !applicationData.frozenAtClinic) {
-          Alert.alert('Required Field', 'Please enter clinic where embryos are frozen.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.frozenAtClinic'));
           return false;
         }
         if (applicationData.haveEmbryos && !applicationData.clinicEmail) {
-          Alert.alert('Required Field', 'Please enter clinic email contact.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.clinicEmail'));
           return false;
         }
         if (!applicationData.fertilityDoctorName) {
-          Alert.alert('Required Field', 'Please enter fertility doctor name.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.fertilityDoctorName'));
           return false;
         }
         if (!applicationData.hivHepatitisSTD) {
-          Alert.alert('Required Field', 'Please indicate HIV, Hepatitis, or STD status.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.hivHepatitisSTD'));
           return false;
         }
         break;
       case 5:
         if (!applicationData.preferredSurrogateAgeRange) {
-          Alert.alert('Required Field', 'Please enter preferred surrogate age range.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferredSurrogateAgeRange'));
           return false;
         }
         if (!applicationData.surrogateLocationPreference) {
-          Alert.alert('Required Field', 'Please select surrogate location preference.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.surrogateLocationPreference'));
           return false;
         }
         if (applicationData.surrogateLocationPreference === 'specific_states' && !applicationData.specificStates) {
-          Alert.alert('Required Field', 'Please list which states.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.specificStates'));
           return false;
         }
         if (applicationData.acceptPreviousCSections === null) {
-          Alert.alert('Required Field', 'Please indicate if you accept a surrogate with previous C-sections.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.acceptPreviousCSections'));
           return false;
         }
         if (applicationData.preferNoWorkDuringPregnancy === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate who does not work during pregnancy.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferNoWorkDuringPregnancy'));
           return false;
         }
         if (applicationData.preferStableHome === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate with stable home environment.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferStableHome'));
           return false;
         }
         if (applicationData.preferFlexibleSchedule === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer a surrogate with flexible schedule.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferFlexibleSchedule'));
           return false;
         }
         if (applicationData.haveDietPreference === null) {
-          Alert.alert('Required Field', 'Please indicate if you have diet preference during pregnancy.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.haveDietPreference'));
           return false;
         }
         if (applicationData.haveDietPreference && !applicationData.dietPreference) {
-          Alert.alert('Required Field', 'Please enter your diet preference.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.dietPreference'));
           return false;
         }
         if (!applicationData.communicationPreference || applicationData.communicationPreference.length === 0) {
-          Alert.alert('Required Field', 'Please select at least one communication preference.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.communicationPreference'));
           return false;
         }
         if (!applicationData.relationshipStyle || applicationData.relationshipStyle.length === 0) {
-          Alert.alert('Required Field', 'Please select at least one relationship style.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.relationshipStyle'));
           return false;
         }
         if (applicationData.preferOBGYNGuidelines === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to follow specific OB/GYN guidelines.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferOBGYNGuidelines'));
           return false;
         }
         break;
       case 6:
         if (applicationData.preferAvoidHeavyLifting === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to avoid heavy lifting.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferAvoidHeavyLifting'));
           return false;
         }
         if (applicationData.preferAvoidTravel === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate to avoid travel during pregnancy.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferAvoidTravel'));
           return false;
         }
         if (applicationData.comfortableLocalHospital === null) {
-          Alert.alert('Required Field', 'Please indicate if you are comfortable with surrogate delivering in her local hospital.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.comfortableLocalHospital'));
           return false;
         }
         if (applicationData.preferOpenToSelectiveReduction === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is open to selective reduction.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferOpenToSelectiveReduction'));
           return false;
         }
         if (applicationData.preferOpenToTerminationMedical === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is open to termination for medical reasons.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferOpenToTerminationMedical'));
           return false;
         }
         if (!applicationData.preferPreviousSurrogacyExperience) {
-          Alert.alert('Required Field', 'Please indicate preference for surrogate with previous surrogacy experience.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferPreviousSurrogacyExperience'));
           return false;
         }
         if (applicationData.preferStrongSupportSystem === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate with strong support system.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferStrongSupportSystem'));
           return false;
         }
         if (!applicationData.preferMarried) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate who is married.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferMarried'));
           return false;
         }
         if (applicationData.preferStableIncome === null) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate with stable income.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferStableIncome'));
           return false;
         }
         if (!applicationData.preferComfortableWithAppointments) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents attending appointments.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferComfortableWithAppointments'));
           return false;
         }
         if (!applicationData.preferComfortableWithBirth) {
-          Alert.alert('Required Field', 'Please indicate if you prefer surrogate comfortable with intended parents being present at birth.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preferComfortableWithBirth'));
           return false;
         }
         break;
       case 7:
         // Step 7 validation (General Questions - previously Step 8)
         if (applicationData.transferMoreThanOneEmbryo === null) {
-          Alert.alert('Required Field', 'Please indicate if you will transfer more than one embryo.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.transferMoreThanOneEmbryo'));
           return false;
         }
         if (!applicationData.attorneyName) {
-          Alert.alert('Required Field', 'Please enter attorney name.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.attorneyName'));
           return false;
         }
         if (!applicationData.attorneyEmail) {
-          Alert.alert('Required Field', 'Please enter attorney email.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.attorneyEmail'));
           return false;
         }
         if (applicationData.haveTranslator === null) {
-          Alert.alert('Required Field', 'Please indicate if you have a translator.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.haveTranslator'));
           return false;
         }
         if (applicationData.haveTranslator && !applicationData.translatorName) {
-          Alert.alert('Required Field', 'Please enter translator name.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.translatorName'));
           return false;
         }
         if (applicationData.haveTranslator && !applicationData.translatorEmail) {
-          Alert.alert('Required Field', 'Please enter translator email.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.translatorEmail'));
           return false;
         }
         if (applicationData.preparedForFailedTransfer === null) {
-          Alert.alert('Required Field', 'Please indicate if you are prepared for the possibility of a failed embryo transfer.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.preparedForFailedTransfer'));
           return false;
         }
         if (applicationData.willingMultipleCycles === null) {
-          Alert.alert('Required Field', 'Please indicate if you are willing to attempt multiple cycles if needed.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.willingMultipleCycles'));
           return false;
         }
         if (applicationData.emotionallyPrepared === null) {
-          Alert.alert('Required Field', 'Please indicate if you are emotionally prepared for the full surrogacy journey.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.emotionallyPrepared'));
           return false;
         }
         if (applicationData.ableToHandleDelays === null) {
-          Alert.alert('Required Field', 'Please indicate if you are able to handle potential delays or medical risks.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.ableToHandleDelays'));
           return false;
         }
         break;
       case 8:
         // Step 8 validation (Letter to Surrogate - previously Step 9)
         if (!applicationData.letterToSurrogate || applicationData.letterToSurrogate.trim() === '') {
-          Alert.alert('Required Field', 'Please write a letter to the surrogate.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.letterToSurrogate'));
           return false;
         }
         if (!applicationData.photos || !Array.isArray(applicationData.photos) || applicationData.photos.length === 0) {
-          Alert.alert('Required Field', 'Please upload at least one intended parent photo.');
+          Alert.alert(t('common.requiredField'), t('parentApplication.uploadParentPhoto'));
           return false;
         }
         break;
@@ -1410,11 +1465,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         };
 
         Alert.alert(
-          'Success',
-          'Application submitted successfully! Our team will review and contact you within 5-7 business days.',
+          tf('Success'),
+          tf('Application submitted successfully! Our team will review and contact you within 5-7 business days.'),
           [
             {
-              text: 'OK',
+              text: tf('OK'),
               onPress: () => {
                 navigateBack();
               },
@@ -1440,13 +1495,13 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     <View style={styles.navigationContainer}>
       {currentStep > 1 && (
         <TouchableOpacity style={styles.navButton} onPress={prevStep}>
-          <Text style={styles.navButtonText}>Previous</Text>
+          <Text style={styles.navButtonText}>{tf("Previous")}</Text>
         </TouchableOpacity>
       )}
       <View style={styles.navButtonSpacer} />
       {currentStep < totalSteps ? (
         <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
-          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>Next</Text>
+          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>{tf("Next")}</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -1455,7 +1510,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           disabled={isLoading}
         >
           <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
-            {isLoading ? 'Submitting...' : 'Submit'}
+            {isLoading ? tf("Submitting...") : tf("Submit")}
           </Text>
         </TouchableOpacity>
       )}
@@ -1519,8 +1574,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         showsVerticalScrollIndicator={true}
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Family Structure</Text>
-        <Text style={styles.label}>What is your family structure? *</Text>
+        <Text style={styles.sectionTitle}>{tf("Family Structure")}</Text>
+        <Text style={styles.label}>{tf("What is your family structure? *")}</Text>
         {['married', 'domestic_partners', 'same_sex_couple', 'single_father', 'single_mother'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -1531,19 +1586,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('familyStructure', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'married' && 'Married Heterosexual couple'}
-              {option === 'domestic_partners' && 'Domestic partners (unmarried couple living together)'}
-              {option === 'same_sex_couple' && 'Same-sex couple'}
-              {option === 'single_father' && 'Single Father'}
-              {option === 'single_mother' && 'Single Mother'}
+              {option === 'married' && tf("Married Heterosexual couple")}
+              {option === 'domestic_partners' && tf("Domestic partners (unmarried couple living together)")}
+              {option === 'same_sex_couple' && tf("Same-sex couple")}
+              {option === 'single_father' && tf("Single Father")}
+              {option === 'single_mother' && tf("Single Mother")}
             </Text>
             {applicationData.familyStructure === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.sectionTitle}>Basic Information</Text>
+        <Text style={styles.sectionTitle}>{tf("Basic Information")}</Text>
         
-        <Text style={styles.label}>How did you hear about us? *</Text>
+        <Text style={styles.label}>{tf("How did you hear about us? *")}</Text>
         {['google_search', 'youtube', 'online_resources', 'facebook', 'friend', 'other_agency', 'ai', 'clinic_referral'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -1554,61 +1609,61 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('hearAboutUs', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'google_search' && 'Google Search'}
-              {option === 'youtube' && 'Youtube'}
-              {option === 'online_resources' && 'Online resources, etc'}
-              {option === 'facebook' && 'Facebook, X'}
-              {option === 'friend' && 'Friend'}
-              {option === 'other_agency' && 'Other Agency'}
-              {option === 'ai' && 'AI'}
-              {option === 'clinic_referral' && 'Clinic Referral'}
+              {option === 'google_search' && tf("Google Search")}
+              {option === 'youtube' && tf("Youtube")}
+              {option === 'online_resources' && tf("Online resources, etc")}
+              {option === 'facebook' && tf("Facebook, X")}
+              {option === 'friend' && tf("Friend")}
+              {option === 'other_agency' && tf("Other Agency")}
+              {option === 'ai' && tf("AI")}
+              {option === 'clinic_referral' && tf("Clinic Referral")}
             </Text>
             {applicationData.hearAboutUs === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.sectionTitle}>Intended Parent 1 Name *</Text>
+        <Text style={styles.sectionTitle}>{tf("Intended Parent 1 Name *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 8 }]}
-            placeholder="First Name"
+            placeholder={tf("First Name")}
             value={applicationData.parent1FirstName}
             onChangeText={(text) => updateField('parent1FirstName', text)}
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 8 }]}
-            placeholder="Last Name"
+            placeholder={tf("Last Name")}
             value={applicationData.parent1LastName}
             onChangeText={(text) => updateField('parent1LastName', text)}
           />
         </View>
 
-        <Text style={styles.label}>Date of Birth *</Text>
+        <Text style={styles.label}>{tf("Date of Birth *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder="Month"
+            placeholder={tf("Month")}
             value={applicationData.parent1DateOfBirthMonth}
             onChangeText={(text) => updateField('parent1DateOfBirthMonth', text)}
             keyboardType="numeric"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder="Day"
+            placeholder={tf("Day")}
             value={applicationData.parent1DateOfBirthDay}
             onChangeText={(text) => updateField('parent1DateOfBirthDay', text)}
             keyboardType="numeric"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder="Year"
+            placeholder={tf("Year")}
             value={applicationData.parent1DateOfBirthYear}
             onChangeText={(text) => updateField('parent1DateOfBirthYear', text)}
             keyboardType="numeric"
           />
         </View>
 
-        <Text style={styles.label}>Gender *</Text>
+        <Text style={styles.label}>{tf("Gender *")}</Text>
         {['male', 'female'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -1618,101 +1673,101 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('parent1Gender', option)}
           >
-            <Text style={styles.radioText}>{option === 'male' ? 'Male' : 'Female'}</Text>
+            <Text style={styles.radioText}>{option === 'male' ? tf("Male") : tf("Female")}</Text>
             {applicationData.parent1Gender === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Blood Type *</Text>
+        <Text style={styles.label}>{tf("Blood Type *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.bloodType = ref; }}
           style={styles.input}
-          placeholder="Enter blood type"
+          placeholder={tf("Enter blood type")}
           value={applicationData.parent1BloodType}
           onChangeText={(text) => updateField('parent1BloodType', text)}
           onFocus={handleInputFocus('bloodType')}
         />
 
-        <Text style={styles.label}>Race/Ethnic Background *</Text>
+        <Text style={styles.label}>{tf("Race/Ethnic Background *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.race = ref; }}
           style={styles.input}
-          placeholder="Enter race/ethnic background"
+          placeholder={tf("Enter race/ethnic background")}
           value={applicationData.parent1Race}
           onChangeText={(text) => updateField('parent1Race', text)}
           onFocus={handleInputFocus('race')}
         />
 
-        <Text style={styles.label}>Citizenship *</Text>
+        <Text style={styles.label}>{tf("Citizenship *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.citizenship = ref; }}
           style={styles.input}
-          placeholder="Enter citizenship"
+          placeholder={tf("Enter citizenship")}
           value={applicationData.parent1Citizenship}
           onChangeText={(text) => updateField('parent1Citizenship', text)}
           onFocus={handleInputFocus('citizenship')}
         />
 
-        <Text style={styles.label}>Country/State of Residence *</Text>
+        <Text style={styles.label}>{tf("Country/State of Residence *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.countryState = ref; }}
           style={styles.input}
-          placeholder="Enter country/state"
+          placeholder={tf("Enter country/state")}
           value={applicationData.parent1CountryState}
           onChangeText={(text) => updateField('parent1CountryState', text)}
           onFocus={handleInputFocus('countryState')}
         />
 
-        <Text style={styles.label}>Occupation: *</Text>
+        <Text style={styles.label}>{tf("Occupation: *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.occupation = ref; }}
           style={styles.input}
-          placeholder="Enter occupation"
+          placeholder={tf("Enter occupation")}
           value={applicationData.parent1Occupation}
           onChangeText={(text) => updateField('parent1Occupation', text)}
           onFocus={handleInputFocus('occupation')}
         />
 
-        <Text style={styles.label}>What languages do you speak? *</Text>
+        <Text style={styles.label}>{tf("What languages do you speak? *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.languages = ref; }}
           style={styles.input}
-          placeholder="Enter languages"
+          placeholder={tf("Enter languages")}
           value={applicationData.parent1Languages}
           onChangeText={(text) => updateField('parent1Languages', text)}
           onFocus={handleInputFocus('languages')}
         />
 
-        <Text style={styles.label}>Phone Number *</Text>
+        <Text style={styles.label}>{tf("Phone Number *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder="Country Code"
+            placeholder={tf("Country Code")}
             value={applicationData.parent1PhoneCountryCode}
             onChangeText={(text) => updateField('parent1PhoneCountryCode', text)}
             keyboardType="phone-pad"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder="Area Code"
+            placeholder={tf("Area Code")}
             value={applicationData.parent1PhoneAreaCode}
             onChangeText={(text) => updateField('parent1PhoneAreaCode', text)}
             keyboardType="phone-pad"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder="Phone Number"
+            placeholder={tf("Phone Number")}
             value={applicationData.parent1PhoneNumber}
             onChangeText={(text) => updateField('parent1PhoneNumber', text)}
             keyboardType="phone-pad"
           />
         </View>
 
-        <Text style={styles.label}>Email *</Text>
+        <Text style={styles.label}>{tf("Email *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.email = ref; }}
           style={styles.input}
-          placeholder="Enter email address"
+          placeholder={tf("Enter email address")}
           value={applicationData.parent1Email}
           onChangeText={(text) => updateField('parent1Email', text)}
           keyboardType="email-address"
@@ -1720,46 +1775,46 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           onFocus={handleInputFocus('email')}
         />
 
-        <Text style={styles.label}>Person other than spouse to be notified in case of emergency: *</Text>
+        <Text style={styles.label}>{tf("Person other than spouse to be notified in case of emergency: *")}</Text>
         <TextInput
           ref={(ref) => { step1InputRefs.current.emergencyContact = ref; }}
           style={styles.input}
-          placeholder="Enter emergency contact name"
+          placeholder={tf("Enter emergency contact name")}
           value={applicationData.parent1EmergencyContact}
           onChangeText={(text) => updateField('parent1EmergencyContact', text)}
           onFocus={handleInputFocus('emergencyContact')}
         />
 
-        <Text style={styles.label}>Address *</Text>
+        <Text style={styles.label}>{tf("Address *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Street Address"
+          placeholder={tf("Street Address")}
           value={applicationData.parent1AddressStreet}
           onChangeText={(text) => updateField('parent1AddressStreet', text)}
         />
         <TextInput
           style={styles.input}
-          placeholder="Street Address Line 2"
+          placeholder={tf("Street Address Line 2")}
           value={applicationData.parent1AddressStreet2}
           onChangeText={(text) => updateField('parent1AddressStreet2', text)}
         />
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 8 }]}
-            placeholder="City"
+            placeholder={tf("City")}
             value={applicationData.parent1AddressCity}
             onChangeText={(text) => updateField('parent1AddressCity', text)}
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 8 }]}
-            placeholder="State / Province"
+            placeholder={tf("State / Province")}
             value={applicationData.parent1AddressState}
             onChangeText={(text) => updateField('parent1AddressState', text)}
           />
         </View>
         <TextInput
           style={styles.input}
-          placeholder="Postal / Zip Code"
+          placeholder={tf("Postal / Zip Code")}
           value={applicationData.parent1AddressZip}
           onChangeText={(text) => updateField('parent1AddressZip', text)}
         />
@@ -1778,7 +1833,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
-          <Text style={styles.infoText}>This step is not applicable for single parents.</Text>
+          <Text style={styles.infoText}>{tf("This step is not applicable for single parents.")}</Text>
           {renderNavigationButtons()}
         </ScrollView>
       );
@@ -1791,48 +1846,48 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Intended Parent 2 Name *</Text>
+        <Text style={styles.sectionTitle}>{tf("Intended Parent 2 Name *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 8 }]}
-            placeholder="First Name"
+            placeholder={tf("First Name")}
             value={applicationData.parent2FirstName}
             onChangeText={(text) => updateField('parent2FirstName', text)}
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 8 }]}
-            placeholder="Last Name"
+            placeholder={tf("Last Name")}
             value={applicationData.parent2LastName}
             onChangeText={(text) => updateField('parent2LastName', text)}
           />
         </View>
 
-        <Text style={styles.label}>Date of Birth *</Text>
+        <Text style={styles.label}>{tf("Date of Birth *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder="Month"
+            placeholder={tf("Month")}
             value={applicationData.parent2DateOfBirthMonth}
             onChangeText={(text) => updateField('parent2DateOfBirthMonth', text)}
             keyboardType="numeric"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder="Day"
+            placeholder={tf("Day")}
             value={applicationData.parent2DateOfBirthDay}
             onChangeText={(text) => updateField('parent2DateOfBirthDay', text)}
             keyboardType="numeric"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder="Year"
+            placeholder={tf("Year")}
             value={applicationData.parent2DateOfBirthYear}
             onChangeText={(text) => updateField('parent2DateOfBirthYear', text)}
             keyboardType="numeric"
           />
         </View>
 
-        <Text style={styles.label}>Gender *</Text>
+        <Text style={styles.label}>{tf("Gender *")}</Text>
         {['male', 'female'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -1842,88 +1897,88 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('parent2Gender', option)}
           >
-            <Text style={styles.radioText}>{option === 'male' ? 'Male' : 'Female'}</Text>
+            <Text style={styles.radioText}>{option === 'male' ? tf("Male") : tf("Female")}</Text>
             {applicationData.parent2Gender === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Blood Type *</Text>
+        <Text style={styles.label}>{tf("Blood Type *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter blood type"
+          placeholder={tf("Enter blood type")}
           value={applicationData.parent2BloodType}
           onChangeText={(text) => updateField('parent2BloodType', text)}
         />
 
-        <Text style={styles.label}>Race/Ethnic Background *</Text>
+        <Text style={styles.label}>{tf("Race/Ethnic Background *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter race/ethnic background"
+          placeholder={tf("Enter race/ethnic background")}
           value={applicationData.parent2Race}
           onChangeText={(text) => updateField('parent2Race', text)}
         />
 
-        <Text style={styles.label}>Citizenship *</Text>
+        <Text style={styles.label}>{tf("Citizenship *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter citizenship"
+          placeholder={tf("Enter citizenship")}
           value={applicationData.parent2Citizenship}
           onChangeText={(text) => updateField('parent2Citizenship', text)}
         />
 
-        <Text style={styles.label}>Country/State of Residence *</Text>
+        <Text style={styles.label}>{tf("Country/State of Residence *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter country/state"
+          placeholder={tf("Enter country/state")}
           value={applicationData.parent2CountryState}
           onChangeText={(text) => updateField('parent2CountryState', text)}
         />
 
-        <Text style={styles.label}>Occupation: *</Text>
+        <Text style={styles.label}>{tf("Occupation: *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter occupation"
+          placeholder={tf("Enter occupation")}
           value={applicationData.parent2Occupation}
           onChangeText={(text) => updateField('parent2Occupation', text)}
         />
 
-        <Text style={styles.label}>What languages do you speak? *</Text>
+        <Text style={styles.label}>{tf("What languages do you speak? *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter languages"
+          placeholder={tf("Enter languages")}
           value={applicationData.parent2Languages}
           onChangeText={(text) => updateField('parent2Languages', text)}
         />
 
-        <Text style={styles.label}>Phone Number *</Text>
+        <Text style={styles.label}>{tf("Phone Number *")}</Text>
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder="Country Code"
+            placeholder={tf("Country Code")}
             value={applicationData.parent2PhoneCountryCode}
             onChangeText={(text) => updateField('parent2PhoneCountryCode', text)}
             keyboardType="phone-pad"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder="Area Code"
+            placeholder={tf("Area Code")}
             value={applicationData.parent2PhoneAreaCode}
             onChangeText={(text) => updateField('parent2PhoneAreaCode', text)}
             keyboardType="phone-pad"
           />
           <TextInput
             style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder="Phone Number"
+            placeholder={tf("Phone Number")}
             value={applicationData.parent2PhoneNumber}
             onChangeText={(text) => updateField('parent2PhoneNumber', text)}
             keyboardType="phone-pad"
           />
         </View>
 
-        <Text style={styles.label}>Email *</Text>
+        <Text style={styles.label}>{tf("Email *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter email address"
+          placeholder={tf("Enter email address")}
           value={applicationData.parent2Email}
           onChangeText={(text) => updateField('parent2Email', text)}
           keyboardType="email-address"
@@ -1942,17 +1997,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Family Background</Text>
+        <Text style={styles.sectionTitle}>{tf("Family Background")}</Text>
         
-        <Text style={styles.label}>How long have you been together? *</Text>
+        <Text style={styles.label}>{tf("How long have you been together? *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter duration (e.g., 5 years)"
+          placeholder={tf("Enter duration (e.g., 5 years)")}
           value={applicationData.howLongTogether}
           onChangeText={(text) => updateField('howLongTogether', text)}
         />
 
-        <Text style={styles.label}>Do you have any children? *</Text>
+        <Text style={styles.label}>{tf("Do you have any children? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -1962,17 +2017,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('haveChildren', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.haveChildren === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
         {applicationData.haveChildren && (
           <>
-            <Text style={styles.label}>If yes, please list ages, gender and whether they were born via IVF, surrogacy, or natural birth. *</Text>
+            <Text style={styles.label}>{tf("If yes, please list ages, gender and whether they were born via IVF, surrogacy, or natural birth. *")}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Enter children details"
+              placeholder={tf("Enter children details")}
               value={applicationData.childrenDetails}
               onChangeText={(text) => updateField('childrenDetails', text)}
               multiline
@@ -1993,9 +2048,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Medical & Fertility History</Text>
+        <Text style={styles.sectionTitle}>{tf("Medical & Fertility History")}</Text>
         
-        <Text style={styles.label}>Reason for pursuing surrogacy *</Text>
+        <Text style={styles.label}>{tf("Reason for pursuing surrogacy *")}</Text>
         {['infertility_diagnosis', 'medical_condition', 'same_sex_couple', 'single_parent'].map((option) => {
           const isSelected = Array.isArray(applicationData.reasonForSurrogacy) && applicationData.reasonForSurrogacy.includes(option);
           return (
@@ -2017,17 +2072,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               }}
             >
               <Text style={styles.radioText}>
-                {option === 'infertility_diagnosis' && 'Infertility diagnosis'}
-                {option === 'medical_condition' && 'Medical condition'}
-                {option === 'same_sex_couple' && 'Same-sex couple'}
-                {option === 'single_parent' && 'Single parent'}
+                {option === 'infertility_diagnosis' && tf("Infertility diagnosis")}
+                {option === 'medical_condition' && tf("Medical condition")}
+                {option === 'same_sex_couple' && tf("Same-sex couple")}
+                {option === 'single_parent' && tf("Single parent")}
               </Text>
               {isSelected && <Text style={styles.radioCheck}>✓</Text>}
             </TouchableOpacity>
           );
         })}
 
-        <Text style={styles.label}>Have you undergone IVF to get pregnant by yourself before? *</Text>
+        <Text style={styles.label}>{tf("Have you undergone IVF to get pregnant by yourself before? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2037,12 +2092,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('undergoneIVF', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.undergoneIVF === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Do you need donor eggs? *</Text>
+        <Text style={styles.label}>{tf("Do you need donor eggs? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2052,12 +2107,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('needDonorEggs', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.needDonorEggs === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Do you need donor sperm? *</Text>
+        <Text style={styles.label}>{tf("Do you need donor sperm? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2067,12 +2122,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('needDonorSperm', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.needDonorSperm === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Do you currently have embryos? *</Text>
+        <Text style={styles.label}>{tf("Do you currently have embryos? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2082,23 +2137,23 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('haveEmbryos', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.haveEmbryos === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
         {applicationData.haveEmbryos && (
           <>
-            <Text style={styles.label}>Number of embryos *</Text>
+            <Text style={styles.label}>{tf("Number of embryos *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter number of embryos"
+              placeholder={tf("Enter number of embryos")}
               value={applicationData.numberOfEmbryos}
               onChangeText={(text) => updateField('numberOfEmbryos', text)}
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>PGT-A tested? *</Text>
+            <Text style={styles.label}>{tf("PGT-A tested? *")}</Text>
             {[true, false].map((option) => (
               <TouchableOpacity
                 key={String(option)}
@@ -2108,12 +2163,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                 ]}
                 onPress={() => updateField('pgtATested', option)}
               >
-                <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+                <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
                 {applicationData.pgtATested === option && <Text style={styles.radioCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
 
-            <Text style={styles.label}>Please indicate the development day of your embryos: *</Text>
+            <Text style={styles.label}>{tf("Please indicate the development day of your embryos: *")}</Text>
             {['day_3', 'day_5', 'day_6'].map((option) => (
               <TouchableOpacity
                 key={option}
@@ -2124,26 +2179,26 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                 onPress={() => updateField('embryoDevelopmentDay', option)}
               >
                 <Text style={styles.radioText}>
-                  {option === 'day_3' && 'Day 3'}
-                  {option === 'day_5' && 'Day 5 (blastocyst)'}
-                  {option === 'day_6' && 'Day 6 (blastocyst)'}
+                  {option === 'day_3' && tf("Day 3")}
+                  {option === 'day_5' && tf("Day 5 (blastocyst)")}
+                  {option === 'day_6' && tf("Day 6 (blastocyst)")}
                 </Text>
                 {applicationData.embryoDevelopmentDay === option && <Text style={styles.radioCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
 
-            <Text style={styles.label}>Frozen at which clinic? *</Text>
+            <Text style={styles.label}>{tf("Frozen at which clinic? *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter clinic name"
+              placeholder={tf("Enter clinic name")}
               value={applicationData.frozenAtClinic}
               onChangeText={(text) => updateField('frozenAtClinic', text)}
             />
 
-            <Text style={styles.label}>Please list an email contact for your fertility clinic. *</Text>
+            <Text style={styles.label}>{tf("Please list an email contact for your fertility clinic. *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter clinic email"
+              placeholder={tf("Enter clinic email")}
               value={applicationData.clinicEmail}
               onChangeText={(text) => updateField('clinicEmail', text)}
               keyboardType="email-address"
@@ -2152,18 +2207,18 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </>
         )}
 
-        <Text style={styles.label}>What is the name of the fertility doctor you are working with? *</Text>
+        <Text style={styles.label}>{tf("What is the name of the fertility doctor you are working with? *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter doctor name"
+          placeholder={tf("Enter doctor name")}
           value={applicationData.fertilityDoctorName}
           onChangeText={(text) => updateField('fertilityDoctorName', text)}
         />
 
-        <Text style={styles.label}>Are you or have you ever been positive for any of the following things? If yes please list what specifically. HIV, Hepatitis A,B,or C or any STDs *</Text>
+        <Text style={styles.label}>{tf("Are you or have you ever been positive for any of the following things? If yes please list what specifically. HIV, Hepatitis A,B,or C or any STDs *")}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Enter details if applicable"
+          placeholder={tf("Enter details if applicable")}
           value={applicationData.hivHepatitisSTD}
           onChangeText={(text) => updateField('hivHepatitisSTD', text)}
           multiline
@@ -2182,17 +2237,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Surrogate Preferences</Text>
+        <Text style={styles.sectionTitle}>{tf("Surrogate Preferences")}</Text>
         
-        <Text style={styles.label}>What is your preferred surrogate age range? *</Text>
+        <Text style={styles.label}>{tf("What is your preferred surrogate age range? *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter age range (e.g., 25-35)"
+          placeholder={tf("Enter age range (e.g., 25-35)")}
           value={applicationData.preferredSurrogateAgeRange}
           onChangeText={(text) => updateField('preferredSurrogateAgeRange', text)}
         />
 
-        <Text style={styles.label}>Surrogate location preference *</Text>
+        <Text style={styles.label}>{tf("Surrogate location preference *")}</Text>
         {['california', 'nationwide', 'specific_states', 'no_preference'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -2203,10 +2258,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('surrogateLocationPreference', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'california' && 'California'}
-              {option === 'nationwide' && 'Nationwide'}
-              {option === 'specific_states' && 'Specific states'}
-              {option === 'no_preference' && 'No preference'}
+              {option === 'california' && tf("California")}
+              {option === 'nationwide' && tf("Nationwide")}
+              {option === 'specific_states' && tf("Specific states")}
+              {option === 'no_preference' && tf("No preference")}
             </Text>
             {applicationData.surrogateLocationPreference === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
@@ -2214,17 +2269,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         {applicationData.surrogateLocationPreference === 'specific_states' && (
           <>
-            <Text style={styles.label}>Please list which state *</Text>
+            <Text style={styles.label}>{tf("Please list which state *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter state name(s)"
+              placeholder={tf("Enter state name(s)")}
               value={applicationData.specificStates}
               onChangeText={(text) => updateField('specificStates', text)}
             />
           </>
         )}
 
-        <Text style={styles.label}>Accept a surrogate with previous C-sections? *</Text>
+        <Text style={styles.label}>{tf("Accept a surrogate with previous C-sections? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2234,12 +2289,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('acceptPreviousCSections', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.acceptPreviousCSections === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer a surrogate who does not work during pregnancy? *</Text>
+        <Text style={styles.label}>{tf("Prefer a surrogate who does not work during pregnancy? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2249,12 +2304,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferNoWorkDuringPregnancy', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferNoWorkDuringPregnancy === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate with stable home environment? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate with stable home environment? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2264,12 +2319,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferStableHome', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferStableHome === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate with flexible schedule? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate with flexible schedule? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2279,12 +2334,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferFlexibleSchedule', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferFlexibleSchedule === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Do you have diet preference during pregnancy? *</Text>
+        <Text style={styles.label}>{tf("Do you have diet preference during pregnancy? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2294,24 +2349,24 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('haveDietPreference', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.haveDietPreference === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
         {applicationData.haveDietPreference && (
           <>
-            <Text style={styles.label}>If yes, what is your preference *</Text>
+            <Text style={styles.label}>{tf("If yes, what is your preference *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter diet preference"
+              placeholder={tf("Enter diet preference")}
               value={applicationData.dietPreference}
               onChangeText={(text) => updateField('dietPreference', text)}
             />
           </>
         )}
 
-        <Text style={styles.label}>Communication Preferences *</Text>
+        <Text style={styles.label}>{tf("Communication Preferences *")}</Text>
         {['weekly_updates', 'monthly_updates', 'major_medical_only', 'prefer_text', 'prefer_video', 'no_preference'].map((option) => {
           const isSelected = Array.isArray(applicationData.communicationPreference) && applicationData.communicationPreference.includes(option);
           return (
@@ -2333,19 +2388,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               }}
             >
               <Text style={styles.radioText}>
-                {option === 'weekly_updates' && 'Weekly updates'}
-                {option === 'monthly_updates' && 'Monthly updates'}
-                {option === 'major_medical_only' && 'Only major medical updates'}
-                {option === 'prefer_text' && 'Prefer text messages'}
-                {option === 'prefer_video' && 'Prefer video calls'}
-                {option === 'no_preference' && 'No preference'}
+                {option === 'weekly_updates' && tf("Weekly updates")}
+                {option === 'monthly_updates' && tf("Monthly updates")}
+                {option === 'major_medical_only' && tf("Only major medical updates")}
+                {option === 'prefer_text' && tf("Prefer text messages")}
+                {option === 'prefer_video' && tf("Prefer video calls")}
+                {option === 'no_preference' && tf("No preference")}
               </Text>
               {isSelected && <Text style={styles.radioCheck}>✓</Text>}
             </TouchableOpacity>
           );
         })}
 
-        <Text style={styles.label}>Relationship Style With Surrogate *</Text>
+        <Text style={styles.label}>{tf("Relationship Style With Surrogate *")}</Text>
         {['close_relationship', 'moderate_relationship', 'minimal_contact', 'no_preference'].map((option) => {
           const isSelected = Array.isArray(applicationData.relationshipStyle) && applicationData.relationshipStyle.includes(option);
           return (
@@ -2367,17 +2422,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               }}
             >
               <Text style={styles.radioText}>
-                {option === 'close_relationship' && 'Close relationship (frequent communication)'}
-                {option === 'moderate_relationship' && 'Moderate relationship (regular updates)'}
-                {option === 'minimal_contact' && 'Prefer minimal contact'}
-                {option === 'no_preference' && 'No preference'}
+                {option === 'close_relationship' && tf("Close relationship (frequent communication)")}
+                {option === 'moderate_relationship' && tf("Moderate relationship (regular updates)")}
+                {option === 'minimal_contact' && tf("Prefer minimal contact")}
+                {option === 'no_preference' && tf("No preference")}
               </Text>
               {isSelected && <Text style={styles.radioCheck}>✓</Text>}
             </TouchableOpacity>
           );
         })}
 
-        <Text style={styles.label}>Prefer surrogate to follow specific OB/GYN guidelines? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate to follow specific OB/GYN guidelines? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2387,7 +2442,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferOBGYNGuidelines', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferOBGYNGuidelines === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
@@ -2404,9 +2459,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Surrogate Preferences (Continued)</Text>
+        <Text style={styles.sectionTitle}>{tf("Surrogate Preferences (Continued)")}</Text>
         
-        <Text style={styles.label}>Prefer surrogate to avoid heavy lifting? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate to avoid heavy lifting? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2416,12 +2471,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferAvoidHeavyLifting', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferAvoidHeavyLifting === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate to avoid travel during pregnancy? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate to avoid travel during pregnancy? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2431,12 +2486,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferAvoidTravel', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferAvoidTravel === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Comfortable with surrogate delivering in her local hospital? *</Text>
+        <Text style={styles.label}>{tf("Comfortable with surrogate delivering in her local hospital? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2446,12 +2501,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('comfortableLocalHospital', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.comfortableLocalHospital === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is open to selective reduction? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate who is open to selective reduction? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2461,12 +2516,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferOpenToSelectiveReduction', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferOpenToSelectiveReduction === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate with previous surrogacy experience? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate with previous surrogacy experience? *")}</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -2477,15 +2532,15 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('preferPreviousSurrogacyExperience', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'yes' && 'Yes'}
-              {option === 'no' && 'No'}
-              {option === 'no_preference' && 'No preference'}
+              {option === 'yes' && tf("Yes")}
+              {option === 'no' && tf("No")}
+              {option === 'no_preference' && tf("No preference")}
             </Text>
             {applicationData.preferPreviousSurrogacyExperience === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate with strong support system? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate with strong support system? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2495,12 +2550,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferStrongSupportSystem', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferStrongSupportSystem === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is married? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate who is married? *")}</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -2511,15 +2566,15 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('preferMarried', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'yes' && 'Yes'}
-              {option === 'no' && 'No'}
-              {option === 'no_preference' && 'No preference'}
+              {option === 'yes' && tf("Yes")}
+              {option === 'no' && tf("No")}
+              {option === 'no_preference' && tf("No preference")}
             </Text>
             {applicationData.preferMarried === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate with stable income? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate with stable income? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2529,12 +2584,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferStableIncome', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferStableIncome === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is open to termination for medical reasons? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate who is open to termination for medical reasons? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2544,12 +2599,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preferOpenToTerminationMedical', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preferOpenToTerminationMedical === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is comfortable with intended parents attending appointments? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate who is comfortable with intended parents attending appointments? *")}</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -2560,15 +2615,15 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('preferComfortableWithAppointments', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'yes' && 'Yes'}
-              {option === 'no' && 'No'}
-              {option === 'no_preference' && 'No preference'}
+              {option === 'yes' && tf("Yes")}
+              {option === 'no' && tf("No")}
+              {option === 'no_preference' && tf("No preference")}
             </Text>
             {applicationData.preferComfortableWithAppointments === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Prefer surrogate who is comfortable with intended parents being present at birth? *</Text>
+        <Text style={styles.label}>{tf("Prefer surrogate who is comfortable with intended parents being present at birth? *")}</Text>
         {['yes', 'no', 'no_preference'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -2579,9 +2634,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             onPress={() => updateField('preferComfortableWithBirth', option)}
           >
             <Text style={styles.radioText}>
-              {option === 'yes' && 'Yes'}
-              {option === 'no' && 'No'}
-              {option === 'no_preference' && 'No preference'}
+              {option === 'yes' && tf("Yes")}
+              {option === 'no' && tf("No")}
+              {option === 'no_preference' && tf("No preference")}
             </Text>
             {applicationData.preferComfortableWithBirth === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
@@ -2599,9 +2654,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>General Questions</Text>
+        <Text style={styles.sectionTitle}>{tf("General Questions")}</Text>
         
-        <Text style={styles.label}>Will you transfer more than one embryo? *</Text>
+        <Text style={styles.label}>{tf("Will you transfer more than one embryo? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2611,30 +2666,30 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('transferMoreThanOneEmbryo', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.transferMoreThanOneEmbryo === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Please list the attorney you are working with *</Text>
+        <Text style={styles.label}>{tf("Please list the attorney you are working with *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter attorney name"
+          placeholder={tf("Enter attorney name")}
           value={applicationData.attorneyName}
           onChangeText={(text) => updateField('attorneyName', text)}
         />
 
-        <Text style={styles.label}>Please list the Attorney's Email address below. *</Text>
+        <Text style={styles.label}>{tf("Please list the Attorney's Email address below. *")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter attorney email"
+          placeholder={tf("Enter attorney email")}
           value={applicationData.attorneyEmail}
           onChangeText={(text) => updateField('attorneyEmail', text)}
           keyboardType="email-address"
           autoCapitalize="none"
         />
 
-        <Text style={styles.label}>Do you have a translator? *</Text>
+        <Text style={styles.label}>{tf("Do you have a translator? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2644,25 +2699,25 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('haveTranslator', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.haveTranslator === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
         {applicationData.haveTranslator && (
           <>
-            <Text style={styles.label}>Please list the name of your translator *</Text>
+            <Text style={styles.label}>{tf("Please list the name of your translator *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter translator name"
+              placeholder={tf("Enter translator name")}
               value={applicationData.translatorName}
               onChangeText={(text) => updateField('translatorName', text)}
             />
 
-            <Text style={styles.label}>Please provide translator email *</Text>
+            <Text style={styles.label}>{tf("Please provide translator email *")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter translator email"
+              placeholder={tf("Enter translator email")}
               value={applicationData.translatorEmail}
               onChangeText={(text) => updateField('translatorEmail', text)}
               keyboardType="email-address"
@@ -2671,7 +2726,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           </>
         )}
 
-        <Text style={styles.label}>Are you prepared for the possibility of a failed embryo transfer? *</Text>
+        <Text style={styles.label}>{tf("Are you prepared for the possibility of a failed embryo transfer? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2681,12 +2736,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('preparedForFailedTransfer', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.preparedForFailedTransfer === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Are you willing to attempt multiple cycles if needed? *</Text>
+        <Text style={styles.label}>{tf("Are you willing to attempt multiple cycles if needed? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2696,12 +2751,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('willingMultipleCycles', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.willingMultipleCycles === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Are you emotionally prepared for the full surrogacy journey? *</Text>
+        <Text style={styles.label}>{tf("Are you emotionally prepared for the full surrogacy journey? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2711,12 +2766,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('emotionallyPrepared', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.emotionallyPrepared === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.label}>Are you able to handle potential delays or medical risks? *</Text>
+        <Text style={styles.label}>{tf("Are you able to handle potential delays or medical risks? *")}</Text>
         {[true, false].map((option) => (
           <TouchableOpacity
             key={String(option)}
@@ -2726,7 +2781,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             ]}
             onPress={() => updateField('ableToHandleDelays', option)}
           >
-            <Text style={styles.radioText}>{option ? 'YES' : 'NO'}</Text>
+            <Text style={styles.radioText}>{option ? tf("YES") : tf("NO")}</Text>
             {applicationData.ableToHandleDelays === option && <Text style={styles.radioCheck}>✓</Text>}
           </TouchableOpacity>
         ))}
@@ -2743,12 +2798,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <Text style={styles.sectionTitle}>Letter to Surrogate</Text>
+        <Text style={styles.sectionTitle}>{tf("Letter to Surrogate")}</Text>
         
-        <Text style={styles.label}>Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *</Text>
+        <Text style={styles.label}>{tf("Please take this opportunity to write a letter to the surrogate who will be reviewing your profile *")}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Write your letter here"
+          placeholder={tf("Write your letter here")}
           value={applicationData.letterToSurrogate}
           onChangeText={(text) => updateField('letterToSurrogate', text)}
           multiline
@@ -2756,7 +2811,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         />
 
         {/* Intended Parent Photos Upload (4 photos) */}
-        <Text style={[styles.label, { marginTop: 30 }]}>Intended Parent Photos (up to 4) *</Text>
+        <Text style={[styles.label, { marginTop: 30 }]}>{tf("Intended Parent Photos (up to 4) *")}</Text>
         <View style={styles.photosContainer}>
           {[0, 1, 2, 3].map((index) => {
             const photo = photos[index];
@@ -2774,30 +2829,30 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                       }}
                     />
                     {photo?.uploading || uploadingPhotoIndex === index ? (
-                      <View style={styles.uploadingOverlay}>
+                      <View style={styles.uploadingOverlay} pointerEvents="box-none">
                         <ActivityIndicator size="small" color="#fff" />
-                        <Text style={styles.uploadingText}>Uploading...</Text>
+                        <Text style={styles.uploadingText}>{tf("Uploading...")}</Text>
+                        <Text style={styles.uploadingCancelHint}>{tf("Tap × to cancel")}</Text>
                       </View>
                     ) : (
-                      <>
-                        <View style={styles.photoInfo}>
-                          <Text style={styles.photoFileName} numberOfLines={1}>
-                            {photo?.fileName || `Photo_${index + 1}.jpg`}
+                      <View style={styles.photoInfo}>
+                        <Text style={styles.photoFileName} numberOfLines={1}>
+                          {photo?.fileName || `Photo_${index + 1}.jpg`}
+                        </Text>
+                        {photo?.fileSize && (
+                          <Text style={styles.photoFileSize}>
+                            {formatFileSize(photo.fileSize)}
                           </Text>
-                          {photo?.fileSize && (
-                            <Text style={styles.photoFileSize}>
-                              {formatFileSize(photo.fileSize)}
-                            </Text>
-                          )}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.removePhotoButton}
-                          onPress={() => removePhoto(index)}
-                        >
-                          <Icon name="x" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </>
+                        )}
+                      </View>
                     )}
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto(index)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Icon name="x" size={16} color="#fff" />
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -2810,7 +2865,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                     ) : (
                       <>
                         <Icon name="camera" size={24} color="#2A7BF6" />
-                        <Text style={styles.photoUploadSlotText}>Upload</Text>
+                        <Text style={styles.photoUploadSlotText}>{tf("Upload")}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -2841,10 +2896,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
             activeOpacity={0.7}
           >
             <Icon name="arrow-left" size={16} color="#2A7BF6" />
-            <Text style={styles.backButtonText}>Back to Home</Text>
+            <Text style={styles.backButtonText}>{tf("Back to Home")}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Intended Parent Application</Text>
-          <Text style={styles.headerSubtitle}>Tell us about yourself</Text>
+          <Text style={styles.headerTitle}>{tf("Intended Parent Application")}</Text>
+          <Text style={styles.headerSubtitle}>{tf("Tell us about yourself")}</Text>
         </View>
 
         {/* Progress Bar */}
@@ -2852,7 +2907,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${(currentStep / totalSteps) * 100}%` }]} />
           </View>
-          <Text style={styles.progressText}>Step {currentStep} of {totalSteps}</Text>
+          <Text style={styles.progressText}>{tf('Step')} {currentStep} {language === 'zh' ? ' / ' : ' of '} {totalSteps}</Text>
         </View>
 
         {/* Step Content (Next/Previous live inside each step ScrollView) */}
@@ -2862,13 +2917,13 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         {showAuthPrompt && (
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Sign Up Required</Text>
+              <Text style={styles.modalTitle}>{tf("Sign Up Required")}</Text>
               <Text style={styles.modalText}>
                 Please create an account to continue with your application.
               </Text>
               <TextInput
                 style={styles.modalInput}
-                placeholder="Email"
+                placeholder={tf("Email")}
                 value={authEmail}
                 onChangeText={setAuthEmail}
                 keyboardType="email-address"
@@ -2876,14 +2931,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
               />
               <TextInput
                 style={styles.modalInput}
-                placeholder="Password"
+                placeholder={tf("Password")}
                 value={authPassword}
                 onChangeText={setAuthPassword}
                 secureTextEntry
               />
               <TextInput
                 style={styles.modalInput}
-                placeholder="Confirm Password"
+                placeholder={tf("Confirm Password")}
                 value={authPasswordConfirm}
                 onChangeText={setAuthPasswordConfirm}
                 secureTextEntry
@@ -2893,7 +2948,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                   style={[styles.modalButton, styles.modalButtonCancel]}
                   onPress={handleAuthPromptCancel}
                 >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
+                  <Text style={styles.modalButtonText}>{tf("Cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
@@ -2901,7 +2956,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                   disabled={authLoading}
                 >
                   <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
-                    {authLoading ? 'Creating...' : 'Sign Up'}
+                    {authLoading ? tf("Creating...") : tf("Sign Up")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -3179,6 +3234,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  uploadingCancelHint: {
+    marginTop: 6,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+  },
   removePhotoButton: {
     position: 'absolute',
     top: 8,
@@ -3189,6 +3249,8 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 20,
+    elevation: 20,
   },
   changePhotoButton: {
     position: 'absolute',

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function LoginScreen({ navigation }) {
   const { login, isLoading, isAuthenticated, passwordRecoveryPending } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,28 +28,28 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert(t('common.error'), t('auth.enterEmailError'));
       return;
     }
     
     if (!validateEmail(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('auth.invalidEmailError'));
       return;
     }
     
     if (!password.trim()) {
-      Alert.alert('Error', 'Please enter your password');
+      Alert.alert(t('common.error'), t('auth.enterPasswordError'));
       return;
     }
 
     try {
       // 显示取消按钮和进度
       setShowCancelButton(true);
-      setLoginProgress('Connecting to server...');
+      setLoginProgress(t('auth.connectingServer'));
       
       // 5秒后显示取消按钮提示
       const cancelTimeout = setTimeout(() => {
-        setLoginProgress('This may take a while on slower connections...');
+        setLoginProgress(t('auth.slowConnectionHint'));
       }, 5000);
 
       const result = await login(email.trim(), password);
@@ -60,12 +62,12 @@ export default function LoginScreen({ navigation }) {
           // Optional: You might not need an alert here if the app auto-redirects on auth state change
           // But keeping it for feedback is fine
       } else {
-        Alert.alert('Login Failed', result.error);
+        Alert.alert(t('auth.loginFailed'), result.error);
       }
     } catch (error) {
       setShowCancelButton(false);
       setLoginProgress('');
-      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      Alert.alert(t('common.error'), t('auth.unexpectedError'));
       console.error('Login error:', error);
     }
   };
@@ -78,7 +80,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   const testConnection = async () => {
-    setLoginProgress('Testing connection...');
+    setLoginProgress(t('auth.testingConnection'));
     try {
       const startTime = Date.now();
       const response = await fetch('https://api.supabase.com/health', {
@@ -90,17 +92,17 @@ export default function LoginScreen({ navigation }) {
       
       if (response.ok) {
         Alert.alert(
-          'Connection Test Result', 
-          `✅ Connection successful!\nLatency: ${latency}ms\n\n${latency > 3000 ? 'Your connection seems slow. Try switching networks or moving closer to WiFi.' : 'Your connection looks good!'}`
+          t('auth.connectionTestResult'),
+          t('auth.connectionSuccess', {
+            latency,
+            hint: latency > 3000 ? t('auth.connectionSlowHint') : t('auth.connectionGoodHint'),
+          })
         );
       } else {
-        Alert.alert('Connection Test', '❌ Connection failed. Please check your internet connection.');
+        Alert.alert(t('auth.connectionTest'), t('auth.connectionFailed'));
       }
     } catch (error) {
-      Alert.alert(
-        'Connection Test', 
-        '❌ Cannot reach servers. Please check:\n• WiFi/mobile data is on\n• No firewall blocking\n• Try switching networks'
-      );
+      Alert.alert(t('auth.connectionTest'), t('auth.connectionUnreachable'));
     } finally {
       setLoginProgress('');
     }
@@ -124,18 +126,18 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to your surrogacy account</Text>
+          <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
+          <Text style={styles.subtitle}>{t('auth.signInSubtitle')}</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
+            <Text style={styles.label}>{t('auth.emailAddress')}</Text>
             <TextInput
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Enter your email address"
+              placeholder={t('auth.enterEmail')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -144,13 +146,13 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter your password"
+                placeholder={t('auth.enterPassword')}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -170,14 +172,14 @@ export default function LoginScreen({ navigation }) {
               style={styles.forgotPassword}
               onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
             >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.testConnectionButton}
               onPress={testConnection}
               disabled={isLoading}
             >
-              <Text style={styles.testConnectionText}>🔧 Test Connection</Text>
+              <Text style={styles.testConnectionText}>{t('auth.testConnection')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -186,7 +188,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.progressContainer}>
               <Text style={styles.progressText}>{loginProgress}</Text>
               <Text style={styles.progressSubtext}>
-                Please wait while we connect you...
+                {t('auth.pleaseWaitConnecting')}
               </Text>
             </View>
           ) : null}
@@ -197,7 +199,7 @@ export default function LoginScreen({ navigation }) {
             disabled={isLoading}
           >
             <Text style={styles.loginButtonText}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? t('auth.signingIn') : t('auth.signIn')}
             </Text>
           </TouchableOpacity>
 
@@ -208,26 +210,26 @@ export default function LoginScreen({ navigation }) {
               onPress={handleCancelLogin}
             >
               <Text style={styles.cancelButtonText}>
-                Cancel Login
+                {t('auth.cancelLogin')}
               </Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>{t('auth.or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <TouchableOpacity style={styles.registerButton} onPress={navigateToRegister}>
-            <Text style={styles.registerButtonText}>Don't have an account? Sign up</Text>
+            <Text style={styles.registerButtonText}>{t('auth.noAccountSignUp')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            By signing in, you agree to our{'\n'}
-            <Text style={styles.linkText}>Terms of Service</Text> and <Text style={styles.linkText}>Privacy Policy</Text>
+            {t('auth.termsPrefix')}{'\n'}
+            <Text style={styles.linkText}>{t('auth.termsOfService')}</Text> {t('auth.and')} <Text style={styles.linkText}>{t('auth.privacyPolicy')}</Text>
           </Text>
         </View>
       </ScrollView>

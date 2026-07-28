@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorageLib from '../utils/Storage';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { translate } from '../i18n/translations';
+import { getDeviceAppLanguage } from '../utils/deviceLanguage';
+import { resolveAppLanguage, saveManualLanguage } from '../utils/languagePreference';
 
 const LanguageContext = createContext();
 
@@ -12,32 +14,51 @@ export const useLanguage = () => {
   return context;
 };
 
-const LANGUAGE_STORAGE_KEY = 'app_language';
-
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState(() => getDeviceAppLanguage());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadLanguage();
+  const refreshLanguage = useCallback(async () => {
+    const resolvedLanguage = await resolveAppLanguage();
+    setLanguage(resolvedLanguage);
+    return resolvedLanguage;
   }, []);
 
-  const loadLanguage = async () => {
-    try {
-      const savedLanguage = await AsyncStorageLib.getItem(LANGUAGE_STORAGE_KEY);
-      if (savedLanguage) {
-        setLanguage(savedLanguage);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLanguage = async () => {
+      try {
+        const resolvedLanguage = await resolveAppLanguage();
+        if (isMounted) {
+          setLanguage(resolvedLanguage);
+        }
+      } catch (error) {
+        console.error('Error loading language:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Error loading language:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadLanguage();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshLanguage();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, [refreshLanguage]);
 
   const changeLanguage = async (newLanguage) => {
     try {
-      await AsyncStorageLib.setItem(LANGUAGE_STORAGE_KEY, newLanguage);
+      await saveManualLanguage(newLanguage);
       setLanguage(newLanguage);
     } catch (error) {
       console.error('Error saving language:', error);
@@ -54,24 +75,15 @@ export const LanguageProvider = ({ children }) => {
     return labels[lang] || lang;
   };
 
-  // Translation function
-  const t = (key, variables = {}) => {
-    return translate(key, language, variables);
-  };
+  const t = (key, variables = {}) => translate(key, language, variables);
 
   const value = {
     language,
     changeLanguage,
     getLanguageLabel,
-    t, // Translation function
+    t,
     loading,
   };
 
-  return (
-    <LanguageContext.Provider value={value}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 };
-
-
