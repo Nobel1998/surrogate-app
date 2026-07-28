@@ -62,7 +62,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const { data, error } = await runReviewsQueryWithRetry(() => query);
+    // PostgrestFilterBuilder is PromiseLike, not Promise — wrap so the retry helper type-checks.
+    const { data, error } = await runReviewsQueryWithRetry(async () => await query);
     if (error) {
             throw error;
     }
