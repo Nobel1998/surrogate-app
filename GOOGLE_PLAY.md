@@ -7,12 +7,14 @@ EAS 项目：https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa
 
 | 字段 | 值 |
 |------|-----|
-| 版本 | 1.7.7 (versionCode **11**) |
-| Build ID | `63002d29-bd9b-40d1-a62b-6026c9e42692` |
-| AAB 下载 | https://expo.dev/artifacts/eas/dx2cv8-oyazGuU8pwW6BhY2O2bnA0nyjxDR6K7g4lDg.aab |
-| Expo Builds 页 | https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa/builds/63002d29-bd9b-40d1-a62b-6026c9e42692 |
+| 版本 | 1.7.9 (versionCode **14**) |
+| Build ID | `7889a22b-69f0-4aef-989d-b2e0dc296dae` |
+| AAB 下载 | https://expo.dev/artifacts/eas/HeZxANftwoi7TB1tOicnFJR_5vybO2sExjXXiGMsbic.aab |
+| Expo Builds 页 | https://expo.dev/accounts/nobel1998/projects/surrogateagencyusa/builds/7889a22b-69f0-4aef-989d-b2e0dc296dae |
 
 重新构建：`npm run eas:build:android:production`
+
+> **上传到 Internal testing**：尚未配置 Google Service Account，请在 Play Console → Testing → Internal testing → Create new release，上传上述 AAB 替换旧包。Release name 可用 `1.7.9 (14)`。
 
 > **构建修复说明**：已移除未使用的 `react-native-push-notification` 依赖（会导致 Gradle 失败）。通知功能仍通过 `RealNotificationService` 模拟/本地 Alert 实现。
 

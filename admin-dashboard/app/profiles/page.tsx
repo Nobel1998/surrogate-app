@@ -45,6 +45,7 @@ export default function ProfilesPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [signupDetail, setSignupDetail] = useState<SignUpDetailResponse | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -98,6 +99,35 @@ export default function ProfilesPage() {
     setSignupDetail(null);
     setDetailError(null);
     setDetailLoading(false);
+  };
+
+  const deleteSignUpUser = async (user: RegisteredUser) => {
+    const label = user.name || user.email || user.id.substring(0, 8);
+    if (
+      !confirm(
+        `Delete sign-up user "${label}" permanently?\n\nThis removes their account and related data. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(user.id);
+    try {
+      const res = await fetch(`/api/profiles/${user.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+      if (selectedUser?.id === user.id) {
+        closeDetailModal();
+      }
+      await loadUsers();
+      alert('User deleted successfully.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete user';
+      alert(message);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -210,12 +240,22 @@ export default function ProfilesPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 font-mono">{user.id}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        <button
-                          onClick={() => openDetailModal(user)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          View Details
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => openDetailModal(user)}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingId === user.id}
+                            onClick={() => deleteSignUpUser(user)}
+                            className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                          >
+                            {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -257,6 +297,24 @@ export default function ProfilesPage() {
                     <div className="md:col-span-2 text-xs text-gray-500 font-mono"><span className="font-semibold text-gray-600">User ID:</span> {selectedUser.id}</div>
                   </div>
                 )}
+              </div>
+
+              <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={closeDetailModal}
+                  className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingId === selectedUser.id}
+                  onClick={() => deleteSignUpUser(selectedUser)}
+                  className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deletingId === selectedUser.id ? 'Deleting...' : 'Delete User'}
+                </button>
               </div>
             </div>
           </div>

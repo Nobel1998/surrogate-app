@@ -1574,6 +1574,54 @@ export default function MatchesPage() {
     }
   };
 
+  const deleteSurrogateUser = async (surrogate: Profile) => {
+    const label = surrogate.name || surrogate.id.substring(0, 8);
+    if (
+      !confirm(
+        `Delete surrogate "${label}" permanently?\n\nThis removes their account, profile, and related data. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/profiles/${surrogate.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete surrogate');
+      }
+      await loadData();
+      alert('Surrogate deleted successfully.');
+    } catch (err: any) {
+      console.error('[matches] Error deleting surrogate:', err);
+      alert(err.message || 'Failed to delete surrogate');
+    }
+  };
+
+  const deleteMatch = async (match: Match) => {
+    const label = match.claim_id || match.id?.substring(0, 8) || 'this match';
+    if (
+      !confirm(
+        `Delete match "${label}" permanently?\n\nRelated case manager assignments and cascaded match data will be removed. The parent/surrogate accounts will NOT be deleted.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/matches/options?id=${encodeURIComponent(match.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete match');
+      }
+      await loadData();
+      alert('Match deleted successfully.');
+    } catch (err: any) {
+      console.error('[matches] Error deleting match:', err);
+      alert(err.message || 'Failed to delete match');
+    }
+  };
+
   const updateStage = async (surrogateId: string, newStage: string) => {
     try {
       const res = await fetch('/api/matches/options', {
@@ -2409,23 +2457,34 @@ export default function MatchesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => {
-                          const nextAvailable = !effectiveAvailable;
-                          if (nextAvailable && hasActiveMatch(s.id)) {
-                            alert('This surrogate is already matched. They cannot be set to Available.');
-                            return;
-                          }
-                          updateSurrogateAvailable(s.id, nextAvailable);
-                        }}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                          effectiveAvailable
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        {effectiveAvailable ? 'Set Unavailable' : 'Set Available'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const nextAvailable = !effectiveAvailable;
+                            if (nextAvailable && hasActiveMatch(s.id)) {
+                              alert('This surrogate is already matched. They cannot be set to Available.');
+                              return;
+                            }
+                            updateSurrogateAvailable(s.id, nextAvailable);
+                          }}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                            effectiveAvailable
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {effectiveAvailable ? 'Set Unavailable' : 'Set Available'}
+                        </button>
+                        {currentAdminRole === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => deleteSurrogateUser(s)}
+                            className="px-3 py-1 rounded-md text-xs font-medium bg-gray-100 text-red-700 hover:bg-red-50 border border-red-200 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   );
@@ -2841,6 +2900,18 @@ export default function MatchesPage() {
                               <span>📄</span>
                               Detail
                             </Link>
+                            {currentAdminRole === 'admin' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteMatch(m);
+                                }}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-500/90 hover:bg-red-600 text-white text-xs font-bold rounded transition-colors shadow-sm"
+                              >
+                                Delete
+                              </button>
+                            )}
                             {m.updated_at && (
                               <span className="opacity-90">Updated: {new Date(m.updated_at).toLocaleString()}</span>
                             )}

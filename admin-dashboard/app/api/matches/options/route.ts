@@ -804,3 +804,107 @@ export async function PATCH(req: Request) {
   }
 }
 
+/** Admin-only: permanently delete a match (and match_managers). Cascades handle related rows. */
+export async function DELETE(req: Request) {
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    if (!adminUserId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    if (await isReadOnlyBranchManager(supabase, adminUserId)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const { data: adminRow, error: adminRoleError } = await supabase
+      .from('admin_users')
+      .select('role')
+      .eq('id', adminUserId)
+      .single();
+    if (adminRoleError || !adminRow) {
+      return NextResponse.json({ error: 'Invalid admin session' }, { status: 401 });
+    }
+    if ((adminRow.role || '').toLowerCase() !== 'admin') {
+      return NextResponse.json(
+        { error: 'Only administrators can delete matches.' },
+        { status: 403 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const matchId = url.searchParams.get('id');
+    if (!matchId) {
+      return NextResponse.json({ error: 'Missing match id' }, { status: 400 });
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('surrogate_matches')
+      .select('id, surrogate_id, claim_id')
+      .eq('id', matchId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!existing) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+    }
+
+    const { error: managersError } = await supabase
+      .from('match_managers')
+      .delete()
+      .eq('match_id', matchId);
+    if (managersError) {
+      console.warn('[matches/options] DELETE match_managers:', managersError.message);
+    }
+
+    const { error: deleteError } = await supabase
+      .from('surrogate_matches')
+      .delete()
+      .eq('id', matchId);
+    if (deleteError) throw deleteError;
+
+    // If surrogate has no remaining active matches, mark available again.
+    if (existing.surrogate_id) {
+      const { data: remaining } = await supabase
+        .from('surrogate_matches')
+        .select('id')
+        .eq('surrogate_id', existing.surrogate_id)
+        .in('status', ['matched', 'pending', 'pregnant'])
+        .limit(1)
+        .maybeSingle();
+
+      if (!remaining) {
+        const { error: availError } = await supabase
+          .from('profiles')
+          .update({ available: true })
+          .eq('id', existing.surrogate_id);
+        if (availError) {
+          console.warn('[matches/options] restore available failed:', availError.message);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedId: matchId,
+      claimId: existing.claim_id || null,
+    });
+  } catch (error: any) {
+    console.error('[matches/options] DELETE error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete match' },
+      { status: 500 }
+    );
+  }
+}
+
