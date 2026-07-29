@@ -402,9 +402,13 @@ async function lookupGeoByIp(ip) {
   let chosen = null;
   let chosenVia = 'none';
 
-  // zxinc first for any China province hit (verified accurate for this Unicom IPv6 → Yunnan)
+  // Always prefer ip.sb when it returns a province/state.
+  const ipsb = sourceLabels.find((r) => r.src === 'ipsb' && r.region);
   const zxinc = sourceLabels.find((r) => r.src === 'zxinc' && r.region);
-  if (zxinc?.region) {
+  if (ipsb?.region) {
+    chosen = ipsb.region;
+    chosenVia = 'ipsb';
+  } else if (zxinc?.region) {
     chosen = zxinc.region;
     chosenVia = 'zxinc';
   } else if (!v6) {
@@ -419,11 +423,11 @@ async function lookupGeoByIp(ip) {
         chosenVia = maj.via;
       } else {
         // Prefer ipsb over ipinfo for CN (ipinfo often labels Unicom as Shanghai)
-        const ipsb = sourceLabels.find(
+        const chinaIpsb = sourceLabels.find(
           (r) => r.src === 'ipsb' && r.region && looksLikeChinaLabel(r.region) && !/^China$/i.test(r.region)
         );
-        if (ipsb) {
-          chosen = ipsb.region;
+        if (chinaIpsb) {
+          chosen = chinaIpsb.region;
           chosenVia = 'ipsb_cn';
         } else {
           const chinaProvinces = results.filter(

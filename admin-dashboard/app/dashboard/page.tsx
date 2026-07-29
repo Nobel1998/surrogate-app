@@ -730,7 +730,10 @@ export default function Home() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setSelectedApp(app)}
+                          onClick={() => {
+                            setResolvingIpRegion(true);
+                            setSelectedApp(app);
+                          }}
                           className="text-blue-600 hover:text-blue-900 text-xs font-medium"
                         >
                           📋 View
@@ -850,8 +853,8 @@ export default function Home() {
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                         <p className="text-sm text-gray-900">
-                          {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
-                            (resolvingIpRegion ? 'Resolving…' : null) ||
+                          {(resolvingIpRegion ? 'Resolving…' : null) ||
+                            toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                             'N/A'}
                         </p>
                       </div>
@@ -881,8 +884,8 @@ export default function Home() {
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                           <p className="text-sm text-gray-900">
-                            {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
-                              (resolvingIpRegion ? 'Resolving…' : null) ||
+                            {(resolvingIpRegion ? 'Resolving…' : null) ||
+                              toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                               'N/A'}
                           </p>
                         </div>
@@ -1456,8 +1459,8 @@ export default function Home() {
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                       <p className="text-sm text-gray-900">
-                        {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
-                          (resolvingIpRegion ? 'Resolving…' : null) ||
+                        {(resolvingIpRegion ? 'Resolving…' : null) ||
+                          toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                           'N/A'}
                       </p>
                     </div>

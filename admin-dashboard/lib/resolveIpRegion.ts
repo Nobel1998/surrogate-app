@@ -383,8 +383,14 @@ export async function resolveIpRegionDetailed(
   let reason = 'none';
   let confidence: 'high' | 'low' | 'none' = 'none';
 
+  // Always prefer ip.sb when it returns a province/state.
+  const ipsb = sourceLabels.find((r) => r.src === 'ipsb' && r.region);
   const zxinc = sourceLabels.find((r) => r.src === 'zxinc' && r.region);
-  if (zxinc?.region) {
+  if (ipsb?.region) {
+    chosen = ipsb.region;
+    reason = 'ipsb';
+    confidence = 'high';
+  } else if (zxinc?.region) {
     chosen = zxinc.region;
     reason = 'zxinc';
     confidence = 'high';
@@ -413,11 +419,11 @@ export async function resolveIpRegionDetailed(
       } else {
         // Never take ipinfo first when sources disagree (Unicom backbone → false Shanghai).
         // Prefer ipsb for CN; otherwise only accept a single unanimous China province.
-        const ipsb = sourceLabels.find(
+        const chinaIpsb = sourceLabels.find(
           (r) => r.src === 'ipsb' && r.region && looksLikeChinaLabel(r.region) && !/^China$/i.test(r.region!)
         );
-        if (ipsb?.region) {
-          chosen = ipsb.region;
+        if (chinaIpsb?.region) {
+          chosen = chinaIpsb.region;
           reason = 'ipsb_cn';
           confidence = 'high';
         } else {
