@@ -24,6 +24,7 @@ type SignUpDetailResponse = {
     phone: string | null;
     role: string | null;
     created_at: string | null;
+    signup_ip?: string | null;
   } | null;
   signupMetadata: {
     name: string | null;
@@ -292,6 +293,7 @@ export default function ProfilesPage() {
                     <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Race / Emergency Contact:</span> {signupDetail?.signupMetadata?.race || 'N/A'}</div>
                     <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location (City/State):</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Applicant IP Address:</span> <span className="font-mono">{signupDetail?.profile?.signup_ip || 'N/A'}</span></div>
                     <div><span className="font-semibold text-gray-700">Referral Code:</span> {signupDetail?.signupMetadata?.referral_code || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Registered At:</span> {signupDetail?.profile?.created_at ? new Date(signupDetail.profile.created_at).toLocaleString() : (selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A')}</div>
                     <div className="md:col-span-2 text-xs text-gray-500 font-mono"><span className="font-semibold text-gray-600">User ID:</span> {selectedUser.id}</div>

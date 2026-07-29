@@ -47,7 +47,7 @@ export async function GET(
     const [{ data: profile, error: profileError }, authUserRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, name, email, phone, role, created_at')
+        .select('id, name, email, phone, role, created_at, signup_ip')
         .eq('id', id)
         .maybeSingle(),
       supabase.auth.admin.getUserById(id),

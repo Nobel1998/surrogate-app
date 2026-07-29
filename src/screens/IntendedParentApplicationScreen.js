@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
+import { getClientIp } from '../utils/getClientIp';
 
 /**
  * Split a signup/profile phone into Country Code / Area Code / local Phone Number.
@@ -114,7 +115,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     return parts.join(' ').trim();
   };
 
-  const buildParentProfileFromApplication = (data, { userId, email, inviteCode } = {}) => {
+  const buildParentProfileFromApplication = (data, { userId, email, inviteCode, signupIp } = {}) => {
     const first = (data.parent1FirstName || '').trim();
     const last = (data.parent1LastName || '').trim();
     const name = [first, last].filter(Boolean).join(' ').trim();
@@ -149,6 +150,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       role: 'parent',
     };
     if (inviteCode) payload.invite_code = inviteCode;
+    if (signupIp) payload.signup_ip = signupIp;
     // Drop undefined so we don't wipe existing name/email with empty upserts
     Object.keys(payload).forEach((k) => {
       if (payload[k] === undefined) delete payload[k];
@@ -1284,11 +1286,13 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       let inviteCode = generateInviteCode();
       let attempts = 0;
       let profileUpserted = false;
+      const signupIp = await getClientIp();
       while (attempts < 3) {
         const profilePayload = buildParentProfileFromApplication(applicationData, {
           userId,
           email: authEmail.trim(),
           inviteCode,
+          signupIp,
         });
         const { error: profileError } = await supabase
           .from('profiles')
@@ -1390,17 +1394,23 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         await refreshUserProfile();
       }
 
-      const formDataToSave = JSON.stringify(applicationData);
+      const clientIp = await getClientIp();
+      const formDataToSave = JSON.stringify({
+        ...applicationData,
+        applicantIp: clientIp || undefined,
+      });
 
       if (editMode && applicationId) {
         // Update existing application
+        const updatePayload = {
+          form_data: formDataToSave,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        };
+        if (clientIp) updatePayload.ip_address = clientIp;
         const { data, error } = await supabase
           .from('intended_parent_applications')
-          .update({
-            form_data: formDataToSave,
-            status: 'pending',
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq('id', applicationId)
           .select();
 
@@ -1463,14 +1473,16 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         }, 2000);
       } else {
         // Create new application
+        const insertPayload = {
+          user_id: user.id,
+          form_data: formDataToSave,
+          status: 'pending',
+          submitted_at: new Date().toISOString(),
+        };
+        if (clientIp) insertPayload.ip_address = clientIp;
         const { data, error } = await supabase
           .from('intended_parent_applications')
-          .insert({
-            user_id: user.id,
-            form_data: formDataToSave,
-            status: 'pending',
-            submitted_at: new Date().toISOString(),
-          })
+          .insert(insertPayload)
           .select();
 
         if (error) throw error;

@@ -10,6 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { extractLocationFromAddress, sanitizeAddressText } from '../utils/extractLocationFromAddress';
+import { getClientIp } from '../utils/getClientIp';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -1436,6 +1437,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         while (attempts < 3) {
           // Extract location from address if not already set
           const extractedLocation = extractLocationFromAddress(applicationData.address);
+          const signupIp = await getClientIp();
           
           const profilePayload = {
             id: userId,
@@ -1450,6 +1452,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             race: applicationData.race || '',
             referred_by: applicationData.referralCode?.trim() || null,
           };
+          if (signupIp) profilePayload.signup_ip = signupIp;
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert(profilePayload, { onConflict: 'id' });
@@ -1551,6 +1554,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       
       // Extract location from address if address is provided
       const extractedLocation = extractLocationFromAddress(applicationData.address);
+      const clientIp = await getClientIp();
       
       const profileUpdate = {
         id: authUser.id,
@@ -1590,10 +1594,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           address: sanitizeAddressText(otherFields.address || applicationData.address) || '',
           height: heightDisplay,
           weight: weightDisplay,
+          applicantIp: clientIp || undefined,
         }),
         user_id: authUser.id,  // 添加用户ID
         status: 'pending',
       };
+      if (clientIp) payload.ip_address = clientIp;
 
       let resultData;
       

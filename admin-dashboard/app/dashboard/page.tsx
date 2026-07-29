@@ -136,6 +136,11 @@ export default function Home() {
         formData.location || profile?.location || app.location,
         address
       ) || 'N/A';
+    const applicantIp =
+      app.ip_address ||
+      formData.applicantIp ||
+      profile?.signup_ip ||
+      null;
     
     return {
       ...app,
@@ -150,6 +155,7 @@ export default function Home() {
       // City/State — derive from address when form/profile location is empty or incomplete
       location,
       address: address || 'N/A',
+      applicantIp: applicantIp || 'N/A',
       // Photos array (for multiple lifestyle photos)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
@@ -193,6 +199,7 @@ export default function Home() {
       email: formData.parent1Email || 'N/A',
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',
+      applicantIp: app.ip_address || formData.applicantIp || 'N/A',
       submitted_at: app.submitted_at || app.created_at,
       // Photos array (for multiple photos, up to 4)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
@@ -215,6 +222,7 @@ export default function Home() {
       phone: profile.phone || 'N/A',
       email: profile.email || 'N/A',
       location: resolveDisplayLocation(profile.location, profile.address) || profile.location || profile.address || 'N/A',
+      applicantIp: profile.signup_ip || 'N/A',
       status: 'registered',
       signupSource: `Sign Up (${roleLabel})`,
       submitted_at: profile.created_at,
@@ -261,7 +269,14 @@ export default function Home() {
       );
       
       // 解析 Intended Parent 申请
-      const parsedIntendedParentApps = (intendedParentRes.data || []).map(parseIntendedParentApplicationData);
+      const parsedIntendedParentApps = (intendedParentRes.data || []).map((app: any) => {
+        const profile = app?.user_id ? profilesById.get(String(app.user_id)) : undefined;
+        const parsed = parseIntendedParentApplicationData(app);
+        if ((!parsed.applicantIp || parsed.applicantIp === 'N/A') && profile?.signup_ip) {
+          parsed.applicantIp = profile.signup_ip;
+        }
+        return parsed;
+      });
 
       // 找出已经提交申请的用户 ID（避免和 Sign Up 用户重复）
       const appliedUserIds = new Set<string>();
@@ -780,6 +795,10 @@ export default function Home() {
                         <label className="block text-sm font-medium text-gray-500">Location</label>
                         <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
+                        <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.signup_ip || 'N/A'}</p>
+                      </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-500">Created At</label>
                         <p className="text-sm text-gray-900">
@@ -802,6 +821,10 @@ export default function Home() {
                         <div>
                           <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>
                           <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
+                          <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.ip_address || 'N/A'}</p>
                         </div>
                       </div>
                     </div>
@@ -1369,6 +1392,10 @@ export default function Home() {
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Email</label>
                       <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
+                      <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.ip_address || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>

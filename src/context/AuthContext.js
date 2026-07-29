@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Linking } from 'react-native';
 import AsyncStorageLib from '../utils/Storage';
 import { supabase, DELETE_ACCOUNT_EDGE_FN_SLUG } from '../lib/supabase';
+import { getClientIp } from '../utils/getClientIp';
 
 const AuthContext = createContext();
 
@@ -950,6 +951,7 @@ export const AuthProvider = ({ children }) => {
         let inviteCodeToUse = generateInviteCode();
 
         const upsertProfile = async (inviteCode) => {
+          const signupIp = await getClientIp();
           const payload = {
             id: authData.user.id,
             role,
@@ -963,6 +965,7 @@ export const AuthProvider = ({ children }) => {
             // referred_by: 填写他人邀请码则记录，否则允许为 null
             referred_by: userData.referralCode?.trim() || null,
           };
+          if (signupIp) payload.signup_ip = signupIp;
           console.log('🧾 Profile upsert payload:', payload);
           return supabase
             .from('profiles')
