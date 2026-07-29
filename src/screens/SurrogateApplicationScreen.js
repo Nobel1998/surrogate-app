@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { extractLocationFromAddress, sanitizeAddressText } from '../utils/extractLocationFromAddress';
-import { getClientIp } from '../utils/getClientIp';
+import { getClientIpInfo } from '../utils/getClientIp';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -1437,7 +1437,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         while (attempts < 3) {
           // Extract location from address if not already set
           const extractedLocation = extractLocationFromAddress(applicationData.address);
-          const signupIp = await getClientIp();
+          const ipInfo = await getClientIpInfo();
           
           const profilePayload = {
             id: userId,
@@ -1452,7 +1452,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             race: applicationData.race || '',
             referred_by: applicationData.referralCode?.trim() || null,
           };
-          if (signupIp) profilePayload.signup_ip = signupIp;
+          if (ipInfo.ip) profilePayload.signup_ip = ipInfo.ip;
+          if (ipInfo.region) profilePayload.signup_ip_region = ipInfo.region;
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert(profilePayload, { onConflict: 'id' });
@@ -1554,7 +1555,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       
       // Extract location from address if address is provided
       const extractedLocation = extractLocationFromAddress(applicationData.address);
-      const clientIp = await getClientIp();
+      const ipInfo = await getClientIpInfo();
       
       const profileUpdate = {
         id: authUser.id,
@@ -1594,12 +1595,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           address: sanitizeAddressText(otherFields.address || applicationData.address) || '',
           height: heightDisplay,
           weight: weightDisplay,
-          applicantIp: clientIp || undefined,
+          applicantIp: ipInfo.ip || undefined,
+          applicantIpRegion: ipInfo.region || undefined,
         }),
         user_id: authUser.id,  // 添加用户ID
         status: 'pending',
       };
-      if (clientIp) payload.ip_address = clientIp;
+      if (ipInfo.ip) payload.ip_address = ipInfo.ip;
+      if (ipInfo.region) payload.ip_region = ipInfo.region;
 
       let resultData;
       

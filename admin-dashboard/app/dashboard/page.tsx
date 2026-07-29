@@ -8,6 +8,7 @@ import ApproveButton from '../../components/ApproveButton';
 import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
 import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
+import { resolveIpRegion } from '../../lib/resolveIpRegion';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -118,6 +119,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent', 'signup'
   const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
+  const [resolvingIpRegion, setResolvingIpRegion] = useState(false);
 
   // 解析 Surrogate 申请数据的辅助函数
   const parseSurrogateApplicationData = (app: any, profile?: any) => {
@@ -141,6 +143,11 @@ export default function Home() {
       formData.applicantIp ||
       profile?.signup_ip ||
       null;
+    const applicantIpRegion =
+      app.ip_region ||
+      formData.applicantIpRegion ||
+      profile?.signup_ip_region ||
+      null;
     
     return {
       ...app,
@@ -155,7 +162,8 @@ export default function Home() {
       // City/State — derive from address when form/profile location is empty or incomplete
       location,
       address: address || 'N/A',
-      applicantIp: applicantIp || 'N/A',
+      applicantIp: applicantIp || null,
+      applicantIpRegion: applicantIpRegion || null,
       // Photos array (for multiple lifestyle photos)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
@@ -199,7 +207,8 @@ export default function Home() {
       email: formData.parent1Email || 'N/A',
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',
-      applicantIp: app.ip_address || formData.applicantIp || 'N/A',
+      applicantIp: app.ip_address || formData.applicantIp || null,
+      applicantIpRegion: app.ip_region || formData.applicantIpRegion || null,
       submitted_at: app.submitted_at || app.created_at,
       // Photos array (for multiple photos, up to 4)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
@@ -222,7 +231,8 @@ export default function Home() {
       phone: profile.phone || 'N/A',
       email: profile.email || 'N/A',
       location: resolveDisplayLocation(profile.location, profile.address) || profile.location || profile.address || 'N/A',
-      applicantIp: profile.signup_ip || 'N/A',
+      applicantIp: profile.signup_ip || null,
+      applicantIpRegion: profile.signup_ip_region || null,
       status: 'registered',
       signupSource: `Sign Up (${roleLabel})`,
       submitted_at: profile.created_at,
@@ -272,8 +282,11 @@ export default function Home() {
       const parsedIntendedParentApps = (intendedParentRes.data || []).map((app: any) => {
         const profile = app?.user_id ? profilesById.get(String(app.user_id)) : undefined;
         const parsed = parseIntendedParentApplicationData(app);
-        if ((!parsed.applicantIp || parsed.applicantIp === 'N/A') && profile?.signup_ip) {
+        if (!parsed.applicantIp && profile?.signup_ip) {
           parsed.applicantIp = profile.signup_ip;
+        }
+        if (!parsed.applicantIpRegion && profile?.signup_ip_region) {
+          parsed.applicantIpRegion = profile.signup_ip_region;
         }
         return parsed;
       });
@@ -310,6 +323,32 @@ export default function Home() {
   useEffect(() => {
     loadApplications();
   }, []);
+
+  // If view has IP but no region yet, resolve geo on the fly for display
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!selectedApp) return;
+      const region = String(selectedApp.applicantIpRegion || '').trim();
+      const ip = String(selectedApp.applicantIp || selectedApp.signup_ip || selectedApp.ip_address || '').trim();
+      if (region || !ip || ip === 'N/A') return;
+      setResolvingIpRegion(true);
+      try {
+        const resolved = await resolveIpRegion(ip);
+        if (!cancelled && resolved) {
+          setSelectedApp((prev: any) =>
+            prev ? { ...prev, applicantIpRegion: resolved } : prev
+          );
+        }
+      } finally {
+        if (!cancelled) setResolvingIpRegion(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedApp?.id, selectedApp?.applicationType, selectedApp?.applicantIp, selectedApp?.applicantIpRegion]);
 
   // 过滤和搜索逻辑
   const filteredApplications = applications.filter(app => {
@@ -796,8 +835,12 @@ export default function Home() {
                         <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
-                        <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.signup_ip || 'N/A'}</p>
+                        <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedApp.applicantIpRegion ||
+                            (resolvingIpRegion ? 'Resolving…' : null) ||
+                            'N/A'}
+                        </p>
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-500">Created At</label>
@@ -823,8 +866,12 @@ export default function Home() {
                           <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
-                          <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.ip_address || 'N/A'}</p>
+                          <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                          <p className="text-sm text-gray-900">
+                            {selectedApp.applicantIpRegion ||
+                              (resolvingIpRegion ? 'Resolving…' : null) ||
+                              'N/A'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1394,8 +1441,12 @@ export default function Home() {
                       <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Applicant IP Address</label>
-                      <p className="text-sm text-gray-900 font-mono">{selectedApp.applicantIp || selectedApp.ip_address || 'N/A'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                      <p className="text-sm text-gray-900">
+                        {selectedApp.applicantIpRegion ||
+                          (resolvingIpRegion ? 'Resolving…' : null) ||
+                          'N/A'}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { resolveIpRegion } from '@/lib/resolveIpRegion';
 
 type RegisteredUser = {
   id: string;
@@ -25,6 +26,7 @@ type SignUpDetailResponse = {
     role: string | null;
     created_at: string | null;
     signup_ip?: string | null;
+    signup_ip_region?: string | null;
   } | null;
   signupMetadata: {
     name: string | null;
@@ -86,6 +88,16 @@ export default function ProfilesPage() {
         throw new Error(`Failed to load signup detail: ${res.status} ${errText}`);
       }
       const data = await res.json();
+      if (
+        data?.profile &&
+        !data.profile.signup_ip_region &&
+        data.profile.signup_ip
+      ) {
+        const region = await resolveIpRegion(data.profile.signup_ip);
+        if (region) {
+          data.profile.signup_ip_region = region;
+        }
+      }
       setSignupDetail(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load signup detail';
@@ -293,7 +305,7 @@ export default function ProfilesPage() {
                     <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Race / Emergency Contact:</span> {signupDetail?.signupMetadata?.race || 'N/A'}</div>
                     <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location (City/State):</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-700">Applicant IP Address:</span> <span className="font-mono">{signupDetail?.profile?.signup_ip || 'N/A'}</span></div>
+                    <div><span className="font-semibold text-gray-700">Applicant IP Region:</span> {signupDetail?.profile?.signup_ip_region || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Referral Code:</span> {signupDetail?.signupMetadata?.referral_code || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Registered At:</span> {signupDetail?.profile?.created_at ? new Date(signupDetail.profile.created_at).toLocaleString() : (selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A')}</div>
                     <div className="md:col-span-2 text-xs text-gray-500 font-mono"><span className="font-semibold text-gray-600">User ID:</span> {selectedUser.id}</div>
