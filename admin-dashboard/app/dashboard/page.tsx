@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import ApproveButton from '../../components/ApproveButton';
 import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
+import { resolveDisplayLocation } from '../../lib/extractLocationFromAddress';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -119,7 +120,7 @@ export default function Home() {
   const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
 
   // 解析 Surrogate 申请数据的辅助函数
-  const parseSurrogateApplicationData = (app: any) => {
+  const parseSurrogateApplicationData = (app: any, profile?: any) => {
     let formData: any = {};
     try {
       if (app.form_data) {
@@ -128,6 +129,13 @@ export default function Home() {
     } catch (e) {
       console.error('Error parsing form_data:', e);
     }
+
+    const address = formData.address || profile?.address || '';
+    const location =
+      resolveDisplayLocation(
+        formData.location || profile?.location || app.location,
+        address
+      ) || 'N/A';
     
     return {
       ...app,
@@ -136,12 +144,12 @@ export default function Home() {
       // 确保基本字段存在
       full_name: app.full_name || formData.fullName || 'Unknown',
       phone: app.phone || formData.phoneNumber || 'N/A',
-      email: formData.email || 'N/A',
+      email: formData.email || profile?.email || 'N/A',
       age: formData.age || 'N/A',
       dateOfBirth: formData.dateOfBirth || 'N/A',
-      // Use location for display (city/state), address for full address
-      location: formData.location || app.location || 'N/A',
-      address: formData.address || 'N/A',
+      // City/State — derive from address when form/profile location is empty or incomplete
+      location,
+      address: address || 'N/A',
       // Photos array (for multiple lifestyle photos)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
@@ -206,7 +214,7 @@ export default function Home() {
       full_name: profile.name || profile.full_name || 'Unknown',
       phone: profile.phone || 'N/A',
       email: profile.email || 'N/A',
-      location: profile.location || profile.address || 'N/A',
+      location: resolveDisplayLocation(profile.location, profile.address) || profile.location || profile.address || 'N/A',
       status: 'registered',
       signupSource: `Sign Up (${roleLabel})`,
       submitted_at: profile.created_at,
@@ -242,9 +250,15 @@ export default function Home() {
 
       if (surrogateRes.error) throw surrogateRes.error;
       if (profilesRes.error) throw profilesRes.error;
+
+      const profilesById = new Map<string, any>(
+        (profilesRes.data || []).map((p: any) => [String(p.id), p])
+      );
       
-      // 解析 Surrogate 申请
-      const parsedSurrogateApps = (surrogateRes.data || []).map(parseSurrogateApplicationData);
+      // 解析 Surrogate 申请（用 profile.location/address 补全）
+      const parsedSurrogateApps = (surrogateRes.data || []).map((app: any) =>
+        parseSurrogateApplicationData(app, app?.user_id ? profilesById.get(String(app.user_id)) : undefined)
+      );
       
       // 解析 Intended Parent 申请
       const parsedIntendedParentApps = (intendedParentRes.data || []).map(parseIntendedParentApplicationData);

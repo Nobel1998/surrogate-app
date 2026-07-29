@@ -291,7 +291,7 @@ export default function ProfilesPage() {
                     <div><span className="font-semibold text-gray-700">Role:</span> {String(signupDetail?.signupMetadata?.role || signupDetail?.profile?.role || selectedUser.role || 'N/A').toUpperCase()}</div>
                     <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Race / Emergency Contact:</span> {signupDetail?.signupMetadata?.race || 'N/A'}</div>
-                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location:</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
+                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location (City/State):</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Referral Code:</span> {signupDetail?.signupMetadata?.referral_code || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Registered At:</span> {signupDetail?.profile?.created_at ? new Date(signupDetail.profile.created_at).toLocaleString() : (selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A')}</div>
                     <div className="md:col-span-2 text-xs text-gray-500 font-mono"><span className="font-semibold text-gray-600">User ID:</span> {selectedUser.id}</div>

@@ -1,6 +1,16 @@
--- In-app account deletion without Edge Function deploy.
--- Run in Supabase SQL Editor, then the app can call: supabase.rpc('delete_own_account')
+-- Fix account deletion blocked by event_views_identity_check.
+-- Cause: event_views.user_id ON DELETE SET NULL leaves visitor_key NULL → CHECK fails.
+-- Run in Supabase SQL Editor.
 
+-- 1) Prefer CASCADE so auth user delete removes view rows cleanly
+ALTER TABLE public.event_views
+  DROP CONSTRAINT IF EXISTS event_views_user_id_fkey;
+
+ALTER TABLE public.event_views
+  ADD CONSTRAINT event_views_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 2) Refresh delete_own_account to explicitly delete event_views (and match managers) first
 CREATE OR REPLACE FUNCTION public.delete_own_account()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -14,7 +24,6 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Not authenticated');
   END IF;
 
-  -- Soft-null non-cascade FKs
   BEGIN
     UPDATE public.events SET created_by = NULL WHERE created_by = uid;
   EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
@@ -25,7 +34,6 @@ BEGIN
   EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
   END;
 
-  -- Delete user-owned rows (ignore missing tables)
   BEGIN DELETE FROM public.event_views WHERE user_id = uid; EXCEPTION WHEN undefined_table THEN NULL; END;
   BEGIN DELETE FROM public.points_rewards WHERE user_id = uid; EXCEPTION WHEN undefined_table THEN NULL; END;
   BEGIN DELETE FROM public.reward_requests WHERE user_id = uid; EXCEPTION WHEN undefined_table THEN NULL; END;
@@ -51,6 +59,17 @@ BEGIN
     DELETE FROM public.referral_submissions WHERE referrer_user_id = uid;
   EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
   END;
+
+  BEGIN
+    DELETE FROM public.match_managers
+    WHERE match_id IN (
+      SELECT id FROM public.surrogate_matches
+      WHERE surrogate_id = uid OR parent_id = uid
+         OR first_parent_id = uid OR second_parent_id = uid
+    );
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+
   BEGIN
     DELETE FROM public.surrogate_matches
     WHERE surrogate_id = uid OR parent_id = uid
@@ -88,6 +107,3 @@ $$;
 REVOKE ALL ON FUNCTION public.delete_own_account() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_own_account() TO service_role;
-
-COMMENT ON FUNCTION public.delete_own_account() IS
-  'Deletes the calling user (auth.uid) and related public/storage rows. Used by in-app Delete Account.';

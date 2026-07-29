@@ -10,6 +10,52 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 
+/**
+ * Split a signup/profile phone into Country Code / Area Code / local Phone Number.
+ * Local number must not include country or area code.
+ */
+function splitPhoneForParentForm(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) {
+    return { countryCode: '', areaCode: '', phoneNumber: '' };
+  }
+
+  let countryCode = '';
+  // US/NANP: leading 1 + 10-digit national number
+  if (digits.length >= 11 && digits.startsWith('1')) {
+    countryCode = '1';
+    digits = digits.slice(1);
+  }
+
+  let areaCode = '';
+  let phoneNumber = digits;
+  if (digits.length >= 10) {
+    areaCode = digits.slice(0, 3);
+    phoneNumber = digits.slice(3);
+  }
+
+  return { countryCode, areaCode, phoneNumber };
+}
+
+/** If Phone Number still holds a full number (10+ digits), re-split into the three fields. */
+function normalizeParent1PhoneFields(data) {
+  if (!data) return data;
+  const phoneDigits = String(data.parent1PhoneNumber || '').replace(/\D/g, '');
+  if (phoneDigits.length < 10) {
+    return data;
+  }
+  const combined = [data.parent1PhoneCountryCode, data.parent1PhoneAreaCode, data.parent1PhoneNumber]
+    .filter((v) => String(v || '').trim())
+    .join(' ');
+  const parts = splitPhoneForParentForm(combined || data.parent1PhoneNumber);
+  return {
+    ...data,
+    parent1PhoneCountryCode: parts.countryCode || data.parent1PhoneCountryCode || '',
+    parent1PhoneAreaCode: parts.areaCode || data.parent1PhoneAreaCode || '',
+    parent1PhoneNumber: parts.phoneNumber,
+  };
+}
+
 export default function IntendedParentApplicationScreen({ navigation, route }) {
   const { user, refreshUserProfile } = useAuth();
   const { t, language } = useLanguage();
@@ -28,6 +74,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [authPassword, setAuthPassword] = useState('');
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [showAuthPasswordConfirm, setShowAuthPasswordConfirm] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
@@ -167,7 +215,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     parent1PhoneCountryCode: '',
     parent1PhoneAreaCode: '',
     parent1PhoneNumber: '',
-    parent1Email: '',
+    parent1Email: user?.email || '',
     parent1EmergencyContact: '',
     parent1AddressStreet: '',
     parent1AddressStreet2: '',
@@ -304,7 +352,14 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           console.error('Error parsing form_data:', e);
         }
         
-        setApplicationData(prev => ({ ...prev, ...parsed }));
+        setApplicationData((prev) => {
+          const merged = normalizeParent1PhoneFields({ ...prev, ...parsed });
+          // Don't let empty draft email wipe signup/profile autofill
+          if (!String(merged.parent1Email || '').trim()) {
+            merged.parent1Email = prev.parent1Email || user?.email || '';
+          }
+          return merged;
+        });
         setTimeout(() => {
           setFormVersion(Date.now());
         }, 0);
@@ -329,7 +384,13 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           if (parsed.relationshipStyle && !Array.isArray(parsed.relationshipStyle)) {
             parsed.relationshipStyle = parsed.relationshipStyle ? [parsed.relationshipStyle] : [];
           }
-          setApplicationData(prev => ({ ...prev, ...parsed }));
+          setApplicationData((prev) => {
+            const merged = normalizeParent1PhoneFields({ ...prev, ...parsed });
+            if (!String(merged.parent1Email || '').trim()) {
+              merged.parent1Email = prev.parent1Email || user?.email || '';
+            }
+            return merged;
+          });
           setTimeout(() => {
             setFormVersion(Date.now());
           }, 0);
@@ -384,7 +445,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           formData.relationshipStyle = formData.relationshipStyle ? [formData.relationshipStyle] : [];
         }
 
-        setApplicationData(formData);
+        setApplicationData(normalizeParent1PhoneFields(formData));
         // Set photos array if photos exist
         if (formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) {
           const photosArray = formData.photos.map((url, index) => ({
@@ -431,7 +492,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       if (dataToSet.relationshipStyle && !Array.isArray(dataToSet.relationshipStyle)) {
         dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
       }
-      setApplicationData(dataToSet);
+      setApplicationData(normalizeParent1PhoneFields(dataToSet));
       // Set photos array if photos exist
       if (dataToSet.photos && Array.isArray(dataToSet.photos) && dataToSet.photos.length > 0) {
         const photosArray = dataToSet.photos.map((url, index) => ({
@@ -457,13 +518,19 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       // If in edit mode but no existingData provided, load from database
       loadExistingApplication();
     } else if (user) {
-      // Pre-fill with user data if available
-      setApplicationData(prev => ({
-        ...prev,
-        parent1Email: user.email || prev.parent1Email || '',
-        parent1PhoneNumber: user.phone || prev.parent1PhoneNumber || '',
-      }));
-      // Load draft for authenticated users
+      // Pre-fill with user data if available — Phone Number is local-only (no country/area)
+      const phoneParts = splitPhoneForParentForm(user.phone || user.user_metadata?.phone || '');
+      const profileEmail = user.email || user.user_metadata?.email || '';
+      setApplicationData((prev) =>
+        normalizeParent1PhoneFields({
+          ...prev,
+          parent1Email: profileEmail || prev.parent1Email || '',
+          parent1PhoneCountryCode: phoneParts.countryCode,
+          parent1PhoneAreaCode: phoneParts.areaCode,
+          parent1PhoneNumber: phoneParts.phoneNumber,
+        })
+      );
+      // Load draft for authenticated users (will re-normalize if draft has full phone)
       loadDraft();
     }
   }, [editMode, existingData, applicationId, user]);
@@ -481,6 +548,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   // Check if user needs to sign up
   useEffect(() => {
     if (!user && currentStep > 1) {
+      const emailFromForm = String(applicationData.parent1Email || '').trim();
+      if (emailFromForm) {
+        setAuthEmail(emailFromForm);
+      }
       setShowAuthPrompt(true);
     }
   }, [user, currentStep]);
@@ -784,8 +855,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     // Soft register: must create account before leaving step 1
     if (!user) {
       AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData)).catch(() => {});
-      if (applicationData.parent1Email && !authEmail) {
-        setAuthEmail(applicationData.parent1Email);
+      const emailFromForm = String(applicationData.parent1Email || '').trim();
+      if (emailFromForm) {
+        setAuthEmail(emailFromForm);
       }
       setShowAuthPrompt(true);
       return;
@@ -2929,20 +3001,44 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              <TextInput
-                style={styles.modalInput}
-                placeholder={tf("Password")}
-                value={authPassword}
-                onChangeText={setAuthPassword}
-                secureTextEntry
-              />
-              <TextInput
-                style={styles.modalInput}
-                placeholder={tf("Confirm Password")}
-                value={authPasswordConfirm}
-                onChangeText={setAuthPasswordConfirm}
-                secureTextEntry
-              />
+              <View style={styles.modalPasswordRow}>
+                <TextInput
+                  style={styles.modalPasswordInput}
+                  placeholder={tf("Password")}
+                  value={authPassword}
+                  onChangeText={setAuthPassword}
+                  secureTextEntry={!showAuthPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={styles.modalEyeButton}
+                  onPress={() => setShowAuthPassword((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showAuthPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showAuthPassword ? 'eye' : 'eye-off'} size={20} color="#6E7191" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalPasswordRow}>
+                <TextInput
+                  style={styles.modalPasswordInput}
+                  placeholder={tf("Confirm Password")}
+                  value={authPasswordConfirm}
+                  onChangeText={setAuthPasswordConfirm}
+                  secureTextEntry={!showAuthPasswordConfirm}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={styles.modalEyeButton}
+                  onPress={() => setShowAuthPasswordConfirm((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showAuthPasswordConfirm ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showAuthPasswordConfirm ? 'eye' : 'eye-off'} size={20} color="#6E7191" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonCancel]}
@@ -3159,6 +3255,23 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     marginBottom: 12,
+  },
+  modalPasswordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    marginBottom: 12,
+    paddingRight: 4,
+  },
+  modalPasswordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+  },
+  modalEyeButton: {
+    padding: 10,
   },
   modalButtons: {
     flexDirection: 'row',

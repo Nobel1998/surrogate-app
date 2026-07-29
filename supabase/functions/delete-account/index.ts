@@ -28,6 +28,7 @@ async function cleanupUserData(admin: SupabaseClient, userId: string): Promise<s
   // Delete user-owned rows before auth.admin.deleteUser so CASCADE triggers
   // do not run as supabase_auth_admin (which lacks rights on public tables).
   const deleteByUserId = [
+    'event_views',
     'points_rewards',
     'reward_requests',
     'applications',

@@ -9,6 +9,60 @@ import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
+import { extractLocationFromAddress } from '../utils/extractLocationFromAddress';
+
+/** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
+function parseDateOfBirthParts(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { month: '', day: '', year: '' };
+
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (m) {
+    return {
+      month: String(parseInt(m[2], 10)),
+      day: String(parseInt(m[3], 10)),
+      year: m[1],
+    };
+  }
+
+  m = s.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+  if (m) {
+    return {
+      month: String(parseInt(m[1], 10)),
+      day: String(parseInt(m[2], 10)),
+      year: m[3],
+    };
+  }
+
+  return { month: '', day: '', year: '' };
+}
+
+function applyDateOfBirthParts(data) {
+  if (!data) return data;
+  const hasParts =
+    String(data.dateOfBirthMonth || '').trim() &&
+    String(data.dateOfBirthDay || '').trim() &&
+    String(data.dateOfBirthYear || '').trim();
+  if (hasParts) return data;
+
+  const parts = parseDateOfBirthParts(data.dateOfBirth);
+  if (!parts.year) return data;
+
+  const month = String(data.dateOfBirthMonth || parts.month || '').trim() || parts.month;
+  const day = String(data.dateOfBirthDay || parts.day || '').trim() || parts.day;
+  const year = String(data.dateOfBirthYear || parts.year || '').trim() || parts.year;
+
+  return {
+    ...data,
+    dateOfBirthMonth: month,
+    dateOfBirthDay: day,
+    dateOfBirthYear: year,
+    dateOfBirth:
+      month && day && year
+        ? `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`
+        : data.dateOfBirth,
+  };
+}
 
 export default function SurrogateApplicationScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -28,6 +82,8 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [authPassword, setAuthPassword] = useState('');
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [showAuthPasswordConfirm, setShowAuthPasswordConfirm] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
@@ -49,6 +105,9 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         lastName: parts[parts.length - 1],
       };
     })();
+    const initialDob =
+      user?.user_metadata?.date_of_birth || user?.dateOfBirth || '';
+    const dobParts = parseDateOfBirthParts(initialDob);
     return {
     // Step 1: Personal Information (Extended)
     firstName: nameParts.firstName,
@@ -56,10 +115,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     lastName: nameParts.lastName,
     fullName: profileName,
     age: user?.user_metadata?.age || '',
-    dateOfBirth: user?.user_metadata?.date_of_birth || user?.dateOfBirth || '',
-    dateOfBirthMonth: '',
-    dateOfBirthDay: '',
-    dateOfBirthYear: '',
+    dateOfBirth: initialDob,
+    dateOfBirthMonth: dobParts.month,
+    dateOfBirthDay: dobParts.day,
+    dateOfBirthYear: dobParts.year,
     phoneNumber: user?.phone || '',
     email: user?.email || '',
     address: user?.address || '',
@@ -414,6 +473,15 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           updated.dateOfBirth = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
         }
       }
+      // Auto-sync Month/Day/Year when the full dateOfBirth string is set
+      if (field === 'dateOfBirth') {
+        const parts = parseDateOfBirthParts(value);
+        if (parts.year) {
+          updated.dateOfBirthMonth = parts.month;
+          updated.dateOfBirthDay = parts.day;
+          updated.dateOfBirthYear = parts.year;
+        }
+      }
       // Auto-sync height display string when unit/parts change
       if (
         field === 'heightUnit' ||
@@ -443,34 +511,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       }
     } while (!hasDigit(code));
     return code;
-  };
-
-  // Extract city/state from full address for location field
-  // Examples:
-  // "123 Main St, San Francisco, CA 94102" -> "San Francisco, CA"
-  // "456 Oak Ave, Los Angeles" -> "Los Angeles"
-  // "789 Pine Rd, New York, NY" -> "New York, NY"
-  const extractLocationFromAddress = (address) => {
-    if (!address || typeof address !== 'string') return '';
-    
-    const parts = address.split(',').map(p => p.trim());
-    
-    if (parts.length >= 3) {
-      // Format: Street, City, State/Zip -> return "City, State"
-      // Remove zip code if present in the last part
-      const lastPart = parts[parts.length - 1].replace(/\d{5}(-\d{4})?/, '').trim();
-      const cityPart = parts[parts.length - 2];
-      if (lastPart) {
-        return `${cityPart}, ${lastPart}`;
-      }
-      return cityPart;
-    } else if (parts.length === 2) {
-      // Format: Street, City -> return "City"
-      return parts[1];
-    }
-    
-    // If no comma, return empty (can't reliably extract city)
-    return '';
   };
 
   // Draft storage helpers
@@ -542,7 +582,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             if (!String(withNames.fullName || '').trim()) {
               withNames.fullName = composeNameFromParts(withNames);
             }
-            return withNames;
+            // Don't let empty draft email wipe profile/autofill email
+            if (!String(withNames.email || '').trim()) {
+              withNames.email = prev.email || user?.email || '';
+            }
+            return applyDateOfBirthParts(withNames);
           });
           setTimeout(() => {
             const newVersion = Date.now();
@@ -563,7 +607,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           if (!String(withNames.fullName || '').trim()) {
             withNames.fullName = composeNameFromParts(withNames);
           }
-          return withNames;
+          if (!String(withNames.email || '').trim()) {
+            withNames.email = prev.email || user?.email || '';
+          }
+          return applyDateOfBirthParts(withNames);
         });
         setTimeout(() => {
           const newVersion = Date.now();
@@ -599,7 +646,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         referralCode: prev.referralCode || meta.referred_by || '',
       };
       next = applyNamePartsFromFullName(next, profileName);
-      return next;
+      return applyDateOfBirthParts(next);
     });
   }, [user?.id, user?.name, user?.user_metadata]);
 
@@ -617,7 +664,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           if (!String(withNames.fullName || '').trim()) {
             withNames.fullName = composeNameFromParts(withNames);
           }
-          return withNames;
+          return applyDateOfBirthParts(withNames);
         });
         // Set photos array if photos exist
         if (existingData.photos && Array.isArray(existingData.photos)) {
@@ -638,18 +685,6 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             fileSize: null,
             uploading: false,
           }]);
-        }
-        // Parse dateOfBirth into components if available
-        if (existingData.dateOfBirth && existingData.dateOfBirth.includes('/')) {
-          const parts = existingData.dateOfBirth.split('/');
-          if (parts.length === 3) {
-            setApplicationData(prev => ({
-              ...prev,
-              dateOfBirthMonth: parts[0],
-              dateOfBirthDay: parts[1],
-              dateOfBirthYear: parts[2],
-            }));
-          }
         }
       } else if (user?.id) {
         loadDraft(user.id);
@@ -1304,6 +1339,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData))
         .then(() => console.log('💾 Draft saved locally before auth:', applicationData))
         .catch(() => {});
+      const emailFromForm = String(applicationData.email || '').trim();
+      if (emailFromForm) {
+        setAuthEmail(emailFromForm);
+      }
       setShowAuthPrompt(true);
       return;
     }
@@ -5050,20 +5089,44 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                 value={authEmail}
                 onChangeText={setAuthEmail}
               />
-              <TextInput
-                style={styles.authInput}
-                placeholder={tf("Password")}
-                secureTextEntry
-                value={authPassword}
-                onChangeText={setAuthPassword}
-              />
-              <TextInput
-                style={styles.authInput}
-                placeholder={tf("Confirm Password")}
-                secureTextEntry
-                value={authPasswordConfirm}
-                onChangeText={setAuthPasswordConfirm}
-              />
+              <View style={styles.authPasswordRow}>
+                <TextInput
+                  style={styles.authPasswordInput}
+                  placeholder={tf("Password")}
+                  secureTextEntry={!showAuthPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={authPassword}
+                  onChangeText={setAuthPassword}
+                />
+                <TouchableOpacity
+                  style={styles.authEyeButton}
+                  onPress={() => setShowAuthPassword((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showAuthPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showAuthPassword ? 'eye' : 'eye-off'} size={20} color="#6E7191" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.authPasswordRow}>
+                <TextInput
+                  style={styles.authPasswordInput}
+                  placeholder={tf("Confirm Password")}
+                  secureTextEntry={!showAuthPasswordConfirm}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={authPasswordConfirm}
+                  onChangeText={setAuthPasswordConfirm}
+                />
+                <TouchableOpacity
+                  style={styles.authEyeButton}
+                  onPress={() => setShowAuthPasswordConfirm((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showAuthPasswordConfirm ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showAuthPasswordConfirm ? 'eye' : 'eye-off'} size={20} color="#6E7191" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.authActions}>
                 <TouchableOpacity
                   style={[styles.authButton, styles.authCancel]}
@@ -5339,6 +5402,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E0E7EE',
+  },
+  authPasswordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7EE',
+    paddingRight: 4,
+  },
+  authPasswordInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1A1D1E',
+  },
+  authEyeButton: {
+    padding: 10,
   },
   authActions: {
     flexDirection: 'row',

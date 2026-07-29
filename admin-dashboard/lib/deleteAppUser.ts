@@ -21,6 +21,7 @@ export async function cleanupAppUserData(
   }
 
   const deleteByUserId = [
+    'event_views',
     'points_rewards',
     'reward_requests',
     'applications',
@@ -83,7 +84,6 @@ export async function deleteAppUser(
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
-    // Profile may already be gone; still try to remove auth user failure is fatal
     return { ok: false, error: deleteError.message, warnings };
   }
 

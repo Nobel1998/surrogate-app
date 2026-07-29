@@ -10,8 +10,10 @@ export const dynamic = 'force-dynamic';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Admin-only: permanently delete an app user (profile + auth + related rows). */
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+/** Admin-only: permanently delete an app user (profile + auth + related rows).
+ *  Supports ?email= for orphaned auth users whose profile was already removed.
+ */
+export async function DELETE(req: NextRequest, context: RouteContext) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
   }
@@ -24,16 +26,34 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Only administrators can delete users.' }, { status: 403 });
   }
 
-  const { id } = await context.params;
-  if (!id) {
-    return NextResponse.json({ error: 'Missing user id' }, { status: 400 });
-  }
+  const { id: idParam } = await context.params;
+  const emailParam = new URL(req.url).searchParams.get('email')?.trim().toLowerCase() || null;
+  let id = idParam === 'by-email' ? '' : idParam;
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   try {
+    if ((!id || id === 'pending') && emailParam) {
+      const { data: listed, error: listError } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+      if (listError) throw listError;
+      const found = (listed?.users || []).find(
+        (u) => (u.email || '').toLowerCase() === emailParam
+      );
+      if (!found) {
+        return NextResponse.json({ error: 'Auth user not found for email' }, { status: 404 });
+      }
+      id = found.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing user id' }, { status: 400 });
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, role, name')
@@ -41,14 +61,6 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       .maybeSingle();
 
     if (profileError) throw profileError;
-    if (!profile) {
-      // Still try auth delete in case profile is already gone
-      const { error: authOnlyError } = await supabase.auth.admin.deleteUser(id);
-      if (authOnlyError) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, warnings: ['profile already missing'] });
-    }
 
     const result = await deleteAppUser(supabase, id);
     if (!result.ok) {
@@ -61,7 +73,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       deletedId: id,
-      name: profile.name,
+      name: profile?.name || null,
       warnings: result.warnings,
     });
   } catch (error: any) {

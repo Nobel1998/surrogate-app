@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -125,6 +126,14 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+        <TouchableOpacity
+          style={styles.backHomeButton}
+          onPress={() => navigation.navigate('Landing')}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={16} color="#2A7BF6" />
+          <Text style={styles.backHomeText}>{t('auth.backToHome')}</Text>
+        </TouchableOpacity>
         <View style={styles.header}>
           <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
           <Text style={styles.subtitle}>{t('auth.signInSubtitle')}</Text>
@@ -249,8 +258,20 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 24,
     paddingBottom: 40,
+  },
+  backHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 24,
+    gap: 6,
+  },
+  backHomeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2A7BF6',
   },
   header: {
     marginBottom: 48,

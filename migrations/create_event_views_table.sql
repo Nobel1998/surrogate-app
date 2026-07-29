@@ -4,13 +4,16 @@
 CREATE TABLE IF NOT EXISTS public.event_views (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   visitor_key TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   CONSTRAINT event_views_identity_check CHECK (
     user_id IS NOT NULL OR (visitor_key IS NOT NULL AND length(trim(visitor_key)) > 0)
   )
 );
+
+-- NOTE: Prefer ON DELETE CASCADE for user_id (see fix_delete_account_event_views.sql).
+-- Logged-in views must be removed (or cascaded) before auth.users delete; SET NULL + empty visitor_key violates the CHECK above.
 
 CREATE INDEX IF NOT EXISTS idx_event_views_event_id ON public.event_views(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_views_event_user ON public.event_views(event_id, user_id);

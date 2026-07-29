@@ -25,6 +25,7 @@ import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
+import { resolveDisplayLocation } from '../utils/extractLocationFromAddress';
 import {
   getPreviewStepTitle,
   getPreviewFieldLabel,
@@ -417,7 +418,7 @@ export default function MyMatchScreen({ navigation }) {
       // Get all available surrogates first
       const { data: allSurrogates, error: surrogatesError } = await supabase
         .from('profiles')
-        .select('id, name, phone, location, available')
+        .select('id, name, phone, location, address, available')
         .eq('role', 'surrogate')
         .eq('available', true)
         .order('created_at', { ascending: false });
@@ -480,10 +481,51 @@ export default function MyMatchScreen({ navigation }) {
         console.log('[MyMatch] Matched surrogate IDs:', Array.from(matchedSurrogateIds));
       }
 
-      // Filter out matched surrogates
-      const availableSurrogates = allSurrogates.filter(
-        surrogate => !matchedSurrogateIds.has(surrogate.id)
-      );
+      // Filter out matched surrogates; derive City, ST from address when location is missing/incomplete
+      let availableSurrogates = allSurrogates
+        .filter((surrogate) => !matchedSurrogateIds.has(surrogate.id))
+        .map((surrogate) => ({
+          ...surrogate,
+          location: resolveDisplayLocation(surrogate.location, surrogate.address),
+        }));
+
+      // If still missing / incomplete location, try address in latest application form_data
+      const needsLocationIds = availableSurrogates
+        .filter((s) => {
+          const loc = String(s.location || '').trim();
+          if (!loc) return true;
+          // e.g. "ca 92154" or "CA" — city missing
+          return /^[A-Za-z]{2}\s*\d{5}(?:-\d{4})?$/i.test(loc) || /^[A-Za-z]{2}$/i.test(loc);
+        })
+        .map((s) => s.id);
+      if (needsLocationIds.length > 0) {
+        const { data: apps } = await supabase
+          .from('applications')
+          .select('user_id, form_data, created_at')
+          .in('user_id', needsLocationIds)
+          .order('created_at', { ascending: false });
+
+        const addressByUser = {};
+        (apps || []).forEach((app) => {
+          if (addressByUser[app.user_id]) return;
+          try {
+            const form = app.form_data ? JSON.parse(app.form_data) : {};
+            if (form.address) addressByUser[app.user_id] = form.address;
+          } catch (_) {
+            // ignore bad form_data
+          }
+        });
+
+        availableSurrogates = availableSurrogates.map((s) => {
+          const fromForm = addressByUser[s.id];
+          if (!fromForm) return s;
+          return {
+            ...s,
+            address: s.address || fromForm,
+            location: resolveDisplayLocation(s.location, s.address || fromForm),
+          };
+        });
+      }
 
       console.log('[MyMatch] Final available surrogates after filtering:', availableSurrogates.length);
       console.log('[MyMatch] Excluded', matchedSurrogateIds.size, 'matched surrogates');
@@ -607,8 +649,16 @@ export default function MyMatchScreen({ navigation }) {
 
       // Always set details, even if profile load failed
       // Use profile data if available, otherwise fall back to surrogate data from list
+      const baseProfile = profile || surrogate;
+      const formAddress = parsedFormData?.address || '';
       const details = {
-        profile: profile || surrogate,
+        profile: {
+          ...baseProfile,
+          location: resolveDisplayLocation(
+            baseProfile?.location,
+            baseProfile?.address || formAddress
+          ),
+        },
         application: applicationData,
         parsedFormData: parsedFormData || {},
       };
@@ -652,6 +702,18 @@ export default function MyMatchScreen({ navigation }) {
     return `${month}-${day}-${year}`;
   };
 
+  /** Mask last name only (first letter + *); leave empty if no last name. */
+  const maskLastName = (lastName) => {
+    const raw = String(lastName || '').trim();
+    if (!raw) return '';
+    if (raw.length <= 1) return '*';
+    return `${raw[0]}${'*'.repeat(Math.min(3, raw.length - 1))}`;
+  };
+
+  /**
+   * Browseable surrogate names: show first name fully, omit middle name(s), mask last name.
+   * e.g. "Jane Marie Doe" → "Jane D***"
+   */
   const maskName = (name, shouldMask = true) => {
     if (!name) return 'N/A';
     const rawName = String(name).trim();
@@ -659,17 +721,14 @@ export default function MyMatchScreen({ navigation }) {
     if (!shouldMask) return rawName;
 
     const parts = rawName.split(/\s+/).filter(Boolean);
-    if (parts.length > 1) {
-      return parts
-        .map((part) => {
-          if (part.length <= 1) return '*';
-          return `${part[0]}${'*'.repeat(Math.min(3, part.length - 1))}`;
-        })
-        .join(' ');
+    if (parts.length === 1) {
+      // Single token — treat as first name (visible)
+      return parts[0];
     }
 
-    if (rawName.length <= 1) return '*';
-    return `${rawName[0]}${'*'.repeat(Math.min(3, rawName.length - 1))}`;
+    const firstName = parts[0];
+    const lastMasked = maskLastName(parts[parts.length - 1]);
+    return lastMasked ? `${firstName} ${lastMasked}` : firstName;
   };
 
   const maskPhone = (phone, shouldMask = true) => {
@@ -1624,6 +1683,8 @@ export default function MyMatchScreen({ navigation }) {
     const shouldExcludeKey = (key) => {
       const lowerKey = String(key || '').toLowerCase();
       if (['photos', 'photourl', 'photo', 'photo_url'].includes(lowerKey)) return true;
+      // Middle name is never shown when browsing unmatched surrogates
+      if (!isMatched && lowerKey === 'middlename') return true;
       if (!isMatched && lowerKey.includes('emergency')) return true;
       return false;
     };
@@ -1766,10 +1827,15 @@ export default function MyMatchScreen({ navigation }) {
       }
 
       const strValue = String(value);
-      if (!isMatched && lowerKey.includes('name')) return maskName(strValue, true);
-      if (!isMatched && lowerKey.includes('phone')) return maskPhoneForDetail(strValue);
-      if (!isMatched && lowerKey.includes('email')) return maskEmail(strValue);
-      if (!isMatched && lowerKey.includes('address')) return maskAddress(strValue);
+      if (!isMatched) {
+        if (lowerKey === 'firstname') return strValue;
+        if (lowerKey === 'lastname') return maskLastName(strValue) || '***';
+        if (lowerKey === 'fullname' || lowerKey === 'name') return maskName(strValue, true);
+        if (lowerKey.includes('name')) return maskName(strValue, true);
+        if (lowerKey.includes('phone')) return maskPhoneForDetail(strValue);
+        if (lowerKey.includes('email')) return maskEmail(strValue);
+        if (lowerKey.includes('address')) return maskAddress(strValue);
+      }
       return strValue;
     };
 
