@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfViaServer } from '@/lib/uploadMedicalRecordPdf';
+import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
 
 type Complication = {
   complication: string;
@@ -68,6 +69,7 @@ export default function MedicalRecordReviewsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterQ, setFilterQ] = useState('');
@@ -144,6 +146,46 @@ export default function MedicalRecordReviewsPage() {
   const getSurrogateName = (userId: string | null) => {
     if (!userId) return '—';
     return surrogates.find((s) => s.id === userId)?.name || userId.slice(0, 8);
+  };
+
+  const getMatchLabel = (matchId: string | null) => {
+    if (!matchId) return null;
+    const match = matches.find((m) => m.id === matchId);
+    if (!match) return matchId.slice(0, 8);
+    return `${match.surrogate?.name || 'Surrogate'} / ${match.parent?.name || 'Parent'}`;
+  };
+
+  const handleDownloadReport = (review: Review) => {
+    try {
+      generateMedicalRecordReviewPDF(review, {
+        surrogateName: review.surrogate_user_id ? getSurrogateName(review.surrogate_user_id) : null,
+        matchLabel: getMatchLabel(review.match_id),
+      });
+    } catch (error: any) {
+      alert(`Failed to generate report: ${error.message}`);
+    }
+  };
+
+  const handleDownloadSourcePdf = async (review: Review) => {
+    if (!review.file_url || review.file_url === 'pending' || review.file_deleted_at) return;
+    try {
+      setDownloadingPdfId(review.id);
+      const res = await fetch(review.file_url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = review.file_name || `medical-record-${review.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      alert(`Failed to download PDF: ${error.message}`);
+    } finally {
+      setDownloadingPdfId(null);
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -412,12 +454,13 @@ export default function MedicalRecordReviewsPage() {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Findings</th>
                   <th className="px-4 py-3">Uploaded</th>
+                  <th className="px-4 py-3">Download</th>
                 </tr>
               </thead>
               <tbody>
                 {reviews.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                       No medical record reviews yet.
                     </td>
                   </tr>
@@ -446,6 +489,17 @@ export default function MedicalRecordReviewsPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
                         {formatDateTime(review.created_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadReport(review);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        >
+                          Report
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -511,6 +565,21 @@ export default function MedicalRecordReviewsPage() {
                     <span className="border px-3 py-2 rounded text-sm text-gray-400 cursor-not-allowed">
                       PDF removed
                     </span>
+                  )}
+                  <button
+                    onClick={() => handleDownloadReport(selected)}
+                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
+                  >
+                    Download Review Report
+                  </button>
+                  {selectedHasPdf && (
+                    <button
+                      onClick={() => handleDownloadSourcePdf(selected)}
+                      disabled={downloadingPdfId === selected.id}
+                      className="border px-3 py-2 rounded hover:bg-gray-50 text-sm disabled:opacity-50"
+                    >
+                      {downloadingPdfId === selected.id ? 'Downloading…' : 'Download Source PDF'}
+                    </button>
                   )}
                   <button
                     onClick={() => handleAnalyze(selected.id)}
