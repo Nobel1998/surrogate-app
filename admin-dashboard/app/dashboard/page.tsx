@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import ApproveButton from '../../components/ApproveButton';
 import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
-import { resolveDisplayLocation } from '../../lib/extractLocationFromAddress';
+import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -130,7 +130,7 @@ export default function Home() {
       console.error('Error parsing form_data:', e);
     }
 
-    const address = formData.address || profile?.address || '';
+    const address = sanitizeAddressText(formData.address || profile?.address || '');
     const location =
       resolveDisplayLocation(
         formData.location || profile?.location || app.location,

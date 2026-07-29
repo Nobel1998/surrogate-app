@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { sanitizeAddressText } from './extractLocationFromAddress';
 
 interface ApplicationData {
   [key: string]: any;
@@ -15,7 +16,7 @@ const formatBoolean = (value: any): string => {
 // Helper function to format value or return N/A
 const formatValue = (value: any): string => {
   if (value === null || value === undefined || value === '') return 'N/A';
-  return String(value);
+  return sanitizeAddressText(String(value)) || 'N/A';
 };
 
 // Helper function to load image as base64

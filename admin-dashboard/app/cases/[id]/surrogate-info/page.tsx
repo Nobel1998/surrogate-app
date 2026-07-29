@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { sanitizeAddressText } from '@/lib/extractLocationFromAddress';
 
 type SurrogateProfile = {
   id: string;
@@ -158,7 +159,10 @@ export default function SurrogateInfoPage() {
           {renderField('Date of Birth', profile?.date_of_birth || formData.dateOfBirth)}
           {renderField('Age', formData.age)}
           {renderField('Location', profile?.location)}
-          {renderField('Address', profile?.address || formData.address || formData.applicantAddress)}
+          {renderField(
+            'Address',
+            sanitizeAddressText(profile?.address || formData.address || formData.applicantAddress)
+          )}
           {renderField('Race/Ethnicity', profile?.race || formData.race)}
           {renderField('Blood Type', formData.bloodType)}
           {renderField('Height', formData.height)}

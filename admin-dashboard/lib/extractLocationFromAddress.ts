@@ -7,6 +7,16 @@
  * - "419 Greenfield Drive El Cajon California 92021" → "El Cajon, CA"
  */
 
+/** Strip object-replacement / zero-width junk (e.g. U+FFFC often shown as "obj"). */
+export function sanitizeAddressText(text: string | null | undefined): string {
+  if (text == null) return '';
+  return String(text)
+    .replace(/[\uFFFC\uFFFD\uFEFF\u200B-\u200D\u2060]/g, '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const US_STATE_BY_NAME: Record<string, string> = {
   alabama: 'AL',
   alaska: 'AK',
@@ -198,7 +208,7 @@ function cityFromBeforeState(beforeState: string) {
 export function extractLocationFromAddress(address: string | null | undefined): string {
   if (!address || typeof address !== 'string') return '';
 
-  const original = address.trim().replace(/\s+/g, ' ');
+  const original = sanitizeAddressText(address);
   if (!original) return '';
 
   // Classic "Street, City, ST ZIP"
@@ -206,8 +216,8 @@ export function extractLocationFromAddress(address: string | null | undefined): 
   if (commaParts.length >= 3) {
     const cityPart = commaParts[commaParts.length - 2];
     const stateZipPart = commaParts[commaParts.length - 1];
-    const withoutZip = stateZipPart.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim();
-    const stateInfo = matchStateAtEnd(withoutZip) || matchStateAtEnd(stateZipPart.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim());
+    const withoutZip = stateZipPart.replace(/\b\d{3,5}(?:-\d{4})?\b/, '').trim();
+    const stateInfo = matchStateAtEnd(withoutZip) || matchStateAtEnd(stateZipPart.replace(/\b\d{3,5}(?:-\d{4})?\b/, '').trim());
     if (cityPart && stateInfo?.abbr) {
       return `${toTitleCase(cityPart)}, ${stateInfo.abbr}`;
     }
@@ -218,9 +228,9 @@ export function extractLocationFromAddress(address: string | null | undefined): 
     if (cityPart) return toTitleCase(cityPart);
   }
 
-  // Strip trailing ZIP, then find state, then city immediately before state
+  // Strip trailing ZIP (full 5-digit or incomplete 3–5 digit fragments like "9211")
   let working = original;
-  const zipMatch = working.match(/\b\d{5}(?:-\d{4})?\s*$/);
+  const zipMatch = working.match(/\b\d{3,5}(?:-\d{4})?\s*$/);
   if (zipMatch) {
     working = working.slice(0, zipMatch.index).trim().replace(/[,\s]+$/g, '');
   }
@@ -232,9 +242,21 @@ export function extractLocationFromAddress(address: string | null | undefined): 
     return stateInfo.abbr;
   }
 
+  // Fallback: state abbr/name still followed by a partial zip (e.g. "ca 9211")
+  const stateThenZip = working.match(/\b([A-Za-z]{2})\s+\d{3,5}(?:-\d{4})?\s*$/);
+  if (stateThenZip) {
+    const abbr = stateThenZip[1].toUpperCase();
+    if (US_STATE_ABBR.has(abbr)) {
+      const before = working.slice(0, stateThenZip.index).replace(/[,\s]+$/g, '');
+      const city = cityFromBeforeState(before);
+      if (city) return `${city}, ${abbr}`;
+      return abbr;
+    }
+  }
+
   // "Street, City" with no state
   if (commaParts.length === 2) {
-    const after = commaParts[1].replace(/\b\d{5}(?:-\d{4})?\b/, '').trim();
+    const after = commaParts[1].replace(/\b\d{3,5}(?:-\d{4})?\b/, '').trim();
     const afterState = matchStateAtEnd(after);
     if (afterState?.abbr) {
       // City may still be in the street segment (e.g. "... SAN DIEGO, ca 92154")
@@ -259,16 +281,16 @@ export function resolveDisplayLocation(
   location: string | null | undefined,
   address: string | null | undefined
 ): string {
-  const stored = String(location || '').trim();
+  const stored = sanitizeAddressText(location);
   const derived = extractLocationFromAddress(address);
 
-  if (!stored) return derived || '';
+  if (!stored || /^n\/?a$/i.test(stored)) return derived || '';
 
   // Incomplete: only state/zip, no city
   const looksIncomplete =
-    /^[A-Za-z]{2}\s*\d{5}(?:-\d{4})?$/i.test(stored) ||
+    /^[A-Za-z]{2}\s*\d{3,5}(?:-\d{4})?$/i.test(stored) ||
     /^[A-Za-z]{2}$/i.test(stored) ||
-    /^\d{5}(?:-\d{4})?$/.test(stored);
+    /^\d{3,5}(?:-\d{4})?$/.test(stored);
 
   if (looksIncomplete && derived) return derived;
   return stored;

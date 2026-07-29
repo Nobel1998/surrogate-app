@@ -25,7 +25,7 @@ import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
-import { resolveDisplayLocation } from '../utils/extractLocationFromAddress';
+import { resolveDisplayLocation, sanitizeAddressText } from '../utils/extractLocationFromAddress';
 import {
   getPreviewStepTitle,
   getPreviewFieldLabel,
@@ -1675,7 +1675,12 @@ export default function MyMatchScreen({ navigation }) {
       if (key === 'fullName' && (formVal == null || formVal === '') && surrogateProfile?.name) return surrogateProfile.name;
       if (key === 'phoneNumber' && (formVal == null || formVal === '') && surrogateProfile?.phone) return surrogateProfile.phone;
       if (key === 'email' && (formVal == null || formVal === '') && surrogateProfile?.email) return surrogateProfile.email;
-      if (key === 'address' && (formVal == null || formVal === '') && surrogateProfile?.address) return surrogateProfile.address;
+      if (key === 'address' && (formVal == null || formVal === '') && surrogateProfile?.address) {
+        return sanitizeAddressText(surrogateProfile.address);
+      }
+      if (key === 'address' && formVal != null && formVal !== '') {
+        return sanitizeAddressText(formVal);
+      }
       if (key === 'location') return surrogateProfile?.location || selectedSurrogate?.location || formVal;
       return formVal;
     };
@@ -1720,9 +1725,11 @@ export default function MyMatchScreen({ navigation }) {
     // Mask address - hide street address with ***
     const maskAddress = (address) => {
       if (!address) return naLabel;
-      if (isMatched) return address;
+      const cleaned = sanitizeAddressText(address);
+      if (!cleaned) return naLabel;
+      if (isMatched) return cleaned;
       // Replace street address with ***, keep city/state
-      const parts = address.split(',').map(p => p.trim());
+      const parts = cleaned.split(',').map(p => p.trim());
       if (parts.length >= 2) {
         // Mask the first part (street address), keep the rest
         return '*****, ' + parts.slice(1).join(', ');

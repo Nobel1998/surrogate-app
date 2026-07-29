@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
-import { extractLocationFromAddress } from '../utils/extractLocationFromAddress';
+import { extractLocationFromAddress, sanitizeAddressText } from '../utils/extractLocationFromAddress';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -1392,7 +1392,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             role,
             name: resolveFullName(applicationData),
             phone: applicationData.phoneNumber,
-            address: applicationData.address || '',
+            address: sanitizeAddressText(applicationData.address) || '',
             age: applicationData.age || '',
             date_of_birth: applicationData.dateOfBirth || '',
             hear_about_us: applicationData.hearAboutUs || '',
@@ -1444,7 +1444,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             phone: applicationData.phoneNumber,
             date_of_birth: applicationData.dateOfBirth || null,
             email: authEmail.trim(),
-            address: applicationData.address || '',
+            address: sanitizeAddressText(applicationData.address) || '',
             location: extractedLocation || '', // Auto-extract city from address
             invite_code: inviteCode,
             race: applicationData.race || '',
@@ -1558,7 +1558,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         phone: applicationData.phoneNumber,
         date_of_birth: applicationData.dateOfBirth || null,
         email: applicationData.email || authUser.email,
-        address: applicationData.address || '',
+        address: sanitizeAddressText(applicationData.address) || '',
         race: applicationData.race || '',
         referred_by: applicationData.referralCode?.trim() || null,
         invite_code: ensuredInviteCode,
@@ -1587,6 +1587,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         form_data: JSON.stringify({
           ...otherFields,
           fullName: resolvedName,
+          address: sanitizeAddressText(otherFields.address || applicationData.address) || '',
           height: heightDisplay,
           weight: weightDisplay,
         }),
