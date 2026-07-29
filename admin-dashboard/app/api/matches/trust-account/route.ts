@@ -23,13 +23,14 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const userId = formData.get('user_id') as string | null;
+    const parentId = formData.get('parent_id') as string | null;
+    const surrogateId = formData.get('surrogate_id') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
-    if (!userId) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
+    if (!parentId || !surrogateId) {
+      return NextResponse.json({ error: 'parent_id and surrogate_id are required' }, { status: 400 });
     }
 
     // Validate file extension
@@ -41,9 +42,9 @@ export async function POST(req: Request) {
 
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).slice(2);
-    
-    // Upload file to storage - each user gets their own file
-    const path = `trust-account/${userId}-${timestamp}-${randomStr}${ext}`;
+
+    // Upload file to storage once (shared between both parties)
+    const path = `trust-account/${timestamp}-${randomStr}${ext}`;
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, {
@@ -55,18 +56,32 @@ export async function POST(req: Request) {
 
     const publicUrl = buildPublicUrl(path);
 
-    // Insert document for this specific user only
+    // Insert the same document for both parties so each side sees it in My Match
     const { error: insertError } = await supabase
       .from('documents')
-      .insert({
-        document_type: 'trust_account',
-        file_url: publicUrl,
-        file_name: file.name,
-        user_id: userId,
-      });
+      .insert([
+        {
+          document_type: 'trust_account',
+          file_url: publicUrl,
+          file_name: file.name,
+          user_id: parentId,
+        },
+        {
+          document_type: 'trust_account',
+          file_url: publicUrl,
+          file_name: file.name,
+          user_id: surrogateId,
+        },
+      ]);
     if (insertError) throw insertError;
 
-    return NextResponse.json({ success: true, url: publicUrl, path, user_id: userId });
+    return NextResponse.json({
+      success: true,
+      url: publicUrl,
+      path,
+      parent_id: parentId,
+      surrogate_id: surrogateId,
+    });
   } catch (err: any) {
     console.error('[matches/trust-account] POST error', err);
     return NextResponse.json({ error: err.message || 'Failed to upload trust account document' }, { status: 500 });

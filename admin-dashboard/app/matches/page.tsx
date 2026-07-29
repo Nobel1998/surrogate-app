@@ -313,12 +313,11 @@ export default function MatchesPage() {
   const [photoReleaseFile, setPhotoReleaseFile] = useState<File | null>(null);
   const [uploadingPhotoRelease, setUploadingPhotoRelease] = useState(false);
   
-  // Trust Account upload state
+  // Trust Account upload state (shared with both parties)
   const [showTrustAccountModal, setShowTrustAccountModal] = useState(false);
-  const [trustAccountUserId, setTrustAccountUserId] = useState<string>('');
+  const [trustAccountMatchId, setTrustAccountMatchId] = useState<string | null>(null);
   const [trustAccountFile, setTrustAccountFile] = useState<File | null>(null);
   const [uploadingTrustAccount, setUploadingTrustAccount] = useState(false);
-  const [trustAccountUserType, setTrustAccountUserType] = useState<'parent' | 'surrogate' | null>(null);
   
   // Customer Contract upload state (for parent)
   const [showCustomerContractModal, setShowCustomerContractModal] = useState(false);
@@ -2345,8 +2344,7 @@ export default function MatchesPage() {
   };
 
   const openTrustAccountModal = (match: Match) => {
-    setTrustAccountUserType('parent');
-    setTrustAccountUserId(match.parent_id);
+    setTrustAccountMatchId(match.id);
     setTrustAccountFile(null);
     setShowTrustAccountModal(true);
   };
@@ -2356,8 +2354,14 @@ export default function MatchesPage() {
       alert('Please select a file');
       return;
     }
-    if (!trustAccountUserId) {
-      alert('User ID is required');
+    if (!trustAccountMatchId) {
+      alert('Match ID is required');
+      return;
+    }
+
+    const match = matches.find(m => m.id === trustAccountMatchId);
+    if (!match) {
+      alert('Match not found');
       return;
     }
 
@@ -2365,7 +2369,8 @@ export default function MatchesPage() {
     try {
       const formData = new FormData();
       formData.append('file', trustAccountFile);
-      formData.append('user_id', trustAccountUserId);
+      formData.append('parent_id', match.parent_id || match.first_parent_id || '');
+      formData.append('surrogate_id', match.surrogate_id);
 
       const res = await fetch('/api/matches/trust-account', {
         method: 'POST',
@@ -2378,11 +2383,10 @@ export default function MatchesPage() {
       }
 
       const result = await res.json();
-      alert('Trust Account document uploaded successfully! The user can now see it in their User Center.');
+      alert('Trust Account uploaded successfully! Both parent and surrogate can now see it in their My Match section.');
       setShowTrustAccountModal(false);
       setTrustAccountFile(null);
-      setTrustAccountUserId('');
-      setTrustAccountUserType(null);
+      setTrustAccountMatchId(null);
       await loadData();
     } catch (err: any) {
       console.error('Error uploading trust account document:', err);
@@ -4973,9 +4977,9 @@ export default function MatchesPage() {
                               (c.document_type === 'parent_contract' || c.document_type === 'surrogate_contract')
                             );
                             
-                            // Filter contracts for parent only (for Trust Account)
-                            const parentTrustAccountContracts = contracts.filter(c => 
-                              c.user_id === m.parent_id &&
+                            // Filter contracts for Trust Account (Shared - visible to both parties)
+                            const trustAccountShared = contracts.filter(c =>
+                              (c.user_id === m.parent_id || c.user_id === m.first_parent_id || c.user_id === m.surrogate_id) &&
                               c.document_type === 'trust_account'
                             );
 
@@ -5000,6 +5004,7 @@ export default function MatchesPage() {
                                     {renderFileList('life_insurance', ['insurance_policy'], 'Life Insurance')}
                                     {renderFileList('health_insurance', ['health_insurance_bill'], 'Health Insurance')}
                                     {renderFileList('pbo', ['parental_rights'], 'PBO')}
+                                    {renderFileList('trust_account', ['trust_account'], 'Trust Account', false, trustAccountShared)}
                                   </div>
                                 </div>
                                 
@@ -5009,7 +5014,6 @@ export default function MatchesPage() {
                                   <div className="grid grid-cols-2 gap-2 text-xs">
                                     {renderFileList('agency_retainer_parent', ['agency_retainer'], 'Agency Retainer (Parent)', true, parentAgencyRetainerContracts)}
                                     {renderFileList('agency_retainer_surrogate', ['agency_retainer'], 'Agency Retainer (Surrogate)', true, surrogateAgencyRetainerContracts)}
-                                    {renderFileList('trust_account', ['trust_account'], 'Trust Account', true, parentTrustAccountContracts)}
                                     {renderFileList(
                                       'parent_application_pdf',
                                       ['parent_application_pdf'],
@@ -5114,12 +5118,6 @@ export default function MatchesPage() {
                               ⚖️ Upload Attorney Retainer (Surrogate)
                             </button>
                             <button
-                              onClick={() => openTrustAccountModal(m)}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              💰 Upload Trust Account
-                            </button>
-                            <button
                               onClick={() => {
                                 setApplicationPdfKind('parent');
                                 setApplicationPdfUserId(m.parent_id);
@@ -5178,6 +5176,12 @@ export default function MatchesPage() {
                               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
                             >
                               📋 Upload PBO
+                            </button>
+                            <button
+                              onClick={() => openTrustAccountModal(m)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              💰 Upload Trust Account
                             </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500 pl-1">
@@ -6299,90 +6303,93 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Trust Account Upload Modal */}
-      {showTrustAccountModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Upload Trust Account</h3>
-              <button
-                onClick={() => {
-                  setShowTrustAccountModal(false);
-                  setTrustAccountUserType(null);
-                  setTrustAccountUserId('');
-                  setTrustAccountFile(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {profileLookup[trustAccountUserId] ? (
-                    `${profileLookup[trustAccountUserId].name || trustAccountUserId} (Parent)`
-                  ) : (
-                    'N/A'
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  This document will be uploaded for the parent in this match.
-                </p>
+      {/* Trust Account Upload Modal (Shared) */}
+      {showTrustAccountModal && trustAccountMatchId && (() => {
+        const match = matches.find(m => m.id === trustAccountMatchId);
+        if (!match) return null;
+        const parentProfile = profileLookup[match.parent_id || match.first_parent_id || ''];
+        const surrogateProfile = profileLookup[match.surrogate_id];
+        const closeModal = () => {
+          setShowTrustAccountModal(false);
+          setTrustAccountMatchId(null);
+          setTrustAccountFile(null);
+        };
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Upload Trust Account (Shared)</h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Trust Account Document *
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                  onChange={(e) => setTrustAccountFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                />
-                {trustAccountFile && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    Selected: {trustAccountFile.name}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Parent
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                    {parentProfile?.name || match.parent_id || match.first_parent_id || 'N/A'}
                   </div>
-                )}
-                <p className="mt-2 text-xs text-gray-500">
-                  Supported formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG. Upload trust account documents (trust agreements, wire receipts, etc.). The document will be visible to the selected user in their User Center.
-                </p>
-              </div>
+                </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowTrustAccountModal(false);
-                    setTrustAccountUserType(null);
-                    setTrustAccountUserId('');
-                    setTrustAccountFile(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={uploadTrustAccount}
-                  disabled={uploadingTrustAccount || !trustAccountFile || !trustAccountUserId}
-                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingTrustAccount || !trustAccountFile || !trustAccountUserId
-                      ? 'bg-gray-400'
-                      : 'bg-teal-600 hover:bg-teal-700'
-                  } transition-colors`}
-                >
-                  {uploadingTrustAccount ? 'Uploading...' : 'Upload & Publish'}
-                </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Surrogate
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
+                    {surrogateProfile?.name || match.surrogate_id || 'N/A'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trust Account Document *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    onChange={(e) => setTrustAccountFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                  />
+                  {trustAccountFile && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Selected: {trustAccountFile.name}
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Supported formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG. Upload trust account documents (trust agreements, wire receipts, etc.). Both parent and surrogate will see the same document in their My Match section.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={closeModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={uploadTrustAccount}
+                    disabled={uploadingTrustAccount || !trustAccountFile}
+                    className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
+                      uploadingTrustAccount || !trustAccountFile
+                        ? 'bg-gray-400'
+                        : 'bg-teal-600 hover:bg-teal-700'
+                    } transition-colors`}
+                  >
+                    {uploadingTrustAccount ? 'Uploading...' : 'Upload & Publish'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Notes Detail Modal */}
       {notesDetailModal && (

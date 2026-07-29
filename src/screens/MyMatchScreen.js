@@ -366,8 +366,8 @@ export default function MyMatchScreen({ navigation }) {
           'parent_contract',
           'surrogate_contract',
           // 'online_claims', // Moved to User Center (ProfileScreen)
-          // trust_account: surrogate My Match only (not shown to parents)
-          ...(isSurrogate ? ['trust_account'] : []),
+          // trust_account: shared document, visible to both surrogate and parent
+          'trust_account',
         ];
 
         const { data: docs, error: docsError } = await supabase
@@ -1171,17 +1171,13 @@ export default function MyMatchScreen({ navigation }) {
         documentType: 'parental_rights',
       },
       // Online Claims moved to User Center (ProfileScreen)
-      ...(isSurrogate
-        ? [
-            {
-              key: 'trust_account',
-              label: t('myMatch.trustAccount'),
-              icon: 'dollar-sign',
-              iconColor: '#2ECC71',
-              documentType: 'trust_account',
-            },
-          ]
-        : []),
+      {
+        key: 'trust_account',
+        label: t('myMatch.trustAccount'),
+        icon: 'dollar-sign',
+        iconColor: '#2ECC71',
+        documentType: 'trust_account',
+      },
     ];
     
     return (
@@ -1261,6 +1257,8 @@ export default function MyMatchScreen({ navigation }) {
                         docData = documents.find(d => {
                           if (d.document_type !== doc.documentType) return false;
                           if (d.user_id === user.id) return true;
+                          // Trust Account is shared within the match, so either party's copy counts
+                          if (doc.documentType === 'trust_account') return true;
                           if (doc.documentType === 'surrogate_contract' || doc.documentType === 'parent_contract') {
                             const correspondingDoc = documents.find(doc => 
                               doc.file_url === d.file_url && 
@@ -1299,6 +1297,8 @@ export default function MyMatchScreen({ navigation }) {
                     if (d.document_type !== doc.documentType) return false;
                     // Check if this document belongs to current user
                     if (d.user_id === user.id) return true;
+                    // Trust Account is a shared match document: both parties open the same file
+                    if (doc.documentType === 'trust_account') return true;
                     // For match-uploaded files, also check if there's a corresponding document with same file_url
                     // This handles cases where the file was uploaded for the partner but should be visible to both
                     if (doc.documentType === 'surrogate_contract' || doc.documentType === 'parent_contract') {
