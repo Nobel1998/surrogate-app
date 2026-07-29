@@ -324,20 +324,24 @@ export default function Home() {
     loadApplications();
   }, []);
 
-  // If view has IP but no region yet, resolve geo on the fly for display
+  // Always re-resolve region from IP when opening a detail view.
+  // Stored signup_ip_region may be wrong if it came from an inaccurate global geo DB.
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       if (!selectedApp) return;
-      const region = String(selectedApp.applicantIpRegion || '').trim();
-      const ip = String(selectedApp.applicantIp || selectedApp.signup_ip || selectedApp.ip_address || '').trim();
-      if (region || !ip || ip === 'N/A') return;
+      const ip = String(
+        selectedApp.applicantIp || selectedApp.signup_ip || selectedApp.ip_address || ''
+      ).trim();
+      if (!ip || ip === 'N/A') return;
       setResolvingIpRegion(true);
       try {
         const resolved = await resolveIpRegion(ip);
         if (!cancelled && resolved) {
           setSelectedApp((prev: any) =>
-            prev ? { ...prev, applicantIpRegion: resolved } : prev
+            prev && prev.applicantIpRegion !== resolved
+              ? { ...prev, applicantIpRegion: resolved }
+              : prev
           );
         }
       } finally {
@@ -348,7 +352,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [selectedApp?.id, selectedApp?.applicationType, selectedApp?.applicantIp, selectedApp?.applicantIpRegion]);
+  }, [selectedApp?.id, selectedApp?.applicationType, selectedApp?.applicantIp]);
 
   // 过滤和搜索逻辑
   const filteredApplications = applications.filter(app => {

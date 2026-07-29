@@ -2,6 +2,9 @@
  * Best-effort public IP + province/state-level region for admin review.
  * Display in English: China province / US state (not city).
  * e.g. "Yunnan, China" / "California, United States"
+ *
+ * Note: Global geo DBs (ipwho etc.) are often wrong for China IPs.
+ * Prefer ipinfo / pconline for CN, and never trust a single flaky source alone when better ones exist.
  */
 
 function withTimeout(ms) {
@@ -87,7 +90,6 @@ function normalizeChinaProvince(region, regionCode) {
   const codeKey = String(regionCode || '').toLowerCase();
   if (CN_PROVINCE_BY_KEY[codeKey]) return CN_PROVINCE_BY_KEY[codeKey];
 
-  // Direct Chinese lookup
   const zhBase = raw
     .replace(/(壮族|回族|维吾尔)?自治区$/, '')
     .replace(/特别行政区$/, '')
@@ -99,7 +101,6 @@ function normalizeChinaProvince(region, regionCode) {
   const key = normalizeKey(raw);
   if (CN_PROVINCE_BY_KEY[key]) return CN_PROVINCE_BY_KEY[key];
 
-  // Strip English suffixes like "Yunnan Province" / "Shandong Sheng"
   const cleaned = titleCaseEnglish(
     raw
       .replace(/\b(sheng|province|shi|zizhiqu|autonomous region|municipality)\b/gi, '')
@@ -155,62 +156,107 @@ export function formatProvinceState({ region, regionCode, country, countryCode }
   return province || countryLabel || null;
 }
 
+function looksLikeChinaLabel(label) {
+  return /,\s*China$/i.test(String(label || ''));
+}
+
+async function lookupFromIpInfo(ip) {
+  const res = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
+    signal: withTimeout(4500),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data || data.bogon || data.error) return null;
+  return formatProvinceState({
+    region: data.region,
+    country: data.country === 'CN' ? 'China' : data.country,
+    countryCode: data.country,
+  });
+}
+
+async function lookupFromPconline(ip) {
+  const res = await fetch(
+    `https://whois.pconline.com.cn/ipJson.jsp?ip=${encodeURIComponent(ip)}&json=true`,
+    { signal: withTimeout(5000) }
+  );
+  if (!res.ok) return null;
+  const text = (await res.text()).replace(/^\uFEFF/, '').trim();
+  // Response may be UTF-8 or GBK; if Chinese chars look fine, parse JSON
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const pro = String(data.pro || '').trim();
+  if (!pro || data.err) return null;
+  // Reject mojibake (no CJK and no latin province token)
+  if (!/[\u4e00-\u9fffA-Za-z]/.test(pro)) return null;
+  return formatProvinceState({
+    region: pro,
+    country: 'China',
+    countryCode: 'CN',
+  });
+}
+
+async function lookupFromIpSb(ip) {
+  const res = await fetch(`https://api.ip.sb/geoip/${encodeURIComponent(ip)}`, {
+    signal: withTimeout(4500),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return formatProvinceState({
+    region: data.region || data.region_name,
+    country: data.country || data.country_code,
+    countryCode: data.country_code,
+  });
+}
+
+async function lookupFromIpWho(ip) {
+  const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+    signal: withTimeout(4500),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (data?.success === false) return null;
+  return formatProvinceState({
+    region: data.region,
+    regionCode: data.region_code,
+    country: data.country,
+    countryCode: data.country_code,
+  });
+}
+
+/**
+ * Resolve province/state for an IP.
+ * For China: prefer pconline + ipinfo (more accurate than ipwho).
+ */
 async function lookupGeoByIp(ip) {
   if (!ip) return null;
 
-  // ipwho.is usually includes province/state; geojs often only has country
-  try {
-    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
-      signal: withTimeout(4500),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.success !== false) {
-        const label = formatProvinceState({
-          region: data.region,
-          regionCode: data.region_code,
-          country: data.country,
-          countryCode: data.country_code,
-        });
-        if (label) return label;
-      }
-    }
-  } catch {
-    // fallback
+  const results = [];
+
+  // Run CN-friendly sources first in parallel
+  const settled = await Promise.allSettled([
+    lookupFromPconline(ip),
+    lookupFromIpInfo(ip),
+    lookupFromIpSb(ip),
+  ]);
+  for (const s of settled) {
+    if (s.status === 'fulfilled' && s.value) results.push(s.value);
   }
 
-  try {
-    const res = await fetch(
-      `https://api.country.is/${encodeURIComponent(ip)}?fields=subdivision,country`,
-      { signal: withTimeout(4500) }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const label = formatProvinceState({
-        region: data.subdivision || data.region,
-        regionCode: data.subdivision_code || data.region_code,
-        country: data.country_name || data.country,
-        countryCode: data.country,
-      });
-      if (label) return label;
-    }
-  } catch {
-    // fallback
-  }
+  // Prefer any China province label from pconline/ipinfo/ip.sb
+  const chinaHit = results.find((r) => looksLikeChinaLabel(r) && !/^China$/i.test(r));
+  if (chinaHit) return chinaHit;
+  if (results[0]) return results[0];
 
+  // Last resort (often inaccurate for CN)
   try {
-    const res = await fetch(`https://get.geojs.io/v1/ip/geo/${encodeURIComponent(ip)}.json`, {
-      signal: withTimeout(4500),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return formatProvinceState({
-        region: data.region,
-        regionCode: data.region_code,
-        country: data.country,
-        countryCode: data.country_code,
-      });
-    }
+    const who = await lookupFromIpWho(ip);
+    if (who) return who;
   } catch {
     // ignore
   }
@@ -244,6 +290,20 @@ async function detectPublicIp() {
     // ignore
   }
 
+  // ipinfo me
+  try {
+    const res = await fetch('https://ipinfo.io/json', {
+      signal: withTimeout(4000),
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ip) return String(data.ip).trim();
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }
 
@@ -251,27 +311,8 @@ async function detectPublicIp() {
  * @returns {Promise<{ ip: string|null, region: string|null }>}
  */
 export async function getClientIpInfo() {
-  try {
-    const res = await fetch('https://ipwho.is/', { signal: withTimeout(4500) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.success !== false) {
-        const ip = data?.ip ? String(data.ip).trim() : null;
-        const region = formatProvinceState({
-          region: data.region,
-          regionCode: data.region_code,
-          country: data.country,
-          countryCode: data.country_code,
-        });
-        if (ip || region) {
-          return { ip, region: region || (ip ? await lookupGeoByIp(ip) : null) };
-        }
-      }
-    }
-  } catch {
-    // fallback
-  }
-
+  // Always detect IP first, then resolve region with CN-accurate sources.
+  // Do NOT use ipwho's self-geo as primary — it frequently mislabels China provinces.
   const ip = await detectPublicIp();
   if (!ip) return { ip: null, region: null };
   const region = await lookupGeoByIp(ip);

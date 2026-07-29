@@ -1,5 +1,6 @@
 /**
  * Resolve IP to province/state-level region for admin display (English).
+ * Prefer China-accurate sources (pconline / ipinfo) over ipwho for CN IPs.
  * e.g. "Yunnan, China" / "California, United States"
  */
 
@@ -146,65 +147,98 @@ export function formatProvinceState(input: {
   return province || countryLabel || null;
 }
 
+function looksLikeChinaLabel(label: string) {
+  return /,\s*China$/i.test(label);
+}
+
+async function lookupFromIpInfo(ip: string) {
+  const res = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
+    signal: AbortSignal.timeout(4500),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data || data.bogon || data.error) return null;
+  return formatProvinceState({
+    region: data.region,
+    country: data.country === 'CN' ? 'China' : data.country,
+    countryCode: data.country,
+  });
+}
+
+async function lookupFromPconline(ip: string) {
+  const res = await fetch(
+    `https://whois.pconline.com.cn/ipJson.jsp?ip=${encodeURIComponent(ip)}&json=true`,
+    { signal: AbortSignal.timeout(5000) }
+  );
+  if (!res.ok) return null;
+  const text = (await res.text()).replace(/^\uFEFF/, '').trim();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const pro = String(data.pro || '').trim();
+  if (!pro || data.err) return null;
+  if (!/[\u4e00-\u9fffA-Za-z]/.test(pro)) return null;
+  return formatProvinceState({
+    region: pro,
+    country: 'China',
+    countryCode: 'CN',
+  });
+}
+
+async function lookupFromIpSb(ip: string) {
+  const res = await fetch(`https://api.ip.sb/geoip/${encodeURIComponent(ip)}`, {
+    signal: AbortSignal.timeout(4500),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return formatProvinceState({
+    region: data.region || data.region_name,
+    country: data.country || data.country_code,
+    countryCode: data.country_code,
+  });
+}
+
+async function lookupFromIpWho(ip: string) {
+  const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+    signal: AbortSignal.timeout(4500),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (data?.success === false) return null;
+  return formatProvinceState({
+    region: data.region,
+    regionCode: data.region_code,
+    country: data.country,
+    countryCode: data.country_code,
+  });
+}
+
 export async function resolveIpRegion(ip: string | null | undefined): Promise<string | null> {
   const raw = String(ip || '').trim();
   if (!raw || raw === 'N/A') return null;
 
-  try {
-    const res = await fetch(`https://ipwho.is/${encodeURIComponent(raw)}`, {
-      signal: AbortSignal.timeout(4500),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.success !== false) {
-        const label = formatProvinceState({
-          region: data.region,
-          regionCode: data.region_code,
-          country: data.country,
-          countryCode: data.country_code,
-        });
-        if (label) return label;
-      }
-    }
-  } catch {
-    // fallback
+  const settled = await Promise.allSettled([
+    lookupFromPconline(raw),
+    lookupFromIpInfo(raw),
+    lookupFromIpSb(raw),
+  ]);
+  const results: string[] = [];
+  for (const s of settled) {
+    if (s.status === 'fulfilled' && s.value) results.push(s.value);
   }
 
-  try {
-    const res = await fetch(
-      `https://api.country.is/${encodeURIComponent(raw)}?fields=subdivision,country`,
-      { signal: AbortSignal.timeout(4500) }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const label = formatProvinceState({
-        region: data.subdivision || data.region,
-        regionCode: data.subdivision_code || data.region_code,
-        country: data.country_name || data.country,
-        countryCode: data.country,
-      });
-      if (label) return label;
-    }
-  } catch {
-    // fallback
-  }
+  const chinaHit = results.find((r) => looksLikeChinaLabel(r) && !/^China$/i.test(r));
+  if (chinaHit) return chinaHit;
+  if (results[0]) return results[0];
 
   try {
-    const res = await fetch(`https://get.geojs.io/v1/ip/geo/${encodeURIComponent(raw)}.json`, {
-      signal: AbortSignal.timeout(4500),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return formatProvinceState({
-        region: data.region,
-        regionCode: data.region_code,
-        country: data.country,
-        countryCode: data.country_code,
-      });
-    }
+    return await lookupFromIpWho(raw);
   } catch {
-    // ignore
+    return null;
   }
-
-  return null;
 }

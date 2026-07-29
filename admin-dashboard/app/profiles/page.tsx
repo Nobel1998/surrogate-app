@@ -88,14 +88,11 @@ export default function ProfilesPage() {
         throw new Error(`Failed to load signup detail: ${res.status} ${errText}`);
       }
       const data = await res.json();
-      if (
-        data?.profile &&
-        !data.profile.signup_ip_region &&
-        data.profile.signup_ip
-      ) {
-        const region = await resolveIpRegion(data.profile.signup_ip);
+      const ip = data?.profile?.signup_ip;
+      if (ip) {
+        const region = await resolveIpRegion(ip);
         if (region) {
-          data.profile.signup_ip_region = region;
+          data.profile = { ...(data.profile || {}), signup_ip_region: region };
         }
       }
       setSignupDetail(data);
