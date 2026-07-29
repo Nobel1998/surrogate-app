@@ -1,6 +1,6 @@
 /**
- * Resolve IP to province/state-level region for admin display.
- * China → "山东, 中国" ; US → "California, United States"
+ * Resolve IP to province/state-level region for admin display (English).
+ * e.g. "Yunnan, China" / "California, United States"
  */
 
 const US_STATE_BY_CODE: Record<string, string> = {
@@ -17,20 +17,42 @@ const US_STATE_BY_CODE: Record<string, string> = {
   DC: 'District of Columbia',
 };
 
-const CN_PROVINCE_MAP: Record<string, string> = {
-  beijing: '北京', bj: '北京', tianjin: '天津', tj: '天津', shanghai: '上海', sh: '上海',
-  chongqing: '重庆', cq: '重庆', hebei: '河北', he: '河北', shanxi: '山西', sx: '山西',
-  'nei mongol': '内蒙古', neimenggu: '内蒙古', 'inner mongolia': '内蒙古', nm: '内蒙古',
-  liaoning: '辽宁', ln: '辽宁', jilin: '吉林', jl: '吉林', heilongjiang: '黑龙江', hl: '黑龙江',
-  jiangsu: '江苏', js: '江苏', zhejiang: '浙江', zj: '浙江', anhui: '安徽', ah: '安徽',
-  fujian: '福建', fj: '福建', jiangxi: '江西', jx: '江西', shandong: '山东', sd: '山东',
-  henan: '河南', ha: '河南', hubei: '湖北', hb: '湖北', hunan: '湖南', hn: '湖南',
-  guangdong: '广东', gd: '广东', guangxi: '广西', gx: '广西', hainan: '海南', hi: '海南',
-  sichuan: '四川', sc: '四川', guizhou: '贵州', gz: '贵州', yunnan: '云南', yn: '云南',
-  xizang: '西藏', tibet: '西藏', xz: '西藏', shaanxi: '陕西', sn: '陕西',
-  gansu: '甘肃', gs: '甘肃', qinghai: '青海', qh: '青海', ningxia: '宁夏', nx: '宁夏',
-  xinjiang: '新疆', xj: '新疆', 'hong kong': '香港', hongkong: '香港', hk: '香港',
-  macao: '澳门', macau: '澳门', mo: '澳门', taiwan: '台湾', tw: '台湾',
+const CN_PROVINCE_BY_KEY: Record<string, string> = {
+  beijing: 'Beijing', 北京: 'Beijing', bj: 'Beijing',
+  tianjin: 'Tianjin', 天津: 'Tianjin', tj: 'Tianjin',
+  shanghai: 'Shanghai', 上海: 'Shanghai', sh: 'Shanghai',
+  chongqing: 'Chongqing', 重庆: 'Chongqing', cq: 'Chongqing',
+  hebei: 'Hebei', 河北: 'Hebei', he: 'Hebei',
+  shanxi: 'Shanxi', 山西: 'Shanxi', sx: 'Shanxi',
+  'nei mongol': 'Inner Mongolia', neimenggu: 'Inner Mongolia',
+  'inner mongolia': 'Inner Mongolia', 内蒙古: 'Inner Mongolia', nm: 'Inner Mongolia',
+  liaoning: 'Liaoning', 辽宁: 'Liaoning', ln: 'Liaoning',
+  jilin: 'Jilin', 吉林: 'Jilin', jl: 'Jilin',
+  heilongjiang: 'Heilongjiang', 黑龙江: 'Heilongjiang', hl: 'Heilongjiang',
+  jiangsu: 'Jiangsu', 江苏: 'Jiangsu', js: 'Jiangsu',
+  zhejiang: 'Zhejiang', 浙江: 'Zhejiang', zj: 'Zhejiang',
+  anhui: 'Anhui', 安徽: 'Anhui', ah: 'Anhui',
+  fujian: 'Fujian', 福建: 'Fujian', fj: 'Fujian',
+  jiangxi: 'Jiangxi', 江西: 'Jiangxi', jx: 'Jiangxi',
+  shandong: 'Shandong', 山东: 'Shandong', sd: 'Shandong',
+  henan: 'Henan', 河南: 'Henan', ha: 'Henan',
+  hubei: 'Hubei', 湖北: 'Hubei', hb: 'Hubei',
+  hunan: 'Hunan', 湖南: 'Hunan', hn: 'Hunan',
+  guangdong: 'Guangdong', 广东: 'Guangdong', gd: 'Guangdong',
+  guangxi: 'Guangxi', 广西: 'Guangxi', gx: 'Guangxi',
+  hainan: 'Hainan', 海南: 'Hainan', hi: 'Hainan',
+  sichuan: 'Sichuan', 四川: 'Sichuan', sc: 'Sichuan',
+  guizhou: 'Guizhou', 贵州: 'Guizhou', gz: 'Guizhou',
+  yunnan: 'Yunnan', 云南: 'Yunnan', yn: 'Yunnan',
+  xizang: 'Tibet', tibet: 'Tibet', 西藏: 'Tibet', xz: 'Tibet',
+  shaanxi: 'Shaanxi', 陕西: 'Shaanxi', sn: 'Shaanxi',
+  gansu: 'Gansu', 甘肃: 'Gansu', gs: 'Gansu',
+  qinghai: 'Qinghai', 青海: 'Qinghai', qh: 'Qinghai',
+  ningxia: 'Ningxia', 宁夏: 'Ningxia', nx: 'Ningxia',
+  xinjiang: 'Xinjiang', 新疆: 'Xinjiang', xj: 'Xinjiang',
+  'hong kong': 'Hong Kong', hongkong: 'Hong Kong', 香港: 'Hong Kong', hk: 'Hong Kong',
+  macao: 'Macao', macau: 'Macao', 澳门: 'Macao', mo: 'Macao',
+  taiwan: 'Taiwan', 台湾: 'Taiwan', tw: 'Taiwan',
 };
 
 function normalizeKey(text: string) {
@@ -43,23 +65,42 @@ function normalizeKey(text: string) {
     .trim();
 }
 
+function titleCaseEnglish(text: string) {
+  return String(text || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 function normalizeChinaProvince(region?: string | null, regionCode?: string | null) {
   const raw = String(region || '').trim();
-  if (/[\u4e00-\u9fff]/.test(raw)) {
-    return (
-      raw
-        .replace(/(壮族|回族|维吾尔)?自治区$/, '')
-        .replace(/特别行政区$/, '')
-        .replace(/省$/, '')
-        .replace(/市$/, '')
-        .trim() || raw
-    );
+  const codeKey = String(regionCode || '').toLowerCase();
+  if (CN_PROVINCE_BY_KEY[codeKey]) return CN_PROVINCE_BY_KEY[codeKey];
+
+  const zhBase = raw
+    .replace(/(壮族|回族|维吾尔)?自治区$/, '')
+    .replace(/特别行政区$/, '')
+    .replace(/省$/, '')
+    .replace(/市$/, '')
+    .trim();
+  if (CN_PROVINCE_BY_KEY[zhBase]) return CN_PROVINCE_BY_KEY[zhBase];
+
+  const key = normalizeKey(raw);
+  if (CN_PROVINCE_BY_KEY[key]) return CN_PROVINCE_BY_KEY[key];
+
+  const cleaned = titleCaseEnglish(
+    raw
+      .replace(/\b(sheng|province|shi|zizhiqu|autonomous region|municipality)\b/gi, '')
+      .replace(/[^A-Za-z\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+  if (cleaned && CN_PROVINCE_BY_KEY[cleaned.toLowerCase()]) {
+    return CN_PROVINCE_BY_KEY[cleaned.toLowerCase()];
   }
-  const byCode = CN_PROVINCE_MAP[String(regionCode || '').toLowerCase()];
-  if (byCode) return byCode;
-  const byName = CN_PROVINCE_MAP[normalizeKey(raw)];
-  if (byName) return byName;
-  return raw || null;
+  return cleaned || raw || null;
 }
 
 function normalizeUsState(region?: string | null, regionCode?: string | null) {
@@ -69,7 +110,7 @@ function normalizeUsState(region?: string | null, regionCode?: string | null) {
   if (/^[A-Za-z]{2}$/.test(raw) && US_STATE_BY_CODE[raw.toUpperCase()]) {
     return US_STATE_BY_CODE[raw.toUpperCase()];
   }
-  return raw || null;
+  return titleCaseEnglish(raw) || null;
 }
 
 export function formatProvinceState(input: {
@@ -88,9 +129,13 @@ export function formatProvinceState(input: {
 
   if (isCN) {
     province = normalizeChinaProvince(input.region, input.regionCode);
-    countryLabel = '中国';
+    countryLabel = 'China';
   } else if (isUS) {
     province = normalizeUsState(input.region, input.regionCode);
+    countryLabel = 'United States';
+  } else if (countryLabel === '中国') {
+    countryLabel = 'China';
+  } else if (countryLabel === '美国') {
     countryLabel = 'United States';
   }
 
