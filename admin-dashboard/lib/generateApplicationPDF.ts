@@ -101,7 +101,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
     addSection('Step 1: Family Structure & Basic Information', [
       ['Family Structure', formatValue(app.familyStructure)],
       ['How Did You Hear About Us', formatValue(app.hearAboutUs)],
-      ['Applicant IP Region', formatValue(app.applicantIpRegion || app.ip_region)],
+      ['Applicant IP Region (Province/State)', formatValue(app.applicantIpRegion || app.ip_region)],
     ], [0, 102, 204]);
 
     // Intended Parent 1
@@ -344,7 +344,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
     ['Citizenship Status', formatValue(app.citizenshipStatus)],
     ['Phone', formatValue(app.phone || app.phoneNumber)],
     ['Email', formatValue(app.email)],
-    ['Applicant IP Region', formatValue(app.applicantIpRegion || app.ip_region)],
+    ['Applicant IP Region (Province/State)', formatValue(app.applicantIpRegion || app.ip_region)],
     ['Location (City/State)', formatValue(app.location)],
     ['Full Address', formatValue(app.address || app.applicantAddress)],
     ['How Heard About Us', formatValue(app.hearAboutUs)],

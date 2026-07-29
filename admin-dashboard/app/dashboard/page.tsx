@@ -835,7 +835,7 @@ export default function Home() {
                         <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                        <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                         <p className="text-sm text-gray-900">
                           {selectedApp.applicantIpRegion ||
                             (resolvingIpRegion ? 'Resolving…' : null) ||
@@ -866,7 +866,7 @@ export default function Home() {
                           <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                          <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                           <p className="text-sm text-gray-900">
                             {selectedApp.applicantIpRegion ||
                               (resolvingIpRegion ? 'Resolving…' : null) ||
@@ -1441,7 +1441,7 @@ export default function Home() {
                       <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Applicant IP Region</label>
+                      <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                       <p className="text-sm text-gray-900">
                         {selectedApp.applicantIpRegion ||
                           (resolvingIpRegion ? 'Resolving…' : null) ||
