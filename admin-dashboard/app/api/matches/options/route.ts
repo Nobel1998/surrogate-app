@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
+import { resolveDisplayLocation, sanitizeAddressText } from '@/lib/extractLocationFromAddress';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
     // Build queries - branch filtering is done on matches, not profiles
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, name, phone, role, email, location, progress_stage, stage_updated_by, transfer_date, transfer_embryo_day, available')
+      .select('id, name, phone, role, email, location, address, progress_stage, stage_updated_by, transfer_date, transfer_embryo_day, available')
       .in('role', ['surrogate', 'parent']);
 
     let matchesQuery = supabase
@@ -493,8 +494,56 @@ export async function GET(req: NextRequest) {
       console.error('[matches/options] Error fetching branches:', branchesError);
     }
 
+    // Derive City/ST from address when profile.location is empty/incomplete; strip junk chars
+    let enrichedProfiles = (profilesFiltered || []).map((p: any) => {
+      const address = sanitizeAddressText(p.address);
+      const location = resolveDisplayLocation(p.location, address) || sanitizeAddressText(p.location) || null;
+      return {
+        ...p,
+        address: address || null,
+        location: location || null,
+      };
+    });
+
+    const needsLocation = enrichedProfiles.filter(
+      (p: any) =>
+        (p.role || '').toLowerCase() === 'surrogate' &&
+        !String(p.location || '').trim()
+    );
+    if (needsLocation.length > 0) {
+      const ids = needsLocation.map((p: any) => p.id);
+      const { data: apps } = await supabase
+        .from('applications')
+        .select('user_id, form_data, created_at')
+        .in('user_id', ids)
+        .order('created_at', { ascending: false });
+
+      const addressByUser: Record<string, string> = {};
+      (apps || []).forEach((app: any) => {
+        if (addressByUser[app.user_id]) return;
+        try {
+          const form = app.form_data ? JSON.parse(app.form_data) : {};
+          const addr = sanitizeAddressText(form.address);
+          if (addr) addressByUser[app.user_id] = addr;
+        } catch {
+          // ignore
+        }
+      });
+
+      enrichedProfiles = enrichedProfiles.map((p: any) => {
+        if (String(p.location || '').trim()) return p;
+        const fromForm = addressByUser[p.id];
+        if (!fromForm) return p;
+        return {
+          ...p,
+          address: p.address || fromForm,
+          location: resolveDisplayLocation(p.location, fromForm) || null,
+        };
+      });
+    }
+
     return NextResponse.json({
-      profiles: profilesFiltered,
+      profiles: enrichedProfiles,
       matches: enrichedMatches,
       medicalReports,
       contracts: contractsData || [],

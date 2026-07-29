@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { resolveDisplayLocation, sanitizeAddressText } from '@/lib/extractLocationFromAddress';
 
 type Profile = {
   id: string;
@@ -11,6 +12,7 @@ type Profile = {
   phone?: string;
   /** City, State or freeform from registration */
   location?: string | null;
+  address?: string | null;
   role?: string;
   progress_stage?: string | null;
   stage_updated_by?: string | null;
@@ -445,8 +447,26 @@ export default function MatchesPage() {
         })),
       });
 
-      const surList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate');
-      const parList = profiles.filter((p: Profile) => (p.role || '').toLowerCase() === 'parent');
+      const surList = profiles
+        .filter((p: Profile) => (p.role || '').toLowerCase() === 'surrogate')
+        .map((p: Profile) => ({
+          ...p,
+          address: sanitizeAddressText(p.address) || null,
+          location:
+            resolveDisplayLocation(p.location, p.address) ||
+            sanitizeAddressText(p.location) ||
+            null,
+        }));
+      const parList = profiles
+        .filter((p: Profile) => (p.role || '').toLowerCase() === 'parent')
+        .map((p: Profile) => ({
+          ...p,
+          address: sanitizeAddressText(p.address) || null,
+          location:
+            resolveDisplayLocation(p.location, p.address) ||
+            sanitizeAddressText(p.location) ||
+            null,
+        }));
 
       console.log('🧭 Matches loadData result', {
         allProfiles: profiles.length,
@@ -2447,7 +2467,9 @@ export default function MatchesPage() {
                       {s.name || s.id.substring(0, 8)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
-                      {(s.location && String(s.location).trim()) || '—'}
+                      {sanitizeAddressText(
+                        resolveDisplayLocation(s.location, s.address) || s.location || ''
+                      ) || '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
@@ -3790,7 +3812,7 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-600 mb-0.5">Doctor: {medicalInfo.ivf_clinic_doctor_name}</div>
                                     )}
                                     {medicalInfo.ivf_clinic_address && (
-                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.ivf_clinic_address}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.ivf_clinic_address)}</div>
                                     )}
                                     {medicalInfo.ivf_clinic_phone && (
                                       <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.ivf_clinic_phone}</div>
@@ -3904,7 +3926,7 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-900 mb-0.5">{medicalInfo.obgyn_clinic_name}</div>
                                     )}
                                     {medicalInfo.obgyn_clinic_address && (
-                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.obgyn_clinic_address}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.obgyn_clinic_address)}</div>
                                     )}
                                     {medicalInfo.obgyn_clinic_phone && (
                                       <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.obgyn_clinic_phone}</div>
@@ -4006,7 +4028,7 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-400 italic">Click to add</div>
                                     )}
                                     {medicalInfo.delivery_hospital_address && (
-                                      <div className="text-xs text-gray-600 mb-0.5">{medicalInfo.delivery_hospital_address}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.delivery_hospital_address)}</div>
                                     )}
                                     {medicalInfo.delivery_hospital_phone && (
                                       <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.delivery_hospital_phone}</div>
