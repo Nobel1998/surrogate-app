@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { uploadMedicalRecordPdfViaServer } from '@/lib/uploadMedicalRecordPdf';
+import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
 
 type Complication = {
@@ -223,11 +223,11 @@ export default function MedicalRecordReviewsPage() {
         throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
       }
 
-      if (!initData?.token || !initData?.path) {
-        throw new Error('Upload init missing signed token or storage path');
+      if (!initData?.signedUrl || !initData?.path) {
+        throw new Error('Upload init missing signed upload URL or storage path');
       }
 
-      await uploadMedicalRecordPdfViaServer(initData.reviewId, file, (progress) => {
+      await uploadMedicalRecordPdfToSignedUrl(initData.signedUrl, file, (progress) => {
         setUploadProgress(progress.percentage);
       });
 
