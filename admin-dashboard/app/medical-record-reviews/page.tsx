@@ -627,7 +627,7 @@ export default function MedicalRecordReviewsPage() {
                       <thead className="bg-gray-50 text-left">
                         <tr>
                           <th className="px-3 py-2 w-20">Page</th>
-                          <th className="px-3 py-2">Complication</th>
+                          <th className="px-3 py-2">Complication / Summary</th>
                         </tr>
                       </thead>
                       <tbody>

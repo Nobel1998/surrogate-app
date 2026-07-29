@@ -9,14 +9,16 @@ const CHAT_MAX_ATTEMPTS = 2;
 const CHAT_TIMEOUT_MS = 15 * 60 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
-const REVIEW_SYSTEM_PROMPT = `You review medical records and extract complications only.
+const REVIEW_SYSTEM_PROMPT = `You review medical records, summarize each complication, and remark its page number.
 Return ONLY valid JSON with this exact shape:
-{"complications":[{"complication":"string","page":1}]}
+{"complications":[{"complication":"string","summary":"string","page":1}]}
 Rules:
-- List medical complications found in the document.
-- Each item MUST include the page number where it appears.
+- List every medical complication found in the document.
+- complication: the short clinical name of the complication (a few words).
+- summary: 1-2 sentences summarizing what the record says about that complication. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
+- Each item MUST include the page number where the complication is documented. If it spans several pages, use the page with the clearest documentation.
 - If there are no complications, return {"complications":[]}.
-- Do not summarize the full record.
+- Do not summarize the full record, only the complications.
 - Do not include routine findings or administrative text unless they clearly describe a complication.
 - page must be an integer (1-based) using the ORIGINAL document page numbers provided in the instructions.`;
 
@@ -67,7 +69,8 @@ function normalizeComplications(raw: unknown): MedicalComplication[] {
     const pageNum = typeof pageRaw === 'number' ? pageRaw : Number(pageRaw);
     if (!complication || !Number.isFinite(pageNum)) continue;
     const page = Math.max(1, Math.round(pageNum));
-    const note = String((item as { note?: unknown }).note || '').trim();
+    const detail = item as { summary?: unknown; remark?: unknown; note?: unknown };
+    const note = String(detail.summary || detail.remark || detail.note || '').trim();
     results.push(note ? { complication, page, note } : { complication, page });
   }
   return results;
@@ -221,7 +224,7 @@ async function callKimiChat(
     : `The document has approximately ${pageCount || 'unknown'} pages.`;
 
   const userPrompt =
-    `Extract complications with page numbers from the medical record above. ` +
+    `Summarize each complication in the medical record above and remark its page number. ` +
     `${rangeHint} Return JSON only.`;
 
   let lastError: unknown = null;

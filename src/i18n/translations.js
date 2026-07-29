@@ -17,6 +17,7 @@ const baseTranslations = {
       success: 'Success',
       confirm: 'Confirm',
       close: 'Close',
+      ok: 'OK',
       connectingServer: 'Connecting to server...',
     },
     auth: {
@@ -1229,6 +1230,7 @@ const baseTranslations = {
       success: '成功',
       confirm: '确认',
       close: '关闭',
+      ok: '好的',
       connectingServer: '正在连接服务器...',
     },
     auth: {
@@ -2431,6 +2433,7 @@ const baseTranslations = {
       success: 'Éxito',
       confirm: 'Confirmar',
       close: 'Cerrar',
+      ok: 'OK',
       connectingServer: 'Conectando al servidor...',
     },
     auth: {

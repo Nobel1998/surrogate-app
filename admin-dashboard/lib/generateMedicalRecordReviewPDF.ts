@@ -118,7 +118,7 @@ export const generateMedicalRecordReviewPDF = (
   } else {
     autoTable(doc, {
       startY: yPosition,
-      head: [['Page', 'Complication', 'Note']],
+      head: [['Page', 'Complication', 'Summary']],
       body: complications.map((item) => [
         formatValue(item.page),
         formatValue(item.complication),
