@@ -294,13 +294,6 @@ export default function MatchesPage() {
   const [uploadingAgencyRetainer, setUploadingAgencyRetainer] = useState(false);
   const [agencyRetainerUserType, setAgencyRetainerUserType] = useState<'parent' | 'surrogate' | null>(null);
 
-  // Application PDF (parent / surrogate) upload state
-  const [showApplicationPdfModal, setShowApplicationPdfModal] = useState(false);
-  const [applicationPdfUserId, setApplicationPdfUserId] = useState<string>('');
-  const [applicationPdfKind, setApplicationPdfKind] = useState<'parent' | 'surrogate' | null>(null);
-  const [applicationPdfFile, setApplicationPdfFile] = useState<File | null>(null);
-  const [uploadingApplicationPdf, setUploadingApplicationPdf] = useState(false);
-  
   // HIPAA Release upload state
   const [showHipaaReleaseModal, setShowHipaaReleaseModal] = useState(false);
   const [hipaaReleaseUserId, setHipaaReleaseUserId] = useState<string>('');
@@ -2202,52 +2195,6 @@ export default function MatchesPage() {
       alert(err.message || 'Failed to upload agency retainer agreement');
     } finally {
       setUploadingAgencyRetainer(false);
-    }
-  };
-
-  const uploadApplicationPdf = async () => {
-    if (!applicationPdfFile) {
-      alert('Please select a PDF file');
-      return;
-    }
-    if (!applicationPdfUserId || !applicationPdfKind) {
-      alert('Missing user for upload');
-      return;
-    }
-
-    setUploadingApplicationPdf(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', applicationPdfFile);
-      formData.append('user_id', applicationPdfUserId);
-      formData.append('kind', applicationPdfKind);
-
-      const res = await fetch('/api/matches/application-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Upload failed: ${res.status} ${errText}`);
-      }
-
-      await res.json();
-      alert(
-        applicationPdfKind === 'parent'
-          ? 'Parent application PDF uploaded successfully.'
-          : 'Surrogate application PDF uploaded successfully.'
-      );
-      setShowApplicationPdfModal(false);
-      setApplicationPdfFile(null);
-      setApplicationPdfUserId('');
-      setApplicationPdfKind(null);
-      await loadData();
-    } catch (err: any) {
-      console.error('Error uploading application PDF:', err);
-      alert(err.message || 'Failed to upload application PDF');
-    } finally {
-      setUploadingApplicationPdf(false);
     }
   };
 
@@ -5117,28 +5064,6 @@ export default function MatchesPage() {
                             >
                               ⚖️ Upload Attorney Retainer (Surrogate)
                             </button>
-                            <button
-                              onClick={() => {
-                                setApplicationPdfKind('parent');
-                                setApplicationPdfUserId(m.parent_id);
-                                setApplicationPdfFile(null);
-                                setShowApplicationPdfModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📑 Upload Application PDF (Parent)
-                            </button>
-                            <button
-                              onClick={() => {
-                                setApplicationPdfKind('surrogate');
-                                setApplicationPdfUserId(m.surrogate_id);
-                                setApplicationPdfFile(null);
-                                setShowApplicationPdfModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                              📑 Upload Application PDF (Surrogate)
-                            </button>
                           </div>
                           <p className="mt-2 text-xs text-gray-500 pl-1">
                             Upload documents for individual users. Each user will see their own document in User Center.
@@ -5814,101 +5739,6 @@ export default function MatchesPage() {
                   } transition-colors`}
                 >
                   {uploadingAgencyRetainer ? 'Uploading...' : 'Upload & Publish'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Application PDF (Parent / Surrogate) Upload Modal */}
-      {showApplicationPdfModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">
-                Upload Application PDF{' '}
-                {applicationPdfKind === 'parent'
-                  ? '(Parent)'
-                  : applicationPdfKind === 'surrogate'
-                    ? '(Surrogate)'
-                    : ''}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowApplicationPdfModal(false);
-                  setApplicationPdfKind(null);
-                  setApplicationPdfUserId('');
-                  setApplicationPdfFile(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {applicationPdfKind === 'parent' ? 'Parent' : 'Surrogate'}
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700">
-                  {applicationPdfUserId && profileLookup[applicationPdfUserId] ? (
-                    `${profileLookup[applicationPdfUserId].name || applicationPdfUserId} (${
-                      applicationPdfKind === 'parent' ? 'Parent' : 'Surrogate'
-                    })`
-                  ) : (
-                    'N/A'
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  PDF only. Stored for this user&apos;s account (document type:{' '}
-                  {applicationPdfKind === 'parent'
-                    ? 'parent_application_pdf'
-                    : 'surrogate_application_pdf'}
-                  ).
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Application PDF *
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={(e) => setApplicationPdfFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
-                />
-                {applicationPdfFile && (
-                  <div className="mt-2 text-xs text-gray-500">Selected: {applicationPdfFile.name}</div>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowApplicationPdfModal(false);
-                    setApplicationPdfKind(null);
-                    setApplicationPdfUserId('');
-                    setApplicationPdfFile(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={uploadApplicationPdf}
-                  disabled={
-                    uploadingApplicationPdf || !applicationPdfFile || !applicationPdfUserId || !applicationPdfKind
-                  }
-                  className={`flex-1 px-4 py-2 rounded-md text-white font-medium ${
-                    uploadingApplicationPdf || !applicationPdfFile || !applicationPdfUserId || !applicationPdfKind
-                      ? 'bg-gray-400'
-                      : 'bg-slate-600 hover:bg-slate-700'
-                  } transition-colors`}
-                >
-                  {uploadingApplicationPdf ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
             </div>
