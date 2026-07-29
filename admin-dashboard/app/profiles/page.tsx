@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { resolveIpRegion } from '@/lib/resolveIpRegion';
+import { resolveIpRegionDetailed } from '@/lib/resolveIpRegion';
 
 type RegisteredUser = {
   id: string;
@@ -90,9 +90,12 @@ export default function ProfilesPage() {
       const data = await res.json();
       const ip = data?.profile?.signup_ip;
       if (ip) {
-        const region = await resolveIpRegion(ip);
-        if (region) {
-          data.profile = { ...(data.profile || {}), signup_ip_region: region };
+        const stored = String(data?.profile?.signup_ip_region || '').trim() || null;
+        const detailed = await resolveIpRegionDetailed(ip);
+        if (detailed.confidence === 'high' && detailed.region) {
+          data.profile = { ...(data.profile || {}), signup_ip_region: detailed.region };
+        } else if (String(ip).includes(':') && stored && stored !== 'China') {
+          data.profile = { ...(data.profile || {}), signup_ip_region: 'China' };
         }
       }
       setSignupDetail(data);

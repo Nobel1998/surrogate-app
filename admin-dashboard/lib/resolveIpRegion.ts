@@ -1,7 +1,7 @@
 /**
  * Resolve IP to province/state-level region for admin display (English).
- * Prefer China-accurate sources (pconline / ipinfo) over ipwho for CN IPs.
- * e.g. "Yunnan, China" / "California, United States"
+ * Prefer China-accurate sources for IPv4; require majority for IPv6
+ * (single sources often disagree: Shanghai vs Heilongjiang vs Beijing).
  */
 
 const US_STATE_BY_CODE: Record<string, string> = {
@@ -151,9 +151,38 @@ function looksLikeChinaLabel(label: string) {
   return /,\s*China$/i.test(label);
 }
 
+function isIPv6(ip: string) {
+  return ip.includes(':');
+}
+
+function provinceKey(label: string) {
+  const m = label.match(/^(.+),\s*(China|United States)$/i);
+  return (m ? m[1] : label).trim().toLowerCase();
+}
+
+function pickByMajority(
+  sourceLabels: Array<{ src?: string; region?: string | null }>
+): { label: string; via: string } | null {
+  const votes = new Map<string, { count: number; label: string }>();
+  for (const row of sourceLabels) {
+    if (!row?.region) continue;
+    const key = provinceKey(row.region);
+    if (!key || key === 'china' || key === 'united states') continue;
+    const entry = votes.get(key) || { count: 0, label: row.region };
+    entry.count += 1;
+    votes.set(key, entry);
+  }
+  let best: { count: number; label: string } | null = null;
+  for (const entry of votes.values()) {
+    if (!best || entry.count > best.count) best = entry;
+  }
+  if (best && best.count >= 2) return { label: best.label, via: `majority_${best.count}` };
+  return null;
+}
+
 async function lookupFromIpInfo(ip: string) {
   const res = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
-    signal: AbortSignal.timeout(4500),
+    signal: AbortSignal.timeout(8000),
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) return null;
@@ -167,9 +196,11 @@ async function lookupFromIpInfo(ip: string) {
 }
 
 async function lookupFromPconline(ip: string) {
+  // pconline is IPv4-oriented; skip obvious IPv6 to avoid wrong empty results
+  if (isIPv6(ip)) return null;
   const res = await fetch(
     `https://whois.pconline.com.cn/ipJson.jsp?ip=${encodeURIComponent(ip)}&json=true`,
-    { signal: AbortSignal.timeout(5000) }
+    { signal: AbortSignal.timeout(8000) }
   );
   if (!res.ok) return null;
   const text = (await res.text()).replace(/^\uFEFF/, '').trim();
@@ -191,7 +222,7 @@ async function lookupFromPconline(ip: string) {
 
 async function lookupFromIpSb(ip: string) {
   const res = await fetch(`https://api.ip.sb/geoip/${encodeURIComponent(ip)}`, {
-    signal: AbortSignal.timeout(4500),
+    signal: AbortSignal.timeout(8000),
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) return null;
@@ -203,9 +234,54 @@ async function lookupFromIpSb(ip: string) {
   });
 }
 
+/** Domestic zxinc DB — accurate China IPv6 provinces (e.g. Yunnan for Unicom IoT). */
+async function lookupFromZxinc(ip: string) {
+  const res = await fetch(
+    `https://ip.zxinc.org/api.php?type=json&ip=${encodeURIComponent(ip)}`,
+    { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } }
+  );
+  if (!res.ok) return null;
+  const payload = await res.json();
+  if (payload?.code !== 0 || !payload?.data) return null;
+  const data = payload.data;
+  const candidates = [data.country, data.location, data.local]
+    .map((v: unknown) => String(v || '').trim())
+    .filter(Boolean);
+  for (const raw of candidates) {
+    const parts = raw.split(/[\t]+/).map((p: string) => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      const token = part
+        .replace(/中国联通|中国电信|中国移动|联通|电信|移动|无线基站网络.*$/g, '')
+        .trim()
+        .split(/\s+/)[0];
+      if (!token || token === '中国' || token === 'China') continue;
+      const labeled = formatProvinceState({
+        region: token,
+        country: 'China',
+        countryCode: 'CN',
+      });
+      if (labeled && labeled !== 'China' && looksLikeChinaLabel(labeled)) {
+        return labeled;
+      }
+    }
+    const m = raw.match(
+      /(?:中国|China)[\t\s]+([^\t\s,]+(?:省|市|自治区)?|内蒙古|广西|西藏|宁夏|新疆|香港|澳门)/i
+    );
+    if (m?.[1]) {
+      const labeled = formatProvinceState({
+        region: m[1],
+        country: 'China',
+        countryCode: 'CN',
+      });
+      if (labeled && labeled !== 'China') return labeled;
+    }
+  }
+  return null;
+}
+
 async function lookupFromIpWho(ip: string) {
   const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
-    signal: AbortSignal.timeout(4500),
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) return null;
   const data = await res.json();
@@ -218,27 +294,82 @@ async function lookupFromIpWho(ip: string) {
   });
 }
 
-export async function resolveIpRegion(ip: string | null | undefined): Promise<string | null> {
-  const raw = String(ip || '').trim();
-  if (!raw || raw === 'N/A') return null;
+export type ResolveIpRegionResult = {
+  region: string | null;
+  confidence: 'high' | 'low' | 'none';
+  reason: string;
+};
 
+export async function resolveIpRegionDetailed(
+  ip: string | null | undefined
+): Promise<ResolveIpRegionResult> {
+  const raw = String(ip || '').trim();
+  if (!raw || raw === 'N/A') return { region: null, confidence: 'none', reason: 'no_ip' };
+
+  const v6 = isIPv6(raw);
   const settled = await Promise.allSettled([
-    lookupFromPconline(raw),
-    lookupFromIpInfo(raw),
-    lookupFromIpSb(raw),
+    lookupFromZxinc(raw).then((v) => ({ src: 'zxinc', v })),
+    lookupFromPconline(raw).then((v) => ({ src: 'pconline', v })),
+    lookupFromIpInfo(raw).then((v) => ({ src: 'ipinfo', v })),
+    lookupFromIpSb(raw).then((v) => ({ src: 'ipsb', v })),
   ]);
   const results: string[] = [];
+  const sourceLabels: Array<{ src?: string; region?: string | null; error?: string }> = [];
   for (const s of settled) {
-    if (s.status === 'fulfilled' && s.value) results.push(s.value);
+    if (s.status === 'fulfilled' && s.value?.v) {
+      results.push(s.value.v);
+      sourceLabels.push({ src: s.value.src, region: s.value.v });
+    } else if (s.status === 'fulfilled') {
+      sourceLabels.push({ src: s.value?.src, region: null });
+    } else {
+      sourceLabels.push({ error: String((s as PromiseRejectedResult).reason) });
+    }
   }
 
-  const chinaHit = results.find((r) => looksLikeChinaLabel(r) && !/^China$/i.test(r));
-  if (chinaHit) return chinaHit;
-  if (results[0]) return results[0];
+  let chosen: string | null = null;
+  let reason = 'none';
+  let confidence: 'high' | 'low' | 'none' = 'none';
 
-  try {
-    return await lookupFromIpWho(raw);
-  } catch {
-    return null;
+  const zxinc = sourceLabels.find((r) => r.src === 'zxinc' && r.region);
+  if (zxinc?.region) {
+    chosen = zxinc.region;
+    reason = 'zxinc';
+    confidence = 'high';
+  } else if (v6) {
+    const maj = pickByMajority(sourceLabels.filter((r) => r.src !== 'zxinc'));
+    if (maj) {
+      chosen = maj.label;
+      reason = maj.via;
+      confidence = 'high';
+    } else {
+      reason = 'ipv6_no_majority';
+      confidence = 'none';
+    }
+  } else {
+    const pconline = sourceLabels.find((r) => r.src === 'pconline' && r.region);
+    if (pconline?.region) {
+      chosen = pconline.region;
+      reason = 'pconline';
+      confidence = 'high';
+    } else {
+      const maj = pickByMajority(sourceLabels);
+      if (maj) {
+        chosen = maj.label;
+        reason = maj.via;
+        confidence = 'high';
+      } else {
+        const chinaHit = results.find((r) => looksLikeChinaLabel(r) && !/^China$/i.test(r));
+        chosen = chinaHit || results[0] || null;
+        reason = chinaHit ? 'first_china_hit' : results[0] ? 'first_result' : 'none';
+        confidence = chosen ? 'low' : 'none';
+      }
+    }
   }
+
+  return { region: chosen, confidence, reason };
+}
+
+export async function resolveIpRegion(ip: string | null | undefined): Promise<string | null> {
+  const detailed = await resolveIpRegionDetailed(ip);
+  return detailed.region;
 }

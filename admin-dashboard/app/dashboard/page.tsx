@@ -8,7 +8,7 @@ import ApproveButton from '../../components/ApproveButton';
 import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
 import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
-import { resolveIpRegion } from '../../lib/resolveIpRegion';
+import { resolveIpRegionDetailed } from '../../lib/resolveIpRegion';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -336,13 +336,22 @@ export default function Home() {
       if (!ip || ip === 'N/A') return;
       setResolvingIpRegion(true);
       try {
-        const resolved = await resolveIpRegion(ip);
-        if (!cancelled && resolved) {
-          setSelectedApp((prev: any) =>
-            prev && prev.applicantIpRegion !== resolved
-              ? { ...prev, applicantIpRegion: resolved }
-              : prev
-          );
+        const storedRegion = String(selectedApp.applicantIpRegion || '').trim() || null;
+        const isV6 = ip.includes(':');
+        const detailed = await resolveIpRegionDetailed(ip);
+        if (!cancelled) {
+          if (detailed.confidence === 'high' && detailed.region) {
+            setSelectedApp((prev: any) =>
+              prev && prev.applicantIpRegion !== detailed.region
+                ? { ...prev, applicantIpRegion: detailed.region }
+                : prev
+            );
+          } else if (isV6 && storedRegion && storedRegion !== 'China') {
+            // Contested IPv6 province (e.g. Shanghai vs Heilongjiang) — don't keep a wrong single-source label
+            setSelectedApp((prev: any) =>
+              prev ? { ...prev, applicantIpRegion: 'China' } : prev
+            );
+          }
         }
       } finally {
         if (!cancelled) setResolvingIpRegion(false);
