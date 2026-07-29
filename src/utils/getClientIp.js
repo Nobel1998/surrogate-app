@@ -261,8 +261,10 @@ async function lookupFromIpSb(ip) {
 }
 
 /**
- * zxinc (纯真/国内库) — far more accurate for China IPv6 than global DBs.
- * Example: country "中国\t云南省" → Yunnan, China
+ * zxinc (纯真/国内库) — accurate for China IPv4/IPv6.
+ * Formats seen:
+ *   "中国\t云南省"
+ *   "中国–云南–昆明"  (en-dash; province then city — use province only)
  */
 async function lookupFromZxinc(ip) {
   const res = await fetch(
@@ -277,8 +279,12 @@ async function lookupFromZxinc(ip) {
     .map((v) => String(v || '').trim())
     .filter(Boolean);
   for (const raw of candidates) {
-    // Prefer "中国\t云南省" / "中国 云南省 …"
-    const parts = raw.split(/[\t]+/).map((p) => p.trim()).filter(Boolean);
+    // Normalize en/em dashes and slashes to separators (IPv4 zxinc uses "中国–云南–昆明")
+    const parts = raw
+      .replace(/[–—−]/g, '\t')
+      .split(/[\t\/|,，]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
     for (const part of parts) {
       const token = part
         .replace(/中国联通|中国电信|中国移动|联通|电信|移动|无线基站网络.*$/g, '')
@@ -290,12 +296,13 @@ async function lookupFromZxinc(ip) {
         country: 'China',
         countryCode: 'CN',
       });
+      // First mapped province wins; skip city tokens (昆明 → null)
       if (labeled && labeled !== 'China' && looksLikeChinaLabel(labeled)) {
         return labeled;
       }
     }
     const m = raw.match(
-      /(?:中国|China)[\t\s]+([^\t\s,]+(?:省|市|自治区)?|内蒙古|广西|西藏|宁夏|新疆|香港|澳门)/i
+      /(?:中国|China)[\t\s–—−\-]+([^\t\s,–—−\-\/]+(?:省|市|自治区)?|内蒙古|广西|西藏|宁夏|新疆|香港|澳门)/i
     );
     if (m?.[1]) {
       const labeled = formatProvinceState({
@@ -411,9 +418,25 @@ async function lookupGeoByIp(ip) {
         chosen = maj.label;
         chosenVia = maj.via;
       } else {
-        const chinaHit = results.find((r) => looksLikeChinaLabel(r) && !/^China$/i.test(r));
-        chosen = chinaHit || results[0] || null;
-        chosenVia = chinaHit ? 'first_china_hit' : results[0] ? 'first_result' : 'none';
+        // Prefer ipsb over ipinfo for CN (ipinfo often labels Unicom as Shanghai)
+        const ipsb = sourceLabels.find(
+          (r) => r.src === 'ipsb' && r.region && looksLikeChinaLabel(r.region) && !/^China$/i.test(r.region)
+        );
+        if (ipsb) {
+          chosen = ipsb.region;
+          chosenVia = 'ipsb_cn';
+        } else {
+          const chinaProvinces = results.filter(
+            (r) => looksLikeChinaLabel(r) && !/^China$/i.test(r)
+          );
+          const distinct = new Set(chinaProvinces.map((r) => provinceKey(r)));
+          if (distinct.size === 1) {
+            chosen = chinaProvinces[0];
+            chosenVia = 'single_china_hit';
+          } else {
+            chosenVia = distinct.size > 1 ? 'cn_sources_disagree' : 'none';
+          }
+        }
       }
     }
   } else {
