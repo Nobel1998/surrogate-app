@@ -80,7 +80,9 @@ function normalizeChinaProvince(region?: string | null, regionCode?: string | nu
   const codeKey = String(regionCode || '').toLowerCase();
   if (CN_PROVINCE_BY_KEY[codeKey]) return CN_PROVINCE_BY_KEY[codeKey];
 
-  const zhBase = raw
+  // First segment only — drop city/district if present (e.g. "云南/昆明")
+  const firstSeg = raw.split(/[\/|,，、\t]/)[0].trim();
+  const zhBase = firstSeg
     .replace(/(壮族|回族|维吾尔)?自治区$/, '')
     .replace(/特别行政区$/, '')
     .replace(/省$/, '')
@@ -88,11 +90,11 @@ function normalizeChinaProvince(region?: string | null, regionCode?: string | nu
     .trim();
   if (CN_PROVINCE_BY_KEY[zhBase]) return CN_PROVINCE_BY_KEY[zhBase];
 
-  const key = normalizeKey(raw);
+  const key = normalizeKey(firstSeg);
   if (CN_PROVINCE_BY_KEY[key]) return CN_PROVINCE_BY_KEY[key];
 
   const cleaned = titleCaseEnglish(
-    raw
+    firstSeg
       .replace(/\b(sheng|province|shi|zizhiqu|autonomous region|municipality)\b/gi, '')
       .replace(/[^A-Za-z\s]/g, ' ')
       .replace(/\s+/g, ' ')
@@ -101,17 +103,26 @@ function normalizeChinaProvince(region?: string | null, regionCode?: string | nu
   if (cleaned && CN_PROVINCE_BY_KEY[cleaned.toLowerCase()]) {
     return CN_PROVINCE_BY_KEY[cleaned.toLowerCase()];
   }
-  return cleaned || raw || null;
+  // Province-level only: never pass through city names or raw Chinese
+  return null;
 }
 
 function normalizeUsState(region?: string | null, regionCode?: string | null) {
   const code = String(regionCode || '').toUpperCase();
   if (US_STATE_BY_CODE[code]) return US_STATE_BY_CODE[code];
-  const raw = String(region || '').trim();
+  const raw = String(region || '').trim().split(/[\/|,]/)[0].trim();
   if (/^[A-Za-z]{2}$/.test(raw) && US_STATE_BY_CODE[raw.toUpperCase()]) {
     return US_STATE_BY_CODE[raw.toUpperCase()];
   }
-  return titleCaseEnglish(raw) || null;
+  const titled = titleCaseEnglish(raw.replace(/[^A-Za-z\s]/g, ' '));
+  return titled || null;
+}
+
+function englishOnlyLabel(label: string | null) {
+  const s = String(label || '').trim();
+  if (!s) return null;
+  if (/[\u4e00-\u9fff]/.test(s)) return null;
+  return s;
 }
 
 export function formatProvinceState(input: {
@@ -122,11 +133,15 @@ export function formatProvinceState(input: {
 }): string | null {
   const cc = String(input.countryCode || '').toUpperCase();
   const countryName = String(input.country || '').trim();
-  const isCN = cc === 'CN' || /^china$/i.test(countryName) || countryName === '中国';
+  const isCN =
+    cc === 'CN' ||
+    /^china$/i.test(countryName) ||
+    countryName === '中国' ||
+    /中国|China/i.test(String(input.region || ''));
   const isUS = cc === 'US' || /^united states/i.test(countryName) || countryName === '美国';
 
-  let province: string | null = String(input.region || '').trim() || null;
-  let countryLabel: string | null = countryName || cc || null;
+  let province: string | null = null;
+  let countryLabel: string | null = null;
 
   if (isCN) {
     province = normalizeChinaProvince(input.region, input.regionCode);
@@ -134,17 +149,50 @@ export function formatProvinceState(input: {
   } else if (isUS) {
     province = normalizeUsState(input.region, input.regionCode);
     countryLabel = 'United States';
-  } else if (countryLabel === '中国') {
-    countryLabel = 'China';
-  } else if (countryLabel === '美国') {
-    countryLabel = 'United States';
+  } else {
+    countryLabel =
+      countryName === '中国'
+        ? 'China'
+        : countryName === '美国'
+          ? 'United States'
+          : titleCaseEnglish(String(countryName || cc).replace(/[^A-Za-z\s]/g, ' ')) || null;
+    province =
+      normalizeChinaProvince(input.region, input.regionCode) ||
+      normalizeUsState(input.region, input.regionCode);
   }
 
+  let out: string | null = null;
   if (province && countryLabel) {
-    if (province.toLowerCase() === countryLabel.toLowerCase()) return countryLabel;
-    return `${province}, ${countryLabel}`;
+    out =
+      province.toLowerCase() === countryLabel.toLowerCase()
+        ? countryLabel
+        : `${province}, ${countryLabel}`;
+  } else {
+    out = province || countryLabel || null;
   }
-  return province || countryLabel || null;
+  return englishOnlyLabel(out);
+}
+
+/** Re-normalize stored labels to English province/state for admin UI. */
+export function toEnglishProvinceLabel(stored: string | null | undefined): string | null {
+  const raw = String(stored || '').trim();
+  if (!raw || raw === 'N/A') return null;
+  if (/^china$/i.test(raw)) return 'China';
+  if (/^united states$/i.test(raw)) return 'United States';
+
+  const m = raw.match(/^(.+?)\s*,\s*(.+)$/);
+  if (m) {
+    return formatProvinceState({
+      region: m[1],
+      country: m[2],
+      countryCode: /china|中国/i.test(m[2]) ? 'CN' : /united states|美国/i.test(m[2]) ? 'US' : null,
+    });
+  }
+  return (
+    formatProvinceState({ region: raw, country: 'China', countryCode: 'CN' }) ||
+    formatProvinceState({ region: raw, country: 'United States', countryCode: 'US' }) ||
+    englishOnlyLabel(raw)
+  );
 }
 
 function looksLikeChinaLabel(label: string) {

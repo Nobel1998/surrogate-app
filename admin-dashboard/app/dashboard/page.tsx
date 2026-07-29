@@ -8,7 +8,7 @@ import ApproveButton from '../../components/ApproveButton';
 import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
 import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
-import { resolveIpRegionDetailed } from '../../lib/resolveIpRegion';
+import { resolveIpRegionDetailed, toEnglishProvinceLabel } from '../../lib/resolveIpRegion';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -163,7 +163,7 @@ export default function Home() {
       location,
       address: address || 'N/A',
       applicantIp: applicantIp || null,
-      applicantIpRegion: applicantIpRegion || null,
+      applicantIpRegion: toEnglishProvinceLabel(applicantIpRegion) || null,
       // Photos array (for multiple lifestyle photos)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
@@ -208,7 +208,7 @@ export default function Home() {
       location: formData.parent1CountryState || 'N/A',
       address: formData.parent1AddressStreet || 'N/A',
       applicantIp: app.ip_address || formData.applicantIp || null,
-      applicantIpRegion: app.ip_region || formData.applicantIpRegion || null,
+      applicantIpRegion: toEnglishProvinceLabel(app.ip_region || formData.applicantIpRegion) || null,
       submitted_at: app.submitted_at || app.created_at,
       // Photos array (for multiple photos, up to 4)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
@@ -232,7 +232,7 @@ export default function Home() {
       email: profile.email || 'N/A',
       location: resolveDisplayLocation(profile.location, profile.address) || profile.location || profile.address || 'N/A',
       applicantIp: profile.signup_ip || null,
-      applicantIpRegion: profile.signup_ip_region || null,
+      applicantIpRegion: toEnglishProvinceLabel(profile.signup_ip_region) || null,
       status: 'registered',
       signupSource: `Sign Up (${roleLabel})`,
       submitted_at: profile.created_at,
@@ -850,7 +850,7 @@ export default function Home() {
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                         <p className="text-sm text-gray-900">
-                          {selectedApp.applicantIpRegion ||
+                          {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                             (resolvingIpRegion ? 'Resolving…' : null) ||
                             'N/A'}
                         </p>
@@ -881,7 +881,7 @@ export default function Home() {
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                           <p className="text-sm text-gray-900">
-                            {selectedApp.applicantIpRegion ||
+                            {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                               (resolvingIpRegion ? 'Resolving…' : null) ||
                               'N/A'}
                           </p>
@@ -1456,7 +1456,7 @@ export default function Home() {
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                       <p className="text-sm text-gray-900">
-                        {selectedApp.applicantIpRegion ||
+                        {toEnglishProvinceLabel(selectedApp.applicantIpRegion) ||
                           (resolvingIpRegion ? 'Resolving…' : null) ||
                           'N/A'}
                       </p>
