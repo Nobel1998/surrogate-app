@@ -103,6 +103,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    // #region agent log
+    agentDebugLog({
+      hypothesisId: 'A',
+      runId: 'post-fix',
+      location: 'analyze/route.ts:after-body',
+      message: 'analyze will use storage download if no body PDF',
+      data: {
+        vercelEnv: process.env.VERCEL_ENV || 'local',
+        hasProvidedPdf: !!(providedPdfBytes && providedPdfBytes.byteLength > 0),
+        providedPdfBytes: providedPdfBytes?.byteLength || 0,
+        storagePath: existing.storage_path,
+        hasFileUrl: !!(existing.file_url && existing.file_url !== 'pending'),
+      },
+    });
+    // #endregion
+
     await auth.supabase
       .from('medical_record_reviews')
       .update({

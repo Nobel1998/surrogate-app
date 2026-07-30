@@ -342,28 +342,25 @@ export default function MedicalRecordReviewsPage() {
     try {
       setAnalyzingId(id);
 
-      const current = reviews.find((r) => r.id === id) || null;
-      const formData = new FormData();
-
-      // Avoid slow server→Supabase download: browser fetches the public PDF and posts it.
-      if (current?.file_url && current.file_url !== 'pending' && !current.file_deleted_at) {
-        try {
-          const pdfRes = await fetch(current.file_url);
-          pdfFetchStatus = pdfRes.status;
-          if (!pdfRes.ok) {
-            throw new Error(`Browser PDF fetch failed (${pdfRes.status})`);
-          }
-          const blob = await pdfRes.blob();
-          attachedPdfBytes = blob.size;
-          formData.append('file', blob, current.file_name || 'medical-record.pdf');
-        } catch {
-          // Continue without file; server will try local temp / storage fallbacks.
-        }
-      }
+      // Do NOT post the PDF body to /analyze on Vercel: serverless request
+      // payloads are capped (~4.5MB). The PDF is already in Storage; the
+      // server downloads it from there after starting analysis.
+      // #region agent log
+      agentDebugLog({
+        hypothesisId: 'A',
+        runId: 'post-fix',
+        location: 'medical-record-reviews/page.tsx:handleAnalyze-start',
+        message: 'starting analyze without PDF body',
+        data: {
+          origin: window.location.origin,
+          id,
+          skipPdfBody: true,
+        },
+      });
+      // #endregion
 
       const res = await fetch(`/api/medical-record-reviews/${id}/analyze`, {
         method: 'POST',
-        body: formData,
       });
       const bodyText = await res.text().catch(() => '');
       let data: any = {};
@@ -376,6 +373,7 @@ export default function MedicalRecordReviewsPage() {
       // #region agent log
       agentDebugLog({
         hypothesisId: 'A,B,C,D',
+        runId: 'post-fix',
         location: 'medical-record-reviews/page.tsx:handleAnalyze',
         message: 'analyze POST response',
         data: {

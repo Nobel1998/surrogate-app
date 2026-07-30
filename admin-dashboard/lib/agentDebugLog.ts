@@ -8,6 +8,7 @@ const AGENT_DEBUG_ENDPOINT = 'http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-82
 
 export function agentDebugLog(payload: {
   hypothesisId?: string;
+  runId?: string;
   location: string;
   message: string;
   data?: Record<string, unknown>;
