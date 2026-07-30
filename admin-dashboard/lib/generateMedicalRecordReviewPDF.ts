@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { parseMedicalReviewNarrative } from '@/lib/medicalReviewNarrative';
 
 export type MedicalRecordReviewComplication = {
   complication: string;
@@ -15,6 +16,7 @@ export type MedicalRecordReviewForPDF = {
   file_deleted_at?: string | null;
   status?: string | null;
   complications?: MedicalRecordReviewComplication[] | null;
+  raw_ai_response?: string | null;
   analyzed_at?: string | null;
   reviewed_at?: string | null;
   created_at?: string | null;
@@ -44,7 +46,25 @@ export const generateMedicalRecordReviewPDF = (
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const complications = Array.isArray(review.complications) ? review.complications : [];
+  const narrative = parseMedicalReviewNarrative(review.raw_ai_response);
   let yPosition = 20;
+
+  const addNarrativeSection = (title: string, text: string) => {
+    const lines = doc.splitTextToSize(text, pageWidth - 28);
+    const requiredHeight = 10 + lines.length * 5;
+    if (yPosition + requiredHeight > 275) {
+      doc.addPage();
+      yPosition = 20;
+    }
+    doc.setFontSize(14);
+    doc.setTextColor(102, 51, 153);
+    doc.text(title, 14, yPosition);
+    yPosition += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    doc.text(lines, 14, yPosition);
+    yPosition += lines.length * 5 + 8;
+  };
 
   doc.setFontSize(20);
   doc.setTextColor(102, 51, 153);
@@ -101,6 +121,10 @@ export const generateMedicalRecordReviewPDF = (
 
   yPosition = (doc as any).lastAutoTable.finalY + 12;
 
+  if (narrative?.introduction) {
+    addNarrativeSection('Review Overview', narrative.introduction);
+  }
+
   if (yPosition > 250) {
     doc.addPage();
     yPosition = 20;
@@ -108,13 +132,14 @@ export const generateMedicalRecordReviewPDF = (
 
   doc.setFontSize(14);
   doc.setTextColor(102, 51, 153);
-  doc.text(`Complications (${complications.length})`, 14, yPosition);
+  doc.text(`Significant Complications (${complications.length})`, 14, yPosition);
   yPosition += 3;
 
   if (complications.length === 0) {
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text('No complications found.', 14, yPosition + 6);
+    yPosition += 18;
   } else {
     autoTable(doc, {
       startY: yPosition,
@@ -134,6 +159,11 @@ export const generateMedicalRecordReviewPDF = (
       },
       margin: { left: 14, right: 14 },
     });
+    yPosition = (doc as any).lastAutoTable.finalY + 12;
+  }
+
+  if (narrative?.overallConclusion) {
+    addNarrativeSection('Overall Conclusion', narrative.overallConclusion);
   }
 
   const pageCount = doc.getNumberOfPages();

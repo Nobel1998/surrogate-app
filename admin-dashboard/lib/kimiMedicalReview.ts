@@ -9,11 +9,13 @@ const CHAT_MAX_ATTEMPTS = 2;
 const CHAT_TIMEOUT_MS = 15 * 60 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
-const REVIEW_SYSTEM_PROMPT = `You review medical records, summarize each complication, and remark its page number.
+const REVIEW_SYSTEM_PROMPT = `You review medical records and identify only medically significant complications.
 Return ONLY valid JSON with this exact shape:
 {"complications":[{"complication":"string","summary":"string","page":1}]}
 Rules:
-- List every medical complication found in the document.
+- Include only major or clinically meaningful complications that could affect pregnancy, surrogacy eligibility, ongoing health, or require meaningful treatment or follow-up.
+- Do NOT list every finding. Exclude minor, routine, isolated, borderline, temporary, or fully resolved findings unless they remain clinically significant.
+- Merge repeated mentions of the same condition into one finding.
 - complication: the short clinical name of the complication (a few words).
 - summary: 1-2 sentences summarizing what the record says about that complication. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
 - Each item MUST include the page number where the complication is documented. If it spans several pages, use the page with the clearest documentation.
@@ -21,6 +23,18 @@ Rules:
 - Do not summarize the full record, only the complications.
 - Do not include routine findings or administrative text unless they clearly describe a complication.
 - page must be an integer (1-based) using the ORIGINAL document page numbers provided in the instructions.`;
+
+const FINAL_REVIEW_SYSTEM_PROMPT = `You are writing the final medical record review after reading candidate findings extracted from the complete record.
+Return ONLY valid JSON with this exact shape:
+{"introduction":"string","complications":[{"complication":"string","summary":"string","page":1}],"overallConclusion":"string"}
+Rules:
+- introduction: write a natural opening paragraph stating that you reviewed the complete medical record and found the important issues summarized below. Briefly characterize the record without listing findings in this paragraph.
+- complications: retain only major or clinically meaningful complications. Do not include small, routine, isolated, borderline, temporary, or fully resolved findings unless they remain important to pregnancy, surrogacy eligibility, ongoing health, or follow-up.
+- Merge duplicate or overlapping findings across batches into one clear finding.
+- Preserve accurate clinical details and an ORIGINAL page number from the candidate findings. Never invent facts or page numbers.
+- summary: 1-2 concise sentences covering the important diagnosis, severity, treatment, course, and outcome when stated.
+- overallConclusion: end with a natural overall conclusion describing the main medical risk pattern, important resolved versus ongoing issues, and whether further clinical review or follow-up is warranted. Do not make a definitive eligibility decision and do not invent facts.
+- If there are no major complications, return an empty complications array and explain that no major complications were identified in both the introduction and overallConclusion.`;
 
 function getApiKey() {
   return process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || '';
@@ -74,6 +88,34 @@ function normalizeComplications(raw: unknown): MedicalComplication[] {
     results.push(note ? { complication, page, note } : { complication, page });
   }
   return results;
+}
+
+function normalizeFinalReview(raw: unknown): {
+  introduction: string;
+  complications: MedicalComplication[];
+  overallConclusion: string;
+} {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('AI final review did not return an object');
+  }
+
+  const value = raw as {
+    introduction?: unknown;
+    complications?: unknown;
+    overallConclusion?: unknown;
+    overall_conclusion?: unknown;
+  };
+  const introduction = String(value.introduction || '').trim();
+  const overallConclusion = String(
+    value.overallConclusion || value.overall_conclusion || ''
+  ).trim();
+  const complications = normalizeComplications(value);
+
+  if (!introduction || !overallConclusion) {
+    throw new Error('AI final review is missing the introduction or overall conclusion');
+  }
+
+  return { introduction, complications, overallConclusion };
 }
 
 function dedupeComplications(items: MedicalComplication[]): MedicalComplication[] {
@@ -209,23 +251,14 @@ async function deleteRemoteFile(fileId: string): Promise<void> {
 }
 
 async function callKimiChat(
-  extractedText: string,
-  pageCount: number,
-  pageRange?: { startPage: number; endPage: number }
+  systemPrompt: string,
+  contextText: string,
+  userPrompt: string
 ): Promise<{ text: string; raw: string }> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Missing MOONSHOT_API_KEY (or KIMI_API_KEY)');
   }
-
-  const rangeHint = pageRange
-    ? `This section covers ORIGINAL pages ${pageRange.startPage}-${pageRange.endPage}. ` +
-      `Always report absolute original page numbers in that range.`
-    : `The document has approximately ${pageCount || 'unknown'} pages.`;
-
-  const userPrompt =
-    `Summarize each complication in the medical record above and remark its page number. ` +
-    `${rangeHint} Return JSON only.`;
 
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= CHAT_MAX_ATTEMPTS; attempt++) {
@@ -243,8 +276,8 @@ async function callKimiChat(
           reasoning_effort: 'low',
           max_completion_tokens: 32768,
           messages: [
-            { role: 'system', content: REVIEW_SYSTEM_PROMPT },
-            { role: 'system', content: extractedText },
+            { role: 'system', content: systemPrompt },
+            { role: 'system', content: contextText },
             { role: 'user', content: userPrompt },
           ],
         }),
@@ -371,7 +404,9 @@ export async function analyzeMedicalRecordPdf(
     fileName?: string;
   }
 ): Promise<{
+  introduction: string;
   complications: MedicalComplication[];
+  overallConclusion: string;
   rawAiResponse: string;
   pageCount: number;
 }> {
@@ -426,10 +461,15 @@ export async function analyzeMedicalRecordPdf(
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
     try {
-      const { text, raw } = await callKimiChat(batch.text, pageCount, {
-        startPage: batch.startPage,
-        endPage: batch.endPage,
-      });
+      const userPrompt =
+        `Identify and summarize only the major, clinically meaningful complications in this section. ` +
+        `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. ` +
+        `Always report absolute original page numbers in that range. Return JSON only.`;
+      const { text, raw } = await callKimiChat(
+        REVIEW_SYSTEM_PROMPT,
+        batch.text,
+        userPrompt
+      );
 
       const parsed = extractJsonObject(text);
       allComplications.push(
@@ -454,13 +494,30 @@ export async function analyzeMedicalRecordPdf(
   }
 
   const notes = [...extractErrors, ...chatErrors];
-  if (notes.length) {
-    rawParts.push(JSON.stringify({ warnings: notes }));
-  }
+
+  const candidateComplications = dedupeComplications(allComplications);
+  const finalContext = JSON.stringify({
+    documentPageCount: pageCount,
+    candidateComplications,
+  });
+  const { text: finalText, raw: finalRaw } = await callKimiChat(
+    FINAL_REVIEW_SYSTEM_PROMPT,
+    finalContext,
+    'Write the final medical record review with a natural introduction, only the important complications, and an overall conclusion. Return JSON only.'
+  );
+  const finalReview = normalizeFinalReview(extractJsonObject(finalText));
 
   return {
-    complications: dedupeComplications(allComplications),
-    rawAiResponse: `[${rawParts.join(',')}]`,
+    introduction: finalReview.introduction,
+    complications: dedupeComplications(finalReview.complications),
+    overallConclusion: finalReview.overallConclusion,
+    rawAiResponse: JSON.stringify({
+      introduction: finalReview.introduction,
+      overallConclusion: finalReview.overallConclusion,
+      batches: rawParts.map((part) => JSON.parse(part)),
+      synthesis: finalRaw,
+      warnings: notes,
+    }),
     pageCount,
   };
 }
