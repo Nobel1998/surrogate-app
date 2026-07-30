@@ -357,6 +357,8 @@ export default function MedicalRecordReviewsPage() {
   };
 
   const handleAnalyze = async (id: string) => {
+    let attachedPdfBytes: number | null = null;
+    let pdfFetchStatus: number | null = null;
     try {
       setAnalyzingId(id);
 
@@ -367,10 +369,12 @@ export default function MedicalRecordReviewsPage() {
       if (current?.file_url && current.file_url !== 'pending' && !current.file_deleted_at) {
         try {
           const pdfRes = await fetch(current.file_url);
+          pdfFetchStatus = pdfRes.status;
           if (!pdfRes.ok) {
             throw new Error(`Browser PDF fetch failed (${pdfRes.status})`);
           }
           const blob = await pdfRes.blob();
+          attachedPdfBytes = blob.size;
           formData.append('file', blob, current.file_name || 'medical-record.pdf');
         } catch {
           // Continue without file; server will try local temp / storage fallbacks.
@@ -381,7 +385,40 @@ export default function MedicalRecordReviewsPage() {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json().catch(() => ({}));
+      const bodyText = await res.text().catch(() => '');
+      let data: any = {};
+      try {
+        data = bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        data = {};
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'pre-fix',
+          hypothesisId: 'A,B,C,D',
+          location: 'medical-record-reviews/page.tsx:handleAnalyze',
+          message: 'analyze POST response',
+          data: {
+            origin: window.location.origin,
+            id,
+            status: res.status,
+            ok: res.ok,
+            attachedPdfBytes,
+            pdfFetchStatus,
+            contentType: res.headers.get('content-type'),
+            hasJsonError: typeof data?.error === 'string',
+            bodyPreview: bodyText.slice(0, 400),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       if (!res.ok && res.status !== 202) {
         throw new Error(data.error || 'Analyze failed');
       }
@@ -417,6 +454,27 @@ export default function MedicalRecordReviewsPage() {
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'pre-fix',
+          hypothesisId: 'A,B,C,D,E',
+          location: 'medical-record-reviews/page.tsx:handleAnalyze-catch',
+          message: 'analyze failed alert',
+          data: {
+            origin: window.location.origin,
+            id,
+            attachedPdfBytes,
+            errorMessage: String(error?.message || error).slice(0, 300),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       alert(`Review failed: ${error.message}`);
       // Soft refresh only the single review; avoid full-page load flicker.
       try {

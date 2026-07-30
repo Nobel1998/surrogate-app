@@ -30,6 +30,27 @@ function hasKimiApiKey() {
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
+  // #region agent log
+  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+    body: JSON.stringify({
+      sessionId: '5244e3',
+      runId: 'pre-fix',
+      hypothesisId: 'A,B',
+      location: 'analyze/route.ts:entry',
+      message: 'analyze route entered',
+      data: {
+        vercelEnv: process.env.VERCEL_ENV || 'local',
+        contentType: (req.headers.get('content-type') || '').split(';')[0],
+        contentLength: req.headers.get('content-length'),
+        hasKimiKey: hasKimiApiKey(),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
   const auth = await requireMedicalRecordAccess({ requireWrite: true });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
