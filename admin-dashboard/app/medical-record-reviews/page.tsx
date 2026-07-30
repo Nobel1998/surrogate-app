@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
-import { parseMedicalReviewNarrative } from '@/lib/medicalReviewNarrative';
 
 type Complication = {
   complication: string;
@@ -21,6 +20,8 @@ type Review = {
   match_id: string | null;
   status: 'uploaded' | 'analyzing' | 'analyzed' | 'failed' | 'reviewed';
   complications: Complication[] | null;
+  intro: string | null;
+  conclusion: string | null;
   raw_ai_response: string | null;
   error_message: string | null;
   analyzed_at: string | null;
@@ -85,10 +86,6 @@ export default function MedicalRecordReviewsPage() {
   const selected = useMemo(
     () => reviews.find((r) => r.id === selectedId) || null,
     [reviews, selectedId]
-  );
-  const selectedNarrative = useMemo(
-    () => parseMedicalReviewNarrative(selected?.raw_ai_response),
-    [selected?.raw_ai_response]
   );
 
   useEffect(() => {
@@ -399,8 +396,7 @@ export default function MedicalRecordReviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Medical Record Reviews</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Upload medical PDFs for a focused review of significant complications, page references,
-            and an overall conclusion.
+            Upload medical PDFs and extract complications with page numbers.
             PDFs are deleted from storage after a successful review to save space.
           </p>
         </div>
@@ -618,18 +614,16 @@ export default function MedicalRecordReviewsPage() {
                   </button>
                 </div>
 
-                {selectedNarrative?.introduction && (
-                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-                    <h3 className="font-medium text-indigo-900 mb-2">Review Overview</h3>
-                    <p className="text-sm text-gray-700 leading-6">
-                      {selectedNarrative.introduction}
-                    </p>
+                {selected.intro ? (
+                  <div className="bg-gray-50 border rounded p-3">
+                    <h3 className="font-medium mb-1">Reviewer Summary</h3>
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{selected.intro}</p>
                   </div>
-                )}
+                ) : null}
 
                 <div>
                   <h3 className="font-medium mb-2">
-                    Significant Complications ({complications.length})
+                    Complications ({complications.length})
                   </h3>
                   {complications.length === 0 ? (
                     <p className="text-sm text-gray-500">
@@ -662,14 +656,14 @@ export default function MedicalRecordReviewsPage() {
                   )}
                 </div>
 
-                {selectedNarrative?.overallConclusion && (
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">Overall Conclusion</h3>
-                    <p className="text-sm text-gray-700 leading-6">
-                      {selectedNarrative.overallConclusion}
+                {selected.conclusion ? (
+                  <div className="bg-gray-50 border rounded p-3">
+                    <h3 className="font-medium mb-1">Overall Assessment</h3>
+                    <p className="text-sm text-gray-700 whitespace-pre-line">
+                      {selected.conclusion}
                     </p>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { MedicalComplication } from '@/lib/medicalRecordReviews';
 
 const DEFAULT_BASE_URL = 'https://api.moonshot.ai/v1';
@@ -9,32 +9,35 @@ const CHAT_MAX_ATTEMPTS = 2;
 const CHAT_TIMEOUT_MS = 15 * 60 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
-const REVIEW_SYSTEM_PROMPT = `You review medical records and identify only medically significant complications.
+const REVIEW_SYSTEM_PROMPT = `You review medical records and report only the clinically significant complications, each with a short summary and its page number.
 Return ONLY valid JSON with this exact shape:
 {"complications":[{"complication":"string","summary":"string","page":1}]}
+What counts as significant:
+- Pregnancy, delivery, or postpartum complications.
+- Surgeries and procedures done for a problem.
+- Chronic, recurrent, or ongoing conditions, including mental health conditions.
+- Infections or diseases that required treatment.
+- Abnormal results that changed management or required follow-up.
+What to leave out:
+- Minor, incidental, or self-limited findings.
+- Isolated borderline or mildly abnormal lab values that were not acted on, such as a mild vitamin deficiency.
+- Normal or routine findings, administrative text, and billing or scheduling notes.
 Rules:
-- Include only major or clinically meaningful complications that could affect pregnancy, surrogacy eligibility, ongoing health, or require meaningful treatment or follow-up.
-- Do NOT list every finding. Exclude minor, routine, isolated, borderline, temporary, or fully resolved findings unless they remain clinically significant.
-- Merge repeated mentions of the same condition into one finding.
+- Report the same problem only once. If it appears in several places, use the documentation that describes it best.
 - complication: the short clinical name of the complication (a few words).
 - summary: 1-2 sentences summarizing what the record says about that complication. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
-- Each item MUST include the page number where the complication is documented. If it spans several pages, use the page with the clearest documentation.
-- If there are no complications, return {"complications":[]}.
-- Do not summarize the full record, only the complications.
-- Do not include routine findings or administrative text unless they clearly describe a complication.
-- page must be an integer (1-based) using the ORIGINAL document page numbers provided in the instructions.`;
+- Every page of the record carries the markers [[PAGE n START]] and [[PAGE n END]], where n is the ORIGINAL page number of that page.
+- page MUST be the n of the marker pair that surrounds the text you are citing. Never guess, estimate, or calculate a page number, and never use a page number that has no marker in the text.
+- If nothing significant is found, return {"complications":[]}.`;
 
-const FINAL_REVIEW_SYSTEM_PROMPT = `You are writing the final medical record review after reading candidate findings extracted from the complete record.
+const OVERVIEW_SYSTEM_PROMPT = `You write the opening and closing paragraphs of a medical record review report.
 Return ONLY valid JSON with this exact shape:
-{"introduction":"string","complications":[{"complication":"string","summary":"string","page":1}],"overallConclusion":"string"}
+{"intro":"string","conclusion":"string"}
 Rules:
-- introduction: write a natural opening paragraph stating that you reviewed the complete medical record and found the important issues summarized below. Briefly characterize the record without listing findings in this paragraph.
-- complications: retain only major or clinically meaningful complications. Do not include small, routine, isolated, borderline, temporary, or fully resolved findings unless they remain important to pregnancy, surrogacy eligibility, ongoing health, or follow-up.
-- Merge duplicate or overlapping findings across batches into one clear finding.
-- Preserve accurate clinical details and an ORIGINAL page number from the candidate findings. Never invent facts or page numbers.
-- summary: 1-2 concise sentences covering the important diagnosis, severity, treatment, course, and outcome when stated.
-- overallConclusion: end with a natural overall conclusion describing the main medical risk pattern, important resolved versus ongoing issues, and whether further clinical review or follow-up is warranted. Do not make a definitive eligibility decision and do not invent facts.
-- If there are no major complications, return an empty complications array and explain that no major complications were identified in both the introduction and overallConclusion.`;
+- intro: one short paragraph, first person, in the voice of the reviewer. Say who the patient is (use the given name, otherwise refer to her as the applicant), state that you reviewed the submitted medical records, mention how many pages were reviewed, and say that the review identified the issues listed below. Do not name the individual findings here.
+- conclusion: one short paragraph giving the overall picture: the main themes across the findings, how significant they are taken together, and anything that stands out for a surrogacy screening decision. Mention if the findings are mostly historical and resolved.
+- Use only the findings supplied to you. Do not invent findings, diagnoses, dates, or recommendations that are not supported by them.
+- Plain professional English. No bullet points, no markdown, no headings.`;
 
 function getApiKey() {
   return process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || '';
@@ -90,34 +93,6 @@ function normalizeComplications(raw: unknown): MedicalComplication[] {
   return results;
 }
 
-function normalizeFinalReview(raw: unknown): {
-  introduction: string;
-  complications: MedicalComplication[];
-  overallConclusion: string;
-} {
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('AI final review did not return an object');
-  }
-
-  const value = raw as {
-    introduction?: unknown;
-    complications?: unknown;
-    overallConclusion?: unknown;
-    overall_conclusion?: unknown;
-  };
-  const introduction = String(value.introduction || '').trim();
-  const overallConclusion = String(
-    value.overallConclusion || value.overall_conclusion || ''
-  ).trim();
-  const complications = normalizeComplications(value);
-
-  if (!introduction || !overallConclusion) {
-    throw new Error('AI final review is missing the introduction or overall conclusion');
-  }
-
-  return { introduction, complications, overallConclusion };
-}
-
 function dedupeComplications(items: MedicalComplication[]): MedicalComplication[] {
   const seen = new Set<string>();
   const out: MedicalComplication[] = [];
@@ -136,6 +111,34 @@ async function countPdfPages(pdfBytes: Uint8Array): Promise<number> {
   return source.getPageCount();
 }
 
+const PAGE_MARKER_TOP_MARGIN = 18;
+const PAGE_MARKER_BOTTOM_MARGIN = 16;
+
+/**
+ * Stamp the original page number into the page itself so the extracted text
+ * carries real page anchors instead of the model having to infer them.
+ * The content is shifted into a slightly taller page so nothing gets covered.
+ */
+async function stampOriginalPageNumber(
+  chunkDoc: PDFDocument,
+  page: Awaited<ReturnType<PDFDocument['copyPages']>>[number],
+  originalPage: number,
+  font: Awaited<ReturnType<PDFDocument['embedFont']>>
+) {
+  const { width, height } = page.getSize();
+  page.setSize(width, height + PAGE_MARKER_TOP_MARGIN + PAGE_MARKER_BOTTOM_MARGIN);
+  page.translateContent(0, PAGE_MARKER_BOTTOM_MARGIN);
+
+  const marker = { size: 9, font, color: rgb(0, 0, 0) };
+  page.drawText(`[[PAGE ${originalPage} START]]`, {
+    x: 6,
+    y: height + PAGE_MARKER_BOTTOM_MARGIN + 5,
+    ...marker,
+  });
+  page.drawText(`[[PAGE ${originalPage} END]]`, { x: 6, y: 5, ...marker });
+  chunkDoc.addPage(page);
+}
+
 async function splitPdfIntoPageChunks(
   pdfBytes: Uint8Array,
   pagesPerChunk: number
@@ -147,9 +150,12 @@ async function splitPdfIntoPageChunks(
   for (let start = 0; start < totalPages; start += pagesPerChunk) {
     const end = Math.min(totalPages, start + pagesPerChunk);
     const chunkDoc = await PDFDocument.create();
+    const font = await chunkDoc.embedFont(StandardFonts.Helvetica);
     const pageIndexes = Array.from({ length: end - start }, (_, i) => start + i);
     const copied = await chunkDoc.copyPages(source, pageIndexes);
-    copied.forEach((page) => chunkDoc.addPage(page));
+    for (let i = 0; i < copied.length; i++) {
+      await stampOriginalPageNumber(chunkDoc, copied[i], start + i + 1, font);
+    }
     const bytes = await chunkDoc.save();
     chunks.push({
       startPage: start + 1,
@@ -251,9 +257,7 @@ async function deleteRemoteFile(fileId: string): Promise<void> {
 }
 
 async function callKimiChat(
-  systemPrompt: string,
-  contextText: string,
-  userPrompt: string
+  messages: Array<{ role: 'system' | 'user'; content: string }>
 ): Promise<{ text: string; raw: string }> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -275,11 +279,7 @@ async function callKimiChat(
           model: getModel(),
           reasoning_effort: 'low',
           max_completion_tokens: 32768,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'system', content: contextText },
-            { role: 'user', content: userPrompt },
-          ],
+          messages,
         }),
         signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
       });
@@ -321,7 +321,7 @@ async function callKimiChat(
       // when the answer budget was exhausted (finish_reason=length).
       if (!text && typeof message?.reasoning_content === 'string') {
         const reasoning = message.reasoning_content.trim();
-        if (reasoning.includes('{') && reasoning.includes('complications')) {
+        if (reasoning.includes('{') && reasoning.includes('}')) {
           text = reasoning;
         }
       }
@@ -347,6 +347,40 @@ async function callKimiChat(
   }
 
   throw new Error(formatFetchError(lastError, 'AI review failed'));
+}
+
+async function callKimiForOverview(
+  complications: MedicalComplication[],
+  pageCount: number,
+  patientName?: string | null
+): Promise<{ intro: string; conclusion: string; raw: string }> {
+  const findings = complications
+    .map(
+      (item, index) =>
+        `${index + 1}. ${item.complication} (page ${item.page})${item.note ? `: ${item.note}` : ''}`
+    )
+    .join('\n');
+
+  const userPrompt = [
+    patientName ? `Patient: ${patientName}.` : 'Patient name: not stated in the record.',
+    `Pages reviewed: ${pageCount || 'unknown'}.`,
+    complications.length
+      ? `Findings from the review:\n${findings}`
+      : 'The review found no significant complications.',
+    'Write the intro and conclusion paragraphs. Return JSON only.',
+  ].join('\n\n');
+
+  const { text, raw } = await callKimiChat([
+    { role: 'system', content: OVERVIEW_SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ]);
+
+  const parsed = extractJsonObject(text) as { intro?: unknown; conclusion?: unknown };
+  return {
+    intro: String(parsed?.intro || '').trim(),
+    conclusion: String(parsed?.conclusion || '').trim(),
+    raw,
+  };
 }
 
 function remapChunkPages(
@@ -402,11 +436,12 @@ export async function analyzeMedicalRecordPdf(
   pdfBytes: Uint8Array,
   options?: {
     fileName?: string;
+    patientName?: string | null;
   }
 ): Promise<{
-  introduction: string;
   complications: MedicalComplication[];
-  overallConclusion: string;
+  intro: string;
+  conclusion: string;
   rawAiResponse: string;
   pageCount: number;
 }> {
@@ -461,15 +496,17 @@ export async function analyzeMedicalRecordPdf(
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
     try {
-      const userPrompt =
-        `Identify and summarize only the major, clinically meaningful complications in this section. ` +
-        `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. ` +
-        `Always report absolute original page numbers in that range. Return JSON only.`;
-      const { text, raw } = await callKimiChat(
-        REVIEW_SYSTEM_PROMPT,
-        batch.text,
-        userPrompt
-      );
+      const { text, raw } = await callKimiChat([
+        { role: 'system', content: REVIEW_SYSTEM_PROMPT },
+        { role: 'system', content: batch.text },
+        {
+          role: 'user',
+          content:
+            `Review the medical record above and report only the significant complications, ` +
+            `each with a short summary and the page number taken from its [[PAGE n START]] / [[PAGE n END]] markers. ` +
+            `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. Return JSON only.`,
+        },
+      ]);
 
       const parsed = extractJsonObject(text);
       allComplications.push(
@@ -493,31 +530,30 @@ export async function analyzeMedicalRecordPdf(
     throw new Error(chatErrors[0]);
   }
 
-  const notes = [...extractErrors, ...chatErrors];
+  const complications = dedupeComplications(allComplications);
 
-  const candidateComplications = dedupeComplications(allComplications);
-  const finalContext = JSON.stringify({
-    documentPageCount: pageCount,
-    candidateComplications,
-  });
-  const { text: finalText, raw: finalRaw } = await callKimiChat(
-    FINAL_REVIEW_SYSTEM_PROMPT,
-    finalContext,
-    'Write the final medical record review with a natural introduction, only the important complications, and an overall conclusion. Return JSON only.'
-  );
-  const finalReview = normalizeFinalReview(extractJsonObject(finalText));
+  // Phase 3: one pass over the merged findings for the opening/closing paragraphs.
+  let intro = '';
+  let conclusion = '';
+  try {
+    const overview = await callKimiForOverview(complications, pageCount, options?.patientName);
+    intro = overview.intro;
+    conclusion = overview.conclusion;
+    rawParts.push(JSON.stringify({ overview: overview.raw }));
+  } catch (error: any) {
+    chatErrors.push(`overview: ${error?.message || 'failed'}`);
+  }
+
+  const notes = [...extractErrors, ...chatErrors];
+  if (notes.length) {
+    rawParts.push(JSON.stringify({ warnings: notes }));
+  }
 
   return {
-    introduction: finalReview.introduction,
-    complications: dedupeComplications(finalReview.complications),
-    overallConclusion: finalReview.overallConclusion,
-    rawAiResponse: JSON.stringify({
-      introduction: finalReview.introduction,
-      overallConclusion: finalReview.overallConclusion,
-      batches: rawParts.map((part) => JSON.parse(part)),
-      synthesis: finalRaw,
-      warnings: notes,
-    }),
+    complications,
+    intro,
+    conclusion,
+    rawAiResponse: `[${rawParts.join(',')}]`,
     pageCount,
   };
 }

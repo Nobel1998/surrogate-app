@@ -125,8 +125,19 @@ export async function runMedicalRecordAnalysis(
     }
   }
 
+  let patientName: string | null = null;
+  if (existing.surrogate_user_id) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', existing.surrogate_user_id)
+      .maybeSingle();
+    patientName = profile?.name || null;
+  }
+
   const result = await analyzeMedicalRecordPdf(pdfBytes, {
     fileName: existing.file_name || 'medical-record.pdf',
+    patientName,
   });
 
   const { data: updated, error: updateError } = await supabase
@@ -134,6 +145,8 @@ export async function runMedicalRecordAnalysis(
     .update({
       status: 'analyzed',
       complications: result.complications,
+      intro: result.intro || null,
+      conclusion: result.conclusion || null,
       raw_ai_response: result.rawAiResponse,
       error_message: null,
       analyzed_at: new Date().toISOString(),
