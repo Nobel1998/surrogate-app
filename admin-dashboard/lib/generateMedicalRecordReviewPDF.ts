@@ -124,7 +124,7 @@ export const generateMedicalRecordReviewPDF = (
   };
 
   if (review.intro) {
-    writeParagraph('Reviewer Summary', review.intro);
+    writeParagraph('Introductory', review.intro);
   }
 
   if (yPosition > 250) {
@@ -167,7 +167,7 @@ export const generateMedicalRecordReviewPDF = (
       complications.length === 0
         ? yPosition + 16
         : (doc as any).lastAutoTable.finalY + 12;
-    writeParagraph('Overall Assessment', review.conclusion);
+    writeParagraph('Overall Summary', review.conclusion);
   }
 
   const pageCount = doc.getNumberOfPages();

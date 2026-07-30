@@ -616,7 +616,7 @@ export default function MedicalRecordReviewsPage() {
 
                 {selected.intro ? (
                   <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-1">Reviewer Summary</h3>
+                    <h3 className="font-medium mb-1">Introductory</h3>
                     <p className="text-sm text-gray-700 whitespace-pre-line">{selected.intro}</p>
                   </div>
                 ) : null}
@@ -658,7 +658,7 @@ export default function MedicalRecordReviewsPage() {
 
                 {selected.conclusion ? (
                   <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-1">Overall Assessment</h3>
+                    <h3 className="font-medium mb-1">Overall Summary</h3>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
                       {selected.conclusion}
                     </p>
