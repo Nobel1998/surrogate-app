@@ -633,7 +633,7 @@ export default function MedicalRecordReviewsPage() {
                     <table className="min-w-full text-sm border rounded overflow-hidden">
                       <thead className="bg-gray-50 text-left">
                         <tr>
-                          <th className="px-3 py-2">Complication / Summary</th>
+                          <th className="px-3 py-2">Event / Details</th>
                           <th className="px-3 py-2 w-20">Page</th>
                         </tr>
                       </thead>

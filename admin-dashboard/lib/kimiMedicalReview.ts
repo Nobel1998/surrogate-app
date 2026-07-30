@@ -25,21 +25,21 @@ What to leave out:
 - Isolated borderline or mildly abnormal lab values that were not acted on, such as a mild vitamin deficiency.
 - Normal or routine findings, administrative text, and billing or scheduling notes.
 Rules:
-- patientName: when the supplied section contains [[PAGE 1 START]], read the patient's full name directly from the first page and return it. Use only a name explicitly identified as the patient/member/applicant on page 1; do not use a provider, doctor, facility, guarantor, or emergency contact name. If page 1 is absent or the patient's name cannot be identified confidently, return null.
+- patientName: the patient's full name is almost always printed on page 1 (demographics header, patient label, member name, chart header, or intake form). When the supplied section contains [[PAGE 1 START]], you MUST extract that name from the text between [[PAGE 1 START]] and [[PAGE 1 END]] and return it. Look for labels such as Patient, Patient Name, Member, Member Name, Name, Client, Applicant, DOB line, or a name printed at the top of the chart. Prefer the name that is clearly the subject of the record. Do not use a provider, doctor, nurse, facility, clinic, guarantor, emergency contact, or insurance-plan name. Return null ONLY if page 1 is absent or no personal name for the patient can be found after a careful read of page 1.
 - Report the same problem only once. If it appears in several places, use the documentation that describes it best.
-- complication: the short clinical name of the complication (a few words).
-- summary: 1-2 sentences summarizing what the record says about that complication. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
+- complication: the short clinical name of the event or finding (a few words).
+- summary: 1-2 sentences summarizing what the record says about that event. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
 - Every page of the record carries the markers [[PAGE n START]] and [[PAGE n END]], where n is the ORIGINAL page number of that page.
 - page MUST be the n of the marker pair that surrounds the text you are citing. Never guess, estimate, or calculate a page number, and never use a page number that has no marker in the text.
 - If nothing significant is found, still return patientName and return an empty complications array.`;
 
 const OVERVIEW_SYSTEM_PROMPT = `You write the introductory paragraph and overall summary of a surrogacy medical-record review.
-Write in the voice of an experienced OB/GYN nursing team reviewing with a highly professional nursing clinical perspective and precise analysis.
+Write in the voice of an experienced clinical team reviewing with a highly professional medical perspective and precise analysis.
 Return ONLY valid JSON with this exact shape:
 {"introductory":"string","overallSummary":"string"}
 Rules:
-- introductory: one short paragraph. It MUST begin with the exact words: "Our experienced OB/GYN nursing team has" and then continue naturally (for example, "...reviewed the medical records of [patient]..."). Identify the patient by name when provided (otherwise the applicant). State that the team reviewed this surrogacy medical record with a professional nursing clinical perspective, that we know which findings matter and present them clearly and concisely, mention how many pages were reviewed, and say that the significant issues identified are listed below. Do not name the individual findings in this paragraph. Do not start with any other phrasing.
-- overallSummary: write 2-3 short, clearly separated paragraphs summarizing the findings as a whole after they have been listed, in the same professional OB/GYN nursing voice. Separate paragraphs with a blank line using "\\n\\n" inside the JSON string. Organize related findings together (for example, obstetric/gynecologic history in one paragraph and other clinically significant history in another), then use the final paragraph to summarize whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings. Do not repeat the same finding across paragraphs. If there are too few findings for multiple meaningful topics, use two concise paragraphs rather than adding filler.
+- introductory: one short paragraph. It MUST begin with the exact words: "Our experienced team has" and then continue naturally (for example, "...reviewed the medical records of [patient]..."). When a patient name is provided in the user message, you MUST use that exact name in the introductory paragraph. Never write that the patient name is missing, unknown, or not stated if a name was provided. If no name is provided, refer to the patient as "the applicant" and do not say the name is missing from the record. State that the team reviewed this surrogacy medical record with a professional clinical perspective, that we know which findings matter and present them clearly and concisely, mention how many pages were reviewed, and say that the significant issues identified are listed below. Do not name the individual findings in this paragraph. Do not start with any other phrasing.
+- overallSummary: write 2-3 short, clearly separated paragraphs summarizing the findings as a whole after they have been listed, in the same professional clinical voice. Separate paragraphs with a blank line using "\\n\\n" inside the JSON string. Organize related findings together (for example, obstetric/gynecologic history in one paragraph and other clinically significant history in another), then use the final paragraph to summarize whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings. Do not repeat the same finding across paragraphs. If there are too few findings for multiple meaningful topics, use two concise paragraphs rather than adding filler.
 - The overallSummary is a summary, not an assessment. Do not make an eligibility decision, risk rating, recommendation, or surrogacy screening judgment.
 - Use only the findings supplied to you. Do not invent findings, diagnoses, dates, outcomes, or recommendations.
 - Plain professional English. No bullet points, no markdown, no headings.`;
@@ -354,6 +354,46 @@ async function callKimiChat(
   throw new Error(formatFetchError(lastError, 'AI review failed'));
 }
 
+function cleanPatientName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value.replace(/\s+/g, ' ').trim();
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  if (
+    lower === 'null' ||
+    lower === 'undefined' ||
+    lower === 'unknown' ||
+    lower === 'n/a' ||
+    lower === 'na' ||
+    lower === 'none' ||
+    lower.includes('not stated') ||
+    lower.includes('not provided') ||
+    lower.includes('not available')
+  ) {
+    return null;
+  }
+  return name;
+}
+
+/** Best-effort patient name from page-1 extract text when the model returns null. */
+function extractPatientNameFromPage1Text(text: string): string | null {
+  const page1Match = text.match(/\[\[PAGE\s*1\s*START\]\]([\s\S]*?)\[\[PAGE\s*1\s*END\]\]/i);
+  const page1 = (page1Match ? page1Match[1] : text.slice(0, 4000)).replace(/\u0000/g, ' ');
+
+  const patterns = [
+    /(?:patient\s*name|member\s*name|applicant\s*name|client\s*name|full\s*name|patient)\s*[:：\-]\s*([A-Z][A-Za-z'’.\-]+(?:\s+[A-Z][A-Za-z'’.\-]+){0,4})/i,
+    /(?:name)\s*[:：\-]\s*([A-Z][A-Za-z'’.\-]+(?:\s+[A-Z][A-Za-z'’.\-]+){1,4})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = page1.match(pattern);
+    const candidate = cleanPatientName(match?.[1]);
+    if (candidate && candidate.split(' ').length >= 1) return candidate;
+  }
+
+  return null;
+}
+
 async function callKimiForOverview(
   complications: MedicalComplication[],
   pageCount: number,
@@ -366,13 +406,16 @@ async function callKimiForOverview(
     )
     .join('\n');
 
+  const resolvedName = cleanPatientName(patientName);
   const userPrompt = [
-    patientName ? `Patient: ${patientName}.` : 'Patient name: not stated in the record.',
+    resolvedName
+      ? `Patient name (required): ${resolvedName}. Use this exact name in the introductory paragraph.`
+      : 'Patient name was not provided. Refer to the patient as "the applicant". Do not say the name is missing or not stated.',
     `Pages reviewed: ${pageCount || 'unknown'}.`,
     complications.length
       ? `Findings from the review:\n${findings}`
       : 'The review found no significant complications.',
-    'Write the introductory paragraph and a 2-3 paragraph overall summary from a highly professional OB/GYN nursing perspective. The introductory paragraph MUST begin exactly with: "Our experienced OB/GYN nursing team has". Separate the overall-summary paragraphs with a blank line. Return JSON only.',
+    'Write the introductory paragraph and a 2-3 paragraph overall summary from a highly professional clinical perspective. The introductory paragraph MUST begin exactly with: "Our experienced team has". Separate the overall-summary paragraphs with a blank line. Return JSON only.',
   ].join('\n\n');
 
   const { text, raw } = await callKimiChat([
@@ -514,7 +557,7 @@ export async function analyzeMedicalRecordPdf(
             `Review the medical record above and report only the significant complications, ` +
             `each with a short summary and the page number taken from its [[PAGE n START]] / [[PAGE n END]] markers. ` +
             (batch.startPage === 1
-              ? `Read the patient's full name from the content between [[PAGE 1 START]] and [[PAGE 1 END]] and return it as patientName. `
+              ? `The patient's full name is on page 1. Read it from the content between [[PAGE 1 START]] and [[PAGE 1 END]] (demographics header, Patient/Member/Name label, or chart top) and return it as patientName. Do not return null unless no personal patient name appears on page 1. `
               : `Return patientName as null because this section does not contain page 1. `) +
             `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. Return JSON only.`,
         },
@@ -524,8 +567,11 @@ export async function analyzeMedicalRecordPdf(
         patientName?: unknown;
         complications?: unknown;
       };
-      if (batch.startPage === 1 && typeof parsed.patientName === 'string') {
-        recordPatientName = parsed.patientName.trim() || null;
+      if (!recordPatientName && batch.startPage === 1) {
+        recordPatientName = cleanPatientName(parsed.patientName);
+      }
+      if (!recordPatientName && /\[\[PAGE\s*1\s*START\]\]/i.test(batch.text)) {
+        recordPatientName = extractPatientNameFromPage1Text(batch.text);
       }
       allComplications.push(
         ...remapChunkPages(normalizeComplications(parsed), batch.startPage, batch.endPage)
@@ -550,6 +596,18 @@ export async function analyzeMedicalRecordPdf(
 
   const complications = dedupeComplications(allComplications);
 
+  if (!recordPatientName) {
+    for (const part of extractedParts) {
+      if (part.startPage === 1 || /\[\[PAGE\s*1\s*START\]\]/i.test(part.text)) {
+        recordPatientName = extractPatientNameFromPage1Text(part.text);
+        if (recordPatientName) break;
+      }
+    }
+  }
+
+  const resolvedPatientName =
+    cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
+
   // Phase 3: one pass over the merged findings for the opening/closing paragraphs.
   let intro = '';
   let summary = '';
@@ -557,7 +615,7 @@ export async function analyzeMedicalRecordPdf(
     const overview = await callKimiForOverview(
       complications,
       pageCount,
-      recordPatientName || options?.patientName
+      resolvedPatientName
     );
     intro = overview.intro;
     summary = overview.summary;

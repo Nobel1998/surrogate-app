@@ -83,7 +83,7 @@ export const generateMedicalRecordReviewPDF = (
       ['Surrogate', formatValue(context.surrogateName)],
       ['Match', formatValue(context.matchLabel)],
       ['File Name', formatValue(review.file_name)],
-      ['Analyzed At', formatDateTime(review.analyzed_at)],
+      ['Reviewed', formatDateTime(review.analyzed_at)],
       ['Reviewed By', formatValue(review.reviewed_by_name)],
     ] as [string, string][],
     theme: 'plain',
@@ -138,7 +138,7 @@ export const generateMedicalRecordReviewPDF = (
   } else {
     autoTable(doc, {
       startY: yPosition,
-      head: [['Complication', 'Summary', 'Page']],
+      head: [['Event', 'Details', 'Page']],
       body: complications.map((item) => [
         formatValue(item.complication),
         formatValue(item.note),
