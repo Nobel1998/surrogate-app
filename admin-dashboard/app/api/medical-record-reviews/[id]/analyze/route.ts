@@ -74,28 +74,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     let providedPdfBytes: Uint8Array | null = null;
     const contentType = req.headers.get('content-type') || '';
-
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-      body: JSON.stringify({
-        sessionId: '5244e3',
-        runId: 'pre-fix',
-        hypothesisId: 'D,E',
-        location: 'analyze/route.ts:77',
-        message: 'analyze route reached',
-        data: {
-          id,
-          contentType: contentType.split(';')[0],
-          contentLength: req.headers.get('content-length'),
-          previousStatus: existing.status,
-          vercelEnv: process.env.VERCEL_ENV || 'local',
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file');
@@ -134,22 +112,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
   } catch (error: any) {
     console.error('[medical-record-reviews/:id/analyze] error:', error);
     const message = error?.message || 'Failed to start analysis';
-
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-      body: JSON.stringify({
-        sessionId: '5244e3',
-        runId: 'pre-fix',
-        hypothesisId: 'D,E',
-        location: 'analyze/route.ts:catch',
-        message: 'analyze route threw before starting background work',
-        data: { id, message: String(message).slice(0, 300), name: error?.name || null },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     await markMedicalRecordAnalysisFailed(auth.supabase, id, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -296,37 +296,7 @@ export default function MedicalRecordReviewsPage() {
         method: 'POST',
         body: formData,
       });
-      const bodyText = await res.text().catch(() => '');
-      let data: any = {};
-      try {
-        data = bodyText ? JSON.parse(bodyText) : {};
-      } catch {
-        data = {};
-      }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'C,D,E',
-          location: 'medical-record-reviews/page.tsx:298',
-          message: 'analyze POST response',
-          data: {
-            id,
-            origin: window.location.origin,
-            status: res.status,
-            ok: res.ok,
-            attachedPdfBytes: (formData.get('file') as Blob | null)?.size ?? null,
-            bodyPreview: bodyText.slice(0, 300),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-
+      const data = await res.json().catch(() => ({}));
       if (!res.ok && res.status !== 202) {
         throw new Error(data.error || 'Analyze failed');
       }

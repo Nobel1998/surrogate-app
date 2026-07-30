@@ -125,38 +125,6 @@ export async function runMedicalRecordAnalysis(
     }
   }
 
-  // #region agent log
-  {
-    const probe = await supabase
-      .from('medical_record_reviews')
-      .select('id, intro, summary')
-      .limit(1);
-    const projectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '')
-      .replace(/^https?:\/\//, '')
-      .split('.')[0];
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-      body: JSON.stringify({
-        sessionId: '5244e3',
-        runId: 'pre-fix',
-        hypothesisId: 'A,B,C',
-        location: 'runMedicalRecordAnalysis.ts:128',
-        message: 'intro/summary column probe',
-        data: {
-          reviewId,
-          projectRef,
-          vercelEnv: process.env.VERCEL_ENV || 'local',
-          probeErrorCode: (probe.error as any)?.code || null,
-          probeErrorMessage: probe.error?.message || null,
-          probeReturnedKeys: probe.data?.[0] ? Object.keys(probe.data[0]) : null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
-
   let patientName: string | null = null;
   if (existing.surrogate_user_id) {
     const { data: profile } = await supabase
@@ -188,31 +156,6 @@ export async function runMedicalRecordAnalysis(
     .select()
     .single();
 
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-    body: JSON.stringify({
-      sessionId: '5244e3',
-      runId: 'pre-fix',
-      hypothesisId: 'A,B',
-      location: 'runMedicalRecordAnalysis.ts:170',
-      message: 'analyzed row update result',
-      data: {
-        reviewId,
-        complicationCount: result.complications.length,
-        introLength: (result.intro || '').length,
-        summaryLength: (result.summary || '').length,
-        updateErrorCode: (updateError as any)?.code || null,
-        updateErrorMessage: updateError?.message || null,
-        updateErrorDetails: (updateError as any)?.details || null,
-        updated: !!updated,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   if (updateError) throw updateError;
 
   let finalReview = updated;
@@ -238,22 +181,6 @@ export async function markMedicalRecordAnalysisFailed(
   reviewId: string,
   message: string,
 ) {
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-    body: JSON.stringify({
-      sessionId: '5244e3',
-      runId: 'pre-fix',
-      hypothesisId: 'A,B,D,E',
-      location: 'runMedicalRecordAnalysis.ts:markFailed',
-      message: 'review marked failed',
-      data: { reviewId, storedMessage: message.slice(0, 300) },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   await supabase
     .from('medical_record_reviews')
     .update({
