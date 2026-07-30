@@ -6,7 +6,6 @@ import {
   saveMedicalRecordTempPdf,
 } from '@/lib/runMedicalRecordAnalysis';
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
-import { agentDebugLog } from '@/lib/agentDebugLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -31,20 +30,6 @@ function hasKimiApiKey() {
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  // #region agent log
-  agentDebugLog({
-    hypothesisId: 'A,B',
-    location: 'analyze/route.ts:entry',
-    message: 'analyze route entered',
-    data: {
-      vercelEnv: process.env.VERCEL_ENV || 'local',
-      contentType: (req.headers.get('content-type') || '').split(';')[0],
-      contentLength: req.headers.get('content-length'),
-      hasKimiKey: hasKimiApiKey(),
-    },
-  });
-  // #endregion
-
   const auth = await requireMedicalRecordAccess({ requireWrite: true });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -102,22 +87,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
         }
       }
     }
-
-    // #region agent log
-    agentDebugLog({
-      hypothesisId: 'A',
-      runId: 'post-fix',
-      location: 'analyze/route.ts:after-body',
-      message: 'analyze will use storage download if no body PDF',
-      data: {
-        vercelEnv: process.env.VERCEL_ENV || 'local',
-        hasProvidedPdf: !!(providedPdfBytes && providedPdfBytes.byteLength > 0),
-        providedPdfBytes: providedPdfBytes?.byteLength || 0,
-        storagePath: existing.storage_path,
-        hasFileUrl: !!(existing.file_url && existing.file_url !== 'pending'),
-      },
-    });
-    // #endregion
 
     await auth.supabase
       .from('medical_record_reviews')

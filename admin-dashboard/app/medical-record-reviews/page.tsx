@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
-import { agentDebugLog } from '@/lib/agentDebugLog';
 
 type Complication = {
   complication: string;
@@ -198,7 +197,6 @@ export default function MedicalRecordReviewsPage() {
       return;
     }
 
-    let debugStage = 'init-request';
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -224,37 +222,6 @@ export default function MedicalRecordReviewsPage() {
         throw new Error(`Upload init failed (${initRes.status}): ${initRaw.slice(0, 180)}`);
       }
 
-      // #region agent log
-      {
-        let signedUrlHost: string | null = null;
-        let signedUrlPath: string | null = null;
-        try {
-          const parsed = new URL(initData?.signedUrl);
-          signedUrlHost = parsed.host;
-          signedUrlPath = parsed.pathname;
-        } catch {
-          signedUrlHost = initData?.signedUrl ? 'unparseable' : null;
-        }
-        agentDebugLog({
-          hypothesisId: 'A,B,E,F',
-          location: 'medical-record-reviews/page.tsx:upload-init',
-          message: 'upload init response',
-          data: {
-            origin: window.location.origin,
-            status: initRes.status,
-            ok: initRes.ok,
-            fileBytes: file.size,
-            fileType: file.type || null,
-            hasSignedUrl: !!initData?.signedUrl,
-            hasPath: !!initData?.path,
-            signedUrlHost,
-            signedUrlPath,
-            bodyPreview: initRaw.slice(0, 300),
-          },
-        });
-      }
-      // #endregion
-
       if (!initRes.ok) {
         throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
       }
@@ -263,12 +230,10 @@ export default function MedicalRecordReviewsPage() {
         throw new Error('Upload init missing signed upload URL or storage path');
       }
 
-      debugStage = 'storage-put';
       await uploadMedicalRecordPdfToSignedUrl(initData.signedUrl, file, (progress) => {
         setUploadProgress(progress.percentage);
       });
 
-      debugStage = 'finalize';
       const finalizeRes = await fetch(`/api/medical-record-reviews/${initData.reviewId}/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,21 +247,6 @@ export default function MedicalRecordReviewsPage() {
         throw new Error(`Finalize failed (${finalizeRes.status}): ${finalizeRaw.slice(0, 180)}`);
       }
 
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'D',
-        location: 'medical-record-reviews/page.tsx:finalize',
-        message: 'finalize response',
-        data: {
-          origin: window.location.origin,
-          reviewId: initData.reviewId,
-          status: finalizeRes.status,
-          ok: finalizeRes.ok,
-          bodyPreview: finalizeRaw.slice(0, 300),
-        },
-      });
-      // #endregion
-
       if (!finalizeRes.ok) {
         throw new Error(finalizeData?.error || `Finalize failed (${finalizeRes.status})`);
       }
@@ -306,19 +256,6 @@ export default function MedicalRecordReviewsPage() {
       setSelectedId(finalizeData.review?.id || initData.reviewId || null);
       await loadData();
     } catch (error: any) {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'A,B,C,D,E,F',
-        location: 'medical-record-reviews/page.tsx:handleUpload-catch',
-        message: 'upload failed alert',
-        data: {
-          origin: window.location.origin,
-          failedStage: debugStage,
-          errorMessage: String(error?.message || error).slice(0, 300),
-        },
-      });
-      // #endregion
-
       alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
@@ -337,28 +274,11 @@ export default function MedicalRecordReviewsPage() {
   };
 
   const handleAnalyze = async (id: string) => {
-    let attachedPdfBytes: number | null = null;
-    let pdfFetchStatus: number | null = null;
     try {
       setAnalyzingId(id);
 
-      // Do NOT post the PDF body to /analyze on Vercel: serverless request
-      // payloads are capped (~4.5MB). The PDF is already in Storage; the
-      // server downloads it from there after starting analysis.
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'A',
-        runId: 'post-fix',
-        location: 'medical-record-reviews/page.tsx:handleAnalyze-start',
-        message: 'starting analyze without PDF body',
-        data: {
-          origin: window.location.origin,
-          id,
-          skipPdfBody: true,
-        },
-      });
-      // #endregion
-
+      // Never send the PDF in this request: serverless payloads are capped and
+      // large records fail with 413. The server reads the PDF from storage.
       const res = await fetch(`/api/medical-record-reviews/${id}/analyze`, {
         method: 'POST',
       });
@@ -370,32 +290,10 @@ export default function MedicalRecordReviewsPage() {
         data = {};
       }
 
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'A,B,C,D',
-        runId: 'post-fix',
-        location: 'medical-record-reviews/page.tsx:handleAnalyze',
-        message: 'analyze POST response',
-        data: {
-          origin: window.location.origin,
-          id,
-          status: res.status,
-          ok: res.ok,
-          attachedPdfBytes,
-          pdfFetchStatus,
-          contentType: res.headers.get('content-type'),
-          hasJsonError: typeof data?.error === 'string',
-          bodyPreview: bodyText.slice(0, 400),
-        },
-      });
-      // #endregion
-
       if (!res.ok && res.status !== 202) {
         throw new Error(
           data.error ||
-            `Analyze failed (HTTP ${res.status}, pdf ${attachedPdfBytes ?? 'none'} bytes)${
-              bodyText ? `: ${bodyText.slice(0, 200)}` : ''
-            }`
+            `Analyze failed (HTTP ${res.status})${bodyText ? `: ${bodyText.slice(0, 200)}` : ''}`
         );
       }
 
@@ -424,39 +322,12 @@ export default function MedicalRecordReviewsPage() {
           return;
         }
         if (review.status === 'failed') {
-          // #region agent log
-          agentDebugLog({
-            hypothesisId: 'C,E',
-            location: 'medical-record-reviews/page.tsx:poll-failed',
-            message: 'background analysis reported failed',
-            data: {
-              origin: window.location.origin,
-              id,
-              storedErrorMessage: (review.error_message || '').slice(0, 400),
-            },
-          });
-          // #endregion
-
-          throw new Error(review.error_message || 'Analysis failed (no error message stored)');
+          throw new Error(review.error_message || 'Analysis failed');
         }
       }
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'A,B,C,D,E',
-        location: 'medical-record-reviews/page.tsx:handleAnalyze-catch',
-        message: 'analyze failed alert',
-        data: {
-          origin: window.location.origin,
-          id,
-          attachedPdfBytes,
-          errorMessage: String(error?.message || error).slice(0, 300),
-        },
-      });
-      // #endregion
-
       alert(`Review failed: ${error.message}`);
       // Soft refresh only the single review; avoid full-page load flicker.
       try {

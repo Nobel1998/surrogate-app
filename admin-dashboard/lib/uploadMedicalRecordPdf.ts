@@ -1,5 +1,3 @@
-import { agentDebugLog } from '@/lib/agentDebugLog';
-
 export type UploadProgress = {
   bytesUploaded: number;
   bytesTotal: number;
@@ -30,20 +28,6 @@ export function uploadMedicalRecordPdfToSignedUrl(
     };
 
     xhr.onload = () => {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'B,C',
-        location: 'uploadMedicalRecordPdf.ts:onload',
-        message: 'storage PUT completed',
-        data: {
-          origin: window.location.origin,
-          status: xhr.status,
-          fileBytes: file.size,
-          responsePreview: (xhr.responseText || '').slice(0, 300),
-        },
-      });
-      // #endregion
-
       if (xhr.status >= 200 && xhr.status < 300) {
         onProgress?.({
           bytesUploaded: file.size,
@@ -65,20 +49,6 @@ export function uploadMedicalRecordPdfToSignedUrl(
     };
 
     xhr.onerror = () => {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'B,C',
-        location: 'uploadMedicalRecordPdf.ts:onerror',
-        message: 'storage PUT network error',
-        data: {
-          origin: window.location.origin,
-          status: xhr.status,
-          readyState: xhr.readyState,
-          fileBytes: file.size,
-        },
-      });
-      // #endregion
-
       reject(new Error('Storage upload failed: network error'));
     };
 
