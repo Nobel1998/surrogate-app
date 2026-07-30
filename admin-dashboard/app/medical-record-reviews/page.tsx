@@ -21,7 +21,7 @@ type Review = {
   status: 'uploaded' | 'analyzing' | 'analyzed' | 'failed' | 'reviewed';
   complications: Complication[] | null;
   intro: string | null;
-  conclusion: string | null;
+  summary: string | null;
   raw_ai_response: string | null;
   error_message: string | null;
   analyzed_at: string | null;
@@ -296,7 +296,37 @@ export default function MedicalRecordReviewsPage() {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json().catch(() => ({}));
+      const bodyText = await res.text().catch(() => '');
+      let data: any = {};
+      try {
+        data = bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        data = {};
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'pre-fix',
+          hypothesisId: 'C,D,E',
+          location: 'medical-record-reviews/page.tsx:298',
+          message: 'analyze POST response',
+          data: {
+            id,
+            origin: window.location.origin,
+            status: res.status,
+            ok: res.ok,
+            attachedPdfBytes: (formData.get('file') as Blob | null)?.size ?? null,
+            bodyPreview: bodyText.slice(0, 300),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       if (!res.ok && res.status !== 202) {
         throw new Error(data.error || 'Analyze failed');
       }
@@ -635,20 +665,20 @@ export default function MedicalRecordReviewsPage() {
                     <table className="min-w-full text-sm border rounded overflow-hidden">
                       <thead className="bg-gray-50 text-left">
                         <tr>
-                          <th className="px-3 py-2 w-20">Page</th>
                           <th className="px-3 py-2">Complication / Summary</th>
+                          <th className="px-3 py-2 w-20">Page</th>
                         </tr>
                       </thead>
                       <tbody>
                         {complications.map((item, index) => (
                           <tr key={`${item.page}-${item.complication}-${index}`} className="border-t">
-                            <td className="px-3 py-2 font-medium">{item.page}</td>
                             <td className="px-3 py-2">
                               {item.complication}
                               {item.note ? (
                                 <div className="text-xs text-gray-500 mt-1">{item.note}</div>
                               ) : null}
                             </td>
+                            <td className="px-3 py-2 font-medium align-top">{item.page}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -656,11 +686,11 @@ export default function MedicalRecordReviewsPage() {
                   )}
                 </div>
 
-                {selected.conclusion ? (
+                {selected.summary ? (
                   <div className="bg-gray-50 border rounded p-3">
                     <h3 className="font-medium mb-1">Overall Summary</h3>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {selected.conclusion}
+                      {selected.summary}
                     </p>
                   </div>
                 ) : null}

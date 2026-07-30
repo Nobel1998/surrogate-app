@@ -354,7 +354,7 @@ async function callKimiForOverview(
   complications: MedicalComplication[],
   pageCount: number,
   patientName?: string | null
-): Promise<{ intro: string; conclusion: string; raw: string }> {
+): Promise<{ intro: string; summary: string; raw: string }> {
   const findings = complications
     .map(
       (item, index) =>
@@ -382,7 +382,7 @@ async function callKimiForOverview(
   };
   return {
     intro: String(parsed?.introductory || '').trim(),
-    conclusion: String(parsed?.overallSummary || '').trim(),
+    summary: String(parsed?.overallSummary || '').trim(),
     raw,
   };
 }
@@ -445,7 +445,7 @@ export async function analyzeMedicalRecordPdf(
 ): Promise<{
   complications: MedicalComplication[];
   intro: string;
-  conclusion: string;
+  summary: string;
   rawAiResponse: string;
   pageCount: number;
 }> {
@@ -538,11 +538,11 @@ export async function analyzeMedicalRecordPdf(
 
   // Phase 3: one pass over the merged findings for the opening/closing paragraphs.
   let intro = '';
-  let conclusion = '';
+  let summary = '';
   try {
     const overview = await callKimiForOverview(complications, pageCount, options?.patientName);
     intro = overview.intro;
-    conclusion = overview.conclusion;
+    summary = overview.summary;
     rawParts.push(JSON.stringify({ overview: overview.raw }));
   } catch (error: any) {
     chatErrors.push(`overview: ${error?.message || 'failed'}`);
@@ -556,7 +556,7 @@ export async function analyzeMedicalRecordPdf(
   return {
     complications,
     intro,
-    conclusion,
+    summary,
     rawAiResponse: `[${rawParts.join(',')}]`,
     pageCount,
   };

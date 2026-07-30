@@ -16,7 +16,7 @@ export type MedicalRecordReviewForPDF = {
   status?: string | null;
   complications?: MedicalRecordReviewComplication[] | null;
   intro?: string | null;
-  conclusion?: string | null;
+  summary?: string | null;
   analyzed_at?: string | null;
   reviewed_at?: string | null;
   created_at?: string | null;
@@ -144,30 +144,30 @@ export const generateMedicalRecordReviewPDF = (
   } else {
     autoTable(doc, {
       startY: yPosition,
-      head: [['Page', 'Complication', 'Summary']],
+      head: [['Complication', 'Summary', 'Page']],
       body: complications.map((item) => [
-        formatValue(item.page),
         formatValue(item.complication),
         formatValue(item.note),
+        formatValue(item.page),
       ]),
       theme: 'striped',
       headStyles: { fillColor: [102, 51, 153], textColor: [255, 255, 255], fontSize: 10 },
       styles: { fontSize: 10, cellPadding: 3, valign: 'top' },
       columnStyles: {
-        0: { cellWidth: 18, halign: 'center' },
-        1: { cellWidth: 90 },
-        2: { cellWidth: 'auto' },
+        0: { cellWidth: 60 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 18, halign: 'center' },
       },
       margin: { left: 14, right: 14 },
     });
   }
 
-  if (review.conclusion) {
+  if (review.summary) {
     yPosition =
       complications.length === 0
         ? yPosition + 16
         : (doc as any).lastAutoTable.finalY + 12;
-    writeParagraph('Overall Summary', review.conclusion);
+    writeParagraph('Overall Summary', review.summary);
   }
 
   const pageCount = doc.getNumberOfPages();
