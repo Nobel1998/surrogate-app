@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
+import { agentDebugLog } from '@/lib/agentDebugLog';
 
 type Complication = {
   complication: string;
@@ -234,30 +235,23 @@ export default function MedicalRecordReviewsPage() {
         } catch {
           signedUrlHost = initData?.signedUrl ? 'unparseable' : null;
         }
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-          body: JSON.stringify({
-            sessionId: '5244e3',
-            runId: 'pre-fix',
-            hypothesisId: 'A,B,E,F',
-            location: 'medical-record-reviews/page.tsx:227',
-            message: 'upload init response',
-            data: {
-              origin: window.location.origin,
-              status: initRes.status,
-              ok: initRes.ok,
-              fileBytes: file.size,
-              fileType: file.type || null,
-              hasSignedUrl: !!initData?.signedUrl,
-              hasPath: !!initData?.path,
-              signedUrlHost,
-              signedUrlPath,
-              bodyPreview: initRaw.slice(0, 300),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        agentDebugLog({
+          hypothesisId: 'A,B,E,F',
+          location: 'medical-record-reviews/page.tsx:upload-init',
+          message: 'upload init response',
+          data: {
+            origin: window.location.origin,
+            status: initRes.status,
+            ok: initRes.ok,
+            fileBytes: file.size,
+            fileType: file.type || null,
+            hasSignedUrl: !!initData?.signedUrl,
+            hasPath: !!initData?.path,
+            signedUrlHost,
+            signedUrlPath,
+            bodyPreview: initRaw.slice(0, 300),
+          },
+        });
       }
       // #endregion
 
@@ -289,25 +283,18 @@ export default function MedicalRecordReviewsPage() {
       }
 
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'D',
-          location: 'medical-record-reviews/page.tsx:265',
-          message: 'finalize response',
-          data: {
-            origin: window.location.origin,
-            reviewId: initData.reviewId,
-            status: finalizeRes.status,
-            ok: finalizeRes.ok,
-            bodyPreview: finalizeRaw.slice(0, 300),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'D',
+        location: 'medical-record-reviews/page.tsx:finalize',
+        message: 'finalize response',
+        data: {
+          origin: window.location.origin,
+          reviewId: initData.reviewId,
+          status: finalizeRes.status,
+          ok: finalizeRes.ok,
+          bodyPreview: finalizeRaw.slice(0, 300),
+        },
+      });
       // #endregion
 
       if (!finalizeRes.ok) {
@@ -320,23 +307,16 @@ export default function MedicalRecordReviewsPage() {
       await loadData();
     } catch (error: any) {
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'A,B,C,D,E,F',
-          location: 'medical-record-reviews/page.tsx:handleUpload-catch',
-          message: 'upload failed alert',
-          data: {
-            origin: window.location.origin,
-            failedStage: debugStage,
-            errorMessage: String(error?.message || error).slice(0, 300),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'A,B,C,D,E,F',
+        location: 'medical-record-reviews/page.tsx:handleUpload-catch',
+        message: 'upload failed alert',
+        data: {
+          origin: window.location.origin,
+          failedStage: debugStage,
+          errorMessage: String(error?.message || error).slice(0, 300),
+        },
+      });
       // #endregion
 
       alert(`Upload failed: ${error.message}`);
@@ -394,33 +374,31 @@ export default function MedicalRecordReviewsPage() {
       }
 
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'A,B,C,D',
-          location: 'medical-record-reviews/page.tsx:handleAnalyze',
-          message: 'analyze POST response',
-          data: {
-            origin: window.location.origin,
-            id,
-            status: res.status,
-            ok: res.ok,
-            attachedPdfBytes,
-            pdfFetchStatus,
-            contentType: res.headers.get('content-type'),
-            hasJsonError: typeof data?.error === 'string',
-            bodyPreview: bodyText.slice(0, 400),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'A,B,C,D',
+        location: 'medical-record-reviews/page.tsx:handleAnalyze',
+        message: 'analyze POST response',
+        data: {
+          origin: window.location.origin,
+          id,
+          status: res.status,
+          ok: res.ok,
+          attachedPdfBytes,
+          pdfFetchStatus,
+          contentType: res.headers.get('content-type'),
+          hasJsonError: typeof data?.error === 'string',
+          bodyPreview: bodyText.slice(0, 400),
+        },
+      });
       // #endregion
 
       if (!res.ok && res.status !== 202) {
-        throw new Error(data.error || 'Analyze failed');
+        throw new Error(
+          data.error ||
+            `Analyze failed (HTTP ${res.status}, pdf ${attachedPdfBytes ?? 'none'} bytes)${
+              bodyText ? `: ${bodyText.slice(0, 200)}` : ''
+            }`
+        );
       }
 
       // Mark local row as analyzing without full-page reload.
@@ -448,31 +426,37 @@ export default function MedicalRecordReviewsPage() {
           return;
         }
         if (review.status === 'failed') {
-          throw new Error(review.error_message || 'Analysis failed');
+          // #region agent log
+          agentDebugLog({
+            hypothesisId: 'C,E',
+            location: 'medical-record-reviews/page.tsx:poll-failed',
+            message: 'background analysis reported failed',
+            data: {
+              origin: window.location.origin,
+              id,
+              storedErrorMessage: (review.error_message || '').slice(0, 400),
+            },
+          });
+          // #endregion
+
+          throw new Error(review.error_message || 'Analysis failed (no error message stored)');
         }
       }
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'A,B,C,D,E',
-          location: 'medical-record-reviews/page.tsx:handleAnalyze-catch',
-          message: 'analyze failed alert',
-          data: {
-            origin: window.location.origin,
-            id,
-            attachedPdfBytes,
-            errorMessage: String(error?.message || error).slice(0, 300),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'A,B,C,D,E',
+        location: 'medical-record-reviews/page.tsx:handleAnalyze-catch',
+        message: 'analyze failed alert',
+        data: {
+          origin: window.location.origin,
+          id,
+          attachedPdfBytes,
+          errorMessage: String(error?.message || error).slice(0, 300),
+        },
+      });
       // #endregion
 
       alert(`Review failed: ${error.message}`);

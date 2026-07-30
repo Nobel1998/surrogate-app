@@ -1,3 +1,5 @@
+import { agentDebugLog } from '@/lib/agentDebugLog';
+
 export type UploadProgress = {
   bytesUploaded: number;
   bytesTotal: number;
@@ -29,24 +31,17 @@ export function uploadMedicalRecordPdfToSignedUrl(
 
     xhr.onload = () => {
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'B,C',
-          location: 'uploadMedicalRecordPdf.ts:onload',
-          message: 'storage PUT completed',
-          data: {
-            origin: window.location.origin,
-            status: xhr.status,
-            fileBytes: file.size,
-            responsePreview: (xhr.responseText || '').slice(0, 300),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'B,C',
+        location: 'uploadMedicalRecordPdf.ts:onload',
+        message: 'storage PUT completed',
+        data: {
+          origin: window.location.origin,
+          status: xhr.status,
+          fileBytes: file.size,
+          responsePreview: (xhr.responseText || '').slice(0, 300),
+        },
+      });
       // #endregion
 
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -71,24 +66,17 @@ export function uploadMedicalRecordPdfToSignedUrl(
 
     xhr.onerror = () => {
       // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'pre-fix',
-          hypothesisId: 'B,C',
-          location: 'uploadMedicalRecordPdf.ts:onerror',
-          message: 'storage PUT network error',
-          data: {
-            origin: window.location.origin,
-            status: xhr.status,
-            readyState: xhr.readyState,
-            fileBytes: file.size,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      agentDebugLog({
+        hypothesisId: 'B,C',
+        location: 'uploadMedicalRecordPdf.ts:onerror',
+        message: 'storage PUT network error',
+        data: {
+          origin: window.location.origin,
+          status: xhr.status,
+          readyState: xhr.readyState,
+          fileBytes: file.size,
+        },
+      });
       // #endregion
 
       reject(new Error('Storage upload failed: network error'));
