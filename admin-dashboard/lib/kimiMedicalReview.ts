@@ -39,7 +39,7 @@ Return ONLY valid JSON with this exact shape:
 {"introductory":"string","overallSummary":"string"}
 Rules:
 - introductory: one short paragraph, first person plural ("we"). Identify the patient by name when provided (otherwise the applicant). State that our experienced OB/GYN nursing team reviewed this surrogacy medical record from a professional medical perspective, with the clinical priorities of OB/GYN and IVF clinic physicians in mind, that we know which findings matter and present them clearly and concisely, mention how many pages were reviewed, and say that the significant issues identified are listed below. Do not name the individual findings in this paragraph.
-- overallSummary: one short paragraph summarizing the findings as a whole after they have been listed, in the same professional clinical voice. State the main themes and whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings.
+- overallSummary: write 2-3 short, clearly separated paragraphs summarizing the findings as a whole after they have been listed, in the same professional clinical voice. Separate paragraphs with a blank line using "\\n\\n" inside the JSON string. Organize related findings together (for example, obstetric/gynecologic history in one paragraph and other clinically significant history in another), then use the final paragraph to summarize whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings. Do not repeat the same finding across paragraphs. If there are too few findings for multiple meaningful topics, use two concise paragraphs rather than adding filler.
 - The overallSummary is a summary, not an assessment. Do not make an eligibility decision, risk rating, recommendation, or surrogacy screening judgment.
 - Use only the findings supplied to you. Do not invent findings, diagnoses, dates, outcomes, or recommendations.
 - Plain professional English. No bullet points, no markdown, no headings.`;
@@ -372,7 +372,7 @@ async function callKimiForOverview(
     complications.length
       ? `Findings from the review:\n${findings}`
       : 'The review found no significant complications.',
-    'Write the introductory paragraph and the overall summary in the voice of our experienced OB/GYN nursing team, reviewing from OB/GYN and IVF clinic physician priorities. Return JSON only.',
+    'Write the introductory paragraph and a 2-3 paragraph overall summary in the voice of our experienced OB/GYN nursing team, reviewing from OB/GYN and IVF clinic physician priorities. Separate the overall-summary paragraphs with a blank line. Return JSON only.',
   ].join('\n\n');
 
   const { text, raw } = await callKimiChat([
