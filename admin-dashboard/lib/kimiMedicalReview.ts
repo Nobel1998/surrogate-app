@@ -11,7 +11,7 @@ const CHAT_BATCH_CHAR_LIMIT = 60000;
 
 const REVIEW_SYSTEM_PROMPT = `You review medical records and report only the clinically significant complications, each with a short summary and its page number.
 Return ONLY valid JSON with this exact shape:
-{"complications":[{"complication":"string","summary":"string","page":1}]}
+{"patientName":"string or null","complications":[{"complication":"string","summary":"string","page":1}]}
 What counts as significant:
 - Pregnancy, delivery, or postpartum complications.
 - Surgeries and procedures done for a problem.
@@ -23,12 +23,13 @@ What to leave out:
 - Isolated borderline or mildly abnormal lab values that were not acted on, such as a mild vitamin deficiency.
 - Normal or routine findings, administrative text, and billing or scheduling notes.
 Rules:
+- patientName: when the supplied section contains [[PAGE 1 START]], read the patient's full name directly from the first page and return it. Use only a name explicitly identified as the patient/member/applicant on page 1; do not use a provider, doctor, facility, guarantor, or emergency contact name. If page 1 is absent or the patient's name cannot be identified confidently, return null.
 - Report the same problem only once. If it appears in several places, use the documentation that describes it best.
 - complication: the short clinical name of the complication (a few words).
 - summary: 1-2 sentences summarizing what the record says about that complication. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
 - Every page of the record carries the markers [[PAGE n START]] and [[PAGE n END]], where n is the ORIGINAL page number of that page.
 - page MUST be the n of the marker pair that surrounds the text you are citing. Never guess, estimate, or calculate a page number, and never use a page number that has no marker in the text.
-- If nothing significant is found, return {"complications":[]}.`;
+- If nothing significant is found, still return patientName and return an empty complications array.`;
 
 const OVERVIEW_SYSTEM_PROMPT = `You write the introductory paragraph and overall summary of a medical record review report.
 Return ONLY valid JSON with this exact shape:
@@ -496,6 +497,7 @@ export async function analyzeMedicalRecordPdf(
   const allComplications: MedicalComplication[] = [];
   const rawParts: string[] = [];
   const chatErrors: string[] = [];
+  let recordPatientName: string | null = null;
 
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
@@ -508,11 +510,20 @@ export async function analyzeMedicalRecordPdf(
           content:
             `Review the medical record above and report only the significant complications, ` +
             `each with a short summary and the page number taken from its [[PAGE n START]] / [[PAGE n END]] markers. ` +
+            (batch.startPage === 1
+              ? `Read the patient's full name from the content between [[PAGE 1 START]] and [[PAGE 1 END]] and return it as patientName. `
+              : `Return patientName as null because this section does not contain page 1. `) +
             `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. Return JSON only.`,
         },
       ]);
 
-      const parsed = extractJsonObject(text);
+      const parsed = extractJsonObject(text) as {
+        patientName?: unknown;
+        complications?: unknown;
+      };
+      if (batch.startPage === 1 && typeof parsed.patientName === 'string') {
+        recordPatientName = parsed.patientName.trim() || null;
+      }
       allComplications.push(
         ...remapChunkPages(normalizeComplications(parsed), batch.startPage, batch.endPage)
       );
@@ -540,7 +551,11 @@ export async function analyzeMedicalRecordPdf(
   let intro = '';
   let summary = '';
   try {
-    const overview = await callKimiForOverview(complications, pageCount, options?.patientName);
+    const overview = await callKimiForOverview(
+      complications,
+      pageCount,
+      recordPatientName || options?.patientName
+    );
     intro = overview.intro;
     summary = overview.summary;
     rawParts.push(JSON.stringify({ overview: overview.raw }));
