@@ -26,6 +26,8 @@ type Review = {
   error_message: string | null;
   analyzed_at: string | null;
   reviewed_at: string | null;
+  reviewed_by: string | null;
+  reviewed_by_name: string | null;
   file_deleted_at: string | null;
   created_at: string;
   updated_at: string;

@@ -9,6 +9,21 @@ export const dynamic = 'force-dynamic';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+/** Resolve the reviewer's display name from admin_users. */
+async function withReviewerName(supabase: any, review: any) {
+  if (!review?.reviewed_by) {
+    return { ...review, reviewed_by_name: null };
+  }
+
+  const { data: admin } = await supabase
+    .from('admin_users')
+    .select('name')
+    .eq('id', review.reviewed_by)
+    .maybeSingle();
+
+  return { ...review, reviewed_by_name: admin?.name || null };
+}
+
 export async function GET(_req: NextRequest, context: RouteContext) {
   const auth = await requireMedicalRecordAccess();
   if (!auth.ok) {
@@ -27,7 +42,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ review: data });
+    return NextResponse.json({ review: await withReviewerName(auth.supabase, data) });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id] GET error:', error);
     return NextResponse.json(
@@ -97,7 +112,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
     }
 
-    return NextResponse.json({ review: finalReview });
+    return NextResponse.json({ review: await withReviewerName(auth.supabase, finalReview) });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id] PATCH error:', error);
     return NextResponse.json(

@@ -19,6 +19,7 @@ export type MedicalRecordReviewForPDF = {
   summary?: string | null;
   analyzed_at?: string | null;
   reviewed_at?: string | null;
+  reviewed_by_name?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -82,15 +83,8 @@ export const generateMedicalRecordReviewPDF = (
       ['Surrogate', formatValue(context.surrogateName)],
       ['Match', formatValue(context.matchLabel)],
       ['File Name', formatValue(review.file_name)],
-      ['Uploaded At', formatDateTime(review.created_at)],
       ['Analyzed At', formatDateTime(review.analyzed_at)],
-      ['Reviewed At', formatDateTime(review.reviewed_at)],
-      [
-        'Source PDF',
-        review.file_deleted_at
-          ? `Deleted after review (${formatDateTime(review.file_deleted_at)})`
-          : 'Available in storage',
-      ],
+      ['Reviewed By', formatValue(review.reviewed_by_name)],
     ] as [string, string][],
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 2 },

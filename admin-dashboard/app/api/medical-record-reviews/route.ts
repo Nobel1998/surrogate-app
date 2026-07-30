@@ -27,6 +27,31 @@ async function runReviewsQueryWithRetry(run: () => Promise<{ data: any; error: a
   return await run();
 }
 
+/** Attach the reviewer's display name from admin_users for each review row. */
+async function withReviewerNames(supabase: any, reviews: any[]) {
+  const reviewerIds = Array.from(
+    new Set(reviews.map((r) => r.reviewed_by).filter((id: unknown): id is string => !!id))
+  );
+
+  if (reviewerIds.length === 0) {
+    return reviews.map((r) => ({ ...r, reviewed_by_name: null }));
+  }
+
+  const { data: admins } = await supabase
+    .from('admin_users')
+    .select('id, name')
+    .in('id', reviewerIds);
+
+  const nameById = new Map<string, string>(
+    (admins || []).map((a: { id: string; name: string }) => [a.id, a.name])
+  );
+
+  return reviews.map((r) => ({
+    ...r,
+    reviewed_by_name: r.reviewed_by ? nameById.get(r.reviewed_by) || null : null,
+  }));
+}
+
 export async function GET(req: NextRequest) {
   
   const auth = await requireMedicalRecordAccess();
@@ -69,7 +94,7 @@ export async function GET(req: NextRequest) {
     }
 
     
-    return NextResponse.json({ reviews: data || [] });
+    return NextResponse.json({ reviews: await withReviewerNames(auth.supabase, data || []) });
   } catch (error: any) {
     console.error('[medical-record-reviews] GET error:', error);
     return NextResponse.json(
