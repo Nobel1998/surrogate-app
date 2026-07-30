@@ -197,6 +197,7 @@ export default function MedicalRecordReviewsPage() {
       return;
     }
 
+    let debugStage = 'init-request';
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -221,6 +222,45 @@ export default function MedicalRecordReviewsPage() {
       } catch {
         throw new Error(`Upload init failed (${initRes.status}): ${initRaw.slice(0, 180)}`);
       }
+
+      // #region agent log
+      {
+        let signedUrlHost: string | null = null;
+        let signedUrlPath: string | null = null;
+        try {
+          const parsed = new URL(initData?.signedUrl);
+          signedUrlHost = parsed.host;
+          signedUrlPath = parsed.pathname;
+        } catch {
+          signedUrlHost = initData?.signedUrl ? 'unparseable' : null;
+        }
+        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+          body: JSON.stringify({
+            sessionId: '5244e3',
+            runId: 'pre-fix',
+            hypothesisId: 'A,B,E,F',
+            location: 'medical-record-reviews/page.tsx:227',
+            message: 'upload init response',
+            data: {
+              origin: window.location.origin,
+              status: initRes.status,
+              ok: initRes.ok,
+              fileBytes: file.size,
+              fileType: file.type || null,
+              hasSignedUrl: !!initData?.signedUrl,
+              hasPath: !!initData?.path,
+              signedUrlHost,
+              signedUrlPath,
+              bodyPreview: initRaw.slice(0, 300),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
+
       if (!initRes.ok) {
         throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
       }
@@ -229,10 +269,12 @@ export default function MedicalRecordReviewsPage() {
         throw new Error('Upload init missing signed upload URL or storage path');
       }
 
+      debugStage = 'storage-put';
       await uploadMedicalRecordPdfToSignedUrl(initData.signedUrl, file, (progress) => {
         setUploadProgress(progress.percentage);
       });
 
+      debugStage = 'finalize';
       const finalizeRes = await fetch(`/api/medical-record-reviews/${initData.reviewId}/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -245,6 +287,29 @@ export default function MedicalRecordReviewsPage() {
       } catch {
         throw new Error(`Finalize failed (${finalizeRes.status}): ${finalizeRaw.slice(0, 180)}`);
       }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'pre-fix',
+          hypothesisId: 'D',
+          location: 'medical-record-reviews/page.tsx:265',
+          message: 'finalize response',
+          data: {
+            origin: window.location.origin,
+            reviewId: initData.reviewId,
+            status: finalizeRes.status,
+            ok: finalizeRes.ok,
+            bodyPreview: finalizeRaw.slice(0, 300),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       if (!finalizeRes.ok) {
         throw new Error(finalizeData?.error || `Finalize failed (${finalizeRes.status})`);
       }
@@ -254,6 +319,26 @@ export default function MedicalRecordReviewsPage() {
       setSelectedId(finalizeData.review?.id || initData.reviewId || null);
       await loadData();
     } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'pre-fix',
+          hypothesisId: 'A,B,C,D,E,F',
+          location: 'medical-record-reviews/page.tsx:handleUpload-catch',
+          message: 'upload failed alert',
+          data: {
+            origin: window.location.origin,
+            failedStage: debugStage,
+            errorMessage: String(error?.message || error).slice(0, 300),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);

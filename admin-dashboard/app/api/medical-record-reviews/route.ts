@@ -149,6 +149,32 @@ export async function POST(req: NextRequest) {
       .from(MEDICAL_RECORD_STORAGE_BUCKET)
       .createSignedUploadUrl(path, { upsert: true });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+      body: JSON.stringify({
+        sessionId: '5244e3',
+        runId: 'pre-fix',
+        hypothesisId: 'A,B',
+        location: 'api/medical-record-reviews/route.ts:152',
+        message: 'signed upload url created',
+        data: {
+          vercelEnv: process.env.VERCEL_ENV || 'local',
+          supabaseProjectRef: (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '')
+            .replace(/^https?:\/\//, '')
+            .split('.')[0],
+          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          bucket: MEDICAL_RECORD_STORAGE_BUCKET,
+          hasSignedUrl: !!signed?.signedUrl,
+          signedErrorMessage: signedError?.message || null,
+          fileBytes: fileSize,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
     if (signedError || !signed?.signedUrl || !signed?.token) {
       await auth.supabase.from('medical_record_reviews').delete().eq('id', inserted.id);
       throw signedError || new Error('Failed to create signed upload URL');
