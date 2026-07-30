@@ -30,13 +30,14 @@ Rules:
 - page MUST be the n of the marker pair that surrounds the text you are citing. Never guess, estimate, or calculate a page number, and never use a page number that has no marker in the text.
 - If nothing significant is found, return {"complications":[]}.`;
 
-const OVERVIEW_SYSTEM_PROMPT = `You write the opening and closing paragraphs of a medical record review report.
+const OVERVIEW_SYSTEM_PROMPT = `You write the introductory paragraph and overall summary of a medical record review report.
 Return ONLY valid JSON with this exact shape:
-{"intro":"string","conclusion":"string"}
+{"introductory":"string","overallSummary":"string"}
 Rules:
-- intro: one short paragraph, first person, in the voice of the reviewer. Say who the patient is (use the given name, otherwise refer to her as the applicant), state that you reviewed the submitted medical records, mention how many pages were reviewed, and say that the review identified the issues listed below. Do not name the individual findings here.
-- conclusion: one short paragraph giving the overall picture: the main themes across the findings, how significant they are taken together, and anything that stands out for a surrogacy screening decision. Mention if the findings are mostly historical and resolved.
-- Use only the findings supplied to you. Do not invent findings, diagnoses, dates, or recommendations that are not supported by them.
+- introductory: one short paragraph, first person, in the voice of the reviewer. Say who the patient is (use the given name, otherwise refer to her as the applicant), state that you reviewed the submitted medical records, mention how many pages were reviewed, and say that the review identified the significant issues listed below. Do not name the individual findings in this paragraph.
+- overallSummary: one short paragraph summarizing the findings as a whole after they have been listed. State the main themes and whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings.
+- The overallSummary is a summary, not an assessment. Do not make an eligibility decision, risk rating, recommendation, or surrogacy screening judgment.
+- Use only the findings supplied to you. Do not invent findings, diagnoses, dates, outcomes, or recommendations.
 - Plain professional English. No bullet points, no markdown, no headings.`;
 
 function getApiKey() {
@@ -367,7 +368,7 @@ async function callKimiForOverview(
     complications.length
       ? `Findings from the review:\n${findings}`
       : 'The review found no significant complications.',
-    'Write the intro and conclusion paragraphs. Return JSON only.',
+    'Write the introductory paragraph and the overall summary. Return JSON only.',
   ].join('\n\n');
 
   const { text, raw } = await callKimiChat([
@@ -375,10 +376,13 @@ async function callKimiForOverview(
     { role: 'user', content: userPrompt },
   ]);
 
-  const parsed = extractJsonObject(text) as { intro?: unknown; conclusion?: unknown };
+  const parsed = extractJsonObject(text) as {
+    introductory?: unknown;
+    overallSummary?: unknown;
+  };
   return {
-    intro: String(parsed?.intro || '').trim(),
-    conclusion: String(parsed?.conclusion || '').trim(),
+    intro: String(parsed?.introductory || '').trim(),
+    conclusion: String(parsed?.overallSummary || '').trim(),
     raw,
   };
 }
