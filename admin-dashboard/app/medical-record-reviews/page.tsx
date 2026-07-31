@@ -394,7 +394,7 @@ export default function MedicalRecordReviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Medical Record Reviews</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Upload medical PDFs and extract complications with page numbers.
+            Upload medical PDFs and extract events with page numbers.
             PDFs are deleted from storage after a successful review to save space.
           </p>
         </div>
@@ -452,7 +452,7 @@ export default function MedicalRecordReviewsPage() {
                 <tr>
                   <th className="px-4 py-3">File</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Findings</th>
+                  <th className="px-4 py-3">Events</th>
                   <th className="px-4 py-3">Uploaded</th>
                   <th className="px-4 py-3">Download</th>
                 </tr>
@@ -547,7 +547,7 @@ export default function MedicalRecordReviewsPage() {
 
                 {selected.file_deleted_at && (
                   <div className="bg-amber-50 text-amber-800 text-sm p-3 rounded">
-                    PDF deleted after review to save storage space. Findings below are kept.
+                    PDF deleted after review to save storage space. Events below are kept.
                   </div>
                 )}
 
@@ -621,13 +621,13 @@ export default function MedicalRecordReviewsPage() {
 
                 <div>
                   <h3 className="font-medium mb-2">
-                    Complications ({complications.length})
+                    Events ({complications.length})
                   </h3>
                   {complications.length === 0 ? (
                     <p className="text-sm text-gray-500">
                       {selected.status === 'analyzed' || selected.status === 'reviewed'
-                        ? 'No complications found.'
-                        : 'Run review to extract complications.'}
+                        ? 'No events found.'
+                        : 'Run review to extract events.'}
                     </p>
                   ) : (
                     <table className="min-w-full text-sm border rounded overflow-hidden">
@@ -656,7 +656,7 @@ export default function MedicalRecordReviewsPage() {
 
                 {selected.summary ? (
                   <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-1">Overall Summary</h3>
+                    <h3 className="font-medium mb-1">Summary</h3>
                     <p className="text-sm text-gray-700 whitespace-pre-line">
                       {selected.summary}
                     </p>
