@@ -2619,7 +2619,7 @@ export default function MatchesPage() {
         </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
             <h2 className="text-xl font-semibold text-gray-900">Existing Matches</h2>
@@ -2826,9 +2826,19 @@ export default function MatchesPage() {
                   }
                   
                   const isExpanded = expandedMatches.has(m.id);
+                  const statusCardClass =
+                    m.status === 'matched'
+                      ? 'bg-emerald-50 border-emerald-100'
+                      : m.status === 'pregnant'
+                        ? 'bg-pink-50 border-pink-100'
+                        : m.status === 'completed'
+                          ? 'bg-sky-50 border-sky-100'
+                          : m.status === 'cancelled'
+                            ? 'bg-rose-50 border-rose-100'
+                            : 'bg-amber-50 border-amber-100';
                   
                   return (
-                    <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
+                    <div key={m.id || `${m.surrogate_id}-${m.parent_id}`} className={`${statusCardClass} border rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group`}>
                       {/* Header Section - Clickable */}
                       <div 
                         className="flex items-start justify-between bg-[#9333ea] px-6 py-4 cursor-pointer hover:bg-[#7e22ce] transition-colors"
