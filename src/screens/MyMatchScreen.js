@@ -23,6 +23,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
+import DatePickerField from '../components/DatePickerField';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
 import { resolveDisplayLocation, sanitizeAddressText } from '../utils/extractLocationFromAddress';
@@ -1389,18 +1390,18 @@ export default function MyMatchScreen({ navigation }) {
                 {t('myMatch.pregnancyHistoryMedicationStart')}
               </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
-                <Icon name="calendar" size={18} color="#94A3B8" />
-                <TextInput
+                <DatePickerField
                   value={medicationStartDate}
-                  onChangeText={setMedicationStartDate}
+                  onChange={setMedicationStartDate}
+                  format="MM/DD/YY"
                   placeholder={
                     isSurrogate
                       ? t('myMatch.pregnancyHistoryDatePlaceholder')
                       : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
                   }
-                  placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
-                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 }}
+                  textStyle={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
                 />
               </View>
             </View>
@@ -1410,18 +1411,18 @@ export default function MyMatchScreen({ navigation }) {
                 {t('myMatch.pregnancyHistoryTransfer')}
               </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
-                <Icon name="calendar" size={18} color="#94A3B8" />
-                <TextInput
+                <DatePickerField
                   value={transferDate}
-                  onChangeText={setTransferDate}
+                  onChange={setTransferDate}
+                  format="MM/DD/YY"
                   placeholder={
                     isSurrogate
                       ? t('myMatch.pregnancyHistoryDatePlaceholder')
                       : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
                   }
-                  placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
-                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 }}
+                  textStyle={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
                 />
               </View>
             </View>
@@ -1431,18 +1432,18 @@ export default function MyMatchScreen({ navigation }) {
                 {t('myMatch.pregnancyHistoryBetaTest')}
               </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
-                <Icon name="heart" size={18} color="#94A3B8" />
-                <TextInput
+                <DatePickerField
                   value={betaTestDate}
-                  onChangeText={setBetaTestDate}
+                  onChange={setBetaTestDate}
+                  format="MM/DD/YY"
                   placeholder={
                     isSurrogate
                       ? t('myMatch.pregnancyHistoryDatePlaceholder')
                       : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
                   }
-                  placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
-                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 }}
+                  textStyle={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
                 />
               </View>
             </View>
@@ -1452,18 +1453,18 @@ export default function MyMatchScreen({ navigation }) {
                 {t('myMatch.pregnancyHistoryFetalHeartbeat')}
               </Text>
               <View style={styles.pregnancyHistoryInputContainer}>
-                <Icon name="activity" size={18} color="#94A3B8" />
-                <TextInput
+                <DatePickerField
                   value={fetalHeartbeatDate}
-                  onChangeText={setFetalHeartbeatDate}
+                  onChange={setFetalHeartbeatDate}
+                  format="MM/DD/YY"
                   placeholder={
                     isSurrogate
                       ? t('myMatch.pregnancyHistoryDatePlaceholder')
                       : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
                   }
-                  placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
-                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 }}
+                  textStyle={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
                 />
               </View>
             </View>
@@ -1471,18 +1472,18 @@ export default function MyMatchScreen({ navigation }) {
             <View style={styles.pregnancyHistoryItem}>
               <Text style={styles.pregnancyHistoryLabel}>{t('myMatch.pregnancyHistoryDue')}</Text>
               <View style={styles.pregnancyHistoryInputContainer}>
-                <Icon name="calendar" size={18} color="#94A3B8" />
-                <TextInput
+                <DatePickerField
                   value={dueDate}
-                  onChangeText={setDueDate}
+                  onChange={setDueDate}
+                  format="MM/DD/YY"
                   placeholder={
                     isSurrogate
                       ? t('myMatch.pregnancyHistoryDatePlaceholder')
                       : t('myMatch.pregnancyHistoryReadonlyPlaceholder')
                   }
-                  placeholderTextColor="#94A3B8"
                   editable={isSurrogate}
-                  style={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
+                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0, minHeight: 0 }}
+                  textStyle={[styles.pregnancyHistoryInput, !isSurrogate && { color: '#64748B' }]}
                 />
               </View>
             </View>

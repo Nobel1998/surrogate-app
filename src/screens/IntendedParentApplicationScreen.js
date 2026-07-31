@@ -10,6 +10,43 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { getClientIpInfo } from '../utils/getClientIp';
+import DatePickerField from '../components/DatePickerField';
+
+/** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
+function parseDateOfBirthParts(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { month: '', day: '', year: '' };
+
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (m) {
+    return {
+      month: String(parseInt(m[2], 10)),
+      day: String(parseInt(m[3], 10)),
+      year: m[1],
+    };
+  }
+
+  m = s.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+  if (m) {
+    return {
+      month: String(parseInt(m[1], 10)),
+      day: String(parseInt(m[2], 10)),
+      year: m[3],
+    };
+  }
+
+  return { month: '', day: '', year: '' };
+}
+
+function formatDateFromParts(month, day, year) {
+  const m = String(month || '').trim();
+  const d = String(day || '').trim();
+  const y = String(year || '').trim();
+  if (m && d && y) {
+    return `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
+  }
+  return '';
+}
 
 /**
  * Split a signup/profile phone into Country Code / Area Code / local Phone Number.
@@ -563,6 +600,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     setApplicationData(prev => ({
       ...prev,
       [field]: value,
+    }));
+    setFormVersion(prev => prev + 1);
+  };
+
+  const handleParentDobChange = (prefix, next) => {
+    const parts = parseDateOfBirthParts(next);
+    setApplicationData(prev => ({
+      ...prev,
+      [`${prefix}DateOfBirthMonth`]: parts.month,
+      [`${prefix}DateOfBirthDay`]: parts.day,
+      [`${prefix}DateOfBirthYear`]: parts.year,
     }));
     setFormVersion(prev => prev + 1);
   };
@@ -1728,29 +1776,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.label}>{tf("Date of Birth *")}</Text>
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder={tf("Month")}
-            value={applicationData.parent1DateOfBirthMonth}
-            onChangeText={(text) => updateField('parent1DateOfBirthMonth', text)}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder={tf("Day")}
-            value={applicationData.parent1DateOfBirthDay}
-            onChangeText={(text) => updateField('parent1DateOfBirthDay', text)}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder={tf("Year")}
-            value={applicationData.parent1DateOfBirthYear}
-            onChangeText={(text) => updateField('parent1DateOfBirthYear', text)}
-            keyboardType="numeric"
-          />
-        </View>
+        <DatePickerField
+          value={formatDateFromParts(
+            applicationData.parent1DateOfBirthMonth,
+            applicationData.parent1DateOfBirthDay,
+            applicationData.parent1DateOfBirthYear
+          )}
+          onChange={(next) => handleParentDobChange('parent1', next)}
+          format="MM/DD/YYYY"
+          placeholder={tf("MM/DD/YYYY")}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>{tf("Gender *")}</Text>
         {['male', 'female'].map((option) => (
@@ -1952,29 +1988,17 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.label}>{tf("Date of Birth *")}</Text>
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, { flex: 1, marginRight: 4 }]}
-            placeholder={tf("Month")}
-            value={applicationData.parent2DateOfBirthMonth}
-            onChangeText={(text) => updateField('parent2DateOfBirthMonth', text)}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.input, { flex: 1, marginHorizontal: 4 }]}
-            placeholder={tf("Day")}
-            value={applicationData.parent2DateOfBirthDay}
-            onChangeText={(text) => updateField('parent2DateOfBirthDay', text)}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.input, { flex: 1, marginLeft: 4 }]}
-            placeholder={tf("Year")}
-            value={applicationData.parent2DateOfBirthYear}
-            onChangeText={(text) => updateField('parent2DateOfBirthYear', text)}
-            keyboardType="numeric"
-          />
-        </View>
+        <DatePickerField
+          value={formatDateFromParts(
+            applicationData.parent2DateOfBirthMonth,
+            applicationData.parent2DateOfBirthDay,
+            applicationData.parent2DateOfBirthYear
+          )}
+          onChange={(next) => handleParentDobChange('parent2', next)}
+          format="MM/DD/YYYY"
+          placeholder={tf("MM/DD/YYYY")}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>{tf("Gender *")}</Text>
         {['male', 'female'].map((option) => (

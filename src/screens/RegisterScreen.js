@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import DatePickerField from '../components/DatePickerField';
 
 export default function RegisterScreen({ navigation }) {
   const { register, isLoading, isAuthenticated } = useAuth();
@@ -241,10 +242,11 @@ export default function RegisterScreen({ navigation }) {
       
       <View style={styles.inputGroup}>
         <Text style={styles.label}>{t('auth.dateOfBirth')}</Text>
-        <TextInput
+        <DatePickerField
           style={styles.input}
           value={formData.dateOfBirth}
-          onChangeText={(value) => updateFormData('dateOfBirth', value)}
+          onChange={(value) => updateFormData('dateOfBirth', value)}
+          format="MM/DD/YYYY"
           placeholder="MM/DD/YYYY"
         />
       </View>

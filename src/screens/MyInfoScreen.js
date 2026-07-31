@@ -14,6 +14,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
+import DatePickerField from '../components/DatePickerField';
 
 export default function MyInfoScreen({ navigation }) {
   const { user } = useAuth();
@@ -312,15 +313,12 @@ export default function MyInfoScreen({ navigation }) {
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>{t('myInfo.dateOfBirth')}</Text>
-            <TextInput
+            <DatePickerField
               style={styles.input}
-              placeholder={t('myInfoAdditional.enterDateOfBirth')}
               value={dateOfBirthDisplay}
-              onChangeText={(text) => {
-                // Allow user to type freely, just update display value
-                setDateOfBirthDisplay(text);
-              }}
-              placeholderTextColor="#999"
+              onChange={setDateOfBirthDisplay}
+              format="MM-DD-YYYY"
+              placeholder={t('myInfoAdditional.enterDateOfBirth')}
             />
             <Text style={styles.inputHint}>{t('myInfo.dateFormat')}</Text>
           </View>

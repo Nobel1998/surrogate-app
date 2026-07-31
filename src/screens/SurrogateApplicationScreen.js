@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { extractLocationFromAddress, sanitizeAddressText } from '../utils/extractLocationFromAddress';
 import { getClientIpInfo } from '../utils/getClientIp';
+import DatePickerField from '../components/DatePickerField';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -1756,40 +1757,19 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {/* Date of Birth */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>{tf("What is your date of birth? *")}</Text>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <TextInput
-              style={styles.input}
-              value={applicationData.dateOfBirthMonth || ''}
-              onChangeText={(value) => updateField('dateOfBirthMonth', value)}
-              placeholder={tf("Month")}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <TextInput
-              style={styles.input}
-              value={applicationData.dateOfBirthDay || ''}
-              onChangeText={(value) => updateField('dateOfBirthDay', value)}
-              placeholder={tf("Day")}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <TextInput
-              style={styles.input}
-              value={applicationData.dateOfBirthYear || ''}
-              onChangeText={(value) => updateField('dateOfBirthYear', value)}
-              placeholder={tf("Year")}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-        <TextInput
-          style={[styles.input, { marginTop: 10 }]}
-          value={applicationData.dateOfBirth || ''}
-          onChangeText={(value) => updateField('dateOfBirth', value)}
-          placeholder={tf("Or enter as MM/DD/YYYY")}
+        <DatePickerField
+          value={
+            applicationData.dateOfBirth ||
+            (applicationData.dateOfBirthMonth &&
+            applicationData.dateOfBirthDay &&
+            applicationData.dateOfBirthYear
+              ? `${String(applicationData.dateOfBirthMonth).padStart(2, '0')}/${String(applicationData.dateOfBirthDay).padStart(2, '0')}/${applicationData.dateOfBirthYear}`
+              : '')
+          }
+          onChange={(next) => updateField('dateOfBirth', next)}
+          format="MM/DD/YYYY"
+          placeholder={tf("MM/DD/YYYY")}
+          style={styles.input}
         />
       </View>
 
@@ -2138,13 +2118,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("What was the date of your marriage? *")}</Text>
-        <TextInput
-          style={styles.input}
+                <DatePickerField
                   value={applicationData.marriageDate || ''}
-                  onChangeText={(value) => updateField('marriageDate', value)}
+                  onChange={(next) => updateField('marriageDate', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
-        />
-      </View>
+                  style={styles.input}
+                />
+              </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("What is your spouse's name? *")}</Text>
@@ -2158,11 +2139,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("What is your spouse's date of birth? *")}</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
                   value={applicationData.spouseDateOfBirth || ''}
-                  onChangeText={(value) => updateField('spouseDateOfBirth', value)}
+                  onChange={(next) => updateField('spouseDateOfBirth', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
+                  style={styles.input}
                 />
               </View>
       
@@ -2242,13 +2224,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("When did your divorce occur? *")}</Text>
-        <TextInput
-          style={styles.input}
+                <DatePickerField
                   value={applicationData.divorceDate || ''}
-                  onChangeText={(value) => updateField('divorceDate', value)}
+                  onChange={(next) => updateField('divorceDate', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
-        />
-      </View>
+                  style={styles.input}
+                />
+              </View>
 
       <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("What was the cause of your break up? *")}</Text>
@@ -2286,11 +2269,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
               {applicationData.remarried && (
       <View style={styles.inputGroup}>
                   <Text style={styles.label}>{tf("When did you re-marry? *")}</Text>
-                  <TextInput
-                    style={styles.input}
+                  <DatePickerField
                     value={applicationData.remarriedDate || ''}
-                    onChangeText={(value) => updateField('remarriedDate', value)}
+                    onChange={(next) => updateField('remarriedDate', next)}
+                    format="MM/DD/YYYY"
                     placeholder={tf("MM/DD/YYYY")}
+                    style={styles.input}
                   />
                 </View>
               )}
@@ -2331,11 +2315,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           {applicationData.isWidowed === true && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>{tf("When was your partner deceased? *")}</Text>
-              <TextInput
-                style={styles.input}
+              <DatePickerField
                 value={applicationData.widowedDate || ''}
-                onChangeText={(value) => updateField('widowedDate', value)}
+                onChange={(next) => updateField('widowedDate', next)}
+                format="MM/DD/YYYY"
                 placeholder={tf("MM/DD/YYYY")}
+                style={styles.input}
               />
             </View>
           )}
@@ -2381,11 +2366,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   onChangeText={(value) => updateField('partnerName', value)}
                   placeholder={tf("Partner's full name")}
                 />
-                <TextInput
-                  style={[styles.input, { marginTop: 10 }]}
+                <DatePickerField
                   value={applicationData.partnerDateOfBirth || ''}
-                  onChangeText={(value) => updateField('partnerDateOfBirth', value)}
+                  onChange={(next) => updateField('partnerDateOfBirth', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("Partner's date of birth (MM/DD/YYYY)")}
+                  style={[styles.input, { marginTop: 10 }]}
                 />
               </View>
             </>
@@ -2425,21 +2411,23 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
             <>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("When was your engagement? *")}</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
                   value={applicationData.engagementDate || ''}
-                  onChangeText={(value) => updateField('engagementDate', value)}
+                  onChange={(next) => updateField('engagementDate', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
+                  style={styles.input}
                 />
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{tf("When are you scheduled to be married? *")}</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
                   value={applicationData.weddingDate || ''}
-                  onChangeText={(value) => updateField('weddingDate', value)}
+                  onChange={(next) => updateField('weddingDate', next)}
+                  format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
+                  style={styles.input}
                 />
               </View>
             </>
@@ -3110,11 +3098,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>{tf("Date of Last Menstrual Period")}</Text>
-        <TextInput
-          style={styles.input}
+        <DatePickerField
           value={applicationData.lastMenstrualPeriod || ''}
-          onChangeText={(value) => updateField('lastMenstrualPeriod', value)}
+          onChange={(next) => updateField('lastMenstrualPeriod', next)}
+          format="MM/DD/YYYY"
           placeholder={tf("MM/DD/YYYY")}
+          style={styles.input}
         />
       </View>
 
@@ -3421,13 +3410,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.breastfeeding && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{tf("If so, when do you plan to stop?")}</Text>
-        <TextInput
-          style={styles.input}
+          <DatePickerField
             value={applicationData.breastfeedingStopDate || ''}
-            onChangeText={(value) => updateField('breastfeedingStopDate', value)}
+            onChange={(next) => updateField('breastfeedingStopDate', next)}
+            format="MM/DD/YYYY"
             placeholder={tf("Expected stop date")}
-        />
-      </View>
+            style={styles.input}
+          />
+        </View>
       )}
 
       {/* Surgeries & Illnesses */}
@@ -3524,11 +3514,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       {applicationData.tattoosPiercings && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{tf("If yes, when? *")}</Text>
-          <TextInput
-            style={styles.input}
+          <DatePickerField
             value={applicationData.tattoosPiercingsDate || ''}
-            onChangeText={(value) => updateField('tattoosPiercingsDate', value)}
+            onChange={(next) => updateField('tattoosPiercingsDate', next)}
+            format="MM/DD/YYYY"
             placeholder={tf("Date (MM/DD/YYYY)")}
+            style={styles.input}
           />
         </View>
       )}

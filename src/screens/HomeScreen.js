@@ -14,6 +14,7 @@ import {
   getApplicationStatusCopy,
   normalizeApplicationStatus,
 } from '../utils/applicationStatus';
+import DatePickerField from '../components/DatePickerField';
 
 // Normalize stage values to lowercase for consistent filtering
 const normalizeStage = (value = 'pregnancy') => {
@@ -624,17 +625,12 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.sectionLabel}>Transfer Date (MM/DD/YY)</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-            <TextInput
-              value={transferDateDraft}
-              onChangeText={setTransferDateDraft}
-              placeholder="e.g. 12/01/25"
-              placeholderTextColor="#94A3B8"
-              autoCapitalize="none"
-              style={styles.fancyInput}
-            />
-          </View>
+          <DatePickerField
+            value={transferDateDraft}
+            onChange={setTransferDateDraft}
+            format="MM/DD/YY"
+            placeholder="e.g. 12/01/25"
+          />
           <Text style={styles.helperText}>
             Enter the date when the transfer procedure took place.
           </Text>
@@ -716,17 +712,12 @@ export default function HomeScreen() {
             </View>
 
             <Text style={styles.sectionLabel}>{t('home.transferDate')} (MM/DD/YY)</Text>
-            <View style={styles.inputContainer}>
-              <Icon name="calendar" size={20} color="#94A3B8" style={styles.inputIcon} />
-              <TextInput
-                value={transferDateDraft}
-                onChangeText={setTransferDateDraft}
-                placeholder="e.g. 12/01/25"
-                placeholderTextColor="#94A3B8"
-                autoCapitalize="none"
-                style={styles.fancyInput}
-              />
-            </View>
+            <DatePickerField
+              value={transferDateDraft}
+              onChange={setTransferDateDraft}
+              format="MM/DD/YY"
+              placeholder="e.g. 12/01/25"
+            />
 
             <View style={styles.editButtonRow}>
               <TouchableOpacity
@@ -781,38 +772,42 @@ export default function HomeScreen() {
           </View>
         </View>
 
+      </View>
+    );
+  };
 
-        {/* Points Display - Only for surrogates */}
-        {isSurrogateRole && (
-          <View style={styles.pointsCard}>
-            <View style={styles.pointsHeader}>
-              <View style={styles.pointsIconContainer}>
-                <Icon name="star" size={20} color="#F59E0B" />
-              </View>
-              <Text style={styles.pointsLabel}>{t('home.myPoints')}</Text>
-            </View>
-            {loadingPoints ? (
-              <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 8 }} />
-            ) : (
-              <Text style={styles.pointsValue}>{userPoints.toLocaleString()} {t('home.points')}</Text>
-            )}
-            <Text style={styles.pointsDescription}>{t('home.pointsDescription')}</Text>
-            <Text style={[styles.pointsDescription, { marginTop: 4, fontWeight: '600' }]}>
-              {t('points.pointsGoal')}
+  const renderPointsCard = () => {
+    if (!isSurrogateRole) return null;
+
+    return (
+      <View style={styles.pointsCard}>
+        <View style={styles.pointsHeader}>
+          <View style={styles.pointsIconContainer}>
+            <Icon name="star" size={20} color="#F59E0B" />
+          </View>
+          <Text style={styles.pointsLabel}>{t('home.myPoints')}</Text>
+        </View>
+        {loadingPoints ? (
+          <ActivityIndicator size="small" color="#1F6FE0" style={{ marginVertical: 8 }} />
+        ) : (
+          <Text style={styles.pointsValue}>
+            {userPoints.toLocaleString()} {t('home.points')}
+          </Text>
+        )}
+        <Text style={styles.pointsDescription}>{t('home.pointsDescription')}</Text>
+        <Text style={[styles.pointsDescription, { marginTop: 4, fontWeight: '600' }]}>
+          {t('points.pointsGoal')}
+        </Text>
+        <Text style={[styles.pointsDescription, { marginTop: 2, fontSize: 11 }]}>
+          {t('points.pointsPerCheckin')}
+        </Text>
+        {userPoints >= 5000 && (
+          <View style={styles.achievementBadge}>
+            <Text style={styles.achievementText}>
+              🎊 {t('points.fullParticipationAchieved').split('!')[0]}!
             </Text>
-            <Text style={[styles.pointsDescription, { marginTop: 2, fontSize: 11 }]}>
-              {t('points.pointsPerCheckin')}
-            </Text>
-            {userPoints >= 5000 && (
-              <View style={styles.achievementBadge}>
-                <Text style={styles.achievementText}>
-                  🎊 {t('points.fullParticipationAchieved').split('!')[0]}!
-                </Text>
-              </View>
-            )}
           </View>
         )}
-
       </View>
     );
   };
@@ -2758,6 +2753,7 @@ export default function HomeScreen() {
         }
       >
         {renderPregnancyDashboard()}
+        {renderPointsCard()}
         {isSurrogateRole && (
           <View style={styles.stageUpdateCard}>
             <Text style={styles.stageUpdateLabel}>{t('home.updateYourStage')}</Text>

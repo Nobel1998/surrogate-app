@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import DateInput from '@/components/DateInput';
 
 // Stage labels for displaying friendly names
 const STAGE_LABELS: Record<string, string> = {
@@ -1196,12 +1197,11 @@ export default function StepStatusPage() {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date</label>
+                        <DateInput
                           value={medicalReportData.lab_test_date || ''}
-                          onChange={(e) => handleMedicalReportDataChange('lab_test_date', e.target.value)}
-                          placeholder="e.g. 12-01-2025"
+                          onChange={(next) => handleMedicalReportDataChange('lab_test_date', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1261,12 +1261,11 @@ export default function StepStatusPage() {
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date</label>
+                        <DateInput
                           value={medicalReportData.ultrasound_test_date || ''}
-                          onChange={(e) => handleMedicalReportDataChange('ultrasound_test_date', e.target.value)}
-                          placeholder="e.g. 12-01-2025"
+                          onChange={(next) => handleMedicalReportDataChange('ultrasound_test_date', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1330,12 +1329,11 @@ export default function StepStatusPage() {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lab Test Date</label>
+                        <DateInput
                           value={medicalReportData.lab_test_date || ''}
-                          onChange={(e) => handleMedicalReportDataChange('lab_test_date', e.target.value)}
-                          placeholder="e.g. 12-01-2025"
+                          onChange={(next) => handleMedicalReportDataChange('lab_test_date', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1394,22 +1392,20 @@ export default function StepStatusPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">EDD (Estimated Due Date) (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">EDD (Estimated Due Date)</label>
+                        <DateInput
                           value={medicalReportData.edd || ''}
-                          onChange={(e) => handleMedicalReportDataChange('edd', e.target.value)}
-                          placeholder="e.g. 08-15-2026"
+                          onChange={(next) => handleMedicalReportDataChange('edd', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Ultrasound Test Date</label>
+                        <DateInput
                           value={medicalReportData.ultrasound_test_date || ''}
-                          onChange={(e) => handleMedicalReportDataChange('ultrasound_test_date', e.target.value)}
-                          placeholder="e.g. 12-01-2025"
+                          onChange={(next) => handleMedicalReportDataChange('ultrasound_test_date', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -1518,11 +1514,10 @@ export default function StepStatusPage() {
                                   No
                                 </button>
                               </div>
-                              <input
-                                type="text"
+                              <DateInput
                                 value={medicalReportData[`${test.key}_test_date`] || ''}
-                                onChange={(e) => handleMedicalReportDataChange(`${test.key}_test_date`, e.target.value)}
-                                placeholder="Test date (MM-DD-YYYY)"
+                                onChange={(next) => handleMedicalReportDataChange(`${test.key}_test_date`, next)}
+                                format="MM-DD-YYYY"
                                 className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                               />
                             </div>
@@ -1551,12 +1546,11 @@ export default function StepStatusPage() {
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment Date (MM-DD-YYYY)</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment Date</label>
+                        <DateInput
                           value={medicalReportData.next_appointment_date || ''}
-                          onChange={(e) => handleMedicalReportDataChange('next_appointment_date', e.target.value)}
-                          placeholder="e.g. 01-15-2026"
+                          onChange={(next) => handleMedicalReportDataChange('next_appointment_date', next)}
+                          format="MM-DD-YYYY"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>

@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import { uploadMedia } from '../utils/mediaUpload';
+import DatePickerField from '../components/DatePickerField';
 
 export default function MedicalReportFormScreen({ route }) {
   const navigation = useNavigation();
@@ -492,12 +493,12 @@ export default function MedicalReportFormScreen({ route }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('medicalReport.labTestDate')}</Text>
-        <TextInput
+        <DatePickerField
           style={styles.input}
           value={formData.lab_test_date || ''}
-          onChangeText={(value) => handleFieldChange('lab_test_date', value)}
+          onChange={(value) => handleFieldChange('lab_test_date', value)}
+          format="MM-DD-YYYY"
           placeholder="e.g. 12-01-2025"
-          placeholderTextColor="#94A3B8"
         />
       </View>
 
@@ -557,12 +558,12 @@ export default function MedicalReportFormScreen({ route }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('medicalReport.ultrasoundTestDate')}</Text>
-          <TextInput
+          <DatePickerField
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
-            onChangeText={(value) => handleFieldChange('ultrasound_test_date', value)}
+            onChange={(value) => handleFieldChange('ultrasound_test_date', value)}
+            format="MM-DD-YYYY"
             placeholder="e.g. 12-01-2025"
-            placeholderTextColor="#94A3B8"
           />
         </View>
 
@@ -605,12 +606,12 @@ export default function MedicalReportFormScreen({ route }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('medicalReport.labTestDate')}</Text>
-        <TextInput
+        <DatePickerField
           style={styles.input}
           value={formData.lab_test_date || ''}
-          onChangeText={(value) => handleFieldChange('lab_test_date', value)}
+          onChange={(value) => handleFieldChange('lab_test_date', value)}
+          format="MM-DD-YYYY"
           placeholder="e.g. 12-01-2025"
-          placeholderTextColor="#94A3B8"
         />
       </View>
 
@@ -678,23 +679,23 @@ export default function MedicalReportFormScreen({ route }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('medicalReport.edd')}</Text>
-          <TextInput
+          <DatePickerField
             style={styles.input}
             value={formData.edd || ''}
-            onChangeText={(value) => handleFieldChange('edd', value)}
+            onChange={(value) => handleFieldChange('edd', value)}
+            format="MM-DD-YYYY"
             placeholder="e.g. 08-15-2026"
-            placeholderTextColor="#94A3B8"
           />
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('medicalReport.ultrasoundTestDate')}</Text>
-          <TextInput
+          <DatePickerField
             style={styles.input}
             value={formData.ultrasound_test_date || ''}
-            onChangeText={(value) => handleFieldChange('ultrasound_test_date', value)}
+            onChange={(value) => handleFieldChange('ultrasound_test_date', value)}
+            format="MM-DD-YYYY"
             placeholder="e.g. 12-01-2025"
-            placeholderTextColor="#94A3B8"
           />
         </View>
 
@@ -816,12 +817,12 @@ export default function MedicalReportFormScreen({ route }) {
                     <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'no' && styles.radioTextSelected]}>{t('medicalReport.no')}</Text>
                   </TouchableOpacity>
                 </View>
-                <TextInput
+                <DatePickerField
                   style={[styles.input, { flex: 1, marginLeft: 12 }]}
                   value={formData[`${test.key}_test_date`] || ''}
-                  onChangeText={(value) => handleFieldChange(`${test.key}_test_date`, value)}
+                  onChange={(value) => handleFieldChange(`${test.key}_test_date`, value)}
+                  format="MM-DD-YYYY"
                   placeholder={t('medicalReport.testDate')}
-                  placeholderTextColor="#94A3B8"
                 />
               </View>
             </View>
@@ -841,12 +842,12 @@ export default function MedicalReportFormScreen({ route }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('medicalReport.nextAppointmentDate')}</Text>
-          <TextInput
+          <DatePickerField
             style={styles.input}
             value={formData.next_appointment_date || ''}
-            onChangeText={(value) => handleFieldChange('next_appointment_date', value)}
+            onChange={(value) => handleFieldChange('next_appointment_date', value)}
+            format="MM-DD-YYYY"
             placeholder="e.g. 01-15-2026"
-            placeholderTextColor="#94A3B8"
           />
         </View>
 
@@ -897,12 +898,12 @@ export default function MedicalReportFormScreen({ route }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t('medicalReport.visitDate')} (MM-DD-YYYY) *</Text>
-            <TextInput
+            <DatePickerField
               style={styles.input}
               value={visitDate}
-              onChangeText={setVisitDate}
+              onChange={setVisitDate}
+              format="MM-DD-YYYY"
               placeholder="e.g. 12-01-2025"
-              placeholderTextColor="#94A3B8"
             />
           </View>
 
