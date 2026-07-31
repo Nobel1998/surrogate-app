@@ -117,7 +117,7 @@ export default function Home() {
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent', 'signup'
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent'
   const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
   const [resolvingIpRegion, setResolvingIpRegion] = useState(false);
 
@@ -560,7 +560,6 @@ export default function Home() {
                 <option value="all">All Types</option>
                 <option value="surrogate">Surrogate</option>
                 <option value="intended_parent">Intended Parent</option>
-                <option value="signup">Sign Up Users</option>
               </select>
             </div>
             <div>
