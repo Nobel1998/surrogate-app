@@ -98,7 +98,10 @@ export default function StepStatusPage() {
   const [pendingAdminNoteImages, setPendingAdminNoteImages] = useState<PendingAdminNoteImage[]>([]);
   const adminNoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingMedicalProofImage, setPendingMedicalProofImage] = useState<PendingMedicalProofImage | null>(null);
+  const [existingMedicalProofUrl, setExistingMedicalProofUrl] = useState<string | null>(null);
+  const [editingMedicalReportId, setEditingMedicalReportId] = useState<string | null>(null);
   const medicalProofFileInputRef = useRef<HTMLInputElement | null>(null);
+  const medicalFormSectionRef = useRef<HTMLDivElement | null>(null);
   const [updates, setUpdates] = useState<any[]>([]);
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [obAppointments, setObAppointments] = useState<any[]>([]);
@@ -422,6 +425,44 @@ export default function StepStatusPage() {
     });
   };
 
+  const clearMedicalProof = () => {
+    clearPendingMedicalProofImage();
+    setExistingMedicalProofUrl(null);
+  };
+
+  const resetMedicalCheckInForm = () => {
+    setEditingMedicalReportId(null);
+    setMedicalVisitDate('');
+    setMedicalProviderName('');
+    setMedicalProviderContact('');
+    setMedicalReportData({});
+    setExistingMedicalProofUrl(null);
+    clearPendingMedicalProofImage();
+  };
+
+  const startEditMedicalCheckIn = (report: any) => {
+    if (!report?.id) return;
+    const reportData = parseMedicalReportData(report.report_data);
+    const contact = reportData.provider_contact || '';
+    const rest = { ...reportData };
+    delete rest.provider_contact;
+
+    setEditingMedicalReportId(String(report.id));
+    setMedicalStage(report.stage || 'Pre-Transfer');
+    setMedicalVisitDate(String(report.visit_date || '').slice(0, 10));
+    setMedicalProviderName(report.provider_name || '');
+    setMedicalProviderContact(contact);
+    setMedicalReportData(rest);
+    setExistingMedicalProofUrl(report.proof_image_url || null);
+    clearPendingMedicalProofImage();
+    setSelectedMedicalReport(null);
+    setUpdateTab('medical');
+
+    setTimeout(() => {
+      medicalFormSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   const validateAndSetMedicalProofFile = (fileList: FileList | null) => {
     if (!fileList?.length) return;
     const file = fileList[0];
@@ -534,10 +575,16 @@ export default function StepStatusPage() {
         ...medicalReportData,
         ...(medicalProviderContact.trim() ? { provider_contact: medicalProviderContact.trim() } : {}),
       };
+      const isEditing = !!editingMedicalReportId;
+      const method = isEditing ? 'PATCH' : 'POST';
+      const proofImageUrl = pendingMedicalProofImage
+        ? undefined
+        : existingMedicalProofUrl || null;
 
       let res: Response;
       if (pendingMedicalProofImage) {
         const fd = new FormData();
+        if (isEditing) fd.append('id', editingMedicalReportId);
         fd.append('surrogate_id', caseData.surrogate_id);
         fd.append('stage', medicalStage);
         fd.append('visit_date', medicalVisitDate);
@@ -545,19 +592,20 @@ export default function StepStatusPage() {
         fd.append('report_data', JSON.stringify(reportData));
         fd.append('proof_image', pendingMedicalProofImage.file);
         res = await fetch('/api/matches/medical-reports', {
-          method: 'POST',
+          method,
           body: fd,
         });
       } else {
         res = await fetch('/api/matches/medical-reports', {
-          method: 'POST',
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...(isEditing ? { id: editingMedicalReportId } : {}),
             surrogate_id: caseData.surrogate_id,
             stage: medicalStage,
             visit_date: medicalVisitDate,
             provider_name: medicalProviderName,
-            proof_image_url: null,
+            proof_image_url: isEditing ? proofImageUrl : null,
             report_data: reportData,
           }),
         });
@@ -565,16 +613,15 @@ export default function StepStatusPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to save medical check in');
+        throw new Error(
+          errorData.error ||
+            (isEditing ? 'Failed to update medical check in' : 'Failed to save medical check in')
+        );
       }
 
-      setMedicalVisitDate('');
-      setMedicalProviderName('');
-      setMedicalProviderContact('');
-      setMedicalReportData({});
-      clearPendingMedicalProofImage();
+      resetMedicalCheckInForm();
       await loadData();
-      alert('Medical check in saved successfully');
+      alert(isEditing ? 'Medical check in updated successfully' : 'Medical check in saved successfully');
     } catch (err: any) {
       alert(err.message || 'Failed to save medical check in');
     } finally {
@@ -912,6 +959,13 @@ export default function StepStatusPage() {
                                   👁️ View Details
                                 </button>
                                 <button
+                                  onClick={() => startEditMedicalCheckIn(r)}
+                                  className="text-xs text-amber-700 hover:text-amber-900 font-semibold"
+                                  title="Edit this medical report"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
                                   onClick={() => deleteMedicalReport(r.id)}
                                   className="text-xs text-red-600 hover:text-red-800 font-semibold"
                                   title="Delete this medical report"
@@ -1078,7 +1132,7 @@ export default function StepStatusPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Help Upload Medical Check In
+                {editingMedicalReportId ? 'Edit Medical Check In' : 'Help Upload Medical Check In'}
               </button>
             </nav>
           </div>
@@ -1164,15 +1218,38 @@ export default function StepStatusPage() {
               </div>
             </>
           ) : (
-            <div className="space-y-4">
+            <div ref={medicalFormSectionRef} className="space-y-4">
+              {editingMedicalReportId && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-center justify-between gap-3">
+                  <span>Editing existing medical check-in</span>
+                  <button
+                    type="button"
+                    onClick={resetMedicalCheckInForm}
+                    className="text-amber-800 hover:text-amber-950 font-semibold underline"
+                  >
+                    Cancel edit
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
                   <select
                     value={medicalStage}
                     onChange={(e) => {
-                      setMedicalStage(e.target.value);
-                      setMedicalReportData({});
+                      const next = e.target.value;
+                      setMedicalStage(next);
+                      // Only clear stage-specific fields when creating, or when stage actually changes while editing
+                      if (!editingMedicalReportId || next !== medicalStage) {
+                        setMedicalReportData((prev: any) => {
+                          if (!editingMedicalReportId) return {};
+                          // Keep notes/contact-like free text when switching stage during edit
+                          const keep: Record<string, any> = {};
+                          if (prev.notes != null) keep.notes = prev.notes;
+                          if (prev.additional_notes != null) keep.additional_notes = prev.additional_notes;
+                          return keep;
+                        });
+                      }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -1648,19 +1725,19 @@ export default function StepStatusPage() {
                   onClick={() => medicalProofFileInputRef.current?.click()}
                   className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 text-gray-800"
                 >
-                  {pendingMedicalProofImage ? 'Change image' : 'Add image'}
+                  {(pendingMedicalProofImage || existingMedicalProofUrl) ? 'Change image' : 'Add image'}
                 </button>
-                {pendingMedicalProofImage && (
+                {(pendingMedicalProofImage || existingMedicalProofUrl) && (
                   <div className="mt-3 relative inline-block">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={pendingMedicalProofImage.url}
+                      src={pendingMedicalProofImage?.url || existingMedicalProofUrl || ''}
                       alt="Proof preview"
                       className="h-32 w-auto max-w-full object-cover rounded-md border border-gray-200"
                     />
                     <button
                       type="button"
-                      onClick={clearPendingMedicalProofImage}
+                      onClick={clearMedicalProof}
                       className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow"
                       title="Remove"
                     >
@@ -1670,13 +1747,27 @@ export default function StepStatusPage() {
                 )}
               </div>
               
-              <div className="mt-4">
+              <div className="mt-4 flex items-center gap-2">
+                {editingMedicalReportId && (
+                  <button
+                    type="button"
+                    onClick={resetMedicalCheckInForm}
+                    disabled={savingMedical}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   onClick={saveMedicalCheckIn}
                   disabled={savingMedical}
                   className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
                 >
-                  {savingMedical ? 'Saving...' : 'Save Medical Check In'}
+                  {savingMedical
+                    ? 'Saving...'
+                    : editingMedicalReportId
+                      ? 'Update Medical Check In'
+                      : 'Save Medical Check In'}
                 </button>
               </div>
             </div>
@@ -1693,7 +1784,8 @@ export default function StepStatusPage() {
       {selectedMedicalReport && renderMedicalReportDetailModal(
         selectedMedicalReport, 
         () => setSelectedMedicalReport(null),
-        formatDateOnly
+        formatDateOnly,
+        () => startEditMedicalCheckIn(selectedMedicalReport)
       )}
 
       {/* Admin Note Detail Modal */}
@@ -1833,7 +1925,8 @@ function formatMedicalReportValue(value: any): string {
 const renderMedicalReportDetailModal = (
   report: any,
   onClose: () => void,
-  formatDateOnly: (dateStr: string | null | undefined) => string
+  formatDateOnly: (dateStr: string | null | undefined) => string,
+  onEdit?: () => void
 ) => {
   if (!report) return null;
 
@@ -2002,7 +2095,15 @@ const renderMedicalReportDetailModal = (
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-gray-200 shrink-0 text-right bg-gray-50 rounded-b-lg">
+        <div className="p-4 border-t border-gray-200 shrink-0 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-sm font-medium transition-colors"
+            >
+              ✏️ Edit
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md text-sm font-medium transition-colors"

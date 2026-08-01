@@ -186,9 +186,140 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH medical report (admin edit)
+export async function PATCH(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    const { isReadOnlyBranchManager } = await import('@/lib/checkReadOnly');
+    if (await isReadOnlyBranchManager(supabase, adminUserId)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
+    const contentType = request.headers.get('content-type') || '';
+    let id: string;
+    let stage: string;
+    let visit_date: string;
+    let provider_name: string | null = null;
+    let proof_image_url: string | null | undefined = undefined;
+    let report_data: Record<string, any> = {};
+    let uploadedPath: string | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData();
+      id = String(form.get('id') || '').trim();
+      stage = String(form.get('stage') || '').trim();
+      visit_date = String(form.get('visit_date') || '').trim();
+      provider_name = String(form.get('provider_name') || '').trim() || null;
+
+      const reportDataRaw = form.get('report_data');
+      if (typeof reportDataRaw === 'string' && reportDataRaw.trim()) {
+        try {
+          report_data = JSON.parse(reportDataRaw);
+        } catch {
+          return NextResponse.json(
+            { error: 'Invalid report_data JSON' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const proofFile = form.get('proof_image');
+      if (proofFile instanceof File && proofFile.size > 0) {
+        const surrogateId = String(form.get('surrogate_id') || 'admin').trim() || 'admin';
+        try {
+          proof_image_url = await uploadProofImage(proofFile, surrogateId);
+          const pathMatch = proof_image_url.match(
+            /\/storage\/v1\/object\/public\/post-media\/(.+)$/
+          );
+          uploadedPath = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+        } catch (uploadErr: any) {
+          return NextResponse.json(
+            { error: uploadErr.message || 'Failed to upload image' },
+            { status: 400 }
+          );
+        }
+      } else if (form.has('proof_image_url')) {
+        const urlFromForm = String(form.get('proof_image_url') || '').trim();
+        proof_image_url = urlFromForm || null;
+      }
+    } else {
+      const body = await request.json();
+      id = String(body.id || '').trim();
+      stage = body.stage;
+      visit_date = body.visit_date;
+      provider_name = body.provider_name || null;
+      report_data = body.report_data || {};
+      if ('proof_image_url' in body) {
+        proof_image_url = body.proof_image_url || null;
+      }
+    }
+
+    if (!id || !stage || !visit_date) {
+      if (uploadedPath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath]);
+      }
+      return NextResponse.json(
+        { error: 'Report ID, stage, and visit date are required' },
+        { status: 400 }
+      );
+    }
+
+    const updatePayload: Record<string, any> = {
+      stage,
+      visit_date,
+      provider_name: provider_name || null,
+      report_data: report_data || {},
+      updated_at: new Date().toISOString(),
+    };
+    if (proof_image_url !== undefined) {
+      updatePayload.proof_image_url = proof_image_url;
+    }
+
+    const { data, error: updateError } = await supabase
+      .from('medical_reports')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating medical report:', updateError);
+      if (uploadedPath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath]);
+      }
+      return NextResponse.json(
+        { error: 'Failed to update medical report', details: updateError.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    console.error('Error in PATCH medical report:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE medical report
 export async function DELETE(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const adminUserId = cookieStore.get('admin_user_id')?.value;
+    const { isReadOnlyBranchManager } = await import('@/lib/checkReadOnly');
+    if (await isReadOnlyBranchManager(supabase, adminUserId)) {
+      return NextResponse.json(
+        { error: 'View-only access. You cannot modify data.' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const reportId = searchParams.get('id');
 
