@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { sanitizeAddressText } from './extractLocationFromAddress';
 import { toEnglishProvinceLabel } from './resolveIpRegion';
+import { splitAirportFields } from './splitAirportFields';
 
 interface ApplicationData {
   [key: string]: any;
@@ -327,6 +328,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
 
   } else {
     // Surrogate Application PDF
+    const airportFields = splitAirportFields(app.nearestAirport, app.airportDistance);
     // Step 1: Personal Information
     addSection('Step 1: Personal Information', [
     ['Full Name', formatValue(app.full_name || app.fullName)],
@@ -358,8 +360,8 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
     ['Driver License', formatBoolean(app.driverLicense)],
     ['Car Insured', formatBoolean(app.carInsured)],
     ['Transportation Method', formatValue(app.transportationMethod)],
-    ['Nearest Airport', formatValue(app.nearestAirport)],
-    ['Airport Distance', formatValue(app.airportDistance)],
+    ['Nearest Airport', formatValue(airportFields.nearestAirport)],
+    ['Airport Distance', formatValue(airportFields.airportDistance)],
     ['Legal Problems', formatValue(app.legalProblems)],
     ['Jail Time', formatValue(app.jailTime)],
     ['Want More Children', formatBoolean(app.wantMoreChildren)],

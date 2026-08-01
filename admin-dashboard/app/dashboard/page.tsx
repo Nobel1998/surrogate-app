@@ -9,6 +9,7 @@ import DashboardStats from '../../components/DashboardStats';
 import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
 import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
 import { resolveIpRegionDetailed, toEnglishProvinceLabel } from '../../lib/resolveIpRegion';
+import { splitAirportFields } from '../../lib/splitAirportFields';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -155,6 +156,8 @@ export default function Home() {
       profile?.signup_ip_region ||
       null;
     
+    const airportFields = splitAirportFields(formData.nearestAirport, formData.airportDistance);
+
     return {
       ...app,
       ...formData,
@@ -170,6 +173,9 @@ export default function Home() {
       address: address || 'N/A',
       applicantIp: applicantIp || null,
       applicantIpRegion: toEnglishProvinceLabel(applicantIpRegion) || null,
+      // Split combined "LAX 100" style answers into airport + distance
+      nearestAirport: airportFields.nearestAirport,
+      airportDistance: airportFields.airportDistance,
       // Photos array (for multiple lifestyle photos)
       photos: formData.photos || (formData.photoUrl ? [formData.photoUrl] : []),
       // Backward compatibility: keep photoUrl if photos array is empty
@@ -459,6 +465,9 @@ export default function Home() {
       if (formData.location == null && app.location && app.location !== 'N/A') {
         formData.location = app.location;
       }
+      const airportFields = splitAirportFields(formData.nearestAirport, formData.airportDistance);
+      formData.nearestAirport = airportFields.nearestAirport ?? '';
+      formData.airportDistance = airportFields.airportDistance ?? '';
     }
     setEditingApp(app);
     setSelectedApp(app);

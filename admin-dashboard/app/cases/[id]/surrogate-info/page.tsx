@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { sanitizeAddressText } from '@/lib/extractLocationFromAddress';
+import { splitAirportFields } from '@/lib/splitAirportFields';
 
 type SurrogateProfile = {
   id: string;
@@ -74,7 +75,13 @@ export default function SurrogateInfoPage() {
           // Parse form_data
           if (app.form_data) {
             try {
-              setFormData(JSON.parse(app.form_data));
+              const parsed = JSON.parse(app.form_data);
+              const airportFields = splitAirportFields(parsed.nearestAirport, parsed.airportDistance);
+              setFormData({
+                ...parsed,
+                nearestAirport: airportFields.nearestAirport,
+                airportDistance: airportFields.airportDistance,
+              });
             } catch (e) {
               console.error('Error parsing form_data:', e);
             }
