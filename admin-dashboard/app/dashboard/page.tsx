@@ -632,10 +632,10 @@ export default function Home() {
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="w-10 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <input
                       type="checkbox"
                       checked={
@@ -646,18 +646,18 @@ export default function Home() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th scope="col" className="w-36 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th scope="col" className="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="w-48 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
+                  <th scope="col" className="w-56 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th scope="col" className="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredApplications?.map((app: any) => (
                   <tr key={`${app.applicationType}-${app.id}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       <input
                         type="checkbox"
                         checked={selectedIds.some(item => item.id === app.id && item.type === app.applicationType)}
@@ -666,7 +666,7 @@ export default function Home() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
                         app.applicationType === 'intended_parent'
                           ? 'bg-purple-100 text-purple-800'
@@ -681,43 +681,23 @@ export default function Home() {
                           : 'Surrogate'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm text-gray-900">{app.phone}</div>
-                        <div className="text-sm text-gray-500">{app.email}</div>
-                        {app.location && app.location !== 'N/A' && (
-                          <div className="text-xs text-gray-400 mt-1 truncate max-w-xs">
-                            📍 {app.location}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full 
-                        ${app.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                          app.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                          app.status === 'registered' ? 'bg-indigo-100 text-indigo-800' :
-                          'bg-yellow-100 text-yellow-800'}`}>
-                        {app.status ? app.status.toUpperCase() : 'PENDING'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(app.submitted_at || app.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{app.full_name}</div>
+                    <td className="px-3 py-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">{app.full_name}</div>
                         {app.applicationType === 'surrogate' ? (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 truncate">
                             {app.age ? `Age: ${app.age}` : 'Age not provided'} 
                             {app.previousSurrogacy && ' • Previous Surrogate'}
                           </div>
                         ) : app.applicationType === 'signup' ? (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 truncate">
                             {app.signupRole === 'parent' ? 'Signed up as Parent' : 'Signed up as Surrogate'}
                           </div>
                         ) : (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 truncate">
                             {app.parent2FirstName && app.parent2LastName 
                               ? `Couple: ${app.parent1FirstName} ${app.parent1LastName} & ${app.parent2FirstName} ${app.parent2LastName}`
                               : `Single: ${app.parent1FirstName} ${app.parent1LastName}`
@@ -726,8 +706,28 @@ export default function Home() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
+                    <td className="px-3 py-4">
+                      <div className="min-w-0">
+                        <div className="text-sm text-gray-900 truncate">{app.phone}</div>
+                        <div className="text-sm text-gray-500 truncate">{app.email}</div>
+                        {app.location && app.location !== 'N/A' && (
+                          <div className="text-xs text-gray-400 mt-1 truncate">
+                            📍 {app.location}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full 
+                        ${app.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                          app.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                          app.status === 'registered' ? 'bg-indigo-100 text-indigo-800' :
+                          'bg-yellow-100 text-yellow-800'}`}>
+                        {app.status ? app.status.toUpperCase() : 'PENDING'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex flex-wrap gap-x-2 gap-y-1">
                         <button
                           onClick={() => {
                             setResolvingIpRegion(true);
