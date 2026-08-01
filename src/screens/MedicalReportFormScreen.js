@@ -22,32 +22,58 @@ import { useLanguage } from '../context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import { uploadMedia } from '../utils/mediaUpload';
 import DatePickerField from '../components/DatePickerField';
+import { useNotifications } from '../context/NotificationContext';
+import { syncAppointmentFromMedicalReport } from '../utils/syncAppointmentFromMedicalReport';
 
 export default function MedicalReportFormScreen({ route }) {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { stage, onSubmit } = route?.params || {};
+  const { scheduleMedicalAppointmentReminders, cancelMedicalAppointmentReminders } = useNotifications();
+  const { stage, onSubmit, report: existingReport } = route?.params || {};
+  const isEditing = !!existingReport?.id;
 
   const [formData, setFormData] = useState({});
   const [providerName, setProviderName] = useState('');
   const [providerContact, setProviderContact] = useState('');
   const [visitDate, setVisitDate] = useState('');
   const [proofImage, setProofImage] = useState(null);
+  const [existingProofUrl, setExistingProofUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Determine current stage if not provided
-  const currentStage = stage || 'Pre-Transfer';
+  // Determine current stage if not provided (locked to report stage when editing)
+  const currentStage = existingReport?.stage || stage || 'Pre-Transfer';
 
   useEffect(() => {
-    // Set default visit date to today
+    if (existingReport?.id) {
+      const iso = String(existingReport.visit_date || '').trim();
+      const isoMatch = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        setVisitDate(`${isoMatch[2]}-${isoMatch[3]}-${isoMatch[1]}`);
+      } else if (iso) {
+        setVisitDate(iso);
+      }
+      setProviderName(existingReport.provider_name || '');
+      const rd = existingReport.report_data && typeof existingReport.report_data === 'object'
+        ? { ...existingReport.report_data }
+        : {};
+      const contact = rd.provider_contact || '';
+      delete rd.provider_contact;
+      setProviderContact(contact);
+      setFormData(rd);
+      setExistingProofUrl(existingReport.proof_image_url || null);
+      setProofImage(null);
+      return;
+    }
+
+    // Set default visit date to today for new check-ins
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const year = today.getFullYear();
     setVisitDate(`${month}-${day}-${year}`);
-  }, []);
+  }, [existingReport?.id]);
 
   const handleFieldChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -68,6 +94,33 @@ export default function MedicalReportFormScreen({ route }) {
     const arr = formData[key] || [];
     return Array.isArray(arr) && arr.includes(value);
   };
+
+  const renderNextCheckFields = () => (
+    <>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{t('medicalReport.nextCheckDate')}</Text>
+        <Text style={styles.helperText}>{t('medicalReport.nextCheckHint')}</Text>
+        <DatePickerField
+          style={styles.input}
+          value={formData.next_appointment_date || ''}
+          onChange={(value) => handleFieldChange('next_appointment_date', value)}
+          format="MM-DD-YYYY"
+          placeholder="e.g. 01-15-2026"
+        />
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{t('medicalReport.nextCheckTime')}</Text>
+        <TextInput
+          style={styles.input}
+          value={formData.next_appointment_time || ''}
+          onChangeText={(value) => handleFieldChange('next_appointment_time', value)}
+          placeholder="e.g. 09:00 or 2:30 pm"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+        />
+      </View>
+    </>
+  );
 
   const pickImage = async () => {
     try {
@@ -94,23 +147,23 @@ export default function MedicalReportFormScreen({ route }) {
   };
 
   const uploadImage = async () => {
-    if (!proofImage) return null;
+    if (!proofImage?.uri) return null;
 
     try {
-      const fileExtension = proofImage.uri.split('.').pop() || 'jpg';
+      const fileExtension = proofImage.uri.split('.').pop()?.split('?')[0] || 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExtension}`;
       const filePath = `medical-reports/${fileName}`;
 
-      const formData = new FormData();
-      formData.append('file', {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', {
         uri: proofImage.uri,
         type: `image/${fileExtension}`,
         name: fileName,
       });
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('post-media')
-        .upload(filePath, formData, {
+        .upload(filePath, uploadFormData, {
           contentType: `image/${fileExtension}`,
           upsert: false,
         });
@@ -126,6 +179,11 @@ export default function MedicalReportFormScreen({ route }) {
       console.error('Error uploading image:', error);
       throw error;
     }
+  };
+
+  const clearProofImage = () => {
+    setProofImage(null);
+    setExistingProofUrl(null);
   };
 
   const parseMMDDYYYYToISO = (s) => {
@@ -165,7 +223,7 @@ export default function MedicalReportFormScreen({ route }) {
 
     setSaving(true);
     try {
-      let imageUrl = null;
+      let imageUrl = existingProofUrl || null;
       if (proofImage) {
         setUploading(true);
         try {
@@ -174,7 +232,10 @@ export default function MedicalReportFormScreen({ route }) {
           console.error('Image upload error:', uploadError);
           Alert.alert('Upload Error', 'Failed to upload image. Do you want to continue without the image?', [
             { text: 'Cancel', style: 'cancel', onPress: () => setSaving(false) },
-            { text: 'Continue', onPress: () => submitReport(null) },
+            {
+              text: 'Continue',
+              onPress: () => submitReport(isEditing ? existingProofUrl || null : null),
+            },
           ]);
           setUploading(false);
           return;
@@ -314,6 +375,43 @@ export default function MedicalReportFormScreen({ route }) {
     }
   };
 
+  const syncNextCheckAppointment = async (reportId, reportDataWithContact) => {
+    try {
+      const syncResult = await syncAppointmentFromMedicalReport({
+        reportId,
+        userId: user.id,
+        stage: currentStage,
+        providerName: providerName.trim() || null,
+        reportData: reportDataWithContact,
+      });
+
+      if (syncResult?.cleared && syncResult.table && syncResult.appointmentId == null) {
+        // Best-effort cancel for any previous reminders keyed by old appointment id is skipped
+        // when we only know the table. Screens re-schedule on load.
+        return syncResult;
+      }
+
+      if (syncResult?.appointmentId) {
+        const prefix = syncResult.table === 'ob_appointments' ? 'ob' : 'ivf';
+        const appointmentKey = `${prefix}_${syncResult.appointmentId}`;
+        await cancelMedicalAppointmentReminders(appointmentKey);
+        await scheduleMedicalAppointmentReminders({
+          appointmentKey,
+          appointmentType: syncResult.table === 'ob_appointments' ? 'OB' : 'IVF',
+          appointmentDate: syncResult.appointmentDate,
+          appointmentTime: (syncResult.appointmentTime || '09:00:00').slice(0, 5),
+          providerName: syncResult.providerName || providerName.trim() || '',
+          clinicName: syncResult.clinicName || '',
+        });
+      }
+      return syncResult;
+    } catch (syncErr) {
+      console.error('Failed to sync next check appointment:', syncErr);
+      // Don't fail the medical report save if appointment sync fails (e.g. migration not applied)
+      return { ok: false, error: syncErr };
+    }
+  };
+
   const submitReport = async (imageUrl) => {
     try {
       const visitDateISO = formatDateToISO(parseMMDDYYYYToISO(visitDate));
@@ -323,6 +421,44 @@ export default function MedicalReportFormScreen({ route }) {
         ...formData,
         ...(providerContact.trim() && { provider_contact: providerContact.trim() }),
       };
+
+      if (isEditing) {
+        const { error, data } = await supabase
+          .from('medical_reports')
+          .update({
+            visit_date: visitDateISO,
+            provider_name: providerName.trim() || null,
+            report_data: reportDataWithContact,
+            proof_image_url: imageUrl || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingReport.id)
+          .eq('user_id', user.id)
+          .select();
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+
+        await syncNextCheckAppointment(existingReport.id, reportDataWithContact);
+
+        console.log('Report updated successfully:', data);
+        Alert.alert(
+          t('medicalReport.success'),
+          t('medicalReport.updateSuccessMessage'),
+          [
+            {
+              text: t('common.close'),
+              onPress: () => {
+                if (onSubmit) onSubmit();
+                navigation.goBack();
+              },
+            },
+          ]
+        );
+        return;
+      }
 
       const { error, data } = await supabase.from('medical_reports').insert({
         user_id: user.id,
@@ -347,8 +483,11 @@ export default function MedicalReportFormScreen({ route }) {
 
       console.log('Report submitted successfully:', data);
       const reportId = data?.[0]?.id;
+      if (reportId) {
+        await syncNextCheckAppointment(reportId, reportDataWithContact);
+      }
 
-      // Award points for successful submission
+      // Award points for successful submission (new check-ins only)
       const pointsResult = await awardPoints(reportId, visitDate);
       
       // Fetch updated total points to check if user reached 5000
@@ -567,6 +706,8 @@ export default function MedicalReportFormScreen({ route }) {
           />
         </View>
 
+        {renderNextCheckFields()}
+
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Notes</Text>
           <TextInput
@@ -698,6 +839,8 @@ export default function MedicalReportFormScreen({ route }) {
             placeholder="e.g. 12-01-2025"
           />
         </View>
+
+        {renderNextCheckFields()}
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('medicalReport.notes')}</Text>
@@ -840,16 +983,7 @@ export default function MedicalReportFormScreen({ route }) {
           />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('medicalReport.nextAppointmentDate')}</Text>
-          <DatePickerField
-            style={styles.input}
-            value={formData.next_appointment_date || ''}
-            onChange={(value) => handleFieldChange('next_appointment_date', value)}
-            format="MM-DD-YYYY"
-            placeholder="e.g. 01-15-2026"
-          />
-        </View>
+        {renderNextCheckFields()}
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Notes</Text>
@@ -878,7 +1012,9 @@ export default function MedicalReportFormScreen({ route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevron-left" size={24} color="#1A1D1E" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('medicalReport.title')}</Text>
+          <Text style={styles.headerTitle}>
+            {isEditing ? t('medicalReport.editTitle') : t('medicalReport.title')}
+          </Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -940,15 +1076,20 @@ export default function MedicalReportFormScreen({ route }) {
             <TouchableOpacity style={styles.uploadButton} onPress={pickImage} activeOpacity={0.8}>
               <Icon name="upload" size={20} color="#1F6FE0" />
               <Text style={styles.uploadButtonText}>
-                {proofImage ? t('medicalReport.changeImage') : t('medicalReport.selectImage')}
+                {(proofImage || existingProofUrl)
+                  ? t('medicalReport.changeImage')
+                  : t('medicalReport.selectImage')}
               </Text>
             </TouchableOpacity>
-            {proofImage && (
+            {(proofImage?.uri || existingProofUrl) && (
               <View style={styles.imagePreview}>
-                <Image source={{ uri: proofImage.uri }} style={styles.previewImage} />
+                <Image
+                  source={{ uri: proofImage?.uri || existingProofUrl }}
+                  style={styles.previewImage}
+                />
                 <TouchableOpacity
                   style={styles.removeImageButton}
-                  onPress={() => setProofImage(null)}
+                  onPress={clearProofImage}
                 >
                   <Icon name="x" size={20} color="#fff" />
                 </TouchableOpacity>
@@ -965,10 +1106,15 @@ export default function MedicalReportFormScreen({ route }) {
             {saving || uploading ? (
               <>
                 <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.submitButtonText}> {t('medicalReport.submitting')}</Text>
+                <Text style={styles.submitButtonText}>
+                  {' '}
+                  {isEditing ? t('medicalReport.saving') : t('medicalReport.submitting')}
+                </Text>
               </>
             ) : (
-              <Text style={styles.submitButtonText}>{t('medicalReport.submit')}</Text>
+              <Text style={styles.submitButtonText}>
+                {isEditing ? t('medicalReport.saveChanges') : t('medicalReport.submit')}
+              </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -1038,6 +1184,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#475569',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginBottom: 8,
+    lineHeight: 16,
   },
   input: {
     backgroundColor: '#fff',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { syncAppointmentFromMedicalReport } from '@/lib/syncAppointmentFromMedicalReport';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -176,6 +177,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    try {
+      await syncAppointmentFromMedicalReport(supabase, {
+        reportId: data.id,
+        userId: surrogate_id,
+        stage,
+        providerName: provider_name,
+        reportData: report_data || {},
+      });
+    } catch (syncErr: any) {
+      console.warn('[medical-reports] POST appointment sync warning:', syncErr?.message || syncErr);
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('Error in POST medical report:', error);
@@ -295,6 +308,18 @@ export async function PATCH(request: NextRequest) {
         { error: 'Failed to update medical report', details: updateError.message },
         { status: 500 }
       );
+    }
+
+    try {
+      await syncAppointmentFromMedicalReport(supabase, {
+        reportId: data.id,
+        userId: data.user_id,
+        stage: data.stage || stage,
+        providerName: data.provider_name ?? provider_name,
+        reportData: data.report_data || report_data || {},
+      });
+    } catch (syncErr: any) {
+      console.warn('[medical-reports] PATCH appointment sync warning:', syncErr?.message || syncErr);
     }
 
     return NextResponse.json({ success: true, data });

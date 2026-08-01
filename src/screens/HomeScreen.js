@@ -2744,11 +2744,25 @@ export default function HomeScreen() {
             <Text style={styles.medicalReportTitle}>{t('medicalReport.title')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Text style={styles.medicalReportDate}>{formattedDate}</Text>
-              {report.uploaded_by === 'admin' && (
-                <View style={styles.adminUploadedBadge}>
-                  <Text style={styles.adminUploadedText}>{t('medicalReport.adminUploaded')}</Text>
-                </View>
-              )}
+              <View
+                style={
+                  report.uploaded_by === 'admin'
+                    ? styles.adminUploadedBadge
+                    : styles.surrogateUploadedBadge
+                }
+              >
+                <Text
+                  style={
+                    report.uploaded_by === 'admin'
+                      ? styles.adminUploadedText
+                      : styles.surrogateUploadedText
+                  }
+                >
+                  {report.uploaded_by === 'admin'
+                    ? t('medicalReport.adminUploaded')
+                    : t('medicalReport.surrogateUploaded')}
+                </Text>
+              </View>
               {pregnancyWeeks && (
                 <View style={styles.pregnancyWeeksBadge}>
                   <Text style={styles.pregnancyWeeksText}>
@@ -2811,7 +2825,8 @@ export default function HomeScreen() {
     blood_pressure: t('medicalReport.bloodPressure'),
     stomach_measurement: t('medicalReport.stomachMeasurement'),
     fetal_heartbeats: t('medicalReport.fhr'),
-    next_appointment_date: t('medicalReport.nextAppointmentDate'),
+    next_appointment_date: t('medicalReport.nextCheckDate'),
+    next_appointment_time: t('medicalReport.nextCheckTime'),
     nt_screen: t('medicalReport.ntScreen'),
     quad_screen: t('medicalReport.quadScreen'),
     anatomy_scan: t('medicalReport.anatomyScan'),
@@ -2904,13 +2919,27 @@ export default function HomeScreen() {
                   <Text style={styles.medicalReportDetailValue}>{formatValue(reportData.provider_contact)}</Text>
                 </View>
               )}
-              {report.uploaded_by === 'admin' && (
-                <View style={[styles.medicalReportDetailSection, styles.adminUploadedDetailRow]}>
-                  <View style={styles.adminUploadedBadge}>
-                    <Text style={styles.adminUploadedText}>{t('medicalReport.adminUploaded')}</Text>
-                  </View>
+              <View style={[styles.medicalReportDetailSection, styles.adminUploadedDetailRow]}>
+                <View
+                  style={
+                    report.uploaded_by === 'admin'
+                      ? styles.adminUploadedBadge
+                      : styles.surrogateUploadedBadge
+                  }
+                >
+                  <Text
+                    style={
+                      report.uploaded_by === 'admin'
+                        ? styles.adminUploadedText
+                        : styles.surrogateUploadedText
+                    }
+                  >
+                    {report.uploaded_by === 'admin'
+                      ? t('medicalReport.adminUploaded')
+                      : t('medicalReport.surrogateUploaded')}
+                  </Text>
                 </View>
-              )}
+              </View>
               {Object.entries(reportData)
                 .filter(([k]) => k !== 'provider_contact')
                 .map(([key, value]) => {
@@ -5451,6 +5480,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#E65100',
+  },
+  surrogateUploadedBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  surrogateUploadedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2E7D32',
   },
   adminUploadedDetailRow: {
     flexDirection: 'row',

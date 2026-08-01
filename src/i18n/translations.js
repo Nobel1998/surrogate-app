@@ -499,6 +499,9 @@ const baseTranslations = {
       bloodPressure: 'Blood Pressure',
       stomachMeasurement: 'Stomach Measurement (cm)',
       nextAppointmentDate: 'Next Appointment Date (MM-DD-YYYY)',
+      nextCheckDate: 'Next Check Date (MM-DD-YYYY)',
+      nextCheckTime: 'Next Check Time (optional)',
+      nextCheckHint: 'Saved to My Match → IVF or OB Appointments automatically.',
       screeningTests: 'Screening Tests',
       tested: 'Tested',
       normal: 'Normal',
@@ -537,6 +540,7 @@ const baseTranslations = {
       stagePostTransfer: 'Post-Transfer',
       stageOBGYN: 'OBGYN',
       adminUploaded: 'Admin',
+      surrogateUploaded: 'Surrogate',
     },
     // Points Rewards
     points: {
@@ -1715,6 +1719,9 @@ const baseTranslations = {
       bloodPressure: '血压',
       stomachMeasurement: '腹围 (cm)',
       nextAppointmentDate: '下次预约日期 (MM-DD-YYYY)',
+      nextCheckDate: '下次检查日期 (MM-DD-YYYY)',
+      nextCheckTime: '下次检查时间（可选）',
+      nextCheckHint: '将自动同步到 My Match → IVF / OB 预约。',
       screeningTests: '筛查测试',
       tested: '已检测',
       normal: '正常',
@@ -1753,6 +1760,7 @@ const baseTranslations = {
       stagePostTransfer: '移植后',
       stageOBGYN: '产科',
       adminUploaded: '管理员上传',
+      surrogateUploaded: '代母上传',
     },
     // Points Rewards - Chinese
     points: {
@@ -2918,6 +2926,9 @@ const baseTranslations = {
       bloodPressure: 'Presión Arterial',
       stomachMeasurement: 'Medición del Abdomen (cm)',
       nextAppointmentDate: 'Fecha de Próxima Cita (MM-DD-YYYY)',
+      nextCheckDate: 'Fecha de próxima revisión (MM-DD-YYYY)',
+      nextCheckTime: 'Hora de próxima revisión (opcional)',
+      nextCheckHint: 'Se guarda automáticamente en My Match → citas IVF u OB.',
       screeningTests: 'Pruebas de Detección',
       tested: 'Probado',
       normal: 'Normal',
@@ -2956,6 +2967,7 @@ const baseTranslations = {
       stagePostTransfer: 'Post-Transferencia',
       stageOBGYN: 'OBGYN',
       adminUploaded: 'Admin',
+      surrogateUploaded: 'Sustituta',
     },
     // Points Rewards - Spanish
     points: {

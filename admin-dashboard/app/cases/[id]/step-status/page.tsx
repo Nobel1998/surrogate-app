@@ -1880,8 +1880,19 @@ export default function StepStatusPage() {
                           rows={3}
                         />
                       </div>
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment Date</label>
+                    </>
+                  )}
+
+                  <div className="col-span-2 pt-2 border-t border-gray-100">
+                    <p className="text-sm font-semibold text-gray-800 mb-1">Next Check</p>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Syncs to app My Match →{' '}
+                      {medicalStage === 'OBGYN' ? 'OB Appointments' : 'IVF Appointments'}{' '}
+                      (Pre/Post-Transfer = IVF clinic; OB Visit = OB).
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Check Date</label>
                         <DateInput
                           value={medicalReportData.next_appointment_date || ''}
                           onChange={(next) => handleMedicalReportDataChange('next_appointment_date', next)}
@@ -1889,8 +1900,18 @@ export default function StepStatusPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                    </>
-                  )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Next Check Time (optional)</label>
+                        <input
+                          type="text"
+                          value={medicalReportData.next_appointment_time || ''}
+                          onChange={(e) => handleMedicalReportDataChange('next_appointment_time', e.target.value)}
+                          placeholder="e.g. 09:00 or 2:30 pm (default 9:00 AM)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                 </div>
               </div>
@@ -2147,7 +2168,8 @@ const renderMedicalReportDetailModal = (
     labs: 'Labs',
     test_site: 'Test Site',
     lab_test_date: 'Lab Test Date',
-    next_appointment_date: 'Next Appt Date',
+    next_appointment_date: 'Next Check Date',
+    next_appointment_time: 'Next Check Time',
     next_appointment_type: 'Next Appt Type',
     questions_for_team: 'Questions',
     gestational_sac_diameter: 'Gestational Sac Diameter (mm)',
