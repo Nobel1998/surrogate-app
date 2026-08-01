@@ -17,6 +17,22 @@ function createServiceClient() {
   });
 }
 
+function parseFormData(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...(raw as Record<string, unknown>) };
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -75,7 +91,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** Admin-only edit of surrogate application contact / basic form fields. */
+/** Admin-only full edit of surrogate application form_data. */
 export async function PATCH(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Missing Supabase env vars' }, { status: 500 });
@@ -96,15 +112,21 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, full_name, phone, email, location, age, dateOfBirth } = body || {};
+    const { id, form_data: incomingFormData } = body || {};
 
     if (!id) {
       return NextResponse.json({ error: 'Application ID is required' }, { status: 400 });
     }
+    if (!incomingFormData || typeof incomingFormData !== 'object' || Array.isArray(incomingFormData)) {
+      return NextResponse.json(
+        { error: 'form_data object is required for full application edit.' },
+        { status: 400 }
+      );
+    }
 
     const { data: existing, error: fetchError } = await supabase
       .from('applications')
-      .select('id, form_data, full_name, phone')
+      .select('id, form_data')
       .eq('id', id)
       .single();
 
@@ -112,48 +134,27 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    let formData: Record<string, unknown> = {};
-    try {
-      formData =
-        typeof existing.form_data === 'string'
-          ? JSON.parse(existing.form_data || '{}')
-          : existing.form_data || {};
-    } catch {
-      formData = {};
-    }
+    const formData = { ...parseFormData(existing.form_data), ...incomingFormData };
 
-    if (typeof full_name === 'string') {
-      formData.fullName = full_name.trim();
-    }
-    if (typeof phone === 'string') {
-      formData.phoneNumber = phone.trim();
-    }
-    if (typeof email === 'string') {
-      formData.email = email.trim();
-    }
-    if (typeof location === 'string') {
-      formData.location = location.trim();
-    }
-    if (typeof age === 'string' || typeof age === 'number') {
-      formData.age = String(age).trim();
-    }
-    if (typeof dateOfBirth === 'string') {
-      formData.dateOfBirth = dateOfBirth.trim();
-    }
-
-    const updateRow: Record<string, unknown> = {
-      form_data: JSON.stringify(formData),
-    };
-    if (typeof full_name === 'string') {
-      updateRow.full_name = full_name.trim();
-    }
-    if (typeof phone === 'string') {
-      updateRow.phone = phone.trim();
-    }
+    const fullName =
+      (typeof formData.fullName === 'string' && formData.fullName.trim()) ||
+      [formData.firstName, formData.middleName, formData.lastName]
+        .filter((part) => typeof part === 'string' && part.trim())
+        .join(' ')
+        .trim() ||
+      null;
+    const phone =
+      (typeof formData.phoneNumber === 'string' && formData.phoneNumber.trim()) ||
+      (typeof formData.phone === 'string' && formData.phone.trim()) ||
+      null;
 
     const { data, error } = await supabase
       .from('applications')
-      .update(updateRow)
+      .update({
+        form_data: JSON.stringify(formData),
+        ...(fullName ? { full_name: fullName } : {}),
+        ...(phone ? { phone } : {}),
+      })
       .eq('id', id)
       .select()
       .single();

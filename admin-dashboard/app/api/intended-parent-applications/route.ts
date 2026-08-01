@@ -124,7 +124,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Field edits (contact / basic info) are admin-only.
+    // Full / partial form_data field edits are admin-only.
     if (fields && typeof fields === 'object') {
       const denied = denyIntendedParentAdminEdit(session);
       if (denied) return denied;
@@ -144,26 +144,13 @@ export async function PATCH(req: NextRequest) {
         formData =
           typeof existing.form_data === 'string'
             ? JSON.parse(existing.form_data || '{}')
-            : existing.form_data || {};
+            : { ...(existing.form_data || {}) };
       } catch {
         formData = {};
       }
 
-      const allowed = [
-        'parent1FirstName',
-        'parent1LastName',
-        'parent1Email',
-        'parent1PhoneCountryCode',
-        'parent1PhoneAreaCode',
-        'parent1PhoneNumber',
-        'parent1CountryState',
-      ] as const;
-
-      for (const key of allowed) {
-        if (typeof fields[key] === 'string') {
-          formData[key] = fields[key].trim();
-        }
-      }
+      // Merge all provided fields (full application edit).
+      formData = { ...formData, ...fields };
 
       const { data, error } = await supabase
         .from('intended_parent_applications')
