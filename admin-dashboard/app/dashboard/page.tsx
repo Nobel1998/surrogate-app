@@ -738,6 +738,53 @@ export default function Home() {
     );
   };
 
+  const getDisplayPhotos = (): string[] => {
+    const raw = isEditingApplication
+      ? (editFormData.photos ?? selectedApp?.photos)
+      : selectedApp?.photos;
+    if (Array.isArray(raw)) {
+      return raw.filter((url): url is string => typeof url === 'string' && url.trim() !== '');
+    }
+    const legacy = isEditingApplication
+      ? (editFormData.photoUrl ?? selectedApp?.photoUrl)
+      : selectedApp?.photoUrl;
+    return typeof legacy === 'string' && legacy.trim() !== '' ? [legacy] : [];
+  };
+
+  const renderPhotoGallery = (label: string, accentClass: string) => {
+    const photos = getDisplayPhotos();
+    if (photos.length === 0) return null;
+    return (
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-500 mb-2">
+          {label} ({photos.length} photos)
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {photos.map((photoUrl, index) => (
+            <div key={`${photoUrl}-${index}`} className="relative">
+              <img
+                src={photoUrl}
+                alt={`${label} ${index + 1}`}
+                className="w-full h-48 object-cover rounded-lg border border-gray-300 shadow-sm"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <a
+                href={photoUrl}
+                download
+                className={`absolute top-2 right-2 ${accentClass} text-white px-2 py-1 rounded text-xs hover:opacity-90`}
+              >
+                Download
+              </a>
+              <div className="mt-1 text-xs text-gray-500 text-center">Photo {index + 1}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -1130,61 +1177,7 @@ export default function Home() {
                       <h3 className="text-lg font-medium text-green-900 mb-4">👤 Intended Parent 1</h3>
                       
                       {/* Intended Parent Photos (up to 4) */}
-                      {isEditingApplication ? (
-                        <div className="mb-6">
-                          {renderJsonField('Intended Parent Photos (JSON URLs)', 'photos')}
-                          {renderTextField('Photo URL (legacy)', 'photoUrl', { className: 'mt-3' })}
-                        </div>
-                      ) : selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 ? (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photos ({selectedApp.photos.length} photos)</label>
-                          <div className="grid grid-cols-3 gap-4">
-                            {selectedApp.photos.map((photoUrl: string, index: number) => (
-                              <div key={index} className="relative">
-                                <img
-                                  src={photoUrl}
-                                  alt={`Intended Parent Photo ${index + 1}`}
-                                  className="w-full h-48 object-cover rounded-lg border border-gray-300 shadow-sm"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }}
-                                />
-                                <a
-                                  href={photoUrl}
-                                  download
-                                  className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
-                                >
-                                  Download
-                                </a>
-                                <div className="mt-1 text-xs text-gray-500 text-center">Photo {index + 1}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      {/* Backward compatibility: single photoUrl */}
-                      {!isEditingApplication && (!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photo</label>
-                          <div className="relative">
-                            <img
-                              src={selectedApp.photoUrl}
-                              alt="Intended Parent Photo"
-                              className="w-full max-w-md h-auto rounded-lg border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <a
-                              href={selectedApp.photoUrl}
-                              download
-                              className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                            >
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      )}
+                      {renderPhotoGallery('Intended Parent Photos', 'bg-green-600')}
                       
                       <div className="grid grid-cols-3 gap-4">
                         {renderTextField('First Name', 'parent1FirstName')}
@@ -1437,60 +1430,7 @@ export default function Home() {
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👤 Step 1: Personal Information</h3>
                       
                       {/* Surrogate Lifestyle Photos (6 photos) */}
-                      {isEditingApplication ? (
-                        <div className="mb-6">
-                          {renderJsonField('Lifestyle Photos (JSON URLs)', 'photos')}
-                          {renderTextField('Photo URL (legacy)', 'photoUrl', { className: 'mt-3' })}
-                        </div>
-                      ) : selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 ? (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Lifestyle Photos ({selectedApp.photos.length} photos)</label>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {selectedApp.photos.map((photoUrl: string, index: number) => (
-                              <div key={index} className="relative">
-                                <img
-                                  src={photoUrl}
-                                  alt={`Lifestyle Photo ${index + 1}`}
-                                  className="w-full h-auto rounded-lg border border-gray-300 shadow-sm"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }}
-                                />
-                                <a
-                                  href={photoUrl}
-                                  download
-                                  className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
-                                >
-                                  Download
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      {/* Backward compatibility: single photoUrl */}
-                      {!isEditingApplication && (!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Surrogate Photo</label>
-                          <div className="relative">
-                            <img
-                              src={selectedApp.photoUrl}
-                              alt="Surrogate Photo"
-                              className="w-full max-w-md h-auto rounded-lg border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <a
-                              href={selectedApp.photoUrl}
-                              download
-                              className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                            >
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      )}
+                      {renderPhotoGallery('Lifestyle Photos', 'bg-blue-600')}
                       
                   <div className="grid grid-cols-3 gap-4">
                     {renderTextField('Full Name', 'fullName', { aliases: ['full_name'] })}
