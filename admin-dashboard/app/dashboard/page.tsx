@@ -120,6 +120,10 @@ export default function Home() {
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'surrogate', 'intended_parent'
   const [selectedIds, setSelectedIds] = useState<Array<{id: string | number, type: string}>>([]);
   const [resolvingIpRegion, setResolvingIpRegion] = useState(false);
+  const [adminRole, setAdminRole] = useState('');
+  const [editingApp, setEditingApp] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // 解析 Surrogate 申请数据的辅助函数
   const parseSurrogateApplicationData = (app: any, profile?: any) => {
@@ -246,7 +250,9 @@ export default function Home() {
       const authRes = await fetch('/api/auth/check');
       if (authRes.ok) {
         const authData = await authRes.json();
-        if ((authData.user?.role || '').toLowerCase() === 'branch_manager') {
+        const role = (authData.user?.role || '').toLowerCase();
+        setAdminRole(role);
+        if (role === 'branch_manager') {
           router.replace('/matches');
           return;
         }
@@ -393,6 +399,83 @@ export default function Home() {
 
   const isActionableApplication = (app: any) =>
     app.applicationType === 'surrogate' || app.applicationType === 'intended_parent';
+
+  const canEditApplications = adminRole === 'admin';
+
+  const openEditApplication = (app: any) => {
+    if (!canEditApplications || !isActionableApplication(app)) return;
+    setEditingApp(app);
+    if (app.applicationType === 'surrogate') {
+      setEditForm({
+        full_name: app.full_name === 'N/A' ? '' : String(app.full_name || ''),
+        phone: app.phone === 'N/A' ? '' : String(app.phone || ''),
+        email: app.email === 'N/A' ? '' : String(app.email || ''),
+        location: app.location === 'N/A' ? '' : String(app.location || ''),
+        age: app.age === 'N/A' ? '' : String(app.age || ''),
+        dateOfBirth: app.dateOfBirth === 'N/A' ? '' : String(app.dateOfBirth || ''),
+      });
+    } else {
+      setEditForm({
+        parent1FirstName: String(app.parent1FirstName || ''),
+        parent1LastName: String(app.parent1LastName || ''),
+        parent1Email: String(app.parent1Email || app.email || ''),
+        parent1PhoneCountryCode: String(app.parent1PhoneCountryCode || ''),
+        parent1PhoneAreaCode: String(app.parent1PhoneAreaCode || ''),
+        parent1PhoneNumber: String(app.parent1PhoneNumber || ''),
+        parent1CountryState: String(app.parent1CountryState || app.location || ''),
+      });
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingApp || !canEditApplications) return;
+    setSavingEdit(true);
+    try {
+      if (editingApp.applicationType === 'surrogate') {
+        const res = await fetch('/api/applications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingApp.id,
+            full_name: editForm.full_name,
+            phone: editForm.phone,
+            email: editForm.email,
+            location: editForm.location,
+            age: editForm.age,
+            dateOfBirth: editForm.dateOfBirth,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save');
+      } else if (editingApp.applicationType === 'intended_parent') {
+        const res = await fetch('/api/intended-parent-applications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingApp.id,
+            fields: {
+              parent1FirstName: editForm.parent1FirstName,
+              parent1LastName: editForm.parent1LastName,
+              parent1Email: editForm.parent1Email,
+              parent1PhoneCountryCode: editForm.parent1PhoneCountryCode,
+              parent1PhoneAreaCode: editForm.parent1PhoneAreaCode,
+              parent1PhoneNumber: editForm.parent1PhoneNumber,
+              parent1CountryState: editForm.parent1CountryState,
+            },
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save');
+      }
+      setEditingApp(null);
+      setEditForm({});
+      await loadApplications();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save application');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -737,6 +820,14 @@ export default function Home() {
                         >
                           📋 View
                         </button>
+                        {canEditApplications && isActionableApplication(app) && (
+                          <button
+                            onClick={() => openEditApplication(app)}
+                            className="text-amber-600 hover:text-amber-800 text-xs font-medium"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
                         {isActionableApplication(app) && (
                           <button
                             onClick={async () => {
@@ -2221,6 +2312,105 @@ export default function Home() {
                 </div>
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin-only Edit Application Modal */}
+      {editingApp && canEditApplications && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Edit Application
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditingApp(null);
+                    setEditForm({});
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                {editingApp.applicationType === 'intended_parent'
+                  ? 'Intended Parent'
+                  : 'Surrogate'}{' '}
+                — only admins can edit.
+              </p>
+
+              <div className="space-y-3">
+                {editingApp.applicationType === 'surrogate' ? (
+                  <>
+                    {[
+                      ['full_name', 'Full Name'],
+                      ['phone', 'Phone'],
+                      ['email', 'Email'],
+                      ['location', 'Location'],
+                      ['age', 'Age'],
+                      ['dateOfBirth', 'Date of Birth'],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                        <input
+                          type="text"
+                          value={editForm[key] || ''}
+                          onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {[
+                      ['parent1FirstName', 'First Name'],
+                      ['parent1LastName', 'Last Name'],
+                      ['parent1Email', 'Email'],
+                      ['parent1PhoneCountryCode', 'Phone Country Code'],
+                      ['parent1PhoneAreaCode', 'Phone Area Code'],
+                      ['parent1PhoneNumber', 'Phone Number'],
+                      ['parent1CountryState', 'Country / State'],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                        <input
+                          type="text"
+                          value={editForm[key] || ''}
+                          onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingApp(null);
+                    setEditForm({});
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </div>
           </div>

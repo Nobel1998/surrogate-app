@@ -26,6 +26,19 @@ function denyIntendedParentMutation(session: AdminSessionResult): NextResponse |
   return null;
 }
 
+function denyIntendedParentAdminEdit(session: AdminSessionResult): NextResponse | null {
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: session.status });
+  }
+  if (session.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Only admins can edit intended parent application fields.' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
@@ -95,8 +108,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   const session = await getAdminSession();
-  const denied = denyIntendedParentMutation(session);
-  if (denied) return denied;
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -104,7 +115,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, ...updates } = body;
+    const { id, fields, ...updates } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -112,6 +123,65 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Field edits (contact / basic info) are admin-only.
+    if (fields && typeof fields === 'object') {
+      const denied = denyIntendedParentAdminEdit(session);
+      if (denied) return denied;
+
+      const { data: existing, error: fetchError } = await supabase
+        .from('intended_parent_applications')
+        .select('id, form_data')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+      }
+
+      let formData: Record<string, unknown> = {};
+      try {
+        formData =
+          typeof existing.form_data === 'string'
+            ? JSON.parse(existing.form_data || '{}')
+            : existing.form_data || {};
+      } catch {
+        formData = {};
+      }
+
+      const allowed = [
+        'parent1FirstName',
+        'parent1LastName',
+        'parent1Email',
+        'parent1PhoneCountryCode',
+        'parent1PhoneAreaCode',
+        'parent1PhoneNumber',
+        'parent1CountryState',
+      ] as const;
+
+      for (const key of allowed) {
+        if (typeof fields[key] === 'string') {
+          formData[key] = fields[key].trim();
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('intended_parent_applications')
+        .update({
+          form_data: formData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ data });
+    }
+
+    // Status / other column updates (approve flow): admin + finance_manager.
+    const denied = denyIntendedParentMutation(session);
+    if (denied) return denied;
 
     const { data, error } = await supabase
       .from('intended_parent_applications')
