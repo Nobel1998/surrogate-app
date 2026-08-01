@@ -159,6 +159,12 @@ export default function HomeScreen() {
   });
   const adminNoteGalleryScrollRef = useRef(null);
   const [selectedAdminNote, setSelectedAdminNote] = useState(null);
+  const [isEditingAdminNote, setIsEditingAdminNote] = useState(false);
+  const [editAdminNoteContent, setEditAdminNoteContent] = useState('');
+  const [editAdminNoteStage, setEditAdminNoteStage] = useState('pre_transfer');
+  const [editAdminNoteRemovedImageIds, setEditAdminNoteRemovedImageIds] = useState([]);
+  const [editAdminNotePendingUris, setEditAdminNotePendingUris] = useState([]);
+  const [savingAdminNote, setSavingAdminNote] = useState(false);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
@@ -1465,6 +1471,11 @@ export default function HomeScreen() {
     if (!urls?.length) return;
     // Close admin-note detail sheet first: nested Modal + pageSheet on iOS steals touches and freezes the app.
     setSelectedAdminNote(null);
+    setIsEditingAdminNote(false);
+    setEditAdminNoteContent('');
+    setEditAdminNoteStage('pre_transfer');
+    setEditAdminNoteRemovedImageIds([]);
+    setEditAdminNotePendingUris([]);
     setAdminNoteImageViewer({
       visible: true,
       urls,
@@ -1472,14 +1483,183 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const ADMIN_NOTE_STAGE_OPTIONS = [
+    { value: 'pre_transfer', label: t('home.stagePre') || 'Pre-Transfer' },
+    { value: 'post_transfer', label: t('home.stagePost') || 'Post-Transfer' },
+    { value: 'ob_visit', label: t('home.stageOB') || 'OB Office Visit' },
+    { value: 'delivery', label: t('home.stageDelivery') || 'Delivery' },
+  ];
+  const MAX_ADMIN_NOTE_IMAGES = 6;
+
   const getAdminNoteStageDisplay = (stage) => {
     if (!stage) return '';
-    if (stage === 'pre_transfer') return 'Pre-Transfer';
-    if (stage === 'post_transfer') return 'Post-Transfer';
-    if (stage === 'ob_visit') return 'OB Office Visit';
-    if (stage === 'delivery') return 'Delivery';
+    if (stage === 'pre_transfer') return t('home.stagePre') || 'Pre-Transfer';
+    if (stage === 'post_transfer') return t('home.stagePost') || 'Post-Transfer';
+    if (stage === 'ob_visit') return t('home.stageOB') || 'OB Office Visit';
+    if (stage === 'delivery') return t('home.stageDelivery') || 'Delivery';
     return stage;
   };
+
+  const resetAdminNoteEditState = useCallback(() => {
+    setIsEditingAdminNote(false);
+    setEditAdminNoteContent('');
+    setEditAdminNoteStage('pre_transfer');
+    setEditAdminNoteRemovedImageIds([]);
+    setEditAdminNotePendingUris([]);
+    setSavingAdminNote(false);
+  }, []);
+
+  const startEditAdminNote = useCallback((note) => {
+    if (!note?.id || !isSurrogateRole) return;
+    setEditAdminNoteContent(note.content || '');
+    setEditAdminNoteStage(note.stage || 'pre_transfer');
+    setEditAdminNoteRemovedImageIds([]);
+    setEditAdminNotePendingUris([]);
+    setIsEditingAdminNote(true);
+  }, [isSurrogateRole]);
+
+  const closeAdminNoteDetail = useCallback(() => {
+    setSelectedAdminNote(null);
+    resetAdminNoteEditState();
+  }, [resetAdminNoteEditState]);
+
+  const pickAdminNoteImages = useCallback(async () => {
+    const keptExisting = (selectedAdminNote?.images || []).filter(
+      (img) => !editAdminNoteRemovedImageIds.includes(img.id)
+    ).length;
+    const room = MAX_ADMIN_NOTE_IMAGES - keptExisting - editAdminNotePendingUris.length;
+    if (room <= 0) {
+      Alert.alert('', t('home.adminNoteMaxImages', { count: MAX_ADMIN_NOTE_IMAGES }));
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(t('medicalReport.permissionRequired') || 'Permission Required');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.85,
+      selectionLimit: room,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const uris = result.assets.map((a) => a.uri).filter(Boolean).slice(0, room);
+    setEditAdminNotePendingUris((prev) => [...prev, ...uris]);
+  }, [
+    selectedAdminNote,
+    editAdminNoteRemovedImageIds,
+    editAdminNotePendingUris.length,
+    t,
+  ]);
+
+  const uploadAdminNoteImage = async (localUri, updateId) => {
+    const fileExt = (localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/) || [])[1]?.toLowerCase() || 'jpg';
+    const mime =
+      fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg';
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const filePath = `admin-notes/${matchId}/${updateId}/${fileName}`;
+    const formData = new FormData();
+    formData.append('file', {
+      uri: localUri,
+      type: mime,
+      name: fileName,
+    });
+    const { error } = await supabase.storage.from('post-media').upload(filePath, formData, {
+      contentType: mime,
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from('post-media').getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
+
+  const saveEditedAdminNote = useCallback(async () => {
+    if (!selectedAdminNote?.id || !isSurrogateRole || savingAdminNote) return;
+    const keptImages = (selectedAdminNote.images || []).filter(
+      (img) => !editAdminNoteRemovedImageIds.includes(img.id)
+    );
+    if (
+      !editAdminNoteContent.trim() &&
+      keptImages.length === 0 &&
+      editAdminNotePendingUris.length === 0
+    ) {
+      Alert.alert('', t('home.adminNoteNeedContent'));
+      return;
+    }
+
+    setSavingAdminNote(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('match_updates')
+        .update({
+          content: editAdminNoteContent.trim() || null,
+          stage: editAdminNoteStage || null,
+          title: selectedAdminNote.title || 'Admin Update',
+        })
+        .eq('id', selectedAdminNote.id);
+      if (updateError) throw updateError;
+
+      if (editAdminNoteRemovedImageIds.length > 0) {
+        const toRemove = (selectedAdminNote.images || []).filter((img) =>
+          editAdminNoteRemovedImageIds.includes(img.id)
+        );
+        for (const img of toRemove) {
+          if (img.image_url?.includes('/post-media/')) {
+            try {
+              const parts = img.image_url.split('/post-media/');
+              if (parts[1]) {
+                await supabase.storage.from('post-media').remove([parts[1]]);
+              }
+            } catch (e) {
+              console.warn('Failed to remove admin note image from storage', e);
+            }
+          }
+        }
+        const { error: delErr } = await supabase
+          .from('match_update_images')
+          .delete()
+          .in('id', editAdminNoteRemovedImageIds);
+        if (delErr) throw delErr;
+      }
+
+      const startOrder =
+        keptImages.reduce((max, img) => Math.max(max, Number(img.sort_order) || 0), -1) + 1;
+      for (let i = 0; i < editAdminNotePendingUris.length; i++) {
+        const uri = editAdminNotePendingUris[i];
+        const imageUrl = await uploadAdminNoteImage(uri, selectedAdminNote.id);
+        const { error: imgErr } = await supabase.from('match_update_images').insert({
+          update_id: selectedAdminNote.id,
+          image_url: imageUrl,
+          file_name: `image-${i + 1}.jpg`,
+          sort_order: startOrder + i,
+        });
+        if (imgErr) throw imgErr;
+      }
+
+      await fetchAdminNotes();
+      resetAdminNoteEditState();
+      setSelectedAdminNote(null);
+      Alert.alert('', t('home.adminNoteUpdated'));
+    } catch (err) {
+      console.error('Error saving admin note:', err);
+      Alert.alert('', err?.message || t('home.adminNoteUpdateFailed'));
+    } finally {
+      setSavingAdminNote(false);
+    }
+  }, [
+    selectedAdminNote,
+    isSurrogateRole,
+    savingAdminNote,
+    editAdminNoteContent,
+    editAdminNoteStage,
+    editAdminNoteRemovedImageIds,
+    editAdminNotePendingUris,
+    fetchAdminNotes,
+    resetAdminNoteEditState,
+    t,
+    matchId,
+  ]);
 
   const renderAdminNoteImages = (note) => {
     const sorted = (note.images || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -2666,9 +2846,31 @@ export default function HomeScreen() {
           <View style={styles.medicalReportDetailModal}>
             <View style={styles.medicalReportDetailHeader}>
               <Text style={styles.medicalReportDetailTitle}>{t('medicalReport.title')}</Text>
-              <TouchableOpacity onPress={() => setSelectedMedicalReport(null)} hitSlop={16}>
-                <Icon name="x" size={24} color="#1A1D1E" />
-              </TouchableOpacity>
+              <View style={styles.medicalReportDetailHeaderActions}>
+                {isSurrogateRole && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const reportToEdit = report;
+                      setSelectedMedicalReport(null);
+                      navigation.navigate('MedicalReportForm', {
+                        stage: reportToEdit.stage,
+                        report: reportToEdit,
+                        onSubmit: () => {
+                          fetchMedicalReports();
+                        },
+                      });
+                    }}
+                    hitSlop={12}
+                    style={styles.medicalReportEditButton}
+                  >
+                    <Icon name="edit-2" size={18} color="#1F6FE0" />
+                    <Text style={styles.medicalReportEditButtonText}>{t('common.edit')}</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setSelectedMedicalReport(null)} hitSlop={16}>
+                  <Icon name="x" size={24} color="#1A1D1E" />
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView
               style={styles.medicalReportDetailScroll}
@@ -3299,7 +3501,10 @@ export default function HomeScreen() {
                       key={note.id}
                       style={styles.adminNoteCard}
                       activeOpacity={0.75}
-                      onPress={() => setSelectedAdminNote(note)}
+                      onPress={() => {
+                        resetAdminNoteEditState();
+                        setSelectedAdminNote(note);
+                      }}
                     >
                       {(note.title || note.stage) ? (
                         <View style={styles.adminNoteHeaderRow}>
@@ -3391,19 +3596,34 @@ export default function HomeScreen() {
         visible={!!selectedAdminNote}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedAdminNote(null)}
+        onRequestClose={closeAdminNoteDetail}
       >
         <SafeAreaView style={styles.adminNoteDetailSafe} edges={['top', 'left', 'right']}>
           <View style={styles.adminNoteDetailHeader}>
-            <Text style={styles.adminNoteDetailHeaderTitle}>{t('home.adminNotes')}</Text>
-            <TouchableOpacity
-              onPress={() => setSelectedAdminNote(null)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
-            >
-              <Icon name="x" size={24} color="#475569" />
-            </TouchableOpacity>
+            <Text style={styles.adminNoteDetailHeaderTitle}>
+              {isEditingAdminNote ? t('home.editAdminNote') : t('home.adminNotes')}
+            </Text>
+            <View style={styles.adminNoteDetailHeaderActions}>
+              {isSurrogateRole && selectedAdminNote && !isEditingAdminNote ? (
+                <TouchableOpacity
+                  onPress={() => startEditAdminNote(selectedAdminNote)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.adminNoteEditBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.edit')}
+                >
+                  <Text style={styles.adminNoteEditBtnText}>{t('common.edit')}</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                onPress={closeAdminNoteDetail}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <Icon name="x" size={24} color="#475569" />
+              </TouchableOpacity>
+            </View>
           </View>
           <ScrollView
             style={styles.adminNoteDetailScroll}
@@ -3412,35 +3632,148 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator
           >
             {selectedAdminNote ? (
-              <>
-                {(selectedAdminNote.title || selectedAdminNote.stage) ? (
-                  <View style={styles.adminNoteHeaderRow}>
-                    {selectedAdminNote.title ? (
-                      <Text style={styles.adminNoteTitle}>{selectedAdminNote.title}</Text>
-                    ) : null}
-                    {selectedAdminNote.stage ? (
-                      <View style={styles.adminNoteStageBadge}>
-                        <Text style={styles.adminNoteStageText}>
-                          {getAdminNoteStageDisplay(selectedAdminNote.stage)}
-                        </Text>
-                      </View>
-                    ) : null}
+              isEditingAdminNote ? (
+                <>
+                  <Text style={styles.adminNoteEditLabel}>{t('home.adminNoteStage')}</Text>
+                  <View style={styles.adminNoteStagePickerRow}>
+                    {ADMIN_NOTE_STAGE_OPTIONS.map((opt) => {
+                      const active = editAdminNoteStage === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          onPress={() => setEditAdminNoteStage(opt.value)}
+                          style={[
+                            styles.adminNoteStageChip,
+                            active && styles.adminNoteStageChipActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.adminNoteStageChipText,
+                              active && styles.adminNoteStageChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ) : null}
-                <Text style={styles.adminNoteContentDetail}>
-                  {selectedAdminNote.content || ''}
-                </Text>
-                {renderAdminNoteImages(selectedAdminNote)}
-                <Text style={styles.adminNoteDate}>
-                  {selectedAdminNote.created_at
-                    ? new Date(selectedAdminNote.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : ''}
-                </Text>
-              </>
+                  <TextInput
+                    value={editAdminNoteContent}
+                    onChangeText={setEditAdminNoteContent}
+                    multiline
+                    textAlignVertical="top"
+                    placeholder={t('home.adminNoteNeedContent')}
+                    style={styles.adminNoteEditInput}
+                  />
+                  <Text style={styles.adminNoteEditLabel}>
+                    {t('home.adminNoteImageCount', {
+                      count:
+                        (selectedAdminNote.images || []).filter(
+                          (img) => !editAdminNoteRemovedImageIds.includes(img.id)
+                        ).length + editAdminNotePendingUris.length,
+                    })}
+                  </Text>
+                  <View style={styles.adminNoteEditImageRow}>
+                    {(selectedAdminNote.images || [])
+                      .filter((img) => !editAdminNoteRemovedImageIds.includes(img.id))
+                      .map((img) => (
+                        <View key={img.id} style={styles.adminNoteEditImageWrap}>
+                          <Image
+                            source={{ uri: img.image_url }}
+                            style={styles.adminNoteEditImage}
+                            resizeMode="cover"
+                          />
+                          <TouchableOpacity
+                            style={styles.adminNoteEditImageRemove}
+                            onPress={() =>
+                              setEditAdminNoteRemovedImageIds((prev) =>
+                                prev.includes(img.id) ? prev : [...prev, img.id]
+                              )
+                            }
+                          >
+                            <Icon name="x" size={14} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    {editAdminNotePendingUris.map((uri, idx) => (
+                      <View key={`pending-${uri}-${idx}`} style={styles.adminNoteEditImageWrap}>
+                        <Image source={{ uri }} style={styles.adminNoteEditImage} resizeMode="cover" />
+                        <TouchableOpacity
+                          style={styles.adminNoteEditImageRemove}
+                          onPress={() =>
+                            setEditAdminNotePendingUris((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                        >
+                          <Icon name="x" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.adminNoteAddImagesBtn}
+                    onPress={pickAdminNoteImages}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="image" size={18} color="#1F6FE0" />
+                    <Text style={styles.adminNoteAddImagesBtnText}>{t('home.adminNoteAddImages')}</Text>
+                  </TouchableOpacity>
+                  <View style={styles.adminNoteEditActions}>
+                    <TouchableOpacity
+                      style={styles.adminNoteCancelEditBtn}
+                      onPress={resetAdminNoteEditState}
+                      disabled={savingAdminNote}
+                    >
+                      <Text style={styles.adminNoteCancelEditBtnText}>{t('common.cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.adminNoteSaveEditBtn,
+                        savingAdminNote && styles.adminNoteSaveEditBtnDisabled,
+                      ]}
+                      onPress={saveEditedAdminNote}
+                      disabled={savingAdminNote}
+                    >
+                      {savingAdminNote ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.adminNoteSaveEditBtnText}>{t('home.saveAdminNote')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {(selectedAdminNote.title || selectedAdminNote.stage) ? (
+                    <View style={styles.adminNoteHeaderRow}>
+                      {selectedAdminNote.title ? (
+                        <Text style={styles.adminNoteTitle}>{selectedAdminNote.title}</Text>
+                      ) : null}
+                      {selectedAdminNote.stage ? (
+                        <View style={styles.adminNoteStageBadge}>
+                          <Text style={styles.adminNoteStageText}>
+                            {getAdminNoteStageDisplay(selectedAdminNote.stage)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  <Text style={styles.adminNoteContentDetail}>
+                    {selectedAdminNote.content || ''}
+                  </Text>
+                  {renderAdminNoteImages(selectedAdminNote)}
+                  <Text style={styles.adminNoteDate}>
+                    {selectedAdminNote.created_at
+                      ? new Date(selectedAdminNote.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : ''}
+                  </Text>
+                </>
+              )
             ) : null}
           </ScrollView>
         </SafeAreaView>
@@ -4447,12 +4780,153 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8ECF1',
   },
+  adminNoteDetailHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminNoteEditBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  adminNoteEditBtnText: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   adminNoteDetailHeaderTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: '#1A1D1E',
     flex: 1,
     marginRight: 8,
+  },
+  adminNoteEditLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  adminNoteStagePickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  adminNoteStageChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  adminNoteStageChipActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+  },
+  adminNoteStageChipText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  adminNoteStageChipTextActive: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+  },
+  adminNoteEditInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+    marginBottom: 12,
+  },
+  adminNoteEditImageRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  adminNoteEditImageWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  adminNoteEditImage: {
+    width: '100%',
+    height: '100%',
+  },
+  adminNoteEditImageRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(220,38,38,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminNoteAddImagesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
+    marginBottom: 16,
+  },
+  adminNoteAddImagesBtnText: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  adminNoteEditActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  adminNoteCancelEditBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+  },
+  adminNoteCancelEditBtnText: {
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  adminNoteSaveEditBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#1D4ED8',
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  adminNoteSaveEditBtnDisabled: {
+    opacity: 0.6,
+  },
+  adminNoteSaveEditBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   adminNoteDetailScroll: {
     flex: 1,
@@ -5045,10 +5519,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
+  medicalReportDetailHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  medicalReportEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EBF3FF',
+  },
+  medicalReportEditButtonText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F6FE0',
+  },
   medicalReportDetailTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#1A1D1E',
+    flexShrink: 1,
+    marginRight: 8,
   },
   medicalReportDetailScroll: {
     flexGrow: 1,

@@ -93,11 +93,18 @@ export default function StepStatusPage() {
   const caseId = params.id as string;
 
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const [readOnly, setReadOnly] = useState(false);
   const [adminUpdate, setAdminUpdate] = useState('');
   const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
+  const [editingAdminNoteId, setEditingAdminNoteId] = useState<string | null>(null);
+  const [existingAdminNoteImages, setExistingAdminNoteImages] = useState<
+    Array<{ id: string; image_url: string; file_name?: string | null }>
+  >([]);
+  const [removedAdminNoteImageIds, setRemovedAdminNoteImageIds] = useState<string[]>([]);
   const [pendingAdminNoteImages, setPendingAdminNoteImages] = useState<PendingAdminNoteImage[]>([]);
   const pendingAdminNoteImagesRef = useRef<PendingAdminNoteImage[]>([]);
   const adminNoteFileInputRef = useRef<HTMLInputElement | null>(null);
+  const adminNoteFormSectionRef = useRef<HTMLDivElement | null>(null);
   const [pendingMedicalProofImage, setPendingMedicalProofImage] = useState<PendingMedicalProofImage | null>(null);
   const [existingMedicalProofUrl, setExistingMedicalProofUrl] = useState<string | null>(null);
   const [editingMedicalReportId, setEditingMedicalReportId] = useState<string | null>(null);
@@ -149,6 +156,21 @@ export default function StepStatusPage() {
       loadData();
     }
   }, [caseId]);
+
+  useEffect(() => {
+    const loadAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/check');
+        if (res.ok) {
+          const data = await res.json();
+          setReadOnly(!!data.user?.read_only);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadAuth();
+  }, []);
 
   useEffect(() => {
     pendingAdminNoteImagesRef.current = pendingAdminNoteImages;
@@ -378,6 +400,9 @@ export default function StepStatusPage() {
     toRevoke.forEach((url) => URL.revokeObjectURL(url));
   };
 
+  const keptExistingAdminNoteImageCount = () =>
+    existingAdminNoteImages.filter((img) => !removedAdminNoteImageIds.includes(img.id)).length;
+
   const validateAndAppendAdminNoteFiles = (files: File[] | FileList | null) => {
     // Snapshot immediately — clearing the file input empties the live FileList.
     const list = files ? Array.from(files) : [];
@@ -407,7 +432,7 @@ export default function StepStatusPage() {
     if (validFiles.length === 0) return;
 
     const prev = pendingAdminNoteImagesRef.current;
-    const room = MAX_ADMIN_NOTE_IMAGES - prev.length;
+    const room = MAX_ADMIN_NOTE_IMAGES - keptExistingAdminNoteImageCount() - prev.length;
     if (room <= 0) {
       alert(`You can attach at most ${MAX_ADMIN_NOTE_IMAGES} images`);
       return;
@@ -424,6 +449,38 @@ export default function StepStatusPage() {
     const next = [...prev, ...toAdd];
     pendingAdminNoteImagesRef.current = next;
     setPendingAdminNoteImages(next);
+  };
+
+  const resetAdminNoteForm = () => {
+    setEditingAdminNoteId(null);
+    setAdminUpdate('');
+    setAdminNoteStage('pre_transfer');
+    setExistingAdminNoteImages([]);
+    setRemovedAdminNoteImageIds([]);
+    clearPendingAdminNoteImages();
+  };
+
+  const startEditAdminNote = (update: any) => {
+    if (readOnly || !update?.id) return;
+    setEditingAdminNoteId(String(update.id));
+    setAdminUpdate(update.content || '');
+    setAdminNoteStage(update.stage || 'pre_transfer');
+    setExistingAdminNoteImages(
+      Array.isArray(update.images)
+        ? update.images.map((img: any) => ({
+            id: String(img.id),
+            image_url: img.image_url,
+            file_name: img.file_name,
+          }))
+        : []
+    );
+    setRemovedAdminNoteImageIds([]);
+    clearPendingAdminNoteImages();
+    setSelectedAdminNote(null);
+    setUpdateTab('note');
+    setTimeout(() => {
+      adminNoteFormSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const removePendingAdminNoteImage = (index: number) => {
@@ -507,7 +564,9 @@ export default function StepStatusPage() {
   };
 
   const saveAdminUpdate = async () => {
-    if (!adminUpdate.trim() && pendingAdminNoteImages.length === 0) {
+    if (readOnly) return;
+    const keptExisting = keptExistingAdminNoteImageCount();
+    if (!adminUpdate.trim() && keptExisting === 0 && pendingAdminNoteImages.length === 0) {
       alert('Please enter note text or add at least one image');
       return;
     }
@@ -515,7 +574,34 @@ export default function StepStatusPage() {
     setSaving(true);
     try {
       let res: Response;
-      if (pendingAdminNoteImages.length > 0) {
+      if (editingAdminNoteId) {
+        const needsMultipart =
+          pendingAdminNoteImages.length > 0 || removedAdminNoteImageIds.length > 0;
+        if (needsMultipart) {
+          const fd = new FormData();
+          fd.append('content', adminUpdate);
+          fd.append('title', 'Admin Update');
+          fd.append('stage', adminNoteStage);
+          if (removedAdminNoteImageIds.length > 0) {
+            fd.append('remove_image_ids', JSON.stringify(removedAdminNoteImageIds));
+          }
+          pendingAdminNoteImages.forEach((p) => fd.append('images', p.file));
+          res = await fetch(`/api/cases/${caseId}/updates/${editingAdminNoteId}`, {
+            method: 'PATCH',
+            body: fd,
+          });
+        } else {
+          res = await fetch(`/api/cases/${caseId}/updates/${editingAdminNoteId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: adminUpdate,
+              title: 'Admin Update',
+              stage: adminNoteStage,
+            }),
+          });
+        }
+      } else if (pendingAdminNoteImages.length > 0) {
         const fd = new FormData();
         fd.append('update_type', 'admin_note');
         fd.append('title', 'Admin Update');
@@ -544,11 +630,10 @@ export default function StepStatusPage() {
         throw new Error(errBody.error || 'Failed to save update');
       }
 
-      setAdminUpdate('');
-      setAdminNoteStage('pre_transfer');
-      clearPendingAdminNoteImages();
+      const wasEditing = !!editingAdminNoteId;
+      resetAdminNoteForm();
       await loadData();
-      alert('Update saved successfully');
+      alert(wasEditing ? 'Update edited successfully' : 'Update saved successfully');
     } catch (err: any) {
       alert(err.message || 'Failed to save update');
     } finally {
@@ -557,6 +642,7 @@ export default function StepStatusPage() {
   };
 
   const deleteAdminUpdate = async (updateId: string) => {
+    if (readOnly) return;
     if (!confirm('Are you sure you want to delete this update?')) {
       return;
     }
@@ -567,9 +653,13 @@ export default function StepStatusPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to delete update');
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to delete update');
       }
 
+      if (editingAdminNoteId === updateId) {
+        resetAdminNoteForm();
+      }
       await loadData();
       alert('Update deleted successfully');
     } catch (err: any) {
@@ -1109,13 +1199,30 @@ export default function StepStatusPage() {
                             {update.updated_by_user?.name && ` • By ${update.updated_by_user.name}`}
                           </p>
                         </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteAdminUpdate(update.id); }}
-                          className="ml-4 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
-                          title="Delete this update"
-                        >
-                          Delete
-                        </button>
+                        {!readOnly && (
+                          <div className="ml-4 flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditAdminNote(update);
+                              }}
+                              className="px-3 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                              title="Edit this update"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAdminUpdate(update.id);
+                              }}
+                              className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                              title="Delete this update"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm text-gray-700">{contentPreview}</p>
                       {imageCount > 0 && (
@@ -1140,7 +1247,7 @@ export default function StepStatusPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Add Admin Note
+                {editingAdminNoteId ? 'Edit Admin Note' : 'Add Admin Note'}
               </button>
               <button
                 onClick={() => setUpdateTab('medical')}
@@ -1156,7 +1263,22 @@ export default function StepStatusPage() {
           </div>
 
           {updateTab === 'note' ? (
-            <>
+            readOnly ? (
+              <p className="text-sm text-gray-500">View-only access — you cannot add or edit admin notes.</p>
+            ) : (
+            <div ref={adminNoteFormSectionRef}>
+              {editingAdminNoteId && (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-center justify-between gap-3">
+                  <span>Editing existing admin note</span>
+                  <button
+                    type="button"
+                    onClick={resetAdminNoteForm}
+                    className="text-amber-800 hover:text-amber-950 font-semibold underline"
+                  >
+                    Cancel edit
+                  </button>
+                </div>
+              )}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
                 <select
@@ -1184,6 +1306,34 @@ export default function StepStatusPage() {
                 <p className="text-xs text-gray-500 mb-2">
                   Up to {MAX_ADMIN_NOTE_IMAGES} images (JPG, PNG, WebP), {MAX_ADMIN_NOTE_IMAGE_MB}MB each.
                 </p>
+                {existingAdminNoteImages.filter((img) => !removedAdminNoteImageIds.includes(img.id)).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {existingAdminNoteImages
+                      .filter((img) => !removedAdminNoteImageIds.includes(img.id))
+                      .map((img) => (
+                        <div key={img.id} className="relative group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.image_url}
+                            alt={img.file_name || 'Attachment'}
+                            className="h-20 w-20 object-cover rounded-md border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRemovedAdminNoteImageIds((prev) =>
+                                prev.includes(img.id) ? prev : [...prev, img.id]
+                              )
+                            }
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
                 <input
                   ref={adminNoteFileInputRef}
                   type="file"
@@ -1226,16 +1376,26 @@ export default function StepStatusPage() {
                   </div>
                 )}
               </div>
-              <div className="mt-4">
+              <div className="mt-4 flex items-center gap-3">
                 <button
                   onClick={saveAdminUpdate}
                   disabled={saving}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
                     >
-                  {saving ? 'Saving...' : 'Save Update'}
+                  {saving ? 'Saving...' : editingAdminNoteId ? 'Save Changes' : 'Save Update'}
                 </button>
+                {editingAdminNoteId && (
+                  <button
+                    type="button"
+                    onClick={resetAdminNoteForm}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
-            </>
+            </div>
+            )
           ) : (
             <div ref={medicalFormSectionRef} className="space-y-4">
               {editingMedicalReportId && (
@@ -1876,15 +2036,25 @@ export default function StepStatusPage() {
               )}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t border-gray-200 shrink-0">
-              <button
-                onClick={() => {
-                  deleteAdminUpdate(selectedAdminNote.id);
-                  setSelectedAdminNote(null);
-                }}
-                className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
-              >
-                Delete
-              </button>
+              {!readOnly && (
+                <>
+                  <button
+                    onClick={() => startEditAdminNote(selectedAdminNote)}
+                    className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      deleteAdminUpdate(selectedAdminNote.id);
+                      setSelectedAdminNote(null);
+                    }}
+                    className="px-4 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setSelectedAdminNote(null)}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
