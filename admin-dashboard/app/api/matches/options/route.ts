@@ -408,7 +408,7 @@ export async function GET(req: NextRequest) {
       console.log('[matches/options] fetching medical reports for all surrogates...');
       const { data: reportsData, error: reportsError } = await supabase
         .from('medical_reports')
-        .select('id, user_id, visit_date, provider_name, stage, report_data, proof_image_url, created_at')
+        .select('id, user_id, visit_date, provider_name, stage, report_data, proof_image_url, uploaded_by, created_at')
         .in('user_id', allSurrogateIds)
         .order('visit_date', { ascending: false })
         .limit(1000);

@@ -1031,11 +1031,24 @@ export default function StepStatusPage() {
                             if (reportData.fetal_heartbeats) keyMetrics.push(`FHR: ${reportData.fetal_heartbeats}bpm`);
                           }
                           
+                          const uploadedByAdmin = r.uploaded_by === 'admin';
                           return (
                             <div key={r.id} className="p-2 rounded border border-green-200 bg-green-50">
-                              <div className="text-[11px] text-gray-600 font-semibold">
-                                {r.stage} · {visitDate}
-                                {r.provider_name && ` · ${r.provider_name}`}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="text-[11px] text-gray-600 font-semibold">
+                                  {r.stage} · {visitDate}
+                                  {r.provider_name && ` · ${r.provider_name}`}
+                                </div>
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                    uploadedByAdmin
+                                      ? 'bg-violet-100 text-violet-800'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                  }`}
+                                  title={uploadedByAdmin ? 'Uploaded by admin' : 'Uploaded by surrogate'}
+                                >
+                                  {uploadedByAdmin ? 'Admin' : 'Surrogate'}
+                                </span>
                               </div>
                               {keyMetrics.length > 0 && (
                                 <div className="text-xs text-gray-700 mt-1">
@@ -2197,8 +2210,19 @@ const renderMedicalReportDetailModal = (
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto pt-10 pb-10">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
-          <h3 className="text-lg font-bold text-gray-900">Medical Check-in Details</h3>
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0 gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-lg font-bold text-gray-900 truncate">Medical Check-in Details</h3>
+            <span
+              className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                report.uploaded_by === 'admin'
+                  ? 'bg-violet-100 text-violet-800'
+                  : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              {report.uploaded_by === 'admin' ? 'Admin' : 'Surrogate'}
+            </span>
+          </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none">
             &times;
           </button>
@@ -2213,6 +2237,12 @@ const renderMedicalReportDetailModal = (
               <div>
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Visit Date</span>
                 <span className="block text-sm font-medium text-gray-900 mt-1">{formatDateOnly(report.visit_date)}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-gray-500 uppercase">Uploaded By</span>
+                <span className="block text-sm font-medium text-gray-900 mt-1">
+                  {report.uploaded_by === 'admin' ? 'Admin' : 'Surrogate'}
+                </span>
               </div>
               <div>
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Provider</span>

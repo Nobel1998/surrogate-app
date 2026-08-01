@@ -84,6 +84,7 @@ type MedicalReport = {
   stage: string;
   report_data: any;
   proof_image_url?: string | null;
+  uploaded_by?: string | null;
   created_at: string;
 };
 
