@@ -1,5 +1,9 @@
 -- Allow matched surrogates to edit admin notes (match_updates) and manage images.
 -- Parents remain SELECT-only. Service role keeps full access.
+-- Also run GRANTs so PostgREST can apply the policies.
+
+GRANT SELECT, UPDATE ON match_updates TO authenticated;
+GRANT SELECT, INSERT, DELETE ON match_update_images TO authenticated;
 
 DROP POLICY IF EXISTS "Matched surrogates can update own match updates" ON match_updates;
 CREATE POLICY "Matched surrogates can update own match updates"

@@ -15,6 +15,7 @@ import {
   normalizeApplicationStatus,
 } from '../utils/applicationStatus';
 import DatePickerField from '../components/DatePickerField';
+import { APP_API_BASE_URL } from '../constants/api';
 
 // Normalize stage values to lowercase for consistent filtering
 const normalizeStage = (value = 'pregnancy') => {
@@ -1575,7 +1576,16 @@ export default function HomeScreen() {
   };
 
   const saveEditedAdminNote = useCallback(async () => {
-    if (!selectedAdminNote?.id || !isSurrogateRole || savingAdminNote) return;
+    if (savingAdminNote) return;
+    if (!selectedAdminNote?.id) {
+      Alert.alert('', t('home.adminNoteUpdateFailed'));
+      return;
+    }
+    if (!isSurrogateRole) {
+      Alert.alert('', t('home.adminNoteUpdateFailed'));
+      return;
+    }
+
     const keptImages = (selectedAdminNote.images || []).filter(
       (img) => !editAdminNoteRemovedImageIds.includes(img.id)
     );
@@ -1590,51 +1600,46 @@ export default function HomeScreen() {
 
     setSavingAdminNote(true);
     try {
-      const { error: updateError } = await supabase
-        .from('match_updates')
-        .update({
-          content: editAdminNoteContent.trim() || null,
-          stage: editAdminNoteStage || null,
-          title: selectedAdminNote.title || 'Admin Update',
-        })
-        .eq('id', selectedAdminNote.id);
-      if (updateError) throw updateError;
-
-      if (editAdminNoteRemovedImageIds.length > 0) {
-        const toRemove = (selectedAdminNote.images || []).filter((img) =>
-          editAdminNoteRemovedImageIds.includes(img.id)
-        );
-        for (const img of toRemove) {
-          if (img.image_url?.includes('/post-media/')) {
-            try {
-              const parts = img.image_url.split('/post-media/');
-              if (parts[1]) {
-                await supabase.storage.from('post-media').remove([parts[1]]);
-              }
-            } catch (e) {
-              console.warn('Failed to remove admin note image from storage', e);
-            }
-          }
-        }
-        const { error: delErr } = await supabase
-          .from('match_update_images')
-          .delete()
-          .in('id', editAdminNoteRemovedImageIds);
-        if (delErr) throw delErr;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (sessionError || !accessToken) {
+        throw new Error(sessionError?.message || 'Please sign in again');
       }
 
-      const startOrder =
-        keptImages.reduce((max, img) => Math.max(max, Number(img.sort_order) || 0), -1) + 1;
+      const newImages = [];
       for (let i = 0; i < editAdminNotePendingUris.length; i++) {
         const uri = editAdminNotePendingUris[i];
         const imageUrl = await uploadAdminNoteImage(uri, selectedAdminNote.id);
-        const { error: imgErr } = await supabase.from('match_update_images').insert({
-          update_id: selectedAdminNote.id,
+        newImages.push({
           image_url: imageUrl,
           file_name: `image-${i + 1}.jpg`,
-          sort_order: startOrder + i,
         });
-        if (imgErr) throw imgErr;
+      }
+
+      const res = await fetch(
+        `${APP_API_BASE_URL}/api/app/match-updates/${selectedAdminNote.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            content: editAdminNoteContent.trim() || null,
+            stage: editAdminNoteStage || null,
+            title: selectedAdminNote.title || 'Admin Update',
+            remove_image_ids: editAdminNoteRemovedImageIds,
+            new_images: newImages,
+          }),
+        }
+      );
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || t('home.adminNoteUpdateFailed'));
+      }
+      if (!payload?.update?.id) {
+        throw new Error(t('home.adminNoteUpdateFailed'));
       }
 
       await fetchAdminNotes();
