@@ -96,6 +96,7 @@ export default function StepStatusPage() {
   const [adminUpdate, setAdminUpdate] = useState('');
   const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
   const [pendingAdminNoteImages, setPendingAdminNoteImages] = useState<PendingAdminNoteImage[]>([]);
+  const pendingAdminNoteImagesRef = useRef<PendingAdminNoteImage[]>([]);
   const adminNoteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingMedicalProofImage, setPendingMedicalProofImage] = useState<PendingMedicalProofImage | null>(null);
   const [existingMedicalProofUrl, setExistingMedicalProofUrl] = useState<string | null>(null);
@@ -148,6 +149,10 @@ export default function StepStatusPage() {
       loadData();
     }
   }, [caseId]);
+
+  useEffect(() => {
+    pendingAdminNoteImagesRef.current = pendingAdminNoteImages;
+  }, [pendingAdminNoteImages]);
 
   const loadData = async () => {
     setLoading(true);
@@ -367,55 +372,68 @@ export default function StepStatusPage() {
   };
 
   const clearPendingAdminNoteImages = () => {
-    setPendingAdminNoteImages((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.url));
-      return [];
-    });
+    const toRevoke = pendingAdminNoteImagesRef.current.map((p) => p.url);
+    pendingAdminNoteImagesRef.current = [];
+    setPendingAdminNoteImages([]);
+    toRevoke.forEach((url) => URL.revokeObjectURL(url));
   };
 
-  const validateAndAppendAdminNoteFiles = (fileList: FileList | null) => {
-    if (!fileList?.length) return;
+  const validateAndAppendAdminNoteFiles = (files: File[] | FileList | null) => {
+    // Snapshot immediately — clearing the file input empties the live FileList.
+    const list = files ? Array.from(files) : [];
+    if (!list.length) return;
+
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const maxBytes = MAX_ADMIN_NOTE_IMAGE_MB * 1024 * 1024;
 
-    setPendingAdminNoteImages((prev) => {
-      const toAdd: PendingAdminNoteImage[] = [];
-      let count = prev.length;
-      for (let i = 0; i < fileList.length; i++) {
-        if (count >= MAX_ADMIN_NOTE_IMAGES) {
-          alert(`You can attach at most ${MAX_ADMIN_NOTE_IMAGES} images`);
-          break;
-        }
-        const file = fileList[i];
-        const mime = (file.type || '').toLowerCase();
-        const nameOk = /\.(jpe?g|png|webp)$/i.test(file.name);
-        if (mime && !allowed.includes(mime) && !nameOk) {
-          alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
-          continue;
-        }
-        if (!mime && !nameOk) {
-          alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
-          continue;
-        }
-        if (file.size > maxBytes) {
-          alert(`${file.name}: each image must be at most ${MAX_ADMIN_NOTE_IMAGE_MB}MB`);
-          continue;
-        }
-        toAdd.push({ file, url: URL.createObjectURL(file) });
-        count++;
+    const validFiles: File[] = [];
+    for (const file of list) {
+      const mime = (file.type || '').toLowerCase();
+      const nameOk = /\.(jpe?g|png|webp)$/i.test(file.name);
+      if (mime && !allowed.includes(mime) && !nameOk) {
+        alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+        continue;
       }
-      if (toAdd.length === 0) return prev;
-      return [...prev, ...toAdd].slice(0, MAX_ADMIN_NOTE_IMAGES);
-    });
+      if (!mime && !nameOk) {
+        alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+        continue;
+      }
+      if (file.size > maxBytes) {
+        alert(`${file.name}: each image must be at most ${MAX_ADMIN_NOTE_IMAGE_MB}MB`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) return;
+
+    const prev = pendingAdminNoteImagesRef.current;
+    const room = MAX_ADMIN_NOTE_IMAGES - prev.length;
+    if (room <= 0) {
+      alert(`You can attach at most ${MAX_ADMIN_NOTE_IMAGES} images`);
+      return;
+    }
+    if (validFiles.length > room) {
+      alert(`You can attach at most ${MAX_ADMIN_NOTE_IMAGES} images`);
+    }
+
+    // Build previews once outside setState (avoids Strict Mode double createObjectURL).
+    const toAdd: PendingAdminNoteImage[] = validFiles.slice(0, room).map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    const next = [...prev, ...toAdd];
+    pendingAdminNoteImagesRef.current = next;
+    setPendingAdminNoteImages(next);
   };
 
   const removePendingAdminNoteImage = (index: number) => {
-    setPendingAdminNoteImages((prev) => {
-      const next = [...prev];
-      const [removed] = next.splice(index, 1);
-      if (removed) URL.revokeObjectURL(removed.url);
-      return next;
-    });
+    const prev = pendingAdminNoteImagesRef.current;
+    if (index < 0 || index >= prev.length) return;
+    const removed = prev[index];
+    const next = prev.filter((_, i) => i !== index);
+    pendingAdminNoteImagesRef.current = next;
+    setPendingAdminNoteImages(next);
+    URL.revokeObjectURL(removed.url);
   };
 
   const clearPendingMedicalProofImage = () => {
@@ -1173,8 +1191,9 @@ export default function StepStatusPage() {
                   multiple
                   className="hidden"
                   onChange={(e) => {
-                    validateAndAppendAdminNoteFiles(e.target.files);
+                    const files = e.target.files ? Array.from(e.target.files) : [];
                     e.target.value = '';
+                    validateAndAppendAdminNoteFiles(files);
                   }}
                 />
                 <button
@@ -1187,7 +1206,7 @@ export default function StepStatusPage() {
                 {pendingAdminNoteImages.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {pendingAdminNoteImages.map((p, idx) => (
-                      <div key={p.url} className="relative group">
+                      <div key={`${p.file.name}-${p.file.size}-${p.file.lastModified}-${idx}`} className="relative group">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={p.url}
