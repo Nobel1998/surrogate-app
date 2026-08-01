@@ -31,8 +31,10 @@ const ADMIN_NOTE_STAGE_LABEL: Record<string, string> = Object.fromEntries(
 
 const MAX_ADMIN_NOTE_IMAGES = 6;
 const MAX_ADMIN_NOTE_IMAGE_MB = 8;
+const MAX_MEDICAL_PROOF_IMAGE_MB = 8;
 
 type PendingAdminNoteImage = { file: File; url: string };
+type PendingMedicalProofImage = { file: File; url: string };
 
 type CaseDetail = {
   id: string;
@@ -95,6 +97,8 @@ export default function StepStatusPage() {
   const [adminNoteStage, setAdminNoteStage] = useState('pre_transfer');
   const [pendingAdminNoteImages, setPendingAdminNoteImages] = useState<PendingAdminNoteImage[]>([]);
   const adminNoteFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingMedicalProofImage, setPendingMedicalProofImage] = useState<PendingMedicalProofImage | null>(null);
+  const medicalProofFileInputRef = useRef<HTMLInputElement | null>(null);
   const [updates, setUpdates] = useState<any[]>([]);
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [obAppointments, setObAppointments] = useState<any[]>([]);
@@ -411,6 +415,38 @@ export default function StepStatusPage() {
     });
   };
 
+  const clearPendingMedicalProofImage = () => {
+    setPendingMedicalProofImage((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  const validateAndSetMedicalProofFile = (fileList: FileList | null) => {
+    if (!fileList?.length) return;
+    const file = fileList[0];
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxBytes = MAX_MEDICAL_PROOF_IMAGE_MB * 1024 * 1024;
+    const mime = (file.type || '').toLowerCase();
+    const nameOk = /\.(jpe?g|png|webp)$/i.test(file.name);
+    if (mime && !allowed.includes(mime) && !nameOk) {
+      alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+      return;
+    }
+    if (!mime && !nameOk) {
+      alert(`${file.name}: only JPG, PNG, or WebP images are allowed`);
+      return;
+    }
+    if (file.size > maxBytes) {
+      alert(`${file.name}: image must be at most ${MAX_MEDICAL_PROOF_IMAGE_MB}MB`);
+      return;
+    }
+    setPendingMedicalProofImage((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { file, url: URL.createObjectURL(file) };
+    });
+  };
+
   const saveAdminUpdate = async () => {
     if (!adminUpdate.trim() && pendingAdminNoteImages.length === 0) {
       alert('Please enter note text or add at least one image');
@@ -494,21 +530,38 @@ export default function StepStatusPage() {
 
     setSavingMedical(true);
     try {
-      const res = await fetch('/api/matches/medical-reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          surrogate_id: caseData.surrogate_id,
-          stage: medicalStage,
-          visit_date: medicalVisitDate,
-          provider_name: medicalProviderName,
-          proof_image_url: null, // Admin basic upload doesn't require proof image for now, or it could be added if needed
-          report_data: {
-            ...medicalReportData,
-            ...(medicalProviderContact.trim() ? { provider_contact: medicalProviderContact.trim() } : {}),
-          },
-        }),
-      });
+      const reportData = {
+        ...medicalReportData,
+        ...(medicalProviderContact.trim() ? { provider_contact: medicalProviderContact.trim() } : {}),
+      };
+
+      let res: Response;
+      if (pendingMedicalProofImage) {
+        const fd = new FormData();
+        fd.append('surrogate_id', caseData.surrogate_id);
+        fd.append('stage', medicalStage);
+        fd.append('visit_date', medicalVisitDate);
+        fd.append('provider_name', medicalProviderName || '');
+        fd.append('report_data', JSON.stringify(reportData));
+        fd.append('proof_image', pendingMedicalProofImage.file);
+        res = await fetch('/api/matches/medical-reports', {
+          method: 'POST',
+          body: fd,
+        });
+      } else {
+        res = await fetch('/api/matches/medical-reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surrogate_id: caseData.surrogate_id,
+            stage: medicalStage,
+            visit_date: medicalVisitDate,
+            provider_name: medicalProviderName,
+            proof_image_url: null,
+            report_data: reportData,
+          }),
+        });
+      }
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -519,6 +572,7 @@ export default function StepStatusPage() {
       setMedicalProviderName('');
       setMedicalProviderContact('');
       setMedicalReportData({});
+      clearPendingMedicalProofImage();
       await loadData();
       alert('Medical check in saved successfully');
     } catch (err: any) {
@@ -1558,6 +1612,50 @@ export default function StepStatusPage() {
                   )}
 
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Upload Clinic Note / Ultrasound Image
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Optional. JPG, PNG, or WebP, up to {MAX_MEDICAL_PROOF_IMAGE_MB}MB.
+                </p>
+                <input
+                  ref={medicalProofFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    validateAndSetMedicalProofFile(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => medicalProofFileInputRef.current?.click()}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 text-gray-800"
+                >
+                  {pendingMedicalProofImage ? 'Change image' : 'Add image'}
+                </button>
+                {pendingMedicalProofImage && (
+                  <div className="mt-3 relative inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={pendingMedicalProofImage.url}
+                      alt="Proof preview"
+                      className="h-32 w-auto max-w-full object-cover rounded-md border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={clearPendingMedicalProofImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="mt-4">

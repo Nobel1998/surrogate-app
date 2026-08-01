@@ -7,6 +7,71 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+export const dynamic = 'force-dynamic';
+
+const STORAGE_BUCKET = 'post-media';
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+
+function sanitizeFilename(name: string): string {
+  const base = name.includes('/') ? name.substring(name.lastIndexOf('/') + 1) : name;
+  const cleaned = base.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+  return cleaned || 'image';
+}
+
+function validateImageFile(file: File): string | null {
+  if (file.size > MAX_IMAGE_BYTES) {
+    return `Each image must be at most ${MAX_IMAGE_BYTES / (1024 * 1024)}MB`;
+  }
+  const mime = (file.type || '').toLowerCase();
+  if (mime && ALLOWED_MIME_TYPES.has(mime)) {
+    return null;
+  }
+  const lower = file.name.toLowerCase();
+  if (/\.(jpe?g|png|webp)$/.test(lower)) {
+    return null;
+  }
+  return 'Only JPG, PNG, and WebP images are allowed';
+}
+
+function buildPublicUrl(storagePath: string) {
+  return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${storagePath}`;
+}
+
+async function uploadProofImage(file: File, surrogateId: string): Promise<string> {
+  const validationError = validateImageFile(file);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  const extMatch = file.name.match(/\.(jpe?g|png|webp)$/i);
+  const ext = extMatch ? extMatch[0].toLowerCase() : '.jpg';
+  const safeName = sanitizeFilename(file.name);
+  const randomStr = Math.random().toString(36).slice(2);
+  let path = `medical-reports/${surrogateId}_${Date.now()}_${randomStr}_${safeName}`;
+  if (!/\.(jpe?g|png|webp)$/i.test(path)) {
+    path += ext;
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, {
+      contentType: file.type || 'image/jpeg',
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message || 'Failed to upload image');
+  }
+
+  return buildPublicUrl(path);
+}
+
 // POST medical report (admin helping surrogate)
 export async function POST(request: NextRequest) {
   try {
@@ -20,10 +85,66 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { surrogate_id, stage, visit_date, provider_name, proof_image_url, report_data } = body;
+    const contentType = request.headers.get('content-type') || '';
+    let surrogate_id: string;
+    let stage: string;
+    let visit_date: string;
+    let provider_name: string | null = null;
+    let proof_image_url: string | null = null;
+    let report_data: Record<string, any> = {};
+    let uploadedPath: string | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData();
+      surrogate_id = String(form.get('surrogate_id') || '').trim();
+      stage = String(form.get('stage') || '').trim();
+      visit_date = String(form.get('visit_date') || '').trim();
+      provider_name = String(form.get('provider_name') || '').trim() || null;
+
+      const reportDataRaw = form.get('report_data');
+      if (typeof reportDataRaw === 'string' && reportDataRaw.trim()) {
+        try {
+          report_data = JSON.parse(reportDataRaw);
+        } catch {
+          return NextResponse.json(
+            { error: 'Invalid report_data JSON' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const proofFile = form.get('proof_image');
+      if (proofFile instanceof File && proofFile.size > 0) {
+        try {
+          proof_image_url = await uploadProofImage(proofFile, surrogate_id);
+          const pathMatch = proof_image_url.match(
+            /\/storage\/v1\/object\/public\/post-media\/(.+)$/
+          );
+          uploadedPath = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+        } catch (uploadErr: any) {
+          return NextResponse.json(
+            { error: uploadErr.message || 'Failed to upload image' },
+            { status: 400 }
+          );
+        }
+      } else {
+        const urlFromForm = String(form.get('proof_image_url') || '').trim();
+        proof_image_url = urlFromForm || null;
+      }
+    } else {
+      const body = await request.json();
+      surrogate_id = body.surrogate_id;
+      stage = body.stage;
+      visit_date = body.visit_date;
+      provider_name = body.provider_name || null;
+      proof_image_url = body.proof_image_url || null;
+      report_data = body.report_data || {};
+    }
 
     if (!surrogate_id || !stage || !visit_date) {
+      if (uploadedPath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath]);
+      }
       return NextResponse.json(
         { error: 'Surrogate ID, stage, and visit date are required' },
         { status: 400 }
@@ -46,6 +167,9 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Error inserting medical report:', insertError);
+      if (uploadedPath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath]);
+      }
       return NextResponse.json(
         { error: 'Failed to create medical report', details: insertError.message },
         { status: 500 }
