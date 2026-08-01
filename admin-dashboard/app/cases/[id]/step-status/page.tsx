@@ -850,9 +850,15 @@ export default function StepStatusPage() {
                     ) : (
                       <div className="space-y-2">
                         {latestReports.map((r) => {
-                          const reportData = r.report_data || {};
+                          const reportData = parseMedicalReportData(r.report_data);
                           const visitDate = formatDateOnly(r.visit_date);
                           let keyMetrics: string[] = [];
+                          const noteText = String(
+                            reportData.notes ||
+                              reportData.note ||
+                              reportData.additional_notes ||
+                              ''
+                          ).trim();
                           
                           if (r.stage === 'Pre-Transfer') {
                             if (reportData.endometrial_thickness) keyMetrics.push(`Endometrial: ${reportData.endometrial_thickness}mm`);
@@ -881,6 +887,12 @@ export default function StepStatusPage() {
                                   {keyMetrics.join(' · ')}
                                 </div>
                               )}
+                              {noteText ? (
+                                <div className="text-xs text-amber-900 mt-1 bg-amber-50 border border-amber-100 rounded px-1.5 py-1 whitespace-pre-wrap">
+                                  <span className="font-semibold">Notes: </span>
+                                  {noteText.length > 120 ? `${noteText.slice(0, 120)}…` : noteText}
+                                </div>
+                              ) : null}
                               <div className="flex items-center gap-2 mt-1">
                                 {r.proof_image_url && (
                                   <a
@@ -1776,6 +1788,48 @@ export default function StepStatusPage() {
   );
 }
 
+function parseMedicalReportData(raw: any): Record<string, any> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  return {};
+}
+
+function hasMedicalReportValue(val: any): boolean {
+  if (val === null || val === undefined || val === '') return false;
+  if (Array.isArray(val)) return val.length > 0;
+  if (typeof val === 'string') return val.trim() !== '';
+  return true;
+}
+
+function formatMedicalReportValue(value: any): string {
+  if (Array.isArray(value)) {
+    const valLabels: Record<string, string> = {
+      estradiol: 'Estradiol',
+      progesterone: 'Progesterone',
+      fsh: 'FSH',
+      lh: 'LH',
+      beta_hgc: 'β-hCG test',
+      tsh: 'TSH',
+      labcorp: 'Labcorp',
+      ivf_clinic: 'IVF clinic',
+      others: 'Others',
+    };
+    return value.map((v) => valLabels[String(v)] || String(v)).join(', ');
+  }
+  if (typeof value === 'object' && value !== null) {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
 const renderMedicalReportDetailModal = (
   report: any,
   onClose: () => void,
@@ -1819,6 +1873,8 @@ const renderMedicalReportDetailModal = (
     urine_test_results: 'Urine Test Results',
     other_concerns: 'Other Concerns',
     notes: 'Notes',
+    note: 'Notes',
+    additional_notes: 'Additional Notes',
     nt_screen_normal: 'NT Screen Normal',
     nt_screen_test_date: 'NT Screen Test Date',
     quad_screen_normal: 'Quad Screen Normal',
@@ -1833,10 +1889,27 @@ const renderMedicalReportDetailModal = (
     nipt_cvs_amniocentesis_test_date: 'NIPT/CVS/Amniocentesis Test Date',
   };
 
-  const reportData = report.report_data || {};
-  const dataKeys = Object.keys(reportData).filter(key => {
-    const val = reportData[key];
-    return val !== null && val !== undefined && val !== '';
+  const reportData = parseMedicalReportData(report.report_data);
+  const noteKeys = ['notes', 'note', 'additional_notes', 'questions_for_team', 'other_concerns'];
+  const noteEntries = noteKeys
+    .filter((key) => hasMedicalReportValue(reportData[key]))
+    .map((key) => ({
+      key,
+      label: reportDataLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+      value: formatMedicalReportValue(reportData[key]),
+    }));
+  // Deduplicate identical note text shown under multiple keys
+  const seenNoteText = new Set<string>();
+  const uniqueNoteEntries = noteEntries.filter((entry) => {
+    const normalized = entry.value.trim();
+    if (seenNoteText.has(normalized)) return false;
+    seenNoteText.add(normalized);
+    return true;
+  });
+
+  const dataKeys = Object.keys(reportData).filter((key) => {
+    if (key === 'provider_contact' || noteKeys.includes(key)) return false;
+    return hasMedicalReportValue(reportData[key]);
   });
 
   return (
@@ -1863,13 +1936,36 @@ const renderMedicalReportDetailModal = (
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Provider</span>
                 <span className="block text-sm font-medium text-gray-900 mt-1">{report.provider_name || '—'}</span>
               </div>
-              {reportData.provider_contact && (
+              {hasMedicalReportValue(reportData.provider_contact) && (
                 <div>
                   <span className="block text-xs font-semibold text-gray-500 uppercase">Provider Contact</span>
-                  <span className="block text-sm font-medium text-gray-900 mt-1">{reportData.provider_contact}</span>
+                  <span className="block text-sm font-medium text-gray-900 mt-1">{String(reportData.provider_contact)}</span>
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="font-semibold text-md text-gray-800 border-b border-gray-200 pb-2 mb-3">Notes</h4>
+            {uniqueNoteEntries.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No notes provided.</p>
+            ) : (
+              <div className="space-y-3">
+                {uniqueNoteEntries.map((entry) => (
+                  <div
+                    key={entry.key}
+                    className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                  >
+                    {uniqueNoteEntries.length > 1 && (
+                      <span className="block text-xs font-semibold text-amber-800 uppercase mb-1">
+                        {entry.label}
+                      </span>
+                    )}
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{entry.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <h4 className="font-semibold text-md text-gray-800 border-b border-gray-200 pb-2 mb-4">Report Data</h4>
@@ -1878,18 +1974,9 @@ const renderMedicalReportDetailModal = (
             <p className="text-sm text-gray-500 italic">No additional report data provided.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              {dataKeys.filter(k => k !== 'provider_contact').map((key) => {
-                let value = reportData[key];
-                if (Array.isArray(value)) {
-                  const valLabels: Record<string, string> = {
-                    estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test', tsh: 'TSH',
-                    labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
-                  };
-                  value = value.map(v => valLabels[v as string] || v).join(', ');
-                } else if (typeof value === 'object') {
-                  value = JSON.stringify(value);
-                }
-                const label = reportDataLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              {dataKeys.map((key) => {
+                const value = formatMedicalReportValue(reportData[key]);
+                const label = reportDataLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
                 
                 return (
                   <div key={key} className="break-words">
