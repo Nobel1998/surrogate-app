@@ -114,7 +114,7 @@ export default function MedicalReportFormScreen({ route }) {
           style={styles.input}
           value={formData.next_appointment_time || ''}
           onChangeText={(value) => handleFieldChange('next_appointment_time', value)}
-          placeholder="e.g. 09:00 or 2:30 pm"
+          placeholder={t('medicalReport.nextCheckTimePlaceholder')}
           placeholderTextColor="#94A3B8"
           autoCapitalize="none"
         />
@@ -942,34 +942,46 @@ export default function MedicalReportFormScreen({ route }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('medicalReport.screeningTests')}</Text>
-          {screeningTests.map((test) => (
-            <View key={test.key} style={styles.screeningTestRow}>
-              <Text style={styles.sectionLabel}>{test.label}</Text>
-              <View style={styles.screeningTestControls}>
-                <View style={styles.radioGroup}>
-                  <TouchableOpacity
-                    style={[styles.radioButton, formData[`${test.key}_normal`] === 'yes' && styles.radioButtonSelected]}
-                    onPress={() => handleFieldChange(`${test.key}_normal`, 'yes')}
-                  >
-                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'yes' && styles.radioTextSelected]}>{t('medicalReport.yes')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.radioButton, formData[`${test.key}_normal`] === 'no' && styles.radioButtonSelected]}
-                    onPress={() => handleFieldChange(`${test.key}_normal`, 'no')}
-                  >
-                    <Text style={[styles.radioText, formData[`${test.key}_normal`] === 'no' && styles.radioTextSelected]}>{t('medicalReport.no')}</Text>
-                  </TouchableOpacity>
+          {screeningTests.map((test) => {
+            const normalValue = formData[`${test.key}_normal`];
+            const showTestDate = normalValue !== 'no';
+            return (
+              <View key={test.key} style={styles.screeningTestRow}>
+                <Text style={styles.sectionLabel}>{test.label}</Text>
+                <View style={styles.screeningTestControls}>
+                  <View style={styles.radioGroup}>
+                    <TouchableOpacity
+                      style={[styles.radioButton, normalValue === 'yes' && styles.radioButtonSelected]}
+                      onPress={() => handleFieldChange(`${test.key}_normal`, 'yes')}
+                    >
+                      <Text style={[styles.radioText, normalValue === 'yes' && styles.radioTextSelected]}>{t('medicalReport.yes')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.radioButton, normalValue === 'no' && styles.radioButtonSelected]}
+                      onPress={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [`${test.key}_normal`]: 'no',
+                          [`${test.key}_test_date`]: '',
+                        }));
+                      }}
+                    >
+                      <Text style={[styles.radioText, normalValue === 'no' && styles.radioTextSelected]}>{t('medicalReport.no')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {showTestDate ? (
+                    <DatePickerField
+                      style={[styles.input, { flex: 1, marginLeft: 12 }]}
+                      value={formData[`${test.key}_test_date`] || ''}
+                      onChange={(value) => handleFieldChange(`${test.key}_test_date`, value)}
+                      format="MM-DD-YYYY"
+                      placeholder={t('medicalReport.testDate')}
+                    />
+                  ) : null}
                 </View>
-                <DatePickerField
-                  style={[styles.input, { flex: 1, marginLeft: 12 }]}
-                  value={formData[`${test.key}_test_date`] || ''}
-                  onChange={(value) => handleFieldChange(`${test.key}_test_date`, value)}
-                  format="MM-DD-YYYY"
-                  placeholder={t('medicalReport.testDate')}
-                />
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.section}>

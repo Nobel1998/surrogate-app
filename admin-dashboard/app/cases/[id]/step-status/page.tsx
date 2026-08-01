@@ -1830,33 +1830,45 @@ export default function StepStatusPage() {
                             { key: 'glucose_screening', label: 'Glucose Screening Normal' },
                             { key: 'gbs_testing', label: 'GBS Testing Normal' },
                             { key: 'nipt_cvs_amniocentesis', label: 'NIPT/CVS/Amniocentesis Normal (not required)' },
-                          ].map((test) => (
-                            <div key={test.key} className="flex flex-wrap items-center gap-3 p-2 bg-gray-50 rounded-md">
-                              <span className="text-sm font-medium text-gray-700 w-48 shrink-0">{test.label}</span>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMedicalReportDataChange(`${test.key}_normal`, 'yes')}
-                                  className={`px-3 py-1.5 rounded-full border text-sm font-medium ${medicalReportData[`${test.key}_normal`] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
-                                >
-                                  Yes
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMedicalReportDataChange(`${test.key}_normal`, 'no')}
-                                  className={`px-3 py-1.5 rounded-full border text-sm font-medium ${medicalReportData[`${test.key}_normal`] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
-                                >
-                                  No
-                                </button>
+                          ].map((test) => {
+                            const normalValue = medicalReportData[`${test.key}_normal`];
+                            const showTestDate = normalValue !== 'no';
+                            return (
+                              <div key={test.key} className="flex flex-wrap items-center gap-3 p-2 bg-gray-50 rounded-md">
+                                <span className="text-sm font-medium text-gray-700 w-48 shrink-0">{test.label}</span>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMedicalReportDataChange(`${test.key}_normal`, 'yes')}
+                                    className={`px-3 py-1.5 rounded-full border text-sm font-medium ${normalValue === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
+                                  >
+                                    Yes
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMedicalReportData((prev: any) => ({
+                                        ...prev,
+                                        [`${test.key}_normal`]: 'no',
+                                        [`${test.key}_test_date`]: '',
+                                      }));
+                                    }}
+                                    className={`px-3 py-1.5 rounded-full border text-sm font-medium ${normalValue === 'no' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-500'}`}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                                {showTestDate ? (
+                                  <DateInput
+                                    value={medicalReportData[`${test.key}_test_date`] || ''}
+                                    onChange={(next) => handleMedicalReportDataChange(`${test.key}_test_date`, next)}
+                                    format="MM-DD-YYYY"
+                                    className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                  />
+                                ) : null}
                               </div>
-                              <DateInput
-                                value={medicalReportData[`${test.key}_test_date`] || ''}
-                                onChange={(next) => handleMedicalReportDataChange(`${test.key}_test_date`, next)}
-                                format="MM-DD-YYYY"
-                                className="flex-1 min-w-[140px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                              />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1906,7 +1918,7 @@ export default function StepStatusPage() {
                           type="text"
                           value={medicalReportData.next_appointment_time || ''}
                           onChange={(e) => handleMedicalReportDataChange('next_appointment_time', e.target.value)}
-                          placeholder="e.g. 09:00 or 2:30 pm (default 9:00 AM)"
+                          placeholder="e.g. 9:00 am or 2:30 pm (default 9:00 am)"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
