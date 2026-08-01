@@ -124,8 +124,8 @@ export default function Home() {
   const [editingApp, setEditingApp] = useState<any | null>(null);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
   const [editJsonDrafts, setEditJsonDrafts] = useState<Record<string, string>>({});
-  const [editFieldFilter, setEditFieldFilter] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isEditingApplication, setIsEditingApplication] = useState(false);
 
   // 解析 Surrogate 申请数据的辅助函数
   const parseSurrogateApplicationData = (app: any, profile?: any) => {
@@ -461,9 +461,10 @@ export default function Home() {
       }
     }
     setEditingApp(app);
+    setSelectedApp(app);
     setEditFormData(formData);
     setEditJsonDrafts({});
-    setEditFieldFilter('');
+    setIsEditingApplication(true);
   };
 
   const updateEditField = (key: string, value: any) => {
@@ -510,8 +511,10 @@ export default function Home() {
         if (!res.ok) throw new Error(data.error || 'Failed to save');
       }
       setEditingApp(null);
+      setIsEditingApplication(false);
       setEditFormData({});
       setEditJsonDrafts({});
+      setSelectedApp(null);
       await loadApplications();
     } catch (err: any) {
       alert(err.message || 'Failed to save application');
@@ -637,6 +640,93 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const readField = (key: string, aliases: string[] = []) => {
+    if (isEditingApplication) {
+      for (const k of [key, ...aliases]) {
+        if (editFormData[k] !== undefined) return editFormData[k];
+      }
+    }
+    for (const k of [key, ...aliases]) {
+      if (selectedApp?.[k] !== undefined && selectedApp?.[k] !== null && selectedApp?.[k] !== '') return selectedApp[k];
+    }
+    return selectedApp?.[key];
+  };
+
+  const renderTextField = (label: string, key: string, opts?: { multiline?: boolean; className?: string; aliases?: string[] }) => {
+    const raw = readField(key, opts?.aliases);
+    const display = raw === true ? 'Yes' : raw === false ? 'No' : (raw == null || raw === '' ? 'N/A' : String(raw));
+    return (
+      <div className={opts?.className}>
+        <label className="block text-sm font-medium text-gray-500">{label}</label>
+        {isEditingApplication ? (
+          opts?.multiline ? (
+            <textarea
+              value={raw == null ? '' : String(raw)}
+              onChange={(e) => updateEditField(key, e.target.value)}
+              rows={4}
+              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+            />
+          ) : (
+            <input
+              type="text"
+              value={raw == null ? '' : String(raw)}
+              onChange={(e) => updateEditField(key, e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+            />
+          )
+        ) : (
+          <p className={`text-sm text-gray-900${opts?.multiline ? ' whitespace-pre-wrap' : ''}`}>{display}</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderBoolField = (label: string, key: string, opts?: { className?: string; aliases?: string[] }) => {
+    const raw = readField(key, opts?.aliases);
+    return (
+      <div className={opts?.className}>
+        <label className="block text-sm font-medium text-gray-500">{label}</label>
+        {isEditingApplication ? (
+          <select
+            value={raw === true ? 'true' : raw === false ? 'false' : ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              updateEditField(key, v === '' ? null : v === 'true');
+            }}
+            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+          >
+            <option value="">N/A</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        ) : (
+          <p className="text-sm text-gray-900">{raw === true ? 'Yes' : raw === false ? 'No' : 'N/A'}</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderJsonField = (label: string, key: string, opts?: { className?: string; aliases?: string[] }) => {
+    const raw = readField(key, opts?.aliases);
+    return (
+      <div className={opts?.className}>
+        <label className="block text-sm font-medium text-gray-500">{label}</label>
+        {isEditingApplication ? (
+          <textarea
+            value={editJsonDrafts[key] ?? JSON.stringify(raw ?? null, null, 2)}
+            onChange={(e) => setEditJsonDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
+            rows={6}
+            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-xs font-mono bg-white"
+          />
+        ) : (
+          <p className="text-sm text-gray-900 whitespace-pre-wrap">
+            {raw == null || raw === '' ? 'N/A' : typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)}
+          </p>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -939,11 +1029,18 @@ export default function Home() {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Application Details - {selectedApp.full_name}
-                </h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {isEditingApplication ? 'Edit Application' : 'Application Details'} - {selectedApp.full_name}
+                  </h2>
+                  {isEditingApplication && (
+                    <p className="mt-1 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1 inline-block">
+                      ✏️ Editing — only admins can save changes
+                    </p>
+                  )}
+                </div>
                 <button
-                  onClick={() => setSelectedApp(null)}
+                  onClick={() => { setSelectedApp(null); setIsEditingApplication(false); setEditFormData({}); setEditJsonDrafts({}); setEditingApp(null); }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1006,14 +1103,8 @@ export default function Home() {
                     <div className="bg-blue-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👨‍👩‍👧 Step 1: Family Structure & Basic Information</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Family Structure</label>
-                          <p className="text-sm text-gray-900">{selectedApp.familyStructure || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>
-                          <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
-                        </div>
+                        {renderTextField('Family Structure', 'familyStructure')}
+                        {renderTextField('How Did You Hear About Us', 'hearAboutUs')}
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                           <p className="text-sm text-gray-900">
@@ -1030,7 +1121,12 @@ export default function Home() {
                       <h3 className="text-lg font-medium text-green-900 mb-4">👤 Intended Parent 1</h3>
                       
                       {/* Intended Parent Photos (up to 4) */}
-                      {selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 && (
+                      {isEditingApplication ? (
+                        <div className="mb-6">
+                          {renderJsonField('Intended Parent Photos (JSON URLs)', 'photos')}
+                          {renderTextField('Photo URL (legacy)', 'photoUrl', { className: 'mt-3' })}
+                        </div>
+                      ) : selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 ? (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photos ({selectedApp.photos.length} photos)</label>
                           <div className="grid grid-cols-3 gap-4">
@@ -1056,9 +1152,9 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
-                      )}
+                      ) : null}
                       {/* Backward compatibility: single photoUrl */}
-                      {(!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
+                      {!isEditingApplication && (!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Intended Parent Photo</label>
                           <div className="relative">
@@ -1082,132 +1178,116 @@ export default function Home() {
                       )}
                       
                       <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">First Name</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1FirstName || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Last Name</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1LastName || 'N/A'}</p>
-                        </div>
+                        {renderTextField('First Name', 'parent1FirstName')}
+                        {renderTextField('Last Name', 'parent1LastName')}
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Date of Birth</label>
-                          <p className="text-sm text-gray-900">
-                            {selectedApp.parent1DateOfBirthMonth && selectedApp.parent1DateOfBirthDay && selectedApp.parent1DateOfBirthYear
-                              ? `${selectedApp.parent1DateOfBirthMonth}/${selectedApp.parent1DateOfBirthDay}/${selectedApp.parent1DateOfBirthYear}`
-                              : 'N/A'}
-                          </p>
+                          {isEditingApplication ? (
+                            <div className="grid grid-cols-3 gap-1 mt-1">
+                              <input type="text" placeholder="MM" value={editFormData.parent1DateOfBirthMonth ?? ''} onChange={(e) => updateEditField('parent1DateOfBirthMonth', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              <input type="text" placeholder="DD" value={editFormData.parent1DateOfBirthDay ?? ''} onChange={(e) => updateEditField('parent1DateOfBirthDay', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              <input type="text" placeholder="YYYY" value={editFormData.parent1DateOfBirthYear ?? ''} onChange={(e) => updateEditField('parent1DateOfBirthYear', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {selectedApp.parent1DateOfBirthMonth && selectedApp.parent1DateOfBirthDay && selectedApp.parent1DateOfBirthYear
+                                ? `${selectedApp.parent1DateOfBirthMonth}/${selectedApp.parent1DateOfBirthDay}/${selectedApp.parent1DateOfBirthYear}`
+                                : 'N/A'}
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Gender</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1Gender || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Blood Type</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1BloodType || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Citizenship</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1Citizenship || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Country/State of Residence</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1CountryState || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Occupation</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1Occupation || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Languages</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1Languages || 'N/A'}</p>
-                        </div>
+                        {renderTextField('Gender', 'parent1Gender')}
+                        {renderTextField('Blood Type', 'parent1BloodType')}
+                        {renderTextField('Citizenship', 'parent1Citizenship')}
+                        {renderTextField('Country/State of Residence', 'parent1CountryState')}
+                        {renderTextField('Occupation', 'parent1Occupation')}
+                        {renderTextField('Languages', 'parent1Languages')}
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Phone</label>
+                          {isEditingApplication ? (
+                            <div className="grid grid-cols-3 gap-1 mt-1">
+                              <input type="text" placeholder="+Code" value={editFormData.parent1PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent1PhoneCountryCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              <input type="text" placeholder="Area" value={editFormData.parent1PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent1PhoneAreaCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              <input type="text" placeholder="Number" value={editFormData.parent1PhoneNumber ?? ''} onChange={(e) => updateEditField('parent1PhoneNumber', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {selectedApp.parent1PhoneCountryCode && selectedApp.parent1PhoneAreaCode && selectedApp.parent1PhoneNumber
+                                ? `+${selectedApp.parent1PhoneCountryCode} (${selectedApp.parent1PhoneAreaCode}) ${selectedApp.parent1PhoneNumber}`
+                                : selectedApp.parent1PhoneNumber || 'N/A'}
+                            </p>
+                          )}
+                        </div>
+                        {renderTextField('Email', 'parent1Email')}
+                        {renderTextField('Emergency Contact', 'parent1EmergencyContact')}
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-4">
+                        {renderTextField('Address Street', 'parent1AddressStreet')}
+                        {renderTextField('Address Street 2', 'parent1AddressStreet2')}
+                        {renderTextField('City', 'parent1AddressCity')}
+                        {renderTextField('State', 'parent1AddressState')}
+                        {renderTextField('ZIP', 'parent1AddressZip')}
+                      </div>
+                      {!isEditingApplication && (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-gray-500">Address (Full)</label>
                           <p className="text-sm text-gray-900">
-                            {selectedApp.parent1PhoneCountryCode && selectedApp.parent1PhoneAreaCode && selectedApp.parent1PhoneNumber
-                              ? `+${selectedApp.parent1PhoneCountryCode} (${selectedApp.parent1PhoneAreaCode}) ${selectedApp.parent1PhoneNumber}`
-                              : selectedApp.parent1PhoneNumber || 'N/A'}
+                            {selectedApp.parent1AddressStreet || 'N/A'}
+                            {selectedApp.parent1AddressStreet2 && `, ${selectedApp.parent1AddressStreet2}`}
+                            {selectedApp.parent1AddressCity && `, ${selectedApp.parent1AddressCity}`}
+                            {selectedApp.parent1AddressState && `, ${selectedApp.parent1AddressState}`}
+                            {selectedApp.parent1AddressZip && ` ${selectedApp.parent1AddressZip}`}
                           </p>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Email</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1Email || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Emergency Contact</label>
-                          <p className="text-sm text-gray-900">{selectedApp.parent1EmergencyContact || 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-500">Address</label>
-                        <p className="text-sm text-gray-900">
-                          {selectedApp.parent1AddressStreet || 'N/A'}
-                          {selectedApp.parent1AddressStreet2 && `, ${selectedApp.parent1AddressStreet2}`}
-                          {selectedApp.parent1AddressCity && `, ${selectedApp.parent1AddressCity}`}
-                          {selectedApp.parent1AddressState && `, ${selectedApp.parent1AddressState}`}
-                          {selectedApp.parent1AddressZip && ` ${selectedApp.parent1AddressZip}`}
-                        </p>
-                      </div>
+                      )}
                     </div>
 
                     {/* Intended Parent 2 */}
-                    {(selectedApp.parent2FirstName || selectedApp.parent2LastName) && (
+                    {(selectedApp.parent2FirstName || selectedApp.parent2LastName || isEditingApplication) && (
                       <div className="bg-purple-50 rounded-lg p-4">
                         <h3 className="text-lg font-medium text-purple-900 mb-4">👤 Intended Parent 2</h3>
                         <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">First Name</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2FirstName || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Last Name</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2LastName || 'N/A'}</p>
-                          </div>
+                          {renderTextField('First Name', 'parent2FirstName')}
+                          {renderTextField('Last Name', 'parent2LastName')}
                           <div>
                             <label className="block text-sm font-medium text-gray-500">Date of Birth</label>
-                            <p className="text-sm text-gray-900">
-                              {selectedApp.parent2DateOfBirthMonth && selectedApp.parent2DateOfBirthDay && selectedApp.parent2DateOfBirthYear
-                                ? `${selectedApp.parent2DateOfBirthMonth}/${selectedApp.parent2DateOfBirthDay}/${selectedApp.parent2DateOfBirthYear}`
-                                : 'N/A'}
-                            </p>
+                            {isEditingApplication ? (
+                              <div className="grid grid-cols-3 gap-1 mt-1">
+                                <input type="text" placeholder="MM" value={editFormData.parent2DateOfBirthMonth ?? ''} onChange={(e) => updateEditField('parent2DateOfBirthMonth', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                <input type="text" placeholder="DD" value={editFormData.parent2DateOfBirthDay ?? ''} onChange={(e) => updateEditField('parent2DateOfBirthDay', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                <input type="text" placeholder="YYYY" value={editFormData.parent2DateOfBirthYear ?? ''} onChange={(e) => updateEditField('parent2DateOfBirthYear', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-900">
+                                {selectedApp.parent2DateOfBirthMonth && selectedApp.parent2DateOfBirthDay && selectedApp.parent2DateOfBirthYear
+                                  ? `${selectedApp.parent2DateOfBirthMonth}/${selectedApp.parent2DateOfBirthDay}/${selectedApp.parent2DateOfBirthYear}`
+                                  : 'N/A'}
+                              </p>
+                            )}
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Gender</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2Gender || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Blood Type</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2BloodType || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Citizenship</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2Citizenship || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Country/State of Residence</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2CountryState || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Occupation</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2Occupation || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Languages</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2Languages || 'N/A'}</p>
-                          </div>
+                          {renderTextField('Gender', 'parent2Gender')}
+                          {renderTextField('Blood Type', 'parent2BloodType')}
+                          {renderTextField('Citizenship', 'parent2Citizenship')}
+                          {renderTextField('Country/State of Residence', 'parent2CountryState')}
+                          {renderTextField('Occupation', 'parent2Occupation')}
+                          {renderTextField('Languages', 'parent2Languages')}
                           <div>
                             <label className="block text-sm font-medium text-gray-500">Phone</label>
-                            <p className="text-sm text-gray-900">
-                              {selectedApp.parent2PhoneCountryCode && selectedApp.parent2PhoneAreaCode && selectedApp.parent2PhoneNumber
-                                ? `+${selectedApp.parent2PhoneCountryCode} (${selectedApp.parent2PhoneAreaCode}) ${selectedApp.parent2PhoneNumber}`
-                                : selectedApp.parent2PhoneNumber || 'N/A'}
-                            </p>
+                            {isEditingApplication ? (
+                              <div className="grid grid-cols-3 gap-1 mt-1">
+                                <input type="text" placeholder="+Code" value={editFormData.parent2PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent2PhoneCountryCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                <input type="text" placeholder="Area" value={editFormData.parent2PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent2PhoneAreaCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                <input type="text" placeholder="Number" value={editFormData.parent2PhoneNumber ?? ''} onChange={(e) => updateEditField('parent2PhoneNumber', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-900">
+                                {selectedApp.parent2PhoneCountryCode && selectedApp.parent2PhoneAreaCode && selectedApp.parent2PhoneNumber
+                                  ? `+${selectedApp.parent2PhoneCountryCode} (${selectedApp.parent2PhoneAreaCode}) ${selectedApp.parent2PhoneNumber}`
+                                  : selectedApp.parent2PhoneNumber || 'N/A'}
+                              </p>
+                            )}
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Email</label>
-                            <p className="text-sm text-gray-900">{selectedApp.parent2Email || 'N/A'}</p>
-                          </div>
+                          {renderTextField('Email', 'parent2Email')}
                         </div>
                       </div>
                     )}
@@ -1216,19 +1296,10 @@ export default function Home() {
                     <div className="bg-pink-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-pink-900 mb-4">👨‍👩‍👧‍👦 Step 3: Family Background</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">How Long Have You Been Together</label>
-                          <p className="text-sm text-gray-900">{selectedApp.howLongTogether || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Have Any Children</label>
-                          <p className="text-sm text-gray-900">{selectedApp.haveChildren === true ? 'Yes' : selectedApp.haveChildren === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        {selectedApp.haveChildren && (
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-500">Children Details</label>
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.childrenDetails || 'N/A'}</p>
-                          </div>
+                        {renderTextField('How Long Have You Been Together', 'howLongTogether')}
+                        {renderBoolField('Do You Have Any Children', 'haveChildren')}
+                        {(selectedApp.haveChildren || isEditingApplication) && (
+                          renderTextField('Children Details', 'childrenDetails', { multiline: true, className: 'col-span-2' })
                         )}
                       </div>
                     </div>
@@ -1239,56 +1310,27 @@ export default function Home() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Reason for Pursuing Surrogacy</label>
-                          <p className="text-sm text-gray-900">
-                            {Array.isArray(selectedApp.reasonForSurrogacy) 
-                              ? selectedApp.reasonForSurrogacy.join(', ') 
-                              : selectedApp.reasonForSurrogacy || 'N/A'}
-                          </p>
+                          {isEditingApplication ? (
+                            <input type="text" value={editFormData.reasonForSurrogacy == null ? '' : Array.isArray(editFormData.reasonForSurrogacy) ? editFormData.reasonForSurrogacy.join(', ') : String(editFormData.reasonForSurrogacy)} onChange={(e) => updateEditField('reasonForSurrogacy', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {Array.isArray(selectedApp.reasonForSurrogacy)
+                                ? selectedApp.reasonForSurrogacy.join(', ')
+                                : selectedApp.reasonForSurrogacy || 'N/A'}
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Have You Undergone IVF</label>
-                          <p className="text-sm text-gray-900">{selectedApp.undergoneIVF === true ? 'Yes' : selectedApp.undergoneIVF === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Need Donor Eggs</label>
-                          <p className="text-sm text-gray-900">{selectedApp.needDonorEggs === true ? 'Yes' : selectedApp.needDonorEggs === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Need Donor Sperm</label>
-                          <p className="text-sm text-gray-900">{selectedApp.needDonorSperm === true ? 'Yes' : selectedApp.needDonorSperm === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Currently Have Embryos</label>
-                          <p className="text-sm text-gray-900">{selectedApp.haveEmbryos === true ? 'Yes' : selectedApp.haveEmbryos === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Number of Embryos</label>
-                          <p className="text-sm text-gray-900">{selectedApp.numberOfEmbryos || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">PGT-A Tested</label>
-                          <p className="text-sm text-gray-900">{selectedApp.pgtATested === true ? 'Yes' : selectedApp.pgtATested === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Embryo Development Day</label>
-                          <p className="text-sm text-gray-900">{selectedApp.embryoDevelopmentDay || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Frozen at Which Clinic</label>
-                          <p className="text-sm text-gray-900">{selectedApp.frozenAtClinic || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Clinic Email</label>
-                          <p className="text-sm text-gray-900">{selectedApp.clinicEmail || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Fertility Doctor Name</label>
-                          <p className="text-sm text-gray-900">{selectedApp.fertilityDoctorName || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">HIV/Hepatitis/STD Status</label>
-                          <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.hivHepatitisStdStatus || 'N/A'}</p>
-                        </div>
+                        {renderBoolField('Have You Undergone IVF', 'undergoneIVF')}
+                        {renderBoolField('Do You Need Donor Eggs', 'needDonorEggs')}
+                        {renderBoolField('Do You Need Donor Sperm', 'needDonorSperm')}
+                        {renderBoolField('Do You Currently Have Embryos', 'haveEmbryos')}
+                        {renderTextField('Number of Embryos', 'numberOfEmbryos')}
+                        {renderBoolField('PGT-A Tested', 'pgtATested')}
+                        {renderTextField('Embryo Development Day', 'embryoDevelopmentDay')}
+                        {renderTextField('Frozen at Which Clinic', 'frozenAtClinic')}
+                        {renderTextField('Clinic Email', 'clinicEmail')}
+                        {renderTextField('Fertility Doctor Name', 'fertilityDoctorName')}
+                        {renderTextField('HIV/Hepatitis/STD Status', 'hivHepatitisStdStatus', { multiline: true })}
                       </div>
                     </div>
 
@@ -1296,66 +1338,40 @@ export default function Home() {
                     <div className="bg-indigo-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-indigo-900 mb-4">💝 Step 5: Surrogate Preferences</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Preferred Surrogate Age Range</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferredSurrogateAgeRange || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Surrogate Location Preference</label>
-                          <p className="text-sm text-gray-900">{selectedApp.surrogateLocationPreference || 'N/A'}</p>
-                        </div>
-                        {selectedApp.surrogateLocationPreference === 'specific_states' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Specific States</label>
-                            <p className="text-sm text-gray-900">{selectedApp.specificStates || 'N/A'}</p>
-                          </div>
-                        )}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Accept Surrogate with Previous C-sections</label>
-                          <p className="text-sm text-gray-900">{selectedApp.acceptPreviousCsection === true ? 'Yes' : selectedApp.acceptPreviousCsection === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who Does Not Work During Pregnancy</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferNoWorkDuringPregnancy === true ? 'Yes' : selectedApp.preferNoWorkDuringPregnancy === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate with Stable Home Environment</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferStableHome === true ? 'Yes' : selectedApp.preferStableHome === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate with Flexible Schedule</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferFlexibleSchedule === true ? 'Yes' : selectedApp.preferFlexibleSchedule === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Have Diet Preference During Pregnancy</label>
-                          <p className="text-sm text-gray-900">{selectedApp.dietPreferenceYes === true ? 'Yes' : selectedApp.dietPreferenceYes === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        {selectedApp.dietPreferenceYes && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-500">Diet Preference</label>
-                            <p className="text-sm text-gray-900">{selectedApp.dietPreference || 'N/A'}</p>
-                          </div>
-                        )}
+                        {renderTextField('Preferred Surrogate Age Range', 'preferredSurrogateAgeRange')}
+                        {renderTextField('Surrogate Location Preference', 'surrogateLocationPreference')}
+                        {(selectedApp.surrogateLocationPreference === 'specific_states' || isEditingApplication) && renderTextField('Specific States', 'specificStates')}
+                        {renderBoolField('Accept Surrogate with Previous C-sections', 'acceptPreviousCsection')}
+                        {renderBoolField('Prefer Surrogate Who Does Not Work During Pregnancy', 'preferNoWorkDuringPregnancy')}
+                        {renderBoolField('Prefer Surrogate with Stable Home Environment', 'preferStableHome')}
+                        {renderBoolField('Prefer Surrogate with Flexible Schedule', 'preferFlexibleSchedule')}
+                        {renderBoolField('Do You Have Diet Preference During Pregnancy', 'dietPreferenceYes')}
+                        {(selectedApp.dietPreferenceYes || isEditingApplication) && renderTextField('Diet Preference', 'dietPreference')}
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Communication Preferences</label>
-                          <p className="text-sm text-gray-900">
-                            {Array.isArray(selectedApp.communicationPreference)
-                              ? selectedApp.communicationPreference.join(', ')
-                              : selectedApp.communicationPreference || 'N/A'}
-                          </p>
+                          {isEditingApplication ? (
+                            <input type="text" value={editFormData.communicationPreference == null ? '' : Array.isArray(editFormData.communicationPreference) ? editFormData.communicationPreference.join(', ') : String(editFormData.communicationPreference)} onChange={(e) => updateEditField('communicationPreference', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {Array.isArray(selectedApp.communicationPreference)
+                                ? selectedApp.communicationPreference.join(', ')
+                                : selectedApp.communicationPreference || 'N/A'}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Relationship Style With Surrogate</label>
-                          <p className="text-sm text-gray-900">
-                            {Array.isArray(selectedApp.relationshipStyle)
-                              ? selectedApp.relationshipStyle.join(', ')
-                              : selectedApp.relationshipStyle || 'N/A'}
-                          </p>
+                          {isEditingApplication ? (
+                            <input type="text" value={editFormData.relationshipStyle == null ? '' : Array.isArray(editFormData.relationshipStyle) ? editFormData.relationshipStyle.join(', ') : String(editFormData.relationshipStyle)} onChange={(e) => updateEditField('relationshipStyle', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {Array.isArray(selectedApp.relationshipStyle)
+                                ? selectedApp.relationshipStyle.join(', ')
+                                : selectedApp.relationshipStyle || 'N/A'}
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate to Follow Specific OB/GYN Guidelines</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferSpecificObGynGuidelines === true ? 'Yes' : selectedApp.preferSpecificObGynGuidelines === false ? 'No' : 'N/A'}</p>
-                        </div>
+                        {renderBoolField('Prefer Surrogate to Follow Specific OB/GYN Guidelines', 'preferSpecificObGynGuidelines')}
                       </div>
                     </div>
 
@@ -1363,50 +1379,17 @@ export default function Home() {
                     <div className="bg-teal-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-teal-900 mb-4">💝 Step 6: Additional Surrogate Preferences</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate to Avoid Heavy Lifting</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferAvoidHeavyLifting === true ? 'Yes' : selectedApp.preferAvoidHeavyLifting === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate to Avoid Travel During Pregnancy</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferAvoidTravel === true ? 'Yes' : selectedApp.preferAvoidTravel === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Comfortable with Surrogate Delivering in Her Local Hospital</label>
-                          <p className="text-sm text-gray-900">{selectedApp.comfortableWithLocalHospital === true ? 'Yes' : selectedApp.comfortableWithLocalHospital === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who is Open to Selective Reduction</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferOpenToSelectiveReduction === true ? 'Yes' : selectedApp.preferOpenToSelectiveReduction === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who is Open to Termination for Medical Reasons</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferOpenToTerminationMedical === true ? 'Yes' : selectedApp.preferOpenToTerminationMedical === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate with Previous Surrogacy Experience</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferPreviousSurrogacyExperience || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate with Strong Support System</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferStrongSupportSystem === true ? 'Yes' : selectedApp.preferStrongSupportSystem === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who is Married</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferMarried || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate with Stable Income</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferStableIncome === true ? 'Yes' : selectedApp.preferStableIncome === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who is Comfortable with Intended Parents Attending Appointments</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferComfortableWithAppointments || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Prefer Surrogate Who is Comfortable with Intended Parents Being Present at Birth</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preferComfortableWithBirth || 'N/A'}</p>
-                        </div>
+                        {renderBoolField('Prefer Surrogate to Avoid Heavy Lifting', 'preferAvoidHeavyLifting')}
+                        {renderBoolField('Prefer Surrogate to Avoid Travel During Pregnancy', 'preferAvoidTravel')}
+                        {renderBoolField('Comfortable with Surrogate Delivering in Her Local Hospital', 'comfortableWithLocalHospital')}
+                        {renderBoolField('Prefer Surrogate Who is Open to Selective Reduction', 'preferOpenToSelectiveReduction')}
+                        {renderBoolField('Prefer Surrogate Who is Open to Termination for Medical Reasons', 'preferOpenToTerminationMedical')}
+                        {renderTextField('Prefer Surrogate with Previous Surrogacy Experience', 'preferPreviousSurrogacyExperience')}
+                        {renderBoolField('Prefer Surrogate with Strong Support System', 'preferStrongSupportSystem')}
+                        {renderTextField('Prefer Surrogate Who is Married', 'preferMarried')}
+                        {renderBoolField('Prefer Surrogate with Stable Income', 'preferStableIncome')}
+                        {renderTextField('Prefer Surrogate Who is Comfortable with Intended Parents Attending Appointments', 'preferComfortableWithAppointments')}
+                        {renderTextField('Prefer Surrogate Who is Comfortable with Intended Parents Being Present at Birth', 'preferComfortableWithBirth')}
                       </div>
                     </div>
 
@@ -1414,60 +1397,27 @@ export default function Home() {
                     <div className="bg-orange-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-orange-900 mb-4">❓ Step 7: General Questions</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Will You Transfer More Than One Embryo</label>
-                          <p className="text-sm text-gray-900">{selectedApp.willTransferMoreThanOneEmbryo === true ? 'Yes' : selectedApp.willTransferMoreThanOneEmbryo === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Attorney Name</label>
-                          <p className="text-sm text-gray-900">{selectedApp.attorneyName || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Attorney Email</label>
-                          <p className="text-sm text-gray-900">{selectedApp.attorneyEmail || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Do You Have a Translator</label>
-                          <p className="text-sm text-gray-900">{selectedApp.haveTranslator === true ? 'Yes' : selectedApp.haveTranslator === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        {selectedApp.haveTranslator && (
+                        {renderBoolField('Will You Transfer More Than One Embryo', 'willTransferMoreThanOneEmbryo')}
+                        {renderTextField('Attorney Name', 'attorneyName')}
+                        {renderTextField('Attorney Email', 'attorneyEmail')}
+                        {renderBoolField('Do You Have a Translator', 'haveTranslator')}
+                        {(selectedApp.haveTranslator || isEditingApplication) && (
                           <>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-500">Translator Name</label>
-                              <p className="text-sm text-gray-900">{selectedApp.translatorName || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-500">Translator Email</label>
-                              <p className="text-sm text-gray-900">{selectedApp.translatorEmail || 'N/A'}</p>
-                            </div>
+                            {renderTextField('Translator Name', 'translatorName')}
+                            {renderTextField('Translator Email', 'translatorEmail')}
                           </>
                         )}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Are You Prepared for the Possibility of a Failed Embryo Transfer</label>
-                          <p className="text-sm text-gray-900">{selectedApp.preparedForFailedTransfer === true ? 'Yes' : selectedApp.preparedForFailedTransfer === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Are You Willing to Attempt Multiple Cycles if Needed</label>
-                          <p className="text-sm text-gray-900">{selectedApp.willingToAttemptMultipleCycles === true ? 'Yes' : selectedApp.willingToAttemptMultipleCycles === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Are You Emotionally Prepared for the Full Surrogacy Journey</label>
-                          <p className="text-sm text-gray-900">{selectedApp.emotionallyPrepared === true ? 'Yes' : selectedApp.emotionallyPrepared === false ? 'No' : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Are You Able to Handle Potential Delays or Medical Risks</label>
-                          <p className="text-sm text-gray-900">{selectedApp.ableToHandleDelaysOrRisks === true ? 'Yes' : selectedApp.ableToHandleDelaysOrRisks === false ? 'No' : 'N/A'}</p>
-                        </div>
+                        {renderBoolField('Are You Prepared for the Possibility of a Failed Embryo Transfer', 'preparedForFailedTransfer')}
+                        {renderBoolField('Are You Willing to Attempt Multiple Cycles if Needed', 'willingToAttemptMultipleCycles')}
+                        {renderBoolField('Are You Emotionally Prepared for the Full Surrogacy Journey', 'emotionallyPrepared')}
+                        {renderBoolField('Are You Able to Handle Potential Delays or Medical Risks', 'ableToHandleDelaysOrRisks')}
                       </div>
                     </div>
 
                     {/* Step 8: Letter to Surrogate */}
                     <div className="bg-red-50 rounded-lg p-4">
                       <h3 className="text-lg font-medium text-red-900 mb-4">💌 Step 8: Letter to Surrogate</h3>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Letter to Surrogate</label>
-                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.letterToSurrogate || 'N/A'}</p>
-                      </div>
+                      {renderTextField('Letter to Surrogate', 'letterToSurrogate', { multiline: true })}
                     </div>
                   </>
                 ) : (
@@ -1478,7 +1428,12 @@ export default function Home() {
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👤 Step 1: Personal Information</h3>
                       
                       {/* Surrogate Lifestyle Photos (6 photos) */}
-                      {selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 && (
+                      {isEditingApplication ? (
+                        <div className="mb-6">
+                          {renderJsonField('Lifestyle Photos (JSON URLs)', 'photos')}
+                          {renderTextField('Photo URL (legacy)', 'photoUrl', { className: 'mt-3' })}
+                        </div>
+                      ) : selectedApp.photos && Array.isArray(selectedApp.photos) && selectedApp.photos.length > 0 ? (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Lifestyle Photos ({selectedApp.photos.length} photos)</label>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1503,9 +1458,9 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
-                      )}
+                      ) : null}
                       {/* Backward compatibility: single photoUrl */}
-                      {(!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
+                      {!isEditingApplication && (!selectedApp.photos || !Array.isArray(selectedApp.photos) || selectedApp.photos.length === 0) && selectedApp.photoUrl && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-500 mb-2">Surrogate Photo</label>
                           <div className="relative">
@@ -1529,66 +1484,21 @@ export default function Home() {
                       )}
                       
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Full Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.full_name || selectedApp.fullName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">First Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.firstName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Middle Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.middleName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Last Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.lastName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Date of Birth</label>
-                      <p className="text-sm text-gray-900">{selectedApp.dateOfBirth || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Age</label>
-                      <p className="text-sm text-gray-900">{selectedApp.age || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Blood Type</label>
-                      <p className="text-sm text-gray-900">{selectedApp.bloodType || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Height</label>
-                      <p className="text-sm text-gray-900">{selectedApp.height || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Weight</label>
-                      <p className="text-sm text-gray-900">{selectedApp.weight || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Race/Ethnicity</label>
-                      <p className="text-sm text-gray-900">{selectedApp.race || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Religious Background</label>
-                      <p className="text-sm text-gray-900">{selectedApp.religiousBackground || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Practicing Religion</label>
-                      <p className="text-sm text-gray-900">{selectedApp.practicingReligion === true ? 'Yes' : selectedApp.practicingReligion === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">US Citizen</label>
-                      <p className="text-sm text-gray-900">{selectedApp.usCitizen === true ? 'Yes' : selectedApp.usCitizen === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Phone</label>
-                      <p className="text-sm text-gray-900">{selectedApp.phone || selectedApp.phoneNumber || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-sm text-gray-900">{selectedApp.email || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Full Name', 'fullName', { aliases: ['full_name'] })}
+                    {renderTextField('First Name', 'firstName')}
+                    {renderTextField('Middle Name', 'middleName')}
+                    {renderTextField('Last Name', 'lastName')}
+                    {renderTextField('Date of Birth', 'dateOfBirth')}
+                    {renderTextField('Age', 'age')}
+                    {renderTextField('Blood Type', 'bloodType')}
+                    {renderTextField('Height', 'height')}
+                    {renderTextField('Weight', 'weight')}
+                    {renderTextField('Race/Ethnicity', 'race')}
+                    {renderTextField('Religious Background', 'religiousBackground')}
+                    {renderBoolField('Practicing Religion', 'practicingReligion')}
+                    {renderBoolField('US Citizen', 'usCitizen')}
+                    {renderTextField('Phone', 'phoneNumber', { aliases: ['phone'] })}
+                    {renderTextField('Email', 'email')}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                       <p className="text-sm text-gray-900">
@@ -1597,171 +1507,68 @@ export default function Home() {
                           'N/A'}
                       </p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>
-                      <p className="text-sm text-gray-900">{selectedApp.hearAboutUs || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Referral Code</label>
-                      <p className="text-sm text-gray-900">{selectedApp.referralCode || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Siblings Count</label>
-                      <p className="text-sm text-gray-900">{selectedApp.siblingsCount || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Mother Siblings Count</label>
-                      <p className="text-sm text-gray-900">{selectedApp.motherSiblingsCount || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Pets</label>
-                      <p className="text-sm text-gray-900">{selectedApp.pets || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Living Situation</label>
-                      <p className="text-sm text-gray-900">{selectedApp.livingSituation || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Own Car</label>
-                      <p className="text-sm text-gray-900">{selectedApp.ownCar === true ? 'Yes' : selectedApp.ownCar === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Driver License</label>
-                      <p className="text-sm text-gray-900">{selectedApp.driverLicense === true ? 'Yes' : selectedApp.driverLicense === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Car Insured</label>
-                      <p className="text-sm text-gray-900">{selectedApp.carInsured === true ? 'Yes' : selectedApp.carInsured === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Transportation Method</label>
-                      <p className="text-sm text-gray-900">{selectedApp.transportationMethod || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Nearest Airport</label>
-                      <p className="text-sm text-gray-900">{selectedApp.nearestAirport || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Airport Distance</label>
-                      <p className="text-sm text-gray-900">{selectedApp.airportDistance || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Legal Problems</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.legalProblems || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Jail Time</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.jailTime || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Want More Children</label>
-                      <p className="text-sm text-gray-900">{selectedApp.wantMoreChildren === true ? 'Yes' : selectedApp.wantMoreChildren === false ? 'No' : 'N/A'}</p>
-                    </div>
+                    {renderTextField('How Did You Hear About Us', 'hearAboutUs')}
+                    {renderTextField('Referral Code', 'referralCode')}
+                    {renderTextField('Siblings Count', 'siblingsCount')}
+                    {renderTextField('Mother Siblings Count', 'motherSiblingsCount')}
+                    {renderTextField('Pets', 'pets')}
+                    {renderTextField('Living Situation', 'livingSituation')}
+                    {renderBoolField('Own Car', 'ownCar')}
+                    {renderBoolField('Driver License', 'driverLicense')}
+                    {renderBoolField('Car Insured', 'carInsured')}
+                    {renderTextField('Transportation Method', 'transportationMethod')}
+                    {renderTextField('Nearest Airport', 'nearestAirport')}
+                    {renderTextField('Airport Distance', 'airportDistance')}
+                    {renderTextField('Legal Problems', 'legalProblems', { multiline: true })}
+                    {renderTextField('Jail Time', 'jailTime', { multiline: true })}
+                    {renderBoolField('Want More Children', 'wantMoreChildren')}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Previous Surrogacy</label>
-                      <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : selectedApp.previousSurrogacy === false ? 'No' : 'N/A'}</p>
+                      {isEditingApplication ? (
+                        <div className="grid grid-cols-2 gap-1 mt-1">
+                          <select value={editFormData.previousSurrogacy === true ? 'true' : editFormData.previousSurrogacy === false ? 'false' : ''} onChange={(e) => { const v = e.target.value; updateEditField('previousSurrogacy', v === '' ? null : v === 'true'); }} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                            <option value="">N/A</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                          <input type="text" placeholder="Count" value={editFormData.previousSurrogacyCount ?? ''} onChange={(e) => updateEditField('previousSurrogacyCount', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : selectedApp.previousSurrogacy === false ? 'No' : 'N/A'}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-500">Location</label>
-                    <p className="text-sm text-gray-900">{selectedApp.location || 'N/A'}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    {renderTextField('Location', 'location')}
+                    {renderTextField('Full Address', 'address', { aliases: ['applicantAddress'] })}
+                    {renderTextField('Citizenship Status', 'citizenshipStatus')}
                   </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-500">Full Address</label>
-                    <p className="text-sm text-gray-900">{selectedApp.address || selectedApp.applicantAddress || 'N/A'}</p>
-                  </div>
-                  {selectedApp.citizenshipStatus && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-500">Citizenship Status</label>
-                      <p className="text-sm text-gray-900">{selectedApp.citizenshipStatus}</p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Marital Status */}
                 <div className="bg-pink-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-pink-900 mb-4">💑 Marital Status & Family</h3>
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Marital Status</label>
-                      <p className="text-sm text-gray-900">{selectedApp.maritalStatus || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Are you single?</label>
-                      <p className="text-sm text-gray-900">{selectedApp.isSingle === true ? 'Yes' : selectedApp.isSingle === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Are you married?</label>
-                      <p className="text-sm text-gray-900">{selectedApp.isMarried === true ? 'Yes' : selectedApp.isMarried === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Are you widowed?</label>
-                      <p className="text-sm text-gray-900">{selectedApp.isWidowed === true ? 'Yes' : selectedApp.isWidowed === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Life Partner</label>
-                      <p className="text-sm text-gray-900">{selectedApp.lifePartner === true ? 'Yes' : selectedApp.lifePartner === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Engaged</label>
-                      <p className="text-sm text-gray-900">{selectedApp.engaged === true ? 'Yes' : selectedApp.engaged === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Spouse/Partner Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.spouseName || selectedApp.partnerName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Spouse/Partner Date of Birth</label>
-                      <p className="text-sm text-gray-900">{selectedApp.spouseDateOfBirth || selectedApp.partnerDateOfBirth || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Marriage Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.marriageDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Wedding Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.weddingDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Widowed Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.widowedDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Marital Problems</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.maritalProblems || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Divorced</label>
-                      <p className="text-sm text-gray-900">{selectedApp.divorced === true ? 'Yes' : selectedApp.divorced === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Divorce Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.divorceDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Divorce Cause</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.divorceCause || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Remarried</label>
-                      <p className="text-sm text-gray-900">{selectedApp.remarried === true ? 'Yes' : selectedApp.remarried === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Remarried Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.remarriedDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Legally Separated</label>
-                      <p className="text-sm text-gray-900">{selectedApp.legallySeparated === true ? 'Yes' : selectedApp.legallySeparated === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Separation Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.separationDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Engagement Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.engagementDate || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Marital Status', 'maritalStatus')}
+                    {renderBoolField('Are you single?', 'isSingle')}
+                    {renderBoolField('Are you married?', 'isMarried')}
+                    {renderBoolField('Are you widowed?', 'isWidowed')}
+                    {renderBoolField('Life Partner', 'lifePartner')}
+                    {renderBoolField('Engaged', 'engaged')}
+                    {renderTextField('Spouse/Partner Name', 'spouseName', { aliases: ['partnerName'] })}
+                    {renderTextField('Spouse/Partner Date of Birth', 'spouseDateOfBirth', { aliases: ['partnerDateOfBirth'] })}
+                    {renderTextField('Marriage Date', 'marriageDate')}
+                    {renderTextField('Wedding Date', 'weddingDate')}
+                    {renderTextField('Widowed Date', 'widowedDate')}
+                    {renderTextField('Marital Problems', 'maritalProblems', { multiline: true })}
+                    {renderBoolField('Divorced', 'divorced')}
+                    {renderTextField('Divorce Date', 'divorceDate')}
+                    {renderTextField('Divorce Cause', 'divorceCause', { multiline: true })}
+                    {renderBoolField('Remarried', 'remarried')}
+                    {renderTextField('Remarried Date', 'remarriedDate')}
+                    {renderBoolField('Legally Separated', 'legallySeparated')}
+                    {renderTextField('Separation Details', 'separationDetails', { multiline: true })}
+                    {renderTextField('Engagement Date', 'engagementDate')}
                   </div>
                 </div>
 
@@ -1769,16 +1576,13 @@ export default function Home() {
                 <div className="bg-pink-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-pink-900 mb-4">🤰 Step 2: Pregnancy & Delivery History</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Total Deliveries (20+ weeks)</label>
-                      <p className="text-sm text-gray-900">{selectedApp.totalDeliveries || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Previous Surrogacy</label>
-                      <p className="text-sm text-gray-900">{selectedApp.previousSurrogacy === true ? `Yes (${selectedApp.previousSurrogacyCount || '?'} times)` : 'No'}</p>
-                    </div>
+                    {renderTextField('Total Deliveries (20+ weeks)', 'totalDeliveries')}
                   </div>
-                  {selectedApp.deliveries && selectedApp.deliveries.length > 0 && (
+                  {isEditingApplication ? (
+                    <div className="mt-4">
+                      {renderJsonField('Delivery History (JSON)', 'deliveries')}
+                    </div>
+                  ) : selectedApp.deliveries && selectedApp.deliveries.length > 0 && (
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-500 mb-2">Delivery History</label>
                       <div className="space-y-3">
@@ -1818,169 +1622,72 @@ export default function Home() {
                 <div className="bg-green-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-green-900 mb-4">🏥 Step 3: Health Information</h3>
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Health Insurance</label>
-                      <p className="text-sm text-gray-900">{selectedApp.healthInsurance === true ? 'Yes' : selectedApp.healthInsurance === false ? 'No' : 'N/A'}</p>
-                    </div>
+                    {renderBoolField('Health Insurance', 'healthInsurance')}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Maternity Coverage</label>
-                      <p className="text-sm text-gray-900">{selectedApp.maternityCoverage === true ? 'Yes' : selectedApp.maternityCoverage === 'not_sure' ? 'Not Sure' : selectedApp.maternityCoverage === false ? 'No' : 'N/A'}</p>
+                      {isEditingApplication ? (
+                        <select value={editFormData.maternityCoverage === true ? 'true' : editFormData.maternityCoverage === false ? 'false' : editFormData.maternityCoverage === 'not_sure' ? 'not_sure' : ''} onChange={(e) => { const v = e.target.value; updateEditField('maternityCoverage', v === '' ? null : v === 'true' ? true : v === 'false' ? false : v); }} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                          <option value="">N/A</option>
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                          <option value="not_sure">Not Sure</option>
+                        </select>
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedApp.maternityCoverage === true ? 'Yes' : selectedApp.maternityCoverage === 'not_sure' ? 'Not Sure' : selectedApp.maternityCoverage === false ? 'No' : 'N/A'}</p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Insurance Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.insuranceDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">State Agency Insurance</label>
-                      <p className="text-sm text-gray-900">{selectedApp.stateAgencyInsurance === true ? 'Yes' : selectedApp.stateAgencyInsurance === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">State Agency Name</label>
-                      <p className="text-sm text-gray-900">{selectedApp.stateAgencyName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Insurance Payment Method</label>
-                      <p className="text-sm text-gray-900">{selectedApp.insurancePaymentMethod || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Delivery Hospital</label>
-                      <p className="text-sm text-gray-900">{selectedApp.deliveryHospital || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Delivered at Hospital Before</label>
-                      <p className="text-sm text-gray-900">{selectedApp.deliveredAtHospitalBefore === true ? 'Yes' : selectedApp.deliveredAtHospitalBefore === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Abnormal Pap Smear</label>
-                      <p className="text-sm text-gray-900">{selectedApp.abnormalPapSmear === true ? 'Yes' : selectedApp.abnormalPapSmear === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Monthly Cycles</label>
-                      <p className="text-sm text-gray-900">{selectedApp.monthlyCycles === true ? 'Yes' : selectedApp.monthlyCycles === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Cycle Days</label>
-                      <p className="text-sm text-gray-900">{selectedApp.cycleDays || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Period Days</label>
-                      <p className="text-sm text-gray-900">{selectedApp.periodDays || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Last Menstrual Period</label>
-                      <p className="text-sm text-gray-900">{selectedApp.lastMenstrualPeriod || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Infertility Doctor</label>
-                      <p className="text-sm text-gray-900">{selectedApp.infertilityDoctor === true ? 'Yes' : selectedApp.infertilityDoctor === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Infertility Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.infertilityDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Household Marijuana Use</label>
-                      <p className="text-sm text-gray-900">{selectedApp.householdMarijuana === true ? 'Yes' : selectedApp.householdMarijuana === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Pregnancy Problems</label>
-                      <p className="text-sm text-gray-900">{selectedApp.pregnancyProblems === true ? 'Yes' : selectedApp.pregnancyProblems === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Pregnancy Problems Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.pregnancyProblemsDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Children Health Problems</label>
-                      <p className="text-sm text-gray-900">{selectedApp.childrenHealthProblems === true ? 'Yes' : selectedApp.childrenHealthProblems === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Children Health Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.childrenHealthDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Currently Breastfeeding</label>
-                      <p className="text-sm text-gray-900">{selectedApp.breastfeeding === true ? 'Yes' : selectedApp.breastfeeding === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Breastfeeding Stop Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.breastfeedingStopDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Tattoos/Piercings (Last 1.5 years)</label>
-                      <p className="text-sm text-gray-900">{selectedApp.tattoosPiercings === true ? 'Yes' : selectedApp.tattoosPiercings === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Tattoos/Piercings Date</label>
-                      <p className="text-sm text-gray-900">{selectedApp.tattoosPiercingsDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Depression Medication</label>
-                      <p className="text-sm text-gray-900">{selectedApp.depressionMedication === true ? 'Yes' : selectedApp.depressionMedication === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Depression Medication Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.depressionMedicationDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Drug/Alcohol Abuse</label>
-                      <p className="text-sm text-gray-900">{selectedApp.drugAlcoholAbuse === true ? 'Yes' : selectedApp.drugAlcoholAbuse === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Excess Heat Exposure</label>
-                      <p className="text-sm text-gray-900">{selectedApp.excessHeat === true ? 'Yes' : selectedApp.excessHeat === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Alcohol Limit Advised</label>
-                      <p className="text-sm text-gray-900">{selectedApp.alcoholLimitAdvised === true ? 'Yes' : selectedApp.alcoholLimitAdvised === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Smoking Status</label>
-                      <p className="text-sm text-gray-900">{selectedApp.smokingStatus || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Smoked During Pregnancy</label>
-                      <p className="text-sm text-gray-900">{selectedApp.smokedDuringPregnancy === true ? 'Yes' : selectedApp.smokedDuringPregnancy === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Alcohol Usage</label>
-                      <p className="text-sm text-gray-900">{selectedApp.alcoholUsage || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Illegal Drugs</label>
-                      <p className="text-sm text-gray-900">{selectedApp.illegalDrugs === true ? 'Yes' : selectedApp.illegalDrugs === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Mental Health Treatment</label>
-                      <p className="text-sm text-gray-900">{selectedApp.mentalHealthTreatment === true ? 'Yes' : selectedApp.mentalHealthTreatment === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Postpartum Depression</label>
-                      <p className="text-sm text-gray-900">{selectedApp.postpartumDepression === true ? 'Yes' : selectedApp.postpartumDepression === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Hepatitis B Vaccinated</label>
-                      <p className="text-sm text-gray-900">{selectedApp.hepatitisBVaccinated === true ? 'Yes' : selectedApp.hepatitisBVaccinated === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Allergies</label>
-                      <p className="text-sm text-gray-900">{selectedApp.allergies === true ? 'Yes' : selectedApp.allergies === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Allergies Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.allergiesDetails || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Current Medications</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.currentMedications || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Children List</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.childrenList || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Insurance Details', 'insuranceDetails', { multiline: true })}
+                    {renderBoolField('State Agency Insurance', 'stateAgencyInsurance')}
+                    {renderTextField('State Agency Name', 'stateAgencyName')}
+                    {renderTextField('Insurance Payment Method', 'insurancePaymentMethod')}
+                    {renderTextField('Delivery Hospital', 'deliveryHospital')}
+                    {renderBoolField('Delivered at Hospital Before', 'deliveredAtHospitalBefore')}
+                    {renderBoolField('Abnormal Pap Smear', 'abnormalPapSmear')}
+                    {renderBoolField('Monthly Cycles', 'monthlyCycles')}
+                    {renderTextField('Cycle Days', 'cycleDays')}
+                    {renderTextField('Period Days', 'periodDays')}
+                    {renderTextField('Last Menstrual Period', 'lastMenstrualPeriod')}
+                    {renderBoolField('Infertility Doctor', 'infertilityDoctor')}
+                    {renderTextField('Infertility Details', 'infertilityDetails', { multiline: true })}
+                    {renderBoolField('Household Marijuana Use', 'householdMarijuana')}
+                    {renderBoolField('Pregnancy Problems', 'pregnancyProblems')}
+                    {renderTextField('Pregnancy Problems Details', 'pregnancyProblemsDetails', { multiline: true })}
+                    {renderBoolField('Children Health Problems', 'childrenHealthProblems')}
+                    {renderTextField('Children Health Details', 'childrenHealthDetails', { multiline: true })}
+                    {renderBoolField('Currently Breastfeeding', 'breastfeeding')}
+                    {renderTextField('Breastfeeding Stop Date', 'breastfeedingStopDate')}
+                    {renderBoolField('Tattoos/Piercings (Last 1.5 years)', 'tattoosPiercings')}
+                    {renderTextField('Tattoos/Piercings Date', 'tattoosPiercingsDate')}
+                    {renderBoolField('Depression Medication', 'depressionMedication')}
+                    {renderTextField('Depression Medication Details', 'depressionMedicationDetails', { multiline: true })}
+                    {renderBoolField('Drug/Alcohol Abuse', 'drugAlcoholAbuse')}
+                    {renderBoolField('Excess Heat Exposure', 'excessHeat')}
+                    {renderBoolField('Alcohol Limit Advised', 'alcoholLimitAdvised')}
+                    {renderTextField('Smoking Status', 'smokingStatus')}
+                    {renderBoolField('Smoked During Pregnancy', 'smokedDuringPregnancy')}
+                    {renderTextField('Alcohol Usage', 'alcoholUsage')}
+                    {renderBoolField('Illegal Drugs', 'illegalDrugs')}
+                    {renderBoolField('Mental Health Treatment', 'mentalHealthTreatment')}
+                    {renderBoolField('Postpartum Depression', 'postpartumDepression')}
+                    {renderBoolField('Hepatitis B Vaccinated', 'hepatitisBVaccinated')}
+                    {renderBoolField('Allergies', 'allergies')}
+                    {renderTextField('Allergies Details', 'allergiesDetails', { multiline: true })}
+                    {renderTextField('Current Medications', 'currentMedications', { multiline: true })}
+                    {renderTextField('Children List', 'childrenList', { multiline: true })}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Surgeries</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.surgeries === true ? selectedApp.surgeryDetails || 'Yes' : 'No'}</p>
+                      {isEditingApplication ? (
+                        <div className="grid grid-cols-1 gap-1 mt-1">
+                          <select value={editFormData.surgeries === true ? 'true' : editFormData.surgeries === false ? 'false' : ''} onChange={(e) => { const v = e.target.value; updateEditField('surgeries', v === '' ? null : v === 'true'); }} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                            <option value="">N/A</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                          <input type="text" placeholder="Surgery details" value={editFormData.surgeryDetails ?? ''} onChange={(e) => updateEditField('surgeryDetails', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.surgeries === true ? selectedApp.surgeryDetails || 'Yes' : 'No'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1989,50 +1696,31 @@ export default function Home() {
                 <div className="bg-purple-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-purple-900 mb-4">💕 Step 4: Sexual History</h3>
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Past Contraceptives</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.pastContraceptives || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Past Contraceptives', 'pastContraceptives', { multiline: true })}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Current Birth Control</label>
-                      <p className="text-sm text-gray-900">{selectedApp.currentBirthControl === true ? `Yes (${selectedApp.birthControlMethod || 'N/A'})` : selectedApp.currentBirthControl === false ? 'No' : 'N/A'}</p>
+                      {isEditingApplication ? (
+                        <div className="grid grid-cols-2 gap-1 mt-1">
+                          <select value={editFormData.currentBirthControl === true ? 'true' : editFormData.currentBirthControl === false ? 'false' : ''} onChange={(e) => { const v = e.target.value; updateEditField('currentBirthControl', v === '' ? null : v === 'true'); }} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                            <option value="">N/A</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                          <input type="text" placeholder="Method" value={editFormData.birthControlMethod ?? ''} onChange={(e) => updateEditField('birthControlMethod', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-900">{selectedApp.currentBirthControl === true ? `Yes (${selectedApp.birthControlMethod || 'N/A'})` : selectedApp.currentBirthControl === false ? 'No' : 'N/A'}</p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Birth Control Duration</label>
-                      <p className="text-sm text-gray-900">{selectedApp.birthControlDuration || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Sexual Partner</label>
-                      <p className="text-sm text-gray-900">{selectedApp.sexualPartner === true ? 'Yes' : selectedApp.sexualPartner === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Multiple Partners</label>
-                      <p className="text-sm text-gray-900">{selectedApp.multiplePartners === true ? 'Yes' : selectedApp.multiplePartners === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Partners (Last 3 Years)</label>
-                      <p className="text-sm text-gray-900">{selectedApp.partnersLastThreeYears || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">High Risk HIV Contact</label>
-                      <p className="text-sm text-gray-900">{selectedApp.highRiskHIVContact === true ? 'Yes' : selectedApp.highRiskHIVContact === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">HIV Risk</label>
-                      <p className="text-sm text-gray-900">{selectedApp.hivRisk === true ? 'Yes' : selectedApp.hivRisk === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Blood Transfusion</label>
-                      <p className="text-sm text-gray-900">{selectedApp.bloodTransfusion === true ? 'Yes' : selectedApp.bloodTransfusion === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">STD History</label>
-                      <p className="text-sm text-gray-900">{selectedApp.stdHistory === true ? 'Yes' : selectedApp.stdHistory === false ? 'No' : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">STD Details</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.stdDetails || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Birth Control Duration', 'birthControlDuration')}
+                    {renderBoolField('Sexual Partner', 'sexualPartner')}
+                    {renderBoolField('Multiple Partners', 'multiplePartners')}
+                    {renderTextField('Partners (Last 3 Years)', 'partnersLastThreeYears')}
+                    {renderBoolField('High Risk HIV Contact', 'highRiskHIVContact')}
+                    {renderBoolField('HIV Risk', 'hivRisk')}
+                    {renderBoolField('Blood Transfusion', 'bloodTransfusion')}
+                    {renderBoolField('STD History', 'stdHistory')}
+                    {renderTextField('STD Details', 'stdDetails', { multiline: true })}
                   </div>
                 </div>
 
@@ -2040,51 +1728,24 @@ export default function Home() {
                 <div className="bg-yellow-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-yellow-900 mb-4">💼 Step 5: Employment Information</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Current Employment</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.currentEmployment || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Monthly Income</label>
-                      <p className="text-sm text-gray-900">{selectedApp.monthlyIncome ? `$${selectedApp.monthlyIncome}` : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Spouse Employment</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.spouseEmployment || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Spouse Monthly Income</label>
-                      <p className="text-sm text-gray-900">{selectedApp.spouseMonthlyIncome ? `$${selectedApp.spouseMonthlyIncome}` : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Persons Supported</label>
-                      <p className="text-sm text-gray-900">{selectedApp.personsSupported || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Public Assistance</label>
-                      <p className="text-sm text-gray-900">{selectedApp.publicAssistance === true ? 'Yes' : selectedApp.publicAssistance === false ? 'No' : 'N/A'}</p>
-                    </div>
+                    {renderTextField('Current Employment', 'currentEmployment', { multiline: true })}
+                    {renderTextField('Monthly Income', 'monthlyIncome')}
+                    {renderTextField('Spouse Employment', 'spouseEmployment', { multiline: true })}
+                    {renderTextField('Spouse Monthly Income', 'spouseMonthlyIncome')}
+                    {renderTextField('Persons Supported', 'personsSupported')}
+                    {renderBoolField('Public Assistance', 'publicAssistance')}
                   </div>
-                  {selectedApp.householdMembers && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-500">Household Members</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.householdMembers}</p>
-                    </div>
-                  )}
+                  <div className="mt-4">
+                    {renderTextField('Household Members', 'householdMembers', { multiline: true })}
+                  </div>
                 </div>
 
                 {/* Step 6: Education */}
                 <div className="bg-indigo-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-indigo-900 mb-4">🎓 Step 6: Education</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Education Level</label>
-                      <p className="text-sm text-gray-900">{selectedApp.educationLevel === 'highSchool' ? 'High School' : selectedApp.educationLevel === 'college' ? 'College' : selectedApp.educationLevel === 'tradeSchool' ? 'Trade School' : selectedApp.educationLevel || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Trade School Details</label>
-                      <p className="text-sm text-gray-900">{selectedApp.tradeSchoolDetails || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Education Level', 'educationLevel')}
+                    {renderTextField('Trade School Details', 'tradeSchoolDetails')}
                   </div>
                 </div>
 
@@ -2092,164 +1753,59 @@ export default function Home() {
                 <div className="bg-orange-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-orange-900 mb-4">💭 Step 7: General Questions & Preferences</h3>
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Surrogacy Understanding & Motivation</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.surrogacyUnderstanding || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Self Introduction</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.selfIntroduction || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Surrogacy Understanding & Motivation', 'surrogacyUnderstanding', { multiline: true })}
+                    {renderTextField('Self Introduction', 'selfIntroduction', { multiline: true })}
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Main Concerns</label>
-                      <p className="text-sm text-gray-900">{Array.isArray(selectedApp.mainConcerns) ? selectedApp.mainConcerns.join(', ') : selectedApp.mainConcerns || 'N/A'}</p>
+                      {isEditingApplication ? (
+                        <input
+                          type="text"
+                          value={editFormData.mainConcerns == null ? '' : Array.isArray(editFormData.mainConcerns) ? editFormData.mainConcerns.join(', ') : String(editFormData.mainConcerns)}
+                          onChange={(e) => updateEditField('mainConcerns', e.target.value)}
+                          className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-900">{Array.isArray(selectedApp.mainConcerns) ? selectedApp.mainConcerns.join(', ') : selectedApp.mainConcerns || 'N/A'}</p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Parent Qualities</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.parentQualities || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Expected Support</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.expectedSupport || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Partner Feelings About Surrogacy</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.partnerFeelings || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Contact During Process</label>
-                      <p className="text-sm text-gray-900">{selectedApp.contactDuringProcess || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Contact After Birth</label>
-                      <p className="text-sm text-gray-900">{selectedApp.contactAfterBirth || 'N/A'}</p>
-                    </div>
+                    {renderTextField('Parent Qualities', 'parentQualities', { multiline: true })}
+                    {renderTextField('Expected Support', 'expectedSupport', { multiline: true })}
+                    {renderTextField('Partner Feelings About Surrogacy', 'partnerFeelings', { multiline: true })}
+                    {renderTextField('Contact During Process', 'contactDuringProcess')}
+                    {renderTextField('Contact After Birth', 'contactAfterBirth')}
                   </div>
-                  <div className="grid grid-cols-4 gap-3 mt-4">
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Religious Preference</p>
-                      <p className="text-sm font-medium">{selectedApp.religiousPreference === true ? '✓ Yes' : selectedApp.religiousPreference === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Unmarried Couple</p>
-                      <p className="text-sm font-medium">{selectedApp.unmarriedCouple === true ? '✓ Yes' : selectedApp.unmarriedCouple === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Heterosexual Couple</p>
-                      <p className="text-sm font-medium">{selectedApp.heterosexualCouple === true ? '✓ Yes' : selectedApp.heterosexualCouple === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Same Sex Couple</p>
-                      <p className="text-sm font-medium">{selectedApp.sameSexCouple === true ? '✓ Yes' : selectedApp.sameSexCouple === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Single Male</p>
-                      <p className="text-sm font-medium">{selectedApp.singleMale === true ? '✓ Yes' : selectedApp.singleMale === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Single Female</p>
-                      <p className="text-sm font-medium">{selectedApp.singleFemale === true ? '✓ Yes' : selectedApp.singleFemale === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Egg Donor</p>
-                      <p className="text-sm font-medium">{selectedApp.eggDonor === true ? '✓ Yes' : selectedApp.eggDonor === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Sperm Donor</p>
-                      <p className="text-sm font-medium">{selectedApp.spermDonor === true ? '✓ Yes' : selectedApp.spermDonor === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Older Couple</p>
-                      <p className="text-sm font-medium">{selectedApp.olderCouple === true ? '✓ Yes' : selectedApp.olderCouple === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Couple with Children</p>
-                      <p className="text-sm font-medium">{selectedApp.coupleWithChildren === true ? '✓ Yes' : selectedApp.coupleWithChildren === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">International</p>
-                      <p className="text-sm font-medium">{selectedApp.internationalCouple === true ? '✓ Yes' : selectedApp.internationalCouple === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Non-English Speaking</p>
-                      <p className="text-sm font-medium">{selectedApp.nonEnglishSpeaking === true ? '✓ Yes' : selectedApp.nonEnglishSpeaking === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Carry Twins</p>
-                      <p className="text-sm font-medium">{selectedApp.carryTwins === true ? '✓ Yes' : selectedApp.carryTwins === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Reduce Multiples</p>
-                      <p className="text-sm font-medium">{selectedApp.reduceMultiples === true ? '✓ Yes' : selectedApp.reduceMultiples === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Amniocentesis</p>
-                      <p className="text-sm font-medium">{selectedApp.amniocentesis === true ? '✓ Yes' : selectedApp.amniocentesis === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Abort for Birth Defects</p>
-                      <p className="text-sm font-medium">{selectedApp.abortBirthDefects === true ? '✓ Yes' : selectedApp.abortBirthDefects === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Concerns Placing Baby</p>
-                      <p className="text-sm font-medium">{selectedApp.concernsPlacingBaby === true ? '✓ Yes' : selectedApp.concernsPlacingBaby === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Parents in Delivery</p>
-                      <p className="text-sm font-medium">{selectedApp.parentsInDeliveryRoom === true ? '✓ Yes' : selectedApp.parentsInDeliveryRoom === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Parents at Appointments</p>
-                      <p className="text-sm font-medium">{selectedApp.parentsAtAppointments === true ? '✓ Yes' : selectedApp.parentsAtAppointments === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Hospital Notification</p>
-                      <p className="text-sm font-medium">{selectedApp.hospitalNotification === true ? '✓ Yes' : selectedApp.hospitalNotification === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Parents on Birth Certificate</p>
-                      <p className="text-sm font-medium">{selectedApp.parentsOnBirthCertificate === true ? '✓ Yes' : selectedApp.parentsOnBirthCertificate === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Applying Elsewhere</p>
-                      <p className="text-sm font-medium">{selectedApp.applyingElsewhere === true ? '✓ Yes' : selectedApp.applyingElsewhere === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Previously Rejected</p>
-                      <p className="text-sm font-medium">{selectedApp.previouslyRejected === true ? '✓ Yes' : selectedApp.previouslyRejected === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Attend Checkups</p>
-                      <p className="text-sm font-medium">{selectedApp.attendPrenatalCheckups === true ? '✓ Yes' : selectedApp.attendPrenatalCheckups === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Medical Examinations</p>
-                      <p className="text-sm font-medium">{selectedApp.medicalExaminations === true ? '✓ Yes' : selectedApp.medicalExaminations === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Lifestyle Guidelines</p>
-                      <p className="text-sm font-medium">{selectedApp.lifestyleGuidelines === true ? '✓ Yes' : selectedApp.lifestyleGuidelines === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Avoid Long Travel</p>
-                      <p className="text-sm font-medium">{selectedApp.avoidLongTravel === true ? '✓ Yes' : selectedApp.avoidLongTravel === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Refrain High-risk Work</p>
-                      <p className="text-sm font-medium">{selectedApp.refrainHighRiskWork === true ? '✓ Yes' : selectedApp.refrainHighRiskWork === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Placed Child for Adoption</p>
-                      <p className="text-sm font-medium">{selectedApp.placedForAdoption === true ? '✓ Yes' : selectedApp.placedForAdoption === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Non-supportive People</p>
-                      <p className="text-sm font-medium">{selectedApp.nonSupportivePeople === true ? '✓ Yes' : selectedApp.nonSupportivePeople === false ? '✗ No' : '—'}</p>
-                    </div>
-                    <div className="text-center p-2 bg-white rounded">
-                      <p className="text-xs text-gray-500">Child Care Support</p>
-                      <p className="text-sm font-medium">{selectedApp.childCareSupport === true ? '✓ Yes' : selectedApp.childCareSupport === false ? '✗ No' : '—'}</p>
-                    </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                    {renderBoolField('Religious Preference', 'religiousPreference')}
+                    {renderBoolField('Unmarried Couple', 'unmarriedCouple')}
+                    {renderBoolField('Heterosexual Couple', 'heterosexualCouple')}
+                    {renderBoolField('Same Sex Couple', 'sameSexCouple')}
+                    {renderBoolField('Single Male', 'singleMale')}
+                    {renderBoolField('Single Female', 'singleFemale')}
+                    {renderBoolField('Egg Donor', 'eggDonor')}
+                    {renderBoolField('Sperm Donor', 'spermDonor')}
+                    {renderBoolField('Older Couple', 'olderCouple')}
+                    {renderBoolField('Couple with Children', 'coupleWithChildren')}
+                    {renderBoolField('International', 'internationalCouple')}
+                    {renderBoolField('Non-English Speaking', 'nonEnglishSpeaking')}
+                    {renderBoolField('Carry Twins', 'carryTwins')}
+                    {renderBoolField('Reduce Multiples', 'reduceMultiples')}
+                    {renderBoolField('Amniocentesis', 'amniocentesis')}
+                    {renderBoolField('Abort for Birth Defects', 'abortBirthDefects')}
+                    {renderBoolField('Concerns Placing Baby', 'concernsPlacingBaby')}
+                    {renderBoolField('Parents in Delivery', 'parentsInDeliveryRoom')}
+                    {renderBoolField('Parents at Appointments', 'parentsAtAppointments')}
+                    {renderBoolField('Hospital Notification', 'hospitalNotification')}
+                    {renderBoolField('Parents on Birth Certificate', 'parentsOnBirthCertificate')}
+                    {renderBoolField('Applying Elsewhere', 'applyingElsewhere')}
+                    {renderBoolField('Previously Rejected', 'previouslyRejected')}
+                    {renderBoolField('Attend Checkups', 'attendPrenatalCheckups')}
+                    {renderBoolField('Medical Examinations', 'medicalExaminations')}
+                    {renderBoolField('Lifestyle Guidelines', 'lifestyleGuidelines')}
+                    {renderBoolField('Avoid Long Travel', 'avoidLongTravel')}
+                    {renderBoolField('Refrain High-risk Work', 'refrainHighRiskWork')}
+                    {renderBoolField('Placed Child for Adoption', 'placedForAdoption')}
+                    {renderBoolField('Non-supportive People', 'nonSupportivePeople')}
+                    {renderBoolField('Child Care Support', 'childCareSupport')}
                   </div>
                 </div>
 
@@ -2257,18 +1813,9 @@ export default function Home() {
                 <div className="bg-red-50 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-red-900 mb-4">✍️ Step 8: Authorization</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Authorization Agreed</label>
-                      <p className="text-sm text-gray-900">{selectedApp.authorizationAgreed === true ? '✓ Agreed' : 'Not Agreed'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Applicant Address</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.applicantAddress || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Emergency Contact</label>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedApp.emergencyContact || 'N/A'}</p>
-                    </div>
+                    {renderBoolField('Authorization Agreed', 'authorizationAgreed')}
+                    {renderTextField('Applicant Address', 'applicantAddress', { multiline: true })}
+                    {renderTextField('Emergency Contact', 'emergencyContact', { multiline: true })}
                   </div>
                 </div>
 
@@ -2291,208 +1838,107 @@ export default function Home() {
 
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-3 pt-4 border-t sticky bottom-0 bg-white py-4">
-                  <button
-                    onClick={() => setSelectedApp(null)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Close
-                  </button>
-                  {isActionableApplication(selectedApp) && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          await generateApplicationPDF(selectedApp);
-                        } catch (error) {
-                          console.error('Error generating PDF:', error);
-                          alert('Error generating PDF. Please try again.');
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Download PDF
-                    </button>
-                  )}
-                  {selectedApp.applicationType === 'surrogate' ? (
-                    <ApproveButton 
-                      id={selectedApp.id} 
-                      currentStatus={selectedApp.status} 
-                      onUpdate={() => {
-                        loadApplications();
-                        setSelectedApp(null);
-                      }}
-                    />
-                  ) : selectedApp.applicationType === 'intended_parent' ? (
-                    <button
-                      onClick={async () => {
-                        const newStatus = selectedApp.status === 'approved' ? 'pending' : 'approved';
-                        try {
-                          await fetch('/api/intended-parent-applications', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: selectedApp.id, status: newStatus })
-                          });
-                          loadApplications();
-                          setSelectedApp(null);
-                        } catch (error) {
-                          console.error('Error updating status:', error);
-                          alert('Error updating status');
-                        }
-                      }}
-                      className={`px-4 py-2 rounded-md text-white ${
-                        selectedApp.status === 'approved' 
-                          ? 'bg-yellow-500 hover:bg-yellow-600' 
-                          : 'bg-green-500 hover:bg-green-600'
-                      }`}
-                    >
-                      {selectedApp.status === 'approved' ? '⏳ Mark Pending' : '✅ Approve'}
-                    </button>
+                  {isEditingApplication ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingApplication(false);
+                          setEditFormData({});
+                          setEditJsonDrafts({});
+                          setEditingApp(null);
+                        }}
+                        disabled={savingEdit}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEdit}
+                        disabled={savingEdit}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {savingEdit ? 'Saving...' : '💾 Save All'}
+                      </button>
+                    </>
                   ) : (
-                    <span className="px-4 py-2 text-sm text-gray-500">Sign Up user (no approval action)</span>
+                    <>
+                      <button
+                        onClick={() => { setSelectedApp(null); setIsEditingApplication(false); }}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      >
+                        Close
+                      </button>
+                      {isActionableApplication(selectedApp) && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await generateApplicationPDF(selectedApp);
+                            } catch (error) {
+                              console.error('Error generating PDF:', error);
+                              alert('Error generating PDF. Please try again.');
+                            }
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download PDF
+                        </button>
+                      )}
+                      {canEditApplications && isActionableApplication(selectedApp) && (
+                        <button
+                          onClick={() => openEditApplication(selectedApp)}
+                          className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600"
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
+                      {selectedApp.applicationType === 'surrogate' ? (
+                        <ApproveButton 
+                          id={selectedApp.id} 
+                          currentStatus={selectedApp.status} 
+                          onUpdate={() => {
+                            loadApplications();
+                            setSelectedApp(null);
+                          }}
+                        />
+                      ) : selectedApp.applicationType === 'intended_parent' ? (
+                        <button
+                          onClick={async () => {
+                            const newStatus = selectedApp.status === 'approved' ? 'pending' : 'approved';
+                            try {
+                              await fetch('/api/intended-parent-applications', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: selectedApp.id, status: newStatus })
+                              });
+                              loadApplications();
+                              setSelectedApp(null);
+                            } catch (error) {
+                              console.error('Error updating status:', error);
+                              alert('Error updating status');
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-md text-white ${
+                            selectedApp.status === 'approved' 
+                              ? 'bg-yellow-500 hover:bg-yellow-600' 
+                              : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                        >
+                          {selectedApp.status === 'approved' ? '⏳ Mark Pending' : '✅ Approve'}
+                        </button>
+                      ) : (
+                        <span className="px-4 py-2 text-sm text-gray-500">Sign Up user (no approval action)</span>
+                      )}
+                    </>
                   )}
                 </div>
                   </>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admin-only Edit Application Modal — full form_data */}
-      {editingApp && canEditApplications && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b flex justify-between items-start gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Edit Application</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {editingApp.applicationType === 'intended_parent'
-                    ? 'Intended Parent'
-                    : 'Surrogate'}{' '}
-                  — edit all form fields. Objects/arrays use JSON.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setEditingApp(null);
-                  setEditFormData({});
-                  setEditJsonDrafts({});
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-6 pt-4">
-              <input
-                type="text"
-                value={editFieldFilter}
-                onChange={(e) => setEditFieldFilter(e.target.value)}
-                placeholder="Filter fields by name..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-3">
-              {Object.keys(editFormData)
-                .filter((key) => !META_EDIT_KEYS.has(key))
-                .filter((key) =>
-                  !editFieldFilter.trim()
-                    ? true
-                    : key.toLowerCase().includes(editFieldFilter.trim().toLowerCase())
-                )
-                .sort((a, b) => a.localeCompare(b))
-                .map((key) => {
-                  const value = editFormData[key];
-                  const isComplex =
-                    value !== null &&
-                    typeof value === 'object';
-                  const isBool = typeof value === 'boolean';
-                  const isLongText =
-                    typeof value === 'string' && value.length > 80;
-
-                  return (
-                    <div key={key} className="border border-gray-100 rounded-md p-3 bg-gray-50">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">
-                        {key}
-                        {isComplex ? ' (JSON)' : ''}
-                      </label>
-                      {isBool ? (
-                        <select
-                          value={value ? 'true' : 'false'}
-                          onChange={(e) => updateEditField(key, e.target.value === 'true')}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-                        >
-                          <option value="true">Yes / true</option>
-                          <option value="false">No / false</option>
-                        </select>
-                      ) : isComplex ? (
-                        <textarea
-                          value={
-                            editJsonDrafts[key] ??
-                            JSON.stringify(value, null, 2)
-                          }
-                          onChange={(e) =>
-                            setEditJsonDrafts((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          rows={6}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-xs font-mono bg-white"
-                        />
-                      ) : isLongText ? (
-                        <textarea
-                          value={value == null ? '' : String(value)}
-                          onChange={(e) => updateEditField(key, e.target.value)}
-                          rows={4}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={value == null ? '' : String(value)}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            // Keep numeric-looking ages as strings; empty stays ''
-                            updateEditField(key, next);
-                          }}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              {Object.keys(editFormData).filter((key) => !META_EDIT_KEYS.has(key)).length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-8">No form fields found.</p>
-              )}
-            </div>
-
-            <div className="p-6 border-t flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingApp(null);
-                  setEditFormData({});
-                  setEditJsonDrafts({});
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={savingEdit}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={savingEdit}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
-              >
-                {savingEdit ? 'Saving...' : 'Save All Fields'}
-              </button>
             </div>
           </div>
         </div>
