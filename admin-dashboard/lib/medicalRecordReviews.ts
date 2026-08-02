@@ -1,15 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getAdminSession } from '@/lib/adminSession';
 import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
+import {
+  MEDICAL_RECORD_STORAGE_BUCKET,
+  MEDICAL_RECORD_STORAGE_PREFIX,
+} from '@/lib/medicalRecordReviewConstants';
 
-export const MEDICAL_RECORD_STORAGE_BUCKET = 'documents';
-export const MEDICAL_RECORD_STORAGE_PREFIX = 'medical-record-reviews';
-
-/** Shown at the top of Medical Record Review reports (PDF + admin UI). */
-export const MEDICAL_RECORD_REVIEW_DISCLAIMER =
-  'This document is a non-clinical summary prepared by Babytree Surrogacy. ' +
-  'Babytree does not provide medical opinions, risk assessments, or suitability determinations. ' +
-  'All medical decisions must be made exclusively by the clinic\'s licensed medical team.';
+export {
+  MEDICAL_RECORD_STORAGE_BUCKET,
+  MEDICAL_RECORD_STORAGE_PREFIX,
+  MEDICAL_RECORD_REVIEW_DISCLAIMER,
+} from '@/lib/medicalRecordReviewConstants';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';

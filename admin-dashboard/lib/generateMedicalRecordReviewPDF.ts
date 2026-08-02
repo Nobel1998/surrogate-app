@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from './medicalRecordReviews';
+import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from './medicalRecordReviewConstants';
 
 export type MedicalRecordReviewComplication = {
   complication: string;
