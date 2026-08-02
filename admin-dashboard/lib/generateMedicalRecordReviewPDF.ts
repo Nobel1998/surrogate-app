@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from './medicalRecordReviews';
 
 export type MedicalRecordReviewComplication = {
   complication: string;
@@ -70,6 +71,25 @@ export const generateMedicalRecordReviewPDF = (
     { align: 'center' }
   );
   yPosition += 16;
+
+  // Non-clinical disclaimer — shown before any clinical-looking content
+  {
+    const disclaimerLines = doc.splitTextToSize(
+      MEDICAL_RECORD_REVIEW_DISCLAIMER,
+      pageWidth - 36
+    );
+    const boxPad = 4;
+    const boxHeight = disclaimerLines.length * 4.2 + boxPad * 2;
+    doc.setFillColor(252, 248, 243);
+    doc.setDrawColor(210, 180, 140);
+    doc.roundedRect(14, yPosition - 2, pageWidth - 28, boxHeight, 2, 2, 'FD');
+    doc.setFontSize(9);
+    doc.setTextColor(90, 70, 40);
+    doc.text(disclaimerLines, 14 + boxPad, yPosition + boxPad + 2.5, {
+      lineHeightFactor: 1.35,
+    });
+    yPosition += boxHeight + 10;
+  }
 
   doc.setFontSize(16);
   doc.setTextColor(102, 51, 153);

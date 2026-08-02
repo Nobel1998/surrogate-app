@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
+import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from '@/lib/medicalRecordReviews';
 
 type Complication = {
   complication: string;
