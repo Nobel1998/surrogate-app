@@ -613,6 +613,13 @@ export default function MedicalRecordReviewsPage() {
                   </button>
                 </div>
 
+                <div className="bg-amber-50 border border-amber-200 rounded p-3">
+                  <h3 className="font-medium mb-1 text-amber-900 text-sm">Disclaimer</h3>
+                  <p className="text-sm text-amber-900/90 whitespace-pre-line leading-relaxed">
+                    {MEDICAL_RECORD_REVIEW_DISCLAIMER}
+                  </p>
+                </div>
+
                 {selected.intro ? (
                   <div className="bg-gray-50 border rounded p-3">
                     <h3 className="font-medium mb-1">Introductory</h3>
