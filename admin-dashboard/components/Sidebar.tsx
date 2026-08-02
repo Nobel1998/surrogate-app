@@ -17,6 +17,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { href: '/benefit-package', label: 'Benefit Package', icon: '📄', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/events', label: 'Blog', icon: '📝', allowedRoles: ['admin', 'branch_manager'] },
     { href: '/matches', label: 'Matches', icon: '🤝', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
+    { href: '/frequent-contacts', label: 'Frequent Contacts', icon: '📒', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/payment-nodes', label: 'Payment Nodes', icon: '💰', allowedRoles: ['admin', 'finance_manager'] },
     { href: '/surrogate-insurance', label: 'Surrogate Insurance', icon: '🛡️', allowedRoles: ['admin', 'finance_manager', 'branch_manager'] },
     { href: '/psychological-evaluations', label: 'Psychological Evaluations', icon: '🧠', allowedRoles: ['admin', 'branch_manager'] },
