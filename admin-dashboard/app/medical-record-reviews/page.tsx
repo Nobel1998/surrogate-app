@@ -732,10 +732,7 @@ export default function MedicalRecordReviewsPage() {
                     {selected.clinic_report ? (
                       <MedicalReportMarkdown markdown={selected.clinic_report} variant="clinic" />
                     ) : (
-                      <p className="text-sm text-gray-500">
-                        No clinic report yet. Run Review after applying the dual-report migration.
-                        Older reviews may only have Events / Introductory / Summary.
-                      </p>
+                      <p className="text-sm text-gray-500">No clinic report yet.</p>
                     )}
                   </div>
                 ) : null}
@@ -756,9 +753,7 @@ export default function MedicalRecordReviewsPage() {
                     {selected.staff_report ? (
                       <MedicalReportMarkdown markdown={selected.staff_report} variant="staff" />
                     ) : (
-                      <p className="text-sm text-indigo-800/80">
-                        No staff report yet. Run Review after applying the dual-report migration.
-                      </p>
+                      <p className="text-sm text-indigo-800/80">No staff report yet.</p>
                     )}
                   </div>
                 ) : null}
