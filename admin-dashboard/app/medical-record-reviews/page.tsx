@@ -78,14 +78,6 @@ export default function MedicalRecordReviewsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
-  const [analyzeDebugLog, setAnalyzeDebugLog] = useState<string[]>([]);
-  const appendAnalyzeDebug = (line: string) => {
-    const stamp = new Date().toLocaleTimeString();
-    setAnalyzeDebugLog((prev) => [`${stamp} ${line}`, ...prev].slice(0, 40));
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'prod-debug',hypothesisId:'UI',location:'page.tsx:appendAnalyzeDebug',message:line.slice(0,200),data:{},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  };
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reportTab, setReportTab] = useState<'clinic' | 'staff' | 'events'>('clinic');
@@ -311,8 +303,6 @@ export default function MedicalRecordReviewsPage() {
   const handleAnalyze = async (id: string) => {
     try {
       setAnalyzingId(id);
-      setAnalyzeDebugLog([]);
-      appendAnalyzeDebug(`POST /analyze starting id=${id.slice(0, 8)}…`);
 
       // Never send the PDF in this request: serverless payloads are capped and
       // large records fail with 413. The server reads the PDF from storage.
@@ -325,16 +315,6 @@ export default function MedicalRecordReviewsPage() {
         data = bodyText ? JSON.parse(bodyText) : {};
       } catch {
         data = {};
-      }
-
-      appendAnalyzeDebug(
-        `POST status=${res.status} pipeline=${data.pipelineVersion || data.debug?.pipelineVersion || 'OLD'} phase=${data.phase ?? '?'} alreadyRunning=${!!data.alreadyRunning} debug=${JSON.stringify(data.debug || {})}`
-      );
-
-      if (data.pipelineVersion !== '2phase-v1' && data.debug?.pipelineVersion !== '2phase-v1') {
-        appendAnalyzeDebug(
-          'WARNING: server is not on 2phase-v1 yet — expect old single-run timeout. Wait for Vercel deploy of latest main, then hard-refresh.'
-        );
       }
 
       if (!res.ok && res.status !== 202) {
@@ -351,10 +331,7 @@ export default function MedicalRecordReviewsPage() {
             ? {
                 ...r,
                 status: 'analyzing',
-                error_message:
-                  typeof data.debug?.progress === 'string'
-                    ? data.debug.progress
-                    : 'PROGRESS: [A] 0.queued — waiting for after()',
+                error_message: 'PROGRESS: queued — extracting medical record…',
                 updated_at: new Date().toISOString(),
               }
             : r
@@ -362,33 +339,17 @@ export default function MedicalRecordReviewsPage() {
       );
 
       const deadline = Date.now() + 45 * 60 * 1000;
-      let pollCount = 0;
-      let lastProgress = '';
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 4000));
 
         const statusRes = await fetch(`/api/medical-record-reviews/${id}`);
         const statusData = await statusRes.json().catch(() => ({}));
         const review = statusData?.review as Review | undefined;
-        pollCount += 1;
-        if (!review) {
-          appendAnalyzeDebug(`poll#${pollCount} HTTP ${statusRes.status} no review`);
-          continue;
-        }
+        if (!review) continue;
 
         patchReviewInList(review);
-        const progress = review.error_message || '';
-        if (progress && progress !== lastProgress) {
-          lastProgress = progress;
-          appendAnalyzeDebug(`poll#${pollCount} status=${review.status} ${progress}`);
-        } else if (pollCount <= 3 || pollCount % 5 === 0) {
-          appendAnalyzeDebug(
-            `poll#${pollCount} status=${review.status} progress=${progress ? 'same' : 'none'}`
-          );
-        }
 
         if (review.status === 'analyzed' || review.status === 'reviewed') {
-          appendAnalyzeDebug(`DONE status=${review.status}`);
           setSelectedId(id);
           return;
         }
@@ -399,7 +360,6 @@ export default function MedicalRecordReviewsPage() {
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
-      appendAnalyzeDebug(`ERROR ${error.message}`);
       alert(`Review failed: ${error.message}`);
       // Soft refresh only the single review; avoid full-page load flicker.
       try {
@@ -638,35 +598,14 @@ export default function MedicalRecordReviewsPage() {
                   </div>
                 )}
 
-                {(selected.status === 'analyzing' ||
-                  analyzingId === selected.id ||
-                  String(selected.error_message || '').startsWith('PROGRESS:') ||
-                  analyzeDebugLog.length > 0) && (
-                  <div className="bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs p-3 rounded space-y-2">
-                    <div className="font-semibold text-sm">Analysis debug（看这里）</div>
-                    <p className="text-[11px] font-mono text-amber-900">
-                      部署校验：点 Run 后第一条日志必须含 <b>pipeline=2phase-v1</b>。若是 pipeline=OLD 或
-                      queued for after，说明线上还是旧代码。
-                    </p>
-                    <div className="font-mono break-words text-sm">
-                      Server progress:{' '}
+                {(selected.status === 'analyzing' || analyzingId === selected.id) && (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-900 text-sm p-3 rounded">
+                    <div className="font-medium mb-1">Analysis in progress</div>
+                    <p className="text-xs text-blue-800 break-words">
                       {String(selected.error_message || '').startsWith('PROGRESS:')
-                        ? selected.error_message
-                        : selected.status === 'analyzing'
-                          ? '(no PROGRESS yet — if this stays empty, after() may not be running on Vercel)'
-                          : '—'}
-                    </div>
-                    <p className="text-[11px] text-amber-800">
-                      两阶段：phase1 提取 → facts_saved → 自动启动 phase2（phase2_started /
-                      resume_reports → clinic_report_ok / staff_report_ok）→ Analyzed。
+                        ? String(selected.error_message).replace(/^PROGRESS:\s*/, '')
+                        : 'Extracting medical record, then generating clinic and staff reports…'}
                     </p>
-                    {analyzeDebugLog.length > 0 ? (
-                      <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">
-                        {analyzeDebugLog.map((line, idx) => (
-                          <li key={`${idx}-${line.slice(0, 24)}`}>{line}</li>
-                        ))}
-                      </ul>
-                    ) : null}
                   </div>
                 )}
 

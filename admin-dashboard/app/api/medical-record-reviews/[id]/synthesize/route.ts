@@ -22,7 +22,7 @@ function isInternal(req: NextRequest) {
 
 /**
  * Phase 2: generate clinic/staff reports from a saved facts checkpoint.
- * Invoked automatically after phase-1 extract, or manually via Retry when checkpoint exists.
+ * Invoked automatically after phase-1 extract, or via Retry when checkpoint exists.
  */
 export async function POST(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
@@ -42,34 +42,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .from('medical_record_reviews')
       .update({
         status: 'analyzing',
-        error_message: `PROGRESS: [D] 2.phase2_queued — report synthesis @ ${new Date().toISOString()}`,
+        error_message: 'PROGRESS: phase2_queued — generating clinic and staff reports',
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
     after(async () => {
-      const startedAt = Date.now();
       const budgetMs = 270_000;
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': '5244e3',
-        },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'post-fix',
-          hypothesisId: 'D',
-          location: 'synthesize/route.ts:afterStart',
-          message: 'phase2 after() started',
-          data: { id, budgetMs },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       try {
-        await setAnalysisProgress(supabase, id, '2.phase2_started', 'generating clinic+staff reports', 'D');
+        await setAnalysisProgress(supabase, id, 'phase2_started', 'generating clinic+staff reports');
         await Promise.race([
           runSynthesizePhase(supabase, id),
           new Promise<never>((_, reject) => {
@@ -82,24 +63,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
             }, budgetMs);
           }),
         ]);
-        // #region agent log
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': '5244e3',
-          },
-          body: JSON.stringify({
-            sessionId: '5244e3',
-            runId: 'post-fix',
-            hypothesisId: 'D',
-            location: 'synthesize/route.ts:afterOk',
-            message: 'phase2 finished ok',
-            data: { id, elapsedMs: Date.now() - startedAt },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/synthesize] error:', error);
         const message = error?.message || 'Failed to generate reports';
@@ -107,10 +70,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     });
 
-    return NextResponse.json(
-      { started: true, reviewId: id, phase: 2, debug: { note: 'phase2 report synthesis queued' } },
-      { status: 202 }
-    );
+    return NextResponse.json({ started: true, reviewId: id, phase: 2 }, { status: 202 });
   } catch (error: any) {
     const message = error?.message || 'Failed to start report phase';
     await markMedicalRecordAnalysisFailed(supabase, id, message);

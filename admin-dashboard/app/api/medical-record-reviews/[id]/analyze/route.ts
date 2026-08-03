@@ -74,16 +74,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       const staleMs = 2 * 60 * 1000;
       if (updatedAt && Date.now() - updatedAt < staleMs) {
         return NextResponse.json(
-          {
-            started: true,
-            reviewId: id,
-            alreadyRunning: true,
-            debug: {
-              hypothesis: 'B',
-              progress: existing.error_message,
-              updatedAtAgeMs: Date.now() - updatedAt,
-            },
-          },
+          { started: true, reviewId: id, alreadyRunning: true },
           { status: 202 }
         );
       }
@@ -102,7 +93,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         .from('medical_record_reviews')
         .update({
           status: 'analyzing',
-          error_message: `PROGRESS: [D] 1.skip_extract — checkpoint facts=${checkpoint!.facts.length}; starting phase2 @ ${new Date().toISOString()}`,
+          error_message: `PROGRESS: skip_extract — facts=${checkpoint!.facts.length}; starting report phase`,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
@@ -112,9 +103,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
           await setAnalysisProgress(
             auth.supabase,
             id,
-            '1.auto_phase2',
-            `facts=${checkpoint!.facts.length}`,
-            'D'
+            'auto_phase2',
+            `facts=${checkpoint!.facts.length}`
           );
           await triggerSynthesizePhase(id);
         } catch (error: any) {
@@ -127,17 +117,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       });
 
       return NextResponse.json(
-        {
-          started: true,
-          reviewId: id,
-          phase: 2,
-          pipelineVersion: '2phase-v1',
-          debug: {
-            note: 'checkpoint found — auto starting phase2 only',
-            facts: checkpoint!.facts.length,
-            pipelineVersion: '2phase-v1',
-          },
-        },
+        { started: true, reviewId: id, phase: 2 },
         { status: 202 }
       );
     }
@@ -162,42 +142,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .from('medical_record_reviews')
       .update({
         status: 'analyzing',
-        error_message: `PROGRESS: [A] 0.queued — phase1 extract @ ${new Date().toISOString()}`,
+        error_message: 'PROGRESS: queued — phase 1 extract starting',
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
     const supabase = auth.supabase;
     after(async () => {
-      const startedAt = Date.now();
       const budgetMs = 270_000;
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': '5244e3',
-        },
-        body: JSON.stringify({
-          sessionId: '5244e3',
-          runId: 'post-fix',
-          hypothesisId: 'D',
-          location: 'analyze/route.ts:phase1Start',
-          message: 'phase1 extract started',
-          data: { id, budgetMs },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       try {
-        await setAnalysisProgress(supabase, id, '0.after_started', 'phase1 extract running', 'A');
+        await setAnalysisProgress(supabase, id, 'phase1_started', 'extracting medical record');
         await Promise.race([
           runExtractPhase(supabase, id, providedPdfBytes),
           new Promise<never>((_, reject) => {
             setTimeout(() => {
               reject(
                 new Error(
-                  `Extract phase timed out after ${Math.round(budgetMs / 1000)}s. If facts_saved appeared, Retry Review will run reports only.`
+                  `Extract phase timed out after ${Math.round(budgetMs / 1000)}s. If facts were saved, Retry Review will run reports only.`
                 )
               );
             }, budgetMs);
@@ -206,25 +167,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         // Fresh serverless invocation for reports (new 300s budget).
         await triggerSynthesizePhase(id);
-
-        // #region agent log
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': '5244e3',
-          },
-          body: JSON.stringify({
-            sessionId: '5244e3',
-            runId: 'post-fix',
-            hypothesisId: 'D',
-            location: 'analyze/route.ts:phase1Ok',
-            message: 'phase1 done; phase2 triggered',
-            data: { id, elapsedMs: Date.now() - startedAt },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/analyze] phase1 error:', error);
         const message = error?.message || 'Failed to extract medical record';
@@ -241,9 +183,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
             await setAnalysisProgress(
               supabase,
               id,
-              '1.extract_timeout_but_checkpoint',
-              `facts=${cp.facts.length} — auto starting phase2`,
-              'D'
+              'extract_timeout_checkpoint_ok',
+              `facts=${cp.facts.length} — starting report phase`
             );
             await triggerSynthesizePhase(id);
             return;
@@ -256,21 +197,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     });
 
-    return NextResponse.json(
-      {
-        started: true,
-        reviewId: id,
-        phase: 1,
-        pipelineVersion: '2phase-v1',
-        debug: {
-          hypothesis: 'A',
-          note: 'phase1 extract queued; phase2 auto-starts after facts_saved',
-          pipelineVersion: '2phase-v1',
-          vercelRuntime: process.env.VERCEL ? 'vercel' : 'local',
-        },
-      },
-      { status: 202 }
-    );
+    return NextResponse.json({ started: true, reviewId: id, phase: 1 }, { status: 202 });
   } catch (error: any) {
     console.error('[medical-record-reviews/:id/analyze] error:', error);
     const message = error?.message || 'Failed to start analysis';

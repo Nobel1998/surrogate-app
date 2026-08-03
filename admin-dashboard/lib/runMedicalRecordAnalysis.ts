@@ -26,30 +26,10 @@ export async function setAnalysisProgress(
   supabase: SupabaseClient,
   reviewId: string,
   step: string,
-  detail?: string,
-  hypothesisId?: string
+  detail?: string
 ) {
   const stamp = new Date().toISOString();
-  const hyp = hypothesisId ? ` [${hypothesisId}]` : '';
-  const msg = `${PROGRESS_PREFIX}${hyp} ${step}${detail ? ` — ${detail}` : ''} @ ${stamp}`.slice(
-    0,
-    1000
-  );
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-    body: JSON.stringify({
-      sessionId: '5244e3',
-      runId: 'post-fix',
-      hypothesisId: hypothesisId || 'E',
-      location: 'runMedicalRecordAnalysis.ts:setAnalysisProgress',
-      message: step,
-      data: { reviewId, detail: detail || null },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  const msg = `${PROGRESS_PREFIX} ${step}${detail ? ` — ${detail}` : ''} @ ${stamp}`.slice(0, 1000);
   await supabase
     .from('medical_record_reviews')
     .update({
@@ -111,21 +91,6 @@ export async function triggerSynthesizePhase(reviewId: string) {
     throw new Error('Missing internal secret for report synthesis trigger');
   }
   const url = `${getSiteBaseUrl()}/api/medical-record-reviews/${reviewId}/synthesize`;
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
-    body: JSON.stringify({
-      sessionId: '5244e3',
-      runId: 'post-fix',
-      hypothesisId: 'D',
-      location: 'runMedicalRecordAnalysis.ts:triggerSynthesize',
-      message: 'triggering phase-2 synthesize',
-      data: { reviewId, urlHost: getSiteBaseUrl() },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   const res = await fetch(url, {
     method: 'POST',
@@ -211,7 +176,7 @@ async function loadPdfBytes(
     providedPdfBytes && providedPdfBytes.byteLength > 0 ? providedPdfBytes : null;
 
   if (!pdfBytes) {
-    await setAnalysisProgress(supabase, reviewId, '2.temp_pdf', 'reading local temp cache', 'C');
+    await setAnalysisProgress(supabase, reviewId, '2.temp_pdf', 'reading local temp cache');
     pdfBytes = await readMedicalRecordTempPdf(reviewId);
   }
 
@@ -220,9 +185,7 @@ async function loadPdfBytes(
       supabase,
       reviewId,
       '3.storage_check',
-      `path=${String(existing.storage_path).slice(0, 80)}`,
-      'C'
-    );
+      `path=${String(existing.storage_path).slice(0, 80)}`);
     const pdfExists = await medicalRecordPdfExists(supabase, existing.storage_path);
     if (!pdfExists) {
       throw new Error('PDF file not found in storage. Please delete this record and upload the PDF again.');
@@ -235,16 +198,14 @@ async function loadPdfBytes(
     const cdnUrl = toStorageCdnUrl(publicUrl);
 
     try {
-      await setAnalysisProgress(supabase, reviewId, '4.download_cdn', 'downloading PDF from CDN', 'C');
+      await setAnalysisProgress(supabase, reviewId, '4.download_cdn', 'downloading PDF from CDN');
       pdfBytes = await downloadPdfBytes(cdnUrl, 3 * 60 * 1000);
     } catch (cdnError: any) {
       await setAnalysisProgress(
         supabase,
         reviewId,
         '4b.download_signed',
-        `CDN failed: ${String(cdnError?.message || cdnError).slice(0, 120)}`,
-        'C'
-      );
+        `CDN failed: ${String(cdnError?.message || cdnError).slice(0, 120)}`);
       const { data: signed, error: signedError } = await supabase.storage
         .from(MEDICAL_RECORD_STORAGE_BUCKET)
         .createSignedUrl(existing.storage_path, 60 * 30);
@@ -267,7 +228,7 @@ export async function runExtractPhase(
   reviewId: string,
   providedPdfBytes?: Uint8Array | null
 ) {
-  await setAnalysisProgress(supabase, reviewId, '1.load_record', 'phase1 extract', 'C');
+  await setAnalysisProgress(supabase, reviewId, '1.load_record', 'phase1 extract');
 
   const { data: existing, error: fetchError } = await supabase
     .from('medical_record_reviews')
@@ -291,9 +252,7 @@ export async function runExtractPhase(
       supabase,
       reviewId,
       '1.checkpoint_exists',
-      `facts=${existingCheckpoint.facts.length} — skip extract`,
-      'D'
-    );
+      `facts=${existingCheckpoint.facts.length} — skip extract`);
     return { checkpoint: existingCheckpoint, skippedExtract: true as const };
   }
 
@@ -313,9 +272,7 @@ export async function runExtractPhase(
     supabase,
     reviewId,
     '5.ai_extract',
-    `pdfBytes=${pdfBytes.byteLength}`,
-    'D'
-  );
+    `pdfBytes=${pdfBytes.byteLength}`);
 
   const savedHolder: { checkpoint: MedicalRecordFactsCheckpoint | null } = {
     checkpoint: null,
@@ -326,7 +283,7 @@ export async function runExtractPhase(
     patientName,
     extractOnly: true,
     onProgress: async (step, detail) => {
-      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
+      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail);
     },
     onFactsReady: async (checkpoint) => {
       await persistFactsCheckpoint(supabase, reviewId, checkpoint);
@@ -335,9 +292,7 @@ export async function runExtractPhase(
         supabase,
         reviewId,
         '5.facts_saved',
-        `facts=${checkpoint.facts.length} checkpoint persisted`,
-        'D'
-      );
+        `facts=${checkpoint.facts.length} checkpoint persisted`);
     },
   });
 
@@ -349,16 +304,14 @@ export async function runExtractPhase(
     supabase,
     reviewId,
     '5.phase1_done',
-    `facts=${savedHolder.checkpoint.facts.length} — starting phase2 automatically`,
-    'D'
-  );
+    `facts=${savedHolder.checkpoint.facts.length} — starting phase2 automatically`);
 
   return { checkpoint: savedHolder.checkpoint, skippedExtract: false as const };
 }
 
 /** Phase 2: generate clinic + staff reports from checkpoint (fresh time budget). */
 export async function runSynthesizePhase(supabase: SupabaseClient, reviewId: string) {
-  await setAnalysisProgress(supabase, reviewId, '2.load_checkpoint', 'phase2 reports', 'D');
+  await setAnalysisProgress(supabase, reviewId, '2.load_checkpoint', 'phase2 reports');
 
   const { data: existing, error: fetchError } = await supabase
     .from('medical_record_reviews')
@@ -374,7 +327,7 @@ export async function runSynthesizePhase(supabase: SupabaseClient, reviewId: str
   }
 
   if (existing.clinic_report || existing.staff_report) {
-    await setAnalysisProgress(supabase, reviewId, '2.already_done', 'reports already present', 'D');
+    await setAnalysisProgress(supabase, reviewId, '2.already_done', 'reports already present');
     return existing;
   }
 
@@ -392,16 +345,14 @@ export async function runSynthesizePhase(supabase: SupabaseClient, reviewId: str
     supabase,
     reviewId,
     '5.resume_reports',
-    `facts=${checkpoint.facts.length} (phase2 only)`,
-    'D'
-  );
+    `facts=${checkpoint.facts.length} (phase2 only)`);
 
   const synthesized = await synthesizeReportsFromFacts(
     checkpoint.facts,
     checkpoint.pageCount,
     patientName,
     async (step, detail) => {
-      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
+      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail);
     }
   );
 
@@ -424,9 +375,7 @@ export async function runSynthesizePhase(supabase: SupabaseClient, reviewId: str
     supabase,
     reviewId,
     '6.db_update',
-    `clinic=${synthesized.clinicReport.length} staff=${synthesized.staffReport.length}`,
-    'E'
-  );
+    `clinic=${synthesized.clinicReport.length} staff=${synthesized.staffReport.length}`);
 
   const { data: updated, error: updateError } = await supabase
     .from('medical_record_reviews')
