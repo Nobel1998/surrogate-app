@@ -2,20 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import {
   markMedicalRecordAnalysisFailed,
-  runMedicalRecordAnalysis,
+  runExtractPhase,
   saveMedicalRecordTempPdf,
   setAnalysisProgress,
+  triggerSynthesizePhase,
 } from '@/lib/runMedicalRecordAnalysis';
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
+import { parseFactsCheckpoint } from '@/lib/kimiMedicalReview';
 
 export const dynamic = 'force-dynamic';
-/**
- * Vercel function time limit:
- * - Hobby: max 300s (current)
- * - Pro / Enterprise: can set up to 800s (or 1800s with Fluid Compute extended duration)
- * Change this number only after upgrading the Vercel plan, otherwise deploy may fail.
- */
-export const maxDuration = 300;
+export const maxDuration = 300; // Hobby max is 300s; phase2 runs in a separate invocation
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -63,7 +59,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { data: existing, error: fetchError } = await auth.supabase
       .from('medical_record_reviews')
-      .select('id, status, storage_path, file_url, file_deleted_at, updated_at, error_message')
+      .select(
+        'id, status, storage_path, file_url, file_deleted_at, updated_at, error_message, raw_ai_response, clinic_report, staff_report'
+      )
       .eq('id', id)
       .single();
 
@@ -73,31 +71,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (existing.status === 'analyzing') {
       const updatedAt = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
-      // Allow retry quickly when progress freezes mid-AI (Vercel kill leaves stale analyzing).
       const staleMs = 2 * 60 * 1000;
       if (updatedAt && Date.now() - updatedAt < staleMs) {
-        // #region agent log
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': '5244e3',
-          },
-          body: JSON.stringify({
-            sessionId: '5244e3',
-            runId: 'prod-debug',
-            hypothesisId: 'B',
-            location: 'analyze/route.ts:alreadyRunning',
-            message: 'alreadyRunning short-circuit',
-            data: {
-              id,
-              ageMs: Date.now() - updatedAt,
-              progress: existing.error_message || null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         return NextResponse.json(
           {
             started: true,
@@ -112,6 +87,54 @@ export async function POST(req: NextRequest, context: RouteContext) {
           { status: 202 }
         );
       }
+    }
+
+    const checkpoint = parseFactsCheckpoint(existing.raw_ai_response);
+    const hasCheckpoint =
+      !!checkpoint &&
+      checkpoint.facts.length > 0 &&
+      !existing.clinic_report &&
+      !existing.staff_report;
+
+    // If facts already saved, skip extract and only start phase 2.
+    if (hasCheckpoint) {
+      await auth.supabase
+        .from('medical_record_reviews')
+        .update({
+          status: 'analyzing',
+          error_message: `PROGRESS: [D] 1.skip_extract — checkpoint facts=${checkpoint!.facts.length}; starting phase2 @ ${new Date().toISOString()}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      after(async () => {
+        try {
+          await setAnalysisProgress(
+            auth.supabase,
+            id,
+            '1.auto_phase2',
+            `facts=${checkpoint!.facts.length}`,
+            'D'
+          );
+          await triggerSynthesizePhase(id);
+        } catch (error: any) {
+          await markMedicalRecordAnalysisFailed(
+            auth.supabase,
+            id,
+            error?.message || 'Failed to start report phase'
+          );
+        }
+      });
+
+      return NextResponse.json(
+        {
+          started: true,
+          reviewId: id,
+          phase: 2,
+          debug: { note: 'checkpoint found — auto starting phase2 only', facts: checkpoint!.facts.length },
+        },
+        { status: 202 }
+      );
     }
 
     let providedPdfBytes: Uint8Array | null = null;
@@ -134,7 +157,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .from('medical_record_reviews')
       .update({
         status: 'analyzing',
-        error_message: `PROGRESS: [A] 0.queued — waiting for after() @ ${new Date().toISOString()}`,
+        error_message: `PROGRESS: [A] 0.queued — phase1 extract @ ${new Date().toISOString()}`,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
@@ -142,7 +165,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const supabase = auth.supabase;
     after(async () => {
       const startedAt = Date.now();
-      // Leave headroom before Vercel maxDuration=300s so we can mark failed instead of freezing.
       const budgetMs = 270_000;
       // #region agent log
       fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
@@ -155,28 +177,31 @@ export async function POST(req: NextRequest, context: RouteContext) {
           sessionId: '5244e3',
           runId: 'post-fix',
           hypothesisId: 'D',
-          location: 'analyze/route.ts:afterStart',
-          message: 'after() started with budget',
+          location: 'analyze/route.ts:phase1Start',
+          message: 'phase1 extract started',
           data: { id, budgetMs },
           timestamp: Date.now(),
         }),
       }).catch(() => {});
       // #endregion
       try {
-        await setAnalysisProgress(supabase, id, '0.after_started', 'background job running', 'A');
-        const deadlineAt = startedAt + budgetMs;
+        await setAnalysisProgress(supabase, id, '0.after_started', 'phase1 extract running', 'A');
         await Promise.race([
-          runMedicalRecordAnalysis(supabase, id, providedPdfBytes, { deadlineAt }),
+          runExtractPhase(supabase, id, providedPdfBytes),
           new Promise<never>((_, reject) => {
             setTimeout(() => {
               reject(
                 new Error(
-                  `Analysis timed out after ${Math.round(budgetMs / 1000)}s. If facts were saved, Retry Review will skip PDF extract and only generate reports.`
+                  `Extract phase timed out after ${Math.round(budgetMs / 1000)}s. If facts_saved appeared, Retry Review will run reports only.`
                 )
               );
             }, budgetMs);
           }),
         ]);
+
+        // Fresh serverless invocation for reports (new 300s budget).
+        await triggerSynthesizePhase(id);
+
         // #region agent log
         fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
           method: 'POST',
@@ -188,34 +213,40 @@ export async function POST(req: NextRequest, context: RouteContext) {
             sessionId: '5244e3',
             runId: 'post-fix',
             hypothesisId: 'D',
-            location: 'analyze/route.ts:afterOk',
-            message: 'after() finished ok',
+            location: 'analyze/route.ts:phase1Ok',
+            message: 'phase1 done; phase2 triggered',
             data: { id, elapsedMs: Date.now() - startedAt },
             timestamp: Date.now(),
           }),
         }).catch(() => {});
         // #endregion
       } catch (error: any) {
-        console.error('[medical-record-reviews/:id/analyze] background error:', error);
-        const message = error?.message || 'Failed to analyze medical record';
-        // #region agent log
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': '5244e3',
-          },
-          body: JSON.stringify({
-            sessionId: '5244e3',
-            runId: 'post-fix',
-            hypothesisId: 'D',
-            location: 'analyze/route.ts:afterErr',
-            message: 'after() failed',
-            data: { id, error: String(message).slice(0, 300), elapsedMs: Date.now() - startedAt },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
+        console.error('[medical-record-reviews/:id/analyze] phase1 error:', error);
+        const message = error?.message || 'Failed to extract medical record';
+
+        // If checkpoint was saved before timeout, still try to start phase 2.
+        try {
+          const { data: row } = await supabase
+            .from('medical_record_reviews')
+            .select('raw_ai_response, clinic_report, staff_report')
+            .eq('id', id)
+            .maybeSingle();
+          const cp = parseFactsCheckpoint(row?.raw_ai_response);
+          if (cp?.facts?.length && !row?.clinic_report && !row?.staff_report) {
+            await setAnalysisProgress(
+              supabase,
+              id,
+              '1.extract_timeout_but_checkpoint',
+              `facts=${cp.facts.length} — auto starting phase2`,
+              'D'
+            );
+            await triggerSynthesizePhase(id);
+            return;
+          }
+        } catch (resumeErr) {
+          console.error('[analyze] failed to auto-start phase2 after extract error:', resumeErr);
+        }
+
         await markMedicalRecordAnalysisFailed(supabase, id, message);
       }
     });
@@ -224,9 +255,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         started: true,
         reviewId: id,
+        phase: 1,
         debug: {
           hypothesis: 'A',
-          note: 'queued for after(); watch PROGRESS on the review detail panel',
+          note: 'phase1 extract queued; phase2 auto-starts after facts_saved',
           vercelRuntime: process.env.VERCEL ? 'vercel' : 'local',
         },
       },

@@ -671,11 +671,11 @@ export async function analyzeMedicalRecordPdf(
   options?: {
     fileName?: string;
     patientName?: string | null;
-    /** Absolute timestamp; if remaining time is too low after facts, skip report synthesis. */
-    deadlineAt?: number;
     onProgress?: (step: string, detail?: string) => void | Promise<void>;
     /** Called after facts are extracted so the caller can checkpoint before report synthesis. */
     onFactsReady?: (checkpoint: MedicalRecordFactsCheckpoint) => void | Promise<void>;
+    /** Stop after extracting facts (phase 1). Do not generate clinic/staff reports. */
+    extractOnly?: boolean;
   }
 ): Promise<{
   complications: MedicalComplication[];
@@ -686,8 +686,6 @@ export async function analyzeMedicalRecordPdf(
   complexityTier: number | null;
   rawAiResponse: string;
   pageCount: number;
-  /** True when facts were saved but reports were deferred to a Retry (time budget). */
-  deferredReports?: boolean;
 }> {
   const report = async (step: string, detail?: string) => {
     try {
@@ -816,35 +814,36 @@ export async function analyzeMedicalRecordPdf(
   const resolvedPatientName =
     cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
 
+  // Keep checkpoint small so Supabase update always succeeds (raw chat dumps were too large).
   const checkpoint: MedicalRecordFactsCheckpoint = {
     v: 1,
     facts,
     pageCount,
     patientName: resolvedPatientName,
-    extractRaw: `[${rawParts.join(',')}]`,
+    extractRaw: JSON.stringify({
+      batches: rawParts.length,
+      extractErrors: extractErrors.slice(0, 20),
+      chatErrors: chatErrors.slice(0, 20),
+    }),
   };
 
   await report('facts_checkpoint', `facts=${facts.length}`);
-  try {
-    await options?.onFactsReady?.(checkpoint);
-  } catch {
-    // checkpoint persist is best-effort; reports may still succeed in this run
+  if (options?.onFactsReady) {
+    await options.onFactsReady(checkpoint);
   }
 
-  // Reserve time for clinic+staff (parallel, each up to ~120s). If not enough left,
-  // stop here so Retry can resume reports with a fresh Vercel time budget.
-  const REPORT_RESERVE_MS = 130_000;
-  const deadlineAt = options?.deadlineAt;
-  if (deadlineAt && deadlineAt - Date.now() < REPORT_RESERVE_MS) {
-    await report(
-      'defer_reports',
-      `remaining=${Math.max(0, Math.round((deadlineAt - Date.now()) / 1000))}s < ${Math.round(REPORT_RESERVE_MS / 1000)}s reserve`
-    );
-    const err = new Error(
-      'FACTS_CHECKPOINT_READY: Facts saved. Click Retry Review to generate clinic/staff reports (PDF extract will be skipped).'
-    );
-    (err as Error & { code?: string }).code = 'FACTS_CHECKPOINT_READY';
-    throw err;
+  if (options?.extractOnly) {
+    await report('extract_phase_done', `facts=${facts.length} — reports will run in phase 2`);
+    return {
+      complications,
+      intro: '',
+      summary: '',
+      clinicReport: '',
+      staffReport: '',
+      complexityTier: null,
+      rawAiResponse: serializeFactsCheckpoint(checkpoint),
+      pageCount,
+    };
   }
 
   const synthesized = await synthesizeReportsFromFacts(
@@ -854,12 +853,11 @@ export async function analyzeMedicalRecordPdf(
     options?.onProgress
   );
 
-  rawParts.push(...synthesized.rawParts);
   chatErrors.push(...synthesized.chatErrors);
 
   const notes = [...extractErrors, ...chatErrors];
   if (notes.length) {
-    rawParts.push(JSON.stringify({ warnings: notes }));
+    // keep warnings only in short form inside checkpoint extractRaw on final save
   }
 
   const clinicReport = synthesized.clinicReport;
@@ -887,7 +885,11 @@ export async function analyzeMedicalRecordPdf(
     complexityTier,
     rawAiResponse: serializeFactsCheckpoint({
       ...checkpoint,
-      extractRaw: `[${rawParts.join(',')}]`,
+      extractRaw: JSON.stringify({
+        batches: rawParts.length,
+        reportParts: synthesized.rawParts.length,
+        warnings: notes.slice(0, 30),
+      }),
     }),
     pageCount,
   };
