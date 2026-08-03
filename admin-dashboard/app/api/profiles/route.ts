@@ -99,13 +99,83 @@ export async function GET() {
       warnings.push(`intended_parent_applications lookup failed: ${parentAppsRes.error.message}`);
     }
 
+    // Some signups only persist name/phone in auth user_metadata (profile upsert may fail).
+    // Enrich list display from auth so the table matches Sign Up Details.
+    const needsAuthEnrichment = profilesData.some(
+      (profile) => !profile.name || !profile.phone || !profile.email || !profile.role
+    );
+    const authMetaById = new Map<
+      string,
+      { name?: string | null; phone?: string | null; email?: string | null; role?: string | null }
+    >();
+
+    if (needsAuthEnrichment) {
+      try {
+        let page = 1;
+        const perPage = 1000;
+        while (page <= 20) {
+          const { data: listed, error: listError } = await supabase.auth.admin.listUsers({
+            page,
+            perPage,
+          });
+          if (listError) {
+            warnings.push(`auth users enrichment failed: ${listError.message}`);
+            break;
+          }
+          const batch = listed?.users || [];
+          for (const authUser of batch) {
+            const meta = (authUser.user_metadata || {}) as Record<string, unknown>;
+            authMetaById.set(authUser.id, {
+              name: typeof meta.name === 'string' ? meta.name : null,
+              phone: typeof meta.phone === 'string' ? meta.phone : null,
+              email: authUser.email || (typeof meta.email === 'string' ? meta.email : null),
+              role: typeof meta.role === 'string' ? meta.role : null,
+            });
+          }
+          if (batch.length < perPage) break;
+          page += 1;
+        }
+      } catch (enrichError: unknown) {
+        const message =
+          enrichError instanceof Error ? enrichError.message : 'auth users enrichment failed';
+        warnings.push(message);
+      }
+    }
+
     const users = profilesData.map((profile) => {
       const hasSurrogateApplication = surrogateApplicantIds.has(profile.id);
       const hasParentApplication = parentApplicantIds.has(profile.id);
+      const authMeta = authMetaById.get(profile.id);
+
+      const name = profile.name || authMeta?.name || null;
+      const phone = profile.phone || authMeta?.phone || null;
+      const email = profile.email || authMeta?.email || null;
+      const role = profile.role || authMeta?.role || null;
+
+      // Best-effort backfill so Applications / future list loads stay consistent.
+      if (authMeta && ((!profile.name && name) || (!profile.phone && phone))) {
+        void supabase
+          .from('profiles')
+          .update({
+            ...( !profile.name && name ? { name } : {}),
+            ...( !profile.phone && phone ? { phone } : {}),
+            ...( !profile.email && email ? { email } : {}),
+            ...( !profile.role && role ? { role } : {}),
+          })
+          .eq('id', profile.id)
+          .then(({ error }) => {
+            if (error) {
+              console.warn('[profiles] backfill name/phone failed:', profile.id, error.message);
+            }
+          });
+      }
 
       return {
         ...profile,
-        email: profile.email || null,
+        name,
+        phone,
+        email,
+        role,
         hasSurrogateApplication,
         hasParentApplication,
         hasAnyApplication: hasSurrogateApplication || hasParentApplication,

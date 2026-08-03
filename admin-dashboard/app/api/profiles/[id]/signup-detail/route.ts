@@ -47,7 +47,9 @@ export async function GET(
     const [{ data: profile, error: profileError }, authUserRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, name, email, phone, role, created_at, signup_ip, signup_ip_region')
+        .select(
+          'id, name, email, phone, role, created_at, signup_ip, signup_ip_region, race, location, date_of_birth'
+        )
         .eq('id', id)
         .maybeSingle(),
       supabase.auth.admin.getUserById(id),
@@ -68,16 +70,50 @@ export async function GET(
     }
 
     const metadata = (authUserRes.data.user?.user_metadata || {}) as Record<string, any>;
+    const authEmail = authUserRes.data.user?.email || null;
+
+    const name = metadata.name ?? profile?.name ?? null;
+    const phone = metadata.phone ?? profile?.phone ?? null;
+    const email = profile?.email ?? authEmail ?? null;
+    const role = metadata.role ?? profile?.role ?? null;
+
+    // Keep profiles in sync when list previously showed N/A but metadata has values.
+    if (profile?.id && ((!profile.name && name) || (!profile.phone && phone))) {
+      const { error: backfillError } = await supabase
+        .from('profiles')
+        .update({
+          ...( !profile.name && name ? { name } : {}),
+          ...( !profile.phone && phone ? { phone } : {}),
+          ...( !profile.email && email ? { email } : {}),
+          ...( !profile.role && role ? { role } : {}),
+        })
+        .eq('id', profile.id);
+      if (backfillError) {
+        console.warn('[profiles/signup-detail] backfill failed:', backfillError.message);
+      }
+    }
 
     return NextResponse.json({
-      profile: profile || null,
+      profile: profile
+        ? {
+            ...profile,
+            name: profile.name || name,
+            phone: profile.phone || phone,
+            email: profile.email || email,
+            role: profile.role || role,
+          }
+        : null,
       signupMetadata: {
-        name: metadata.name ?? null,
-        phone: metadata.phone ?? null,
-        role: metadata.role ?? null,
-        date_of_birth: metadata.date_of_birth ?? null,
-        race: metadata.race ?? null,
-        location: metadata.location ?? null,
+        name,
+        phone,
+        role,
+        date_of_birth: metadata.date_of_birth ?? profile?.date_of_birth ?? null,
+        race: metadata.race ?? profile?.race ?? null,
+        emergency_contact:
+          metadata.emergency_contact ??
+          metadata.emergencyContact ??
+          null,
+        location: metadata.location ?? profile?.location ?? null,
         referral_code: metadata.referral_code ?? null,
       },
     });

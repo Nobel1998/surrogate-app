@@ -27,6 +27,9 @@ type SignUpDetailResponse = {
     created_at: string | null;
     signup_ip?: string | null;
     signup_ip_region?: string | null;
+    race?: string | null;
+    location?: string | null;
+    date_of_birth?: string | null;
   } | null;
   signupMetadata: {
     name: string | null;
@@ -34,6 +37,7 @@ type SignUpDetailResponse = {
     role: string | null;
     date_of_birth: string | null;
     race: string | null;
+    emergency_contact: string | null;
     location: string | null;
     referral_code: string | null;
   };
@@ -298,13 +302,14 @@ export default function ProfilesPage() {
                   <div className="text-red-600">{detailError}</div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div><span className="font-semibold text-gray-700">Full Name:</span> {signupDetail?.signupMetadata?.name || signupDetail?.profile?.name || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Full Name:</span> {signupDetail?.signupMetadata?.name || signupDetail?.profile?.name || selectedUser.name || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Email:</span> {signupDetail?.profile?.email || selectedUser.email || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-700">Phone:</span> {signupDetail?.signupMetadata?.phone || signupDetail?.profile?.phone || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Phone:</span> {signupDetail?.signupMetadata?.phone || signupDetail?.profile?.phone || selectedUser.phone || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Role:</span> {String(signupDetail?.signupMetadata?.role || signupDetail?.profile?.role || selectedUser.role || 'N/A').toUpperCase()}</div>
-                    <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || 'N/A'}</div>
-                    <div><span className="font-semibold text-gray-700">Race / Emergency Contact:</span> {signupDetail?.signupMetadata?.race || 'N/A'}</div>
-                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location (City/State):</span> {signupDetail?.signupMetadata?.location || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Date of Birth:</span> {signupDetail?.signupMetadata?.date_of_birth || signupDetail?.profile?.date_of_birth || 'N/A'}</div>
+                    <div><span className="font-semibold text-gray-700">Race:</span> {signupDetail?.signupMetadata?.race || signupDetail?.profile?.race || 'N/A'}</div>
+                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Emergency Contact:</span> {signupDetail?.signupMetadata?.emergency_contact || 'N/A'}</div>
+                    <div className="md:col-span-2"><span className="font-semibold text-gray-700">Location (City/State):</span> {signupDetail?.signupMetadata?.location || signupDetail?.profile?.location || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Applicant IP Region (Province/State):</span> {toEnglishProvinceLabel(signupDetail?.profile?.signup_ip_region) || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Referral Code:</span> {signupDetail?.signupMetadata?.referral_code || 'N/A'}</div>
                     <div><span className="font-semibold text-gray-700">Registered At:</span> {signupDetail?.profile?.created_at ? new Date(signupDetail.profile.created_at).toLocaleString() : (selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A')}</div>
