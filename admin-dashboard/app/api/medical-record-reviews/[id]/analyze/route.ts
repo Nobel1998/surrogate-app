@@ -9,7 +9,7 @@ import {
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     after(async () => {
       const startedAt = Date.now();
       // Leave headroom before Vercel maxDuration=300s so we can mark failed instead of freezing.
-      const budgetMs = 270_000;
+      const budgetMs = 760_000;
       // #region agent log
       fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
         method: 'POST',
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             setTimeout(() => {
               reject(
                 new Error(
-                  `Analysis timed out after ${Math.round(budgetMs / 1000)}s (near Vercel limit). Last step was likely clinic/staff report generation — click Retry Review.`
+                  `Analysis timed out after ${Math.round(budgetMs / 1000)}s. If facts were saved, Retry Review will skip PDF extract and only generate reports.`
                 )
               );
             }, budgetMs);

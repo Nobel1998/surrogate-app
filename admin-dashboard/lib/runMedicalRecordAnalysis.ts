@@ -2,7 +2,13 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { analyzeMedicalRecordPdf } from '@/lib/kimiMedicalReview';
+import {
+  analyzeMedicalRecordPdf,
+  parseFactsCheckpoint,
+  serializeFactsCheckpoint,
+  synthesizeReportsFromFacts,
+  type MedicalRecordFactsCheckpoint,
+} from '@/lib/kimiMedicalReview';
 import {
   MEDICAL_RECORD_STORAGE_BUCKET,
   buildDocumentsPublicUrl,
@@ -34,7 +40,7 @@ export async function setAnalysisProgress(
     headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
     body: JSON.stringify({
       sessionId: '5244e3',
-      runId: 'prod-debug',
+      runId: 'post-fix',
       hypothesisId: hypothesisId || 'E',
       location: 'runMedicalRecordAnalysis.ts:setAnalysisProgress',
       message: step,
@@ -107,6 +113,26 @@ async function downloadPdfBytes(url: string, timeoutMs: number): Promise<Uint8Ar
   }
 }
 
+async function persistFactsCheckpoint(
+  supabase: SupabaseClient,
+  reviewId: string,
+  checkpoint: MedicalRecordFactsCheckpoint
+) {
+  const complications = checkpoint.facts.map((f) => ({
+    complication: f.finding,
+    page: f.page,
+    ...(f.detail ? { note: f.detail.slice(0, 500) } : {}),
+  }));
+  await supabase
+    .from('medical_record_reviews')
+    .update({
+      complications,
+      raw_ai_response: serializeFactsCheckpoint(checkpoint),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reviewId);
+}
+
 export async function runMedicalRecordAnalysis(
   supabase: SupabaseClient,
   reviewId: string,
@@ -128,60 +154,12 @@ export async function runMedicalRecordAnalysis(
     throw new Error('PDF file is missing');
   }
 
-  if (!isMedicalRecordPdfReady(existing) && !(providedPdfBytes && providedPdfBytes.byteLength > 0)) {
-    throw new Error('PDF upload is incomplete. Please delete this record and upload the PDF again.');
-  }
-
-  let pdfBytes: Uint8Array | null =
-    providedPdfBytes && providedPdfBytes.byteLength > 0 ? providedPdfBytes : null;
-
-  if (!pdfBytes) {
-    await setAnalysisProgress(supabase, reviewId, '2.temp_pdf', 'reading local temp cache', 'C');
-    pdfBytes = await readMedicalRecordTempPdf(reviewId);
-  }
-
-  if (!pdfBytes) {
-    await setAnalysisProgress(
-      supabase,
-      reviewId,
-      '3.storage_check',
-      `path=${String(existing.storage_path).slice(0, 80)}`,
-      'C'
-    );
-    const pdfExists = await medicalRecordPdfExists(supabase, existing.storage_path);
-    if (!pdfExists) {
-      throw new Error('PDF file not found in storage. Please delete this record and upload the PDF again.');
-    }
-
-    const publicUrl =
-      existing.file_url && existing.file_url !== 'pending'
-        ? existing.file_url
-        : buildDocumentsPublicUrl(existing.storage_path);
-    const cdnUrl = toStorageCdnUrl(publicUrl);
-
-    try {
-      await setAnalysisProgress(supabase, reviewId, '4.download_cdn', 'downloading PDF from CDN', 'C');
-      pdfBytes = await downloadPdfBytes(cdnUrl, 3 * 60 * 1000);
-    } catch (cdnError: any) {
-      await setAnalysisProgress(
-        supabase,
-        reviewId,
-        '4b.download_signed',
-        `CDN failed: ${String(cdnError?.message || cdnError).slice(0, 120)}`,
-        'C'
-      );
-      const { data: signed, error: signedError } = await supabase.storage
-        .from(MEDICAL_RECORD_STORAGE_BUCKET)
-        .createSignedUrl(existing.storage_path, 60 * 30);
-
-      if (signedError || !signed?.signedUrl) {
-        const detail = await formatStorageDownloadError(signedError);
-        throw new Error(detail || cdnError?.message || 'Failed to download PDF');
-      }
-
-      pdfBytes = await downloadPdfBytes(signed.signedUrl, 3 * 60 * 1000);
-    }
-  }
+  const existingCheckpoint = parseFactsCheckpoint(existing.raw_ai_response);
+  const canResumeReports =
+    !!existingCheckpoint &&
+    existingCheckpoint.facts.length > 0 &&
+    !existing.clinic_report &&
+    !existing.staff_report;
 
   let patientName: string | null = null;
   if (existing.surrogate_user_id) {
@@ -193,21 +171,163 @@ export async function runMedicalRecordAnalysis(
     patientName = profile?.name || null;
   }
 
-  await setAnalysisProgress(
-    supabase,
-    reviewId,
-    '5.ai_analyze',
-    `pdfBytes=${pdfBytes?.byteLength || 0}`,
-    'D'
-  );
+  let result: {
+    complications: any[];
+    intro: string;
+    summary: string;
+    clinicReport: string;
+    staffReport: string;
+    complexityTier: number | null;
+    rawAiResponse: string;
+    pageCount: number;
+  };
 
-  const result = await analyzeMedicalRecordPdf(pdfBytes, {
-    fileName: existing.file_name || 'medical-record.pdf',
-    patientName,
-    onProgress: async (step, detail) => {
-      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
-    },
-  });
+  if (canResumeReports && existingCheckpoint) {
+    // #region agent log
+    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+      body: JSON.stringify({
+        sessionId: '5244e3',
+        runId: 'post-fix',
+        hypothesisId: 'D',
+        location: 'runMedicalRecordAnalysis.ts:resume',
+        message: 'resuming reports from facts checkpoint',
+        data: { reviewId, facts: existingCheckpoint.facts.length },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    await setAnalysisProgress(
+      supabase,
+      reviewId,
+      '5.resume_reports',
+      `facts=${existingCheckpoint.facts.length} (skip PDF extract)`,
+      'D'
+    );
+
+    const synthesized = await synthesizeReportsFromFacts(
+      existingCheckpoint.facts,
+      existingCheckpoint.pageCount,
+      existingCheckpoint.patientName || patientName,
+      async (step, detail) => {
+        await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
+      }
+    );
+
+    const intro = synthesized.clinicReport
+      ? 'Clinic-ready and internal staff reports were generated from this medical record. Open each report tab below (or download PDFs).'
+      : '';
+    const summary = synthesized.staffReport
+      ? synthesized.complexityTier
+        ? `Internal Case Complexity Flag: Tier ${synthesized.complexityTier}. See Staff Report for details.`
+        : 'See Staff Report for the internal Case Complexity Flag and triage notes.'
+      : '';
+
+    result = {
+      complications: existingCheckpoint.facts.map((f) => ({
+        complication: f.finding,
+        page: f.page,
+        ...(f.detail ? { note: f.detail.slice(0, 500) } : {}),
+      })),
+      intro,
+      summary,
+      clinicReport: synthesized.clinicReport,
+      staffReport: synthesized.staffReport,
+      complexityTier: synthesized.complexityTier,
+      rawAiResponse: serializeFactsCheckpoint({
+        ...existingCheckpoint,
+        extractRaw: `${existingCheckpoint.extractRaw}\n${synthesized.rawParts.join('\n')}`.slice(
+          0,
+          500000
+        ),
+      }),
+      pageCount: existingCheckpoint.pageCount,
+    };
+  } else {
+    if (!isMedicalRecordPdfReady(existing) && !(providedPdfBytes && providedPdfBytes.byteLength > 0)) {
+      throw new Error('PDF upload is incomplete. Please delete this record and upload the PDF again.');
+    }
+
+    let pdfBytes: Uint8Array | null =
+      providedPdfBytes && providedPdfBytes.byteLength > 0 ? providedPdfBytes : null;
+
+    if (!pdfBytes) {
+      await setAnalysisProgress(supabase, reviewId, '2.temp_pdf', 'reading local temp cache', 'C');
+      pdfBytes = await readMedicalRecordTempPdf(reviewId);
+    }
+
+    if (!pdfBytes) {
+      await setAnalysisProgress(
+        supabase,
+        reviewId,
+        '3.storage_check',
+        `path=${String(existing.storage_path).slice(0, 80)}`,
+        'C'
+      );
+      const pdfExists = await medicalRecordPdfExists(supabase, existing.storage_path);
+      if (!pdfExists) {
+        throw new Error(
+          'PDF file not found in storage. Please delete this record and upload the PDF again.'
+        );
+      }
+
+      const publicUrl =
+        existing.file_url && existing.file_url !== 'pending'
+          ? existing.file_url
+          : buildDocumentsPublicUrl(existing.storage_path);
+      const cdnUrl = toStorageCdnUrl(publicUrl);
+
+      try {
+        await setAnalysisProgress(supabase, reviewId, '4.download_cdn', 'downloading PDF from CDN', 'C');
+        pdfBytes = await downloadPdfBytes(cdnUrl, 3 * 60 * 1000);
+      } catch (cdnError: any) {
+        await setAnalysisProgress(
+          supabase,
+          reviewId,
+          '4b.download_signed',
+          `CDN failed: ${String(cdnError?.message || cdnError).slice(0, 120)}`,
+          'C'
+        );
+        const { data: signed, error: signedError } = await supabase.storage
+          .from(MEDICAL_RECORD_STORAGE_BUCKET)
+          .createSignedUrl(existing.storage_path, 60 * 30);
+
+        if (signedError || !signed?.signedUrl) {
+          const detail = await formatStorageDownloadError(signedError);
+          throw new Error(detail || cdnError?.message || 'Failed to download PDF');
+        }
+
+        pdfBytes = await downloadPdfBytes(signed.signedUrl, 3 * 60 * 1000);
+      }
+    }
+
+    await setAnalysisProgress(
+      supabase,
+      reviewId,
+      '5.ai_analyze',
+      `pdfBytes=${pdfBytes?.byteLength || 0}`,
+      'D'
+    );
+
+    result = await analyzeMedicalRecordPdf(pdfBytes, {
+      fileName: existing.file_name || 'medical-record.pdf',
+      patientName,
+      onProgress: async (step, detail) => {
+        await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
+      },
+      onFactsReady: async (checkpoint) => {
+        await persistFactsCheckpoint(supabase, reviewId, checkpoint);
+        await setAnalysisProgress(
+          supabase,
+          reviewId,
+          '5.facts_saved',
+          `facts=${checkpoint.facts.length} checkpoint persisted`,
+          'D'
+        );
+      },
+    });
+  }
 
   await setAnalysisProgress(
     supabase,
@@ -270,6 +390,7 @@ export async function markMedicalRecordAnalysisFailed(
   reviewId: string,
   message: string,
 ) {
+  // Preserve raw_ai_response / facts checkpoint so Retry can resume report synthesis.
   await supabase
     .from('medical_record_reviews')
     .update({

@@ -647,8 +647,8 @@ export default function MedicalRecordReviewsPage() {
                           : '—'}
                     </div>
                     <p className="text-[11px] text-amber-800">
-                      成功时会看到 reports_parallel → clinic_report_ok / staff_report_ok → 状态变为 Analyzed。
-                      若停在 clinic_report 超过 2 分钟，可点 Retry Review。
+                      成功路径：facts_saved → reports_parallel → clinic_report_ok / staff_report_ok → Analyzed。
+                      若第一次超时，再点 Retry：应出现 resume_reports（跳过 PDF 提取，只生成报告）。
                     </p>
                     {analyzeDebugLog.length > 0 ? (
                       <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">

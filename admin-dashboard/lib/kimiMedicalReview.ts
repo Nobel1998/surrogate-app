@@ -14,16 +14,45 @@ const CHAT_MAX_ATTEMPTS = 2;
 /** Fact-extraction chats (longer OK). Must stay under Vercel maxDuration budget. */
 const CHAT_TIMEOUT_MS = 4 * 60 * 1000;
 /** Clinic/staff synthesis — keep short so we fail before the serverless kill. */
-const REPORT_CHAT_TIMEOUT_MS = 90 * 1000;
+const REPORT_CHAT_TIMEOUT_MS = 120 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
-type ExtractedFact = {
+export type ExtractedFact = {
   category: string;
   pregnancyLabel: string | null;
   finding: string;
   detail: string;
   page: number;
 };
+
+export type MedicalRecordFactsCheckpoint = {
+  v: 1;
+  facts: ExtractedFact[];
+  pageCount: number;
+  patientName: string | null;
+  extractRaw: string;
+};
+
+export const MRR_FACTS_CHECKPOINT_PREFIX = '__MRR_FACTS_V1__';
+
+export function serializeFactsCheckpoint(checkpoint: MedicalRecordFactsCheckpoint): string {
+  return `${MRR_FACTS_CHECKPOINT_PREFIX}${JSON.stringify(checkpoint)}`;
+}
+
+export function parseFactsCheckpoint(raw: string | null | undefined): MedicalRecordFactsCheckpoint | null {
+  if (!raw || typeof raw !== 'string') return null;
+  const idx = raw.indexOf(MRR_FACTS_CHECKPOINT_PREFIX);
+  if (idx < 0) return null;
+  try {
+    const parsed = JSON.parse(raw.slice(idx + MRR_FACTS_CHECKPOINT_PREFIX.length)) as MedicalRecordFactsCheckpoint;
+    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.facts) || parsed.facts.length === 0) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 function getApiKey() {
   return process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || '';
@@ -574,12 +603,77 @@ function buildExtractBatches(
   return batches;
 }
 
+export async function synthesizeReportsFromFacts(
+  facts: ExtractedFact[],
+  pageCount: number,
+  patientName: string | null | undefined,
+  onProgress?: (step: string, detail?: string) => void | Promise<void>
+): Promise<{
+  clinicReport: string;
+  staffReport: string;
+  complexityTier: number | null;
+  rawParts: string[];
+  chatErrors: string[];
+}> {
+  const report = async (step: string, detail?: string) => {
+    try {
+      await onProgress?.(step, detail);
+    } catch {
+      // best-effort
+    }
+  };
+
+  const resolvedPatientName = cleanPatientName(patientName);
+  const rawParts: string[] = [];
+  const chatErrors: string[] = [];
+  let clinicReport = '';
+  let staffReport = '';
+  let complexityTier: number | null = null;
+
+  await report('reports_parallel', `facts=${facts.length}`);
+  const [clinicResult, staffResult] = await Promise.allSettled([
+    generateClinicReport(facts, pageCount, resolvedPatientName),
+    generateStaffReport(facts, pageCount, resolvedPatientName),
+  ]);
+
+  if (clinicResult.status === 'fulfilled') {
+    clinicReport = clinicResult.value.report;
+    rawParts.push(JSON.stringify({ clinicReport: clinicResult.value.raw }));
+    await report('clinic_report_ok', `len=${clinicReport.length}`);
+  } else {
+    const msg =
+      (clinicResult.reason as Error)?.message || String(clinicResult.reason) || 'failed';
+    chatErrors.push(`clinic_report: ${msg}`);
+    await report('clinic_report_FAILED', String(msg).slice(0, 160));
+  }
+
+  if (staffResult.status === 'fulfilled') {
+    staffReport = staffResult.value.report;
+    complexityTier = staffResult.value.complexityTier;
+    rawParts.push(JSON.stringify({ staffReport: staffResult.value.raw }));
+    await report('staff_report_ok', `len=${staffReport.length} tier=${complexityTier}`);
+  } else {
+    const msg =
+      (staffResult.reason as Error)?.message || String(staffResult.reason) || 'failed';
+    chatErrors.push(`staff_report: ${msg}`);
+    await report('staff_report_FAILED', String(msg).slice(0, 160));
+  }
+
+  if (!clinicReport && !staffReport) {
+    throw new Error(chatErrors[0] || 'Failed to generate clinic and staff reports');
+  }
+
+  return { clinicReport, staffReport, complexityTier, rawParts, chatErrors };
+}
+
 export async function analyzeMedicalRecordPdf(
   pdfBytes: Uint8Array,
   options?: {
     fileName?: string;
     patientName?: string | null;
     onProgress?: (step: string, detail?: string) => void | Promise<void>;
+    /** Called after facts are extracted so the caller can checkpoint before report synthesis. */
+    onFactsReady?: (checkpoint: MedicalRecordFactsCheckpoint) => void | Promise<void>;
   }
 ): Promise<{
   complications: MedicalComplication[];
@@ -718,45 +812,39 @@ export async function analyzeMedicalRecordPdf(
   const resolvedPatientName =
     cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
 
-  let clinicReport = '';
-  let staffReport = '';
-  let complexityTier: number | null = null;
+  const checkpoint: MedicalRecordFactsCheckpoint = {
+    v: 1,
+    facts,
+    pageCount,
+    patientName: resolvedPatientName,
+    extractRaw: `[${rawParts.join(',')}]`,
+  };
 
-  await report('reports_parallel', `facts=${facts.length}`);
-  const [clinicResult, staffResult] = await Promise.allSettled([
-    generateClinicReport(facts, pageCount, resolvedPatientName),
-    generateStaffReport(facts, pageCount, resolvedPatientName),
-  ]);
-
-  if (clinicResult.status === 'fulfilled') {
-    clinicReport = clinicResult.value.report;
-    rawParts.push(JSON.stringify({ clinicReport: clinicResult.value.raw }));
-    await report('clinic_report_ok', `len=${clinicReport.length}`);
-  } else {
-    const msg = clinicResult.reason?.message || String(clinicResult.reason) || 'failed';
-    chatErrors.push(`clinic_report: ${msg}`);
-    await report('clinic_report_FAILED', String(msg).slice(0, 160));
+  await report('facts_checkpoint', `facts=${facts.length}`);
+  try {
+    await options?.onFactsReady?.(checkpoint);
+  } catch {
+    // checkpoint persist is best-effort; reports may still succeed in this run
   }
 
-  if (staffResult.status === 'fulfilled') {
-    staffReport = staffResult.value.report;
-    complexityTier = staffResult.value.complexityTier;
-    rawParts.push(JSON.stringify({ staffReport: staffResult.value.raw }));
-    await report('staff_report_ok', `len=${staffReport.length} tier=${complexityTier}`);
-  } else {
-    const msg = staffResult.reason?.message || String(staffResult.reason) || 'failed';
-    chatErrors.push(`staff_report: ${msg}`);
-    await report('staff_report_FAILED', String(msg).slice(0, 160));
-  }
+  const synthesized = await synthesizeReportsFromFacts(
+    facts,
+    pageCount,
+    resolvedPatientName,
+    options?.onProgress
+  );
 
-  if (!clinicReport && !staffReport) {
-    throw new Error(chatErrors[0] || 'Failed to generate clinic and staff reports');
-  }
+  rawParts.push(...synthesized.rawParts);
+  chatErrors.push(...synthesized.chatErrors);
 
   const notes = [...extractErrors, ...chatErrors];
   if (notes.length) {
     rawParts.push(JSON.stringify({ warnings: notes }));
   }
+
+  const clinicReport = synthesized.clinicReport;
+  const staffReport = synthesized.staffReport;
+  const complexityTier = synthesized.complexityTier;
 
   // Keep intro/summary for older UI: short pointers into the dual reports.
   const intro = clinicReport
@@ -777,7 +865,10 @@ export async function analyzeMedicalRecordPdf(
     clinicReport,
     staffReport,
     complexityTier,
-    rawAiResponse: `[${rawParts.join(',')}]`,
+    rawAiResponse: serializeFactsCheckpoint({
+      ...checkpoint,
+      extractRaw: `[${rawParts.join(',')}]`,
+    }),
     pageCount,
   };
 }
