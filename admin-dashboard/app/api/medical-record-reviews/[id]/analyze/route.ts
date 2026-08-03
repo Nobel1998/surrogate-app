@@ -131,7 +131,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
           started: true,
           reviewId: id,
           phase: 2,
-          debug: { note: 'checkpoint found — auto starting phase2 only', facts: checkpoint!.facts.length },
+          pipelineVersion: '2phase-v1',
+          debug: {
+            note: 'checkpoint found — auto starting phase2 only',
+            facts: checkpoint!.facts.length,
+            pipelineVersion: '2phase-v1',
+          },
         },
         { status: 202 }
       );
@@ -256,9 +261,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
         started: true,
         reviewId: id,
         phase: 1,
+        pipelineVersion: '2phase-v1',
         debug: {
           hypothesis: 'A',
           note: 'phase1 extract queued; phase2 auto-starts after facts_saved',
+          pipelineVersion: '2phase-v1',
           vercelRuntime: process.env.VERCEL ? 'vercel' : 'local',
         },
       },

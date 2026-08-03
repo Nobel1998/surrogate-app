@@ -328,8 +328,14 @@ export default function MedicalRecordReviewsPage() {
       }
 
       appendAnalyzeDebug(
-        `POST status=${res.status} alreadyRunning=${!!data.alreadyRunning} debug=${JSON.stringify(data.debug || {})}`
+        `POST status=${res.status} pipeline=${data.pipelineVersion || data.debug?.pipelineVersion || 'OLD'} phase=${data.phase ?? '?'} alreadyRunning=${!!data.alreadyRunning} debug=${JSON.stringify(data.debug || {})}`
       );
+
+      if (data.pipelineVersion !== '2phase-v1' && data.debug?.pipelineVersion !== '2phase-v1') {
+        appendAnalyzeDebug(
+          'WARNING: server is not on 2phase-v1 yet — expect old single-run timeout. Wait for Vercel deploy of latest main, then hard-refresh.'
+        );
+      }
 
       if (!res.ok && res.status !== 202) {
         throw new Error(
@@ -638,6 +644,10 @@ export default function MedicalRecordReviewsPage() {
                   analyzeDebugLog.length > 0) && (
                   <div className="bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs p-3 rounded space-y-2">
                     <div className="font-semibold text-sm">Analysis debug（看这里）</div>
+                    <p className="text-[11px] font-mono text-amber-900">
+                      部署校验：点 Run 后第一条日志必须含 <b>pipeline=2phase-v1</b>。若是 pipeline=OLD 或
+                      queued for after，说明线上还是旧代码。
+                    </p>
                     <div className="font-mono break-words text-sm">
                       Server progress:{' '}
                       {String(selected.error_message || '').startsWith('PROGRESS:')
@@ -647,8 +657,8 @@ export default function MedicalRecordReviewsPage() {
                           : '—'}
                     </div>
                     <p className="text-[11px] text-amber-800">
-                      两阶段：phase1 提取 → facts_saved → 自动启动 phase2 生成报告（resume_reports /
-                      clinic_report_ok / staff_report_ok）。若只有 facts 没有报告，点 Retry 会跳过提取。
+                      两阶段：phase1 提取 → facts_saved → 自动启动 phase2（phase2_started /
+                      resume_reports → clinic_report_ok / staff_report_ok）→ Analyzed。
                     </p>
                     {analyzeDebugLog.length > 0 ? (
                       <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">
