@@ -30,6 +30,7 @@ function renderInline(text: string) {
 function ReportBlocks({ blocks, variant }: { blocks: ReportBlock[]; variant: 'clinic' | 'staff' }) {
   const headingColor = variant === 'staff' ? 'text-indigo-950' : 'text-gray-900';
   const bodyColor = variant === 'staff' ? 'text-indigo-950' : 'text-gray-800';
+  const headingBorder = variant === 'staff' ? 'border-indigo-200' : 'border-slate-200';
   const tableHead = 'bg-indigo-700 text-white';
   const tableStripe = 'even:bg-indigo-50/80';
   const tableBorder = 'border-indigo-200';
