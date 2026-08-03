@@ -559,6 +559,7 @@ export async function analyzeMedicalRecordPdf(
   options?: {
     fileName?: string;
     patientName?: string | null;
+    onProgress?: (step: string, detail?: string) => void | Promise<void>;
   }
 ): Promise<{
   complications: MedicalComplication[];
@@ -570,9 +571,18 @@ export async function analyzeMedicalRecordPdf(
   rawAiResponse: string;
   pageCount: number;
 }> {
+  const report = async (step: string, detail?: string) => {
+    try {
+      await options?.onProgress?.(step, detail);
+    } catch {
+      // progress is best-effort
+    }
+  };
+
   const pageCount = await countPdfPages(pdfBytes);
   const fileName = options?.fileName || 'medical-record.pdf';
 
+  await report('split_pdf', `pages=${pageCount}`);
   const chunks = await splitPdfIntoPageChunks(pdfBytes, PAGES_PER_CHUNK);
 
   const extractedParts: Array<{ startPage: number; endPage: number; text: string }> = [];
@@ -582,6 +592,11 @@ export async function analyzeMedicalRecordPdf(
     const chunk = chunks[i];
     const chunkName = `${fileName.replace(/\.pdf$/i, '')}.p${chunk.startPage}-${chunk.endPage}.pdf`;
     let fileId: string | null = null;
+
+    await report(
+      'extract_chunk',
+      `${i + 1}/${chunks.length} pages ${chunk.startPage}-${chunk.endPage}`
+    );
 
     try {
       fileId = await uploadPdfForExtract(chunk.bytes, chunkName);
@@ -619,6 +634,10 @@ export async function analyzeMedicalRecordPdf(
 
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
+    await report(
+      'fact_batch',
+      `${i + 1}/${chatBatches.length} pages ${batch.startPage}-${batch.endPage}`
+    );
     try {
       const { text, raw } = await callKimiChat([
         { role: 'system', content: FACT_EXTRACTION_SYSTEM_PROMPT },
@@ -683,6 +702,7 @@ export async function analyzeMedicalRecordPdf(
   let staffReport = '';
   let complexityTier: number | null = null;
 
+  await report('clinic_report', `facts=${facts.length}`);
   try {
     const clinic = await generateClinicReport(facts, pageCount, resolvedPatientName);
     clinicReport = clinic.report;
@@ -691,6 +711,7 @@ export async function analyzeMedicalRecordPdf(
     chatErrors.push(`clinic_report: ${error?.message || 'failed'}`);
   }
 
+  await report('staff_report', `facts=${facts.length}`);
   try {
     const staff = await generateStaffReport(facts, pageCount, resolvedPatientName);
     staffReport = staff.report;
@@ -718,6 +739,8 @@ export async function analyzeMedicalRecordPdf(
       ? `Internal Case Complexity Flag: Tier ${complexityTier}. See Staff Report for details.`
       : 'See Staff Report for the internal Case Complexity Flag and triage notes.'
     : '';
+
+  await report('ai_done', `clinic=${clinicReport.length} staff=${staffReport.length}`);
 
   return {
     complications,

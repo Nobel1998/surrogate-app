@@ -12,6 +12,46 @@ import {
   purgeMedicalRecordPdf,
 } from '@/lib/medicalRecordReviews';
 
+const PROGRESS_PREFIX = 'PROGRESS:';
+
+/** Live progress written to error_message so the admin UI can show it while status=analyzing. */
+export async function setAnalysisProgress(
+  supabase: SupabaseClient,
+  reviewId: string,
+  step: string,
+  detail?: string,
+  hypothesisId?: string
+) {
+  const stamp = new Date().toISOString();
+  const hyp = hypothesisId ? ` [${hypothesisId}]` : '';
+  const msg = `${PROGRESS_PREFIX}${hyp} ${step}${detail ? ` — ${detail}` : ''} @ ${stamp}`.slice(
+    0,
+    1000
+  );
+  // #region agent log
+  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5244e3' },
+    body: JSON.stringify({
+      sessionId: '5244e3',
+      runId: 'prod-debug',
+      hypothesisId: hypothesisId || 'E',
+      location: 'runMedicalRecordAnalysis.ts:setAnalysisProgress',
+      message: step,
+      data: { reviewId, detail: detail || null },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  await supabase
+    .from('medical_record_reviews')
+    .update({
+      error_message: msg,
+      updated_at: stamp,
+    })
+    .eq('id', reviewId);
+}
+
 export function getMedicalRecordTempPath(reviewId: string) {
   return path.join(os.tmpdir(), `medical-record-review-${reviewId}.pdf`);
 }
@@ -72,6 +112,8 @@ export async function runMedicalRecordAnalysis(
   reviewId: string,
   providedPdfBytes?: Uint8Array | null,
 ) {
+  await setAnalysisProgress(supabase, reviewId, '1.load_record', 'fetching review row', 'C');
+
   const { data: existing, error: fetchError } = await supabase
     .from('medical_record_reviews')
     .select('*')
@@ -94,10 +136,18 @@ export async function runMedicalRecordAnalysis(
     providedPdfBytes && providedPdfBytes.byteLength > 0 ? providedPdfBytes : null;
 
   if (!pdfBytes) {
+    await setAnalysisProgress(supabase, reviewId, '2.temp_pdf', 'reading local temp cache', 'C');
     pdfBytes = await readMedicalRecordTempPdf(reviewId);
   }
 
   if (!pdfBytes) {
+    await setAnalysisProgress(
+      supabase,
+      reviewId,
+      '3.storage_check',
+      `path=${String(existing.storage_path).slice(0, 80)}`,
+      'C'
+    );
     const pdfExists = await medicalRecordPdfExists(supabase, existing.storage_path);
     if (!pdfExists) {
       throw new Error('PDF file not found in storage. Please delete this record and upload the PDF again.');
@@ -110,8 +160,16 @@ export async function runMedicalRecordAnalysis(
     const cdnUrl = toStorageCdnUrl(publicUrl);
 
     try {
+      await setAnalysisProgress(supabase, reviewId, '4.download_cdn', 'downloading PDF from CDN', 'C');
       pdfBytes = await downloadPdfBytes(cdnUrl, 3 * 60 * 1000);
     } catch (cdnError: any) {
+      await setAnalysisProgress(
+        supabase,
+        reviewId,
+        '4b.download_signed',
+        `CDN failed: ${String(cdnError?.message || cdnError).slice(0, 120)}`,
+        'C'
+      );
       const { data: signed, error: signedError } = await supabase.storage
         .from(MEDICAL_RECORD_STORAGE_BUCKET)
         .createSignedUrl(existing.storage_path, 60 * 30);
@@ -135,10 +193,29 @@ export async function runMedicalRecordAnalysis(
     patientName = profile?.name || null;
   }
 
+  await setAnalysisProgress(
+    supabase,
+    reviewId,
+    '5.ai_analyze',
+    `pdfBytes=${pdfBytes?.byteLength || 0}`,
+    'D'
+  );
+
   const result = await analyzeMedicalRecordPdf(pdfBytes, {
     fileName: existing.file_name || 'medical-record.pdf',
     patientName,
+    onProgress: async (step, detail) => {
+      await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
+    },
   });
+
+  await setAnalysisProgress(
+    supabase,
+    reviewId,
+    '6.db_update',
+    `clinic=${result.clinicReport?.length || 0} staff=${result.staffReport?.length || 0}`,
+    'E'
+  );
 
   const { data: updated, error: updateError } = await supabase
     .from('medical_record_reviews')
@@ -159,7 +236,16 @@ export async function runMedicalRecordAnalysis(
     .select()
     .single();
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    await setAnalysisProgress(
+      supabase,
+      reviewId,
+      '6.db_update_FAILED',
+      String(updateError.message || updateError).slice(0, 200),
+      'E'
+    );
+    throw updateError;
+  }
 
   let finalReview = updated;
   try {

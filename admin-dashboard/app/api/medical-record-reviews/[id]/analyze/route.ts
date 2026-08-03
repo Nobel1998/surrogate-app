@@ -4,6 +4,7 @@ import {
   markMedicalRecordAnalysisFailed,
   runMedicalRecordAnalysis,
   saveMedicalRecordTempPdf,
+  setAnalysisProgress,
 } from '@/lib/runMedicalRecordAnalysis';
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { data: existing, error: fetchError } = await auth.supabase
       .from('medical_record_reviews')
-      .select('id, status, storage_path, file_url, file_deleted_at, updated_at')
+      .select('id, status, storage_path, file_url, file_deleted_at, updated_at, error_message')
       .eq('id', id)
       .single();
 
@@ -68,7 +69,41 @@ export async function POST(req: NextRequest, context: RouteContext) {
       const updatedAt = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
       const staleMs = 10 * 60 * 1000;
       if (updatedAt && Date.now() - updatedAt < staleMs) {
-        return NextResponse.json({ started: true, reviewId: id, alreadyRunning: true }, { status: 202 });
+        // #region agent log
+        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': '5244e3',
+          },
+          body: JSON.stringify({
+            sessionId: '5244e3',
+            runId: 'prod-debug',
+            hypothesisId: 'B',
+            location: 'analyze/route.ts:alreadyRunning',
+            message: 'alreadyRunning short-circuit',
+            data: {
+              id,
+              ageMs: Date.now() - updatedAt,
+              progress: existing.error_message || null,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        return NextResponse.json(
+          {
+            started: true,
+            reviewId: id,
+            alreadyRunning: true,
+            debug: {
+              hypothesis: 'B',
+              progress: existing.error_message,
+              updatedAtAgeMs: Date.now() - updatedAt,
+            },
+          },
+          { status: 202 }
+        );
       }
     }
 
@@ -92,23 +127,89 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .from('medical_record_reviews')
       .update({
         status: 'analyzing',
-        error_message: null,
+        error_message: `PROGRESS: [A] 0.queued — waiting for after() @ ${new Date().toISOString()}`,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
     const supabase = auth.supabase;
     after(async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': '5244e3',
+        },
+        body: JSON.stringify({
+          sessionId: '5244e3',
+          runId: 'prod-debug',
+          hypothesisId: 'A',
+          location: 'analyze/route.ts:afterStart',
+          message: 'after() started',
+          data: { id },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       try {
+        await setAnalysisProgress(supabase, id, '0.after_started', 'background job running', 'A');
         await runMedicalRecordAnalysis(supabase, id, providedPdfBytes);
+        // #region agent log
+        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': '5244e3',
+          },
+          body: JSON.stringify({
+            sessionId: '5244e3',
+            runId: 'prod-debug',
+            hypothesisId: 'A',
+            location: 'analyze/route.ts:afterOk',
+            message: 'after() finished ok',
+            data: { id },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/analyze] background error:', error);
         const message = error?.message || 'Failed to analyze medical record';
+        // #region agent log
+        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': '5244e3',
+          },
+          body: JSON.stringify({
+            sessionId: '5244e3',
+            runId: 'prod-debug',
+            hypothesisId: 'A',
+            location: 'analyze/route.ts:afterErr',
+            message: 'after() failed',
+            data: { id, error: String(message).slice(0, 300) },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         await markMedicalRecordAnalysisFailed(supabase, id, message);
       }
     });
 
-    return NextResponse.json({ started: true, reviewId: id }, { status: 202 });
+    return NextResponse.json(
+      {
+        started: true,
+        reviewId: id,
+        debug: {
+          hypothesis: 'A',
+          note: 'queued for after(); watch PROGRESS on the review detail panel',
+          vercelRuntime: process.env.VERCEL ? 'vercel' : 'local',
+        },
+      },
+      { status: 202 }
+    );
   } catch (error: any) {
     console.error('[medical-record-reviews/:id/analyze] error:', error);
     const message = error?.message || 'Failed to start analysis';

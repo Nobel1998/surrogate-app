@@ -78,6 +78,14 @@ export default function MedicalRecordReviewsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [analyzeDebugLog, setAnalyzeDebugLog] = useState<string[]>([]);
+  const appendAnalyzeDebug = (line: string) => {
+    const stamp = new Date().toLocaleTimeString();
+    setAnalyzeDebugLog((prev) => [`${stamp} ${line}`, ...prev].slice(0, 40));
+    // #region agent log
+    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'prod-debug',hypothesisId:'UI',location:'page.tsx:appendAnalyzeDebug',message:line.slice(0,200),data:{},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  };
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reportTab, setReportTab] = useState<'clinic' | 'staff' | 'events'>('clinic');
@@ -303,6 +311,8 @@ export default function MedicalRecordReviewsPage() {
   const handleAnalyze = async (id: string) => {
     try {
       setAnalyzingId(id);
+      setAnalyzeDebugLog([]);
+      appendAnalyzeDebug(`POST /analyze starting id=${id.slice(0, 8)}…`);
 
       // Never send the PDF in this request: serverless payloads are capped and
       // large records fail with 413. The server reads the PDF from storage.
@@ -317,6 +327,10 @@ export default function MedicalRecordReviewsPage() {
         data = {};
       }
 
+      appendAnalyzeDebug(
+        `POST status=${res.status} alreadyRunning=${!!data.alreadyRunning} debug=${JSON.stringify(data.debug || {})}`
+      );
+
       if (!res.ok && res.status !== 202) {
         throw new Error(
           data.error ||
@@ -328,23 +342,47 @@ export default function MedicalRecordReviewsPage() {
       setReviews((prev) =>
         prev.map((r) =>
           r.id === id
-            ? { ...r, status: 'analyzing', error_message: null, updated_at: new Date().toISOString() }
+            ? {
+                ...r,
+                status: 'analyzing',
+                error_message:
+                  typeof data.debug?.progress === 'string'
+                    ? data.debug.progress
+                    : 'PROGRESS: [A] 0.queued — waiting for after()',
+                updated_at: new Date().toISOString(),
+              }
             : r
         )
       );
 
       const deadline = Date.now() + 45 * 60 * 1000;
+      let pollCount = 0;
+      let lastProgress = '';
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 4000));
 
         const statusRes = await fetch(`/api/medical-record-reviews/${id}`);
         const statusData = await statusRes.json().catch(() => ({}));
         const review = statusData?.review as Review | undefined;
-        if (!review) continue;
+        pollCount += 1;
+        if (!review) {
+          appendAnalyzeDebug(`poll#${pollCount} HTTP ${statusRes.status} no review`);
+          continue;
+        }
 
         patchReviewInList(review);
+        const progress = review.error_message || '';
+        if (progress && progress !== lastProgress) {
+          lastProgress = progress;
+          appendAnalyzeDebug(`poll#${pollCount} status=${review.status} ${progress}`);
+        } else if (pollCount <= 3 || pollCount % 5 === 0) {
+          appendAnalyzeDebug(
+            `poll#${pollCount} status=${review.status} progress=${progress ? 'same' : 'none'}`
+          );
+        }
 
         if (review.status === 'analyzed' || review.status === 'reviewed') {
+          appendAnalyzeDebug(`DONE status=${review.status}`);
           setSelectedId(id);
           return;
         }
@@ -355,6 +393,7 @@ export default function MedicalRecordReviewsPage() {
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
+      appendAnalyzeDebug(`ERROR ${error.message}`);
       alert(`Review failed: ${error.message}`);
       // Soft refresh only the single review; avoid full-page load flicker.
       try {
@@ -586,9 +625,33 @@ export default function MedicalRecordReviewsPage() {
                   </div>
                 )}
 
-                {selected.error_message && (
+                {selected.error_message &&
+                  !String(selected.error_message).startsWith('PROGRESS:') && (
                   <div className="bg-red-50 text-red-700 text-sm p-3 rounded">
                     {selected.error_message}
+                  </div>
+                )}
+
+                {(selected.status === 'analyzing' ||
+                  analyzingId === selected.id ||
+                  analyzeDebugLog.length > 0) && (
+                  <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs p-3 rounded space-y-2">
+                    <div className="font-semibold text-sm">Analysis debug (visible on webpage)</div>
+                    <div className="font-mono break-words">
+                      Server progress:{' '}
+                      {selected.error_message?.startsWith('PROGRESS:')
+                        ? selected.error_message
+                        : selected.status === 'analyzing'
+                          ? '(no PROGRESS yet — if this stays empty, after() may not be running on Vercel)'
+                          : '—'}
+                    </div>
+                    {analyzeDebugLog.length > 0 ? (
+                      <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">
+                        {analyzeDebugLog.map((line, idx) => (
+                          <li key={`${idx}-${line.slice(0, 24)}`}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 )}
 
