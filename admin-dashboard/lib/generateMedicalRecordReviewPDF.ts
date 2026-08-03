@@ -1,6 +1,10 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from './medicalRecordReviewConstants';
+import {
+  parseMedicalReportMarkdown,
+  stripInlineMarkdown,
+} from './parseMedicalReportMarkdown';
 
 export type MedicalRecordReviewComplication = {
   complication: string;
@@ -169,28 +173,81 @@ export const generateMedicalRecordReviewPDF = (
         : null;
 
   if (reportText && String(reportText).trim()) {
-    const lines = String(reportText).split(/\r?\n/);
-    for (const rawLine of lines) {
-      const line = rawLine.trimEnd();
-      if (!line.trim()) {
-        yPosition += 4;
+    const blocks = parseMedicalReportMarkdown(String(reportText));
+    const headFill: [number, number, number] = isStaff ? [67, 56, 202] : [51, 65, 85];
+
+    for (const block of blocks) {
+      if (block.type === 'heading') {
+        ensureSpace(16);
+        doc.setFontSize(block.level === 1 ? 14 : 12);
+        doc.setTextColor(102, 51, 153);
+        const text = stripInlineMarkdown(block.text);
+        yPosition += writeWrappedText(doc, text, margin, yPosition, maxWidth, 6) + 5;
         continue;
       }
 
-      const isHeading = /^#{1,3}\s+/.test(line.trim()) || /^\d+\.\s+[A-Z]/.test(line.trim());
-      const display = line.replace(/^#{1,3}\s+/, '').trim();
-
-      if (isHeading) {
-        ensureSpace(14);
-        doc.setFontSize(13);
-        doc.setTextColor(102, 51, 153);
-        yPosition += writeWrappedText(doc, display, margin, yPosition, maxWidth, 6) + 4;
-      } else {
+      if (block.type === 'paragraph') {
         doc.setFontSize(10);
         doc.setTextColor(30);
-        const blockH = doc.splitTextToSize(display, maxWidth).length * 5 + 2;
+        const text = stripInlineMarkdown(block.text);
+        const blockH = doc.splitTextToSize(text, maxWidth).length * 5 + 2;
         ensureSpace(blockH);
-        yPosition += writeWrappedText(doc, display, margin, yPosition, maxWidth, 5) + 2;
+        yPosition += writeWrappedText(doc, text, margin, yPosition, maxWidth, 5) + 3;
+        continue;
+      }
+
+      if (block.type === 'list') {
+        doc.setFontSize(10);
+        doc.setTextColor(30);
+        for (let itemIdx = 0; itemIdx < block.items.length; itemIdx++) {
+          const prefix = block.ordered ? `${itemIdx + 1}. ` : '• ';
+          const text = `${prefix}${stripInlineMarkdown(block.items[itemIdx])}`;
+          const blockH = doc.splitTextToSize(text, maxWidth - 4).length * 5 + 1;
+          ensureSpace(blockH);
+          yPosition += writeWrappedText(doc, text, margin + 2, yPosition, maxWidth - 4, 5) + 1;
+        }
+        yPosition += 3;
+        continue;
+      }
+
+      if (block.type === 'table') {
+        ensureSpace(24);
+        const colCount = Math.max(block.headers.length, 1);
+        const pageColWidth = (maxWidth - 2) / colCount;
+        autoTable(doc, {
+          startY: yPosition,
+          head: [block.headers.map(stripInlineMarkdown)],
+          body:
+            block.rows.length > 0
+              ? block.rows.map((row) => row.map(stripInlineMarkdown))
+              : [block.headers.map(() => '—')],
+          theme: 'grid',
+          headStyles: {
+            fillColor: headFill,
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            cellPadding: 3,
+            valign: 'middle',
+          },
+          bodyStyles: {
+            fontSize: 9,
+            cellPadding: 3,
+            valign: 'top',
+            textColor: [30, 30, 30],
+            lineColor: [200, 200, 210],
+            lineWidth: 0.2,
+          },
+          alternateRowStyles: {
+            fillColor: isStaff ? [238, 242, 255] : [248, 250, 252],
+          },
+          columnStyles: Object.fromEntries(
+            block.headers.map((_, idx) => [idx, { cellWidth: pageColWidth }])
+          ),
+          margin: { left: margin, right: margin },
+          tableWidth: maxWidth,
+        });
+        yPosition = (doc as any).lastAutoTable.finalY + 8;
       }
     }
   } else {

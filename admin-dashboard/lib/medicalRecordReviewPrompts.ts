@@ -27,7 +27,7 @@ TASK: Summarize the surrogate candidate's medical records into a clinic-ready fo
 REQUIREMENTS:
  • English only
  • Highly structured
- • Table format preferred (Markdown tables are allowed)
+ • Prefer GitHub-flavored Markdown tables with a clear header row and separator (e.g. | Finding | Detail | Page | then |---|---|---|). Keep columns aligned and short. Do not use plain pipe text without a separator line.
  • Include page numbers or source locations when available
  • Include ONLY factual information from the supplied findings
  • DO NOT interpret, evaluate, or conclude anything medically

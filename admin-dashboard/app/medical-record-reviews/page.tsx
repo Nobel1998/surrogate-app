@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
+import MedicalReportMarkdown from '@/components/MedicalReportMarkdown';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
 import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from '@/lib/medicalRecordReviewConstants';
 
@@ -709,12 +710,10 @@ export default function MedicalRecordReviewsPage() {
                 </div>
 
                 {reportTab === 'clinic' ? (
-                  <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-2">Clinic Report (non-clinical)</h3>
+                  <div className="bg-white border rounded-lg p-4">
+                    <h3 className="font-medium mb-3 text-gray-900">Clinic Report (non-clinical)</h3>
                     {selected.clinic_report ? (
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                        {selected.clinic_report}
-                      </pre>
+                      <MedicalReportMarkdown markdown={selected.clinic_report} variant="clinic" />
                     ) : (
                       <p className="text-sm text-gray-500">
                         No clinic report yet. Run Review after applying the dual-report migration.
@@ -725,7 +724,7 @@ export default function MedicalRecordReviewsPage() {
                 ) : null}
 
                 {reportTab === 'staff' ? (
-                  <div className="bg-indigo-50 border border-indigo-200 rounded p-3">
+                  <div className="bg-indigo-50/50 border border-indigo-200 rounded-lg p-4">
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <h3 className="font-medium text-indigo-950">Staff Report (internal only)</h3>
                       {selected.complexity_tier ? (
@@ -734,13 +733,11 @@ export default function MedicalRecordReviewsPage() {
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-indigo-800 mb-3">
+                    <p className="text-xs text-indigo-800 mb-4">
                       Do not share this report with intended parents, clinics, or the surrogate.
                     </p>
                     {selected.staff_report ? (
-                      <pre className="text-sm text-indigo-950 whitespace-pre-wrap font-sans leading-relaxed">
-                        {selected.staff_report}
-                      </pre>
+                      <MedicalReportMarkdown markdown={selected.staff_report} variant="staff" />
                     ) : (
                       <p className="text-sm text-indigo-800/80">
                         No staff report yet. Run Review after applying the dual-report migration.
