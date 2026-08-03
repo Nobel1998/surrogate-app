@@ -23,6 +23,9 @@ type Review = {
   complications: Complication[] | null;
   intro: string | null;
   summary: string | null;
+  clinic_report?: string | null;
+  staff_report?: string | null;
+  complexity_tier?: number | null;
   raw_ai_response: string | null;
   error_message: string | null;
   analyzed_at: string | null;
@@ -76,6 +79,7 @@ export default function MedicalRecordReviewsPage() {
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reportTab, setReportTab] = useState<'clinic' | 'staff' | 'events'>('clinic');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterQ, setFilterQ] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -160,12 +164,31 @@ export default function MedicalRecordReviewsPage() {
     return `${match.surrogate?.name || 'Surrogate'} / ${match.parent?.name || 'Parent'}`;
   };
 
-  const handleDownloadReport = (review: Review) => {
+  const handleDownloadReport = (
+    review: Review,
+    kind: 'clinic' | 'staff' | 'legacy' = 'clinic'
+  ) => {
     try {
-      generateMedicalRecordReviewPDF(review, {
-        surrogateName: review.surrogate_user_id ? getSurrogateName(review.surrogate_user_id) : null,
-        matchLabel: getMatchLabel(review.match_id),
-      });
+      const resolvedKind =
+        kind === 'clinic' && !review.clinic_report
+          ? review.staff_report
+            ? 'staff'
+            : 'legacy'
+          : kind === 'staff' && !review.staff_report
+            ? review.clinic_report
+              ? 'clinic'
+              : 'legacy'
+            : kind;
+      generateMedicalRecordReviewPDF(
+        review,
+        {
+          surrogateName: review.surrogate_user_id
+            ? getSurrogateName(review.surrogate_user_id)
+            : null,
+          matchLabel: getMatchLabel(review.match_id),
+        },
+        resolvedKind
+      );
     } catch (error: any) {
       alert(`Failed to generate report: ${error.message}`);
     }
@@ -395,8 +418,8 @@ export default function MedicalRecordReviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Medical Record Reviews</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Upload medical PDFs and extract events with page numbers.
-            PDFs are deleted from storage after a successful review to save space.
+            Upload medical PDFs to generate a clinic-ready factual summary and an internal staff
+            reference (with Case Complexity Flag). PDFs are deleted after a successful review.
           </p>
         </div>
         <button
@@ -454,6 +477,7 @@ export default function MedicalRecordReviewsPage() {
                   <th className="px-4 py-3">File</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Events</th>
+                  <th className="px-4 py-3">Tier</th>
                   <th className="px-4 py-3">Uploaded</th>
                   <th className="px-4 py-3">Download</th>
                 </tr>
@@ -461,7 +485,7 @@ export default function MedicalRecordReviewsPage() {
               <tbody>
                 {reviews.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       No medical record reviews yet.
                     </td>
                   </tr>
@@ -469,7 +493,16 @@ export default function MedicalRecordReviewsPage() {
                   reviews.map((review) => (
                     <tr
                       key={review.id}
-                      onClick={() => setSelectedId(review.id)}
+                      onClick={() => {
+                        setSelectedId(review.id);
+                        setReportTab(
+                          review.clinic_report
+                            ? 'clinic'
+                            : review.staff_report
+                              ? 'staff'
+                              : 'events'
+                        );
+                      }}
                       className={`border-t cursor-pointer hover:bg-blue-50 ${
                         selectedId === review.id ? 'bg-blue-50' : ''
                       }`}
@@ -488,18 +521,30 @@ export default function MedicalRecordReviewsPage() {
                       <td className="px-4 py-3">
                         {Array.isArray(review.complications) ? review.complications.length : 0}
                       </td>
+                      <td className="px-4 py-3 text-xs text-gray-700">
+                        {review.complexity_tier ? `T${review.complexity_tier}` : '—'}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
                         {formatDateTime(review.created_at)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 space-x-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownloadReport(review);
+                            handleDownloadReport(review, 'clinic');
                           }}
                           className="text-blue-600 hover:text-blue-800 text-xs font-medium"
                         >
-                          Report
+                          Clinic
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadReport(review, 'staff');
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                        >
+                          Staff
                         </button>
                       </td>
                     </tr>
@@ -568,10 +613,16 @@ export default function MedicalRecordReviewsPage() {
                     </span>
                   )}
                   <button
-                    onClick={() => handleDownloadReport(selected)}
+                    onClick={() => handleDownloadReport(selected, 'clinic')}
                     className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
                   >
-                    Download Review Report
+                    Download Clinic Report
+                  </button>
+                  <button
+                    onClick={() => handleDownloadReport(selected, 'staff')}
+                    className="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700"
+                  >
+                    Download Staff Report
                   </button>
                   {selectedHasPdf && (
                     <button
@@ -620,55 +671,137 @@ export default function MedicalRecordReviewsPage() {
                   </p>
                 </div>
 
-                {selected.intro ? (
+                <div className="flex flex-wrap gap-2 border-b pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setReportTab('clinic')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium ${
+                      reportTab === 'clinic'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Clinic Report
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportTab('staff')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium ${
+                      reportTab === 'staff'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Staff Report (Internal)
+                    {selected.complexity_tier ? ` · T${selected.complexity_tier}` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportTab('events')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium ${
+                      reportTab === 'events'
+                        ? 'bg-slate-700 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Events ({complications.length})
+                  </button>
+                </div>
+
+                {reportTab === 'clinic' ? (
                   <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-1">Introductory</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{selected.intro}</p>
+                    <h3 className="font-medium mb-2">Clinic Report (non-clinical)</h3>
+                    {selected.clinic_report ? (
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                        {selected.clinic_report}
+                      </pre>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No clinic report yet. Run Review after applying the dual-report migration.
+                        Older reviews may only have Events / Introductory / Summary.
+                      </p>
+                    )}
                   </div>
                 ) : null}
 
-                <div>
-                  <h3 className="font-medium mb-2">
-                    Events ({complications.length})
-                  </h3>
-                  {complications.length === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      {selected.status === 'analyzed' || selected.status === 'reviewed'
-                        ? 'No events found.'
-                        : 'Run review to extract events.'}
+                {reportTab === 'staff' ? (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="font-medium text-indigo-950">Staff Report (internal only)</h3>
+                      {selected.complexity_tier ? (
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-indigo-200 text-indigo-900">
+                          Complexity Tier {selected.complexity_tier}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-indigo-800 mb-3">
+                      Do not share this report with intended parents, clinics, or the surrogate.
                     </p>
-                  ) : (
-                    <table className="min-w-full text-sm border rounded overflow-hidden">
-                      <thead className="bg-gray-50 text-left">
-                        <tr>
-                          <th className="px-3 py-2">Event / Details</th>
-                          <th className="px-3 py-2 w-20">Page</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {complications.map((item, index) => (
-                          <tr key={`${item.page}-${item.complication}-${index}`} className="border-t">
-                            <td className="px-3 py-2">
-                              {item.complication}
-                              {item.note ? (
-                                <div className="text-xs text-gray-500 mt-1">{item.note}</div>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-2 font-medium align-top">{item.page}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {selected.summary ? (
-                  <div className="bg-gray-50 border rounded p-3">
-                    <h3 className="font-medium mb-1">Summary</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">
-                      {selected.summary}
-                    </p>
+                    {selected.staff_report ? (
+                      <pre className="text-sm text-indigo-950 whitespace-pre-wrap font-sans leading-relaxed">
+                        {selected.staff_report}
+                      </pre>
+                    ) : (
+                      <p className="text-sm text-indigo-800/80">
+                        No staff report yet. Run Review after applying the dual-report migration.
+                      </p>
+                    )}
                   </div>
+                ) : null}
+
+                {reportTab === 'events' ? (
+                  <>
+                    {selected.intro ? (
+                      <div className="bg-gray-50 border rounded p-3">
+                        <h3 className="font-medium mb-1">Introductory</h3>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{selected.intro}</p>
+                      </div>
+                    ) : null}
+
+                    <div>
+                      <h3 className="font-medium mb-2">
+                        Events ({complications.length})
+                      </h3>
+                      {complications.length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                          {selected.status === 'analyzed' || selected.status === 'reviewed'
+                            ? 'No events found.'
+                            : 'Run review to extract events.'}
+                        </p>
+                      ) : (
+                        <table className="min-w-full text-sm border rounded overflow-hidden">
+                          <thead className="bg-gray-50 text-left">
+                            <tr>
+                              <th className="px-3 py-2">Event / Details</th>
+                              <th className="px-3 py-2 w-20">Page</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {complications.map((item, index) => (
+                              <tr key={`${item.page}-${item.complication}-${index}`} className="border-t">
+                                <td className="px-3 py-2">
+                                  {item.complication}
+                                  {item.note ? (
+                                    <div className="text-xs text-gray-500 mt-1">{item.note}</div>
+                                  ) : null}
+                                </td>
+                                <td className="px-3 py-2 font-medium align-top">{item.page}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+                    {selected.summary ? (
+                      <div className="bg-gray-50 border rounded p-3">
+                        <h3 className="font-medium mb-1">Summary</h3>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">
+                          {selected.summary}
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
                 ) : null}
               </div>
             )}

@@ -1,5 +1,10 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { MedicalComplication } from '@/lib/medicalRecordReviews';
+import {
+  CLINIC_REPORT_SYSTEM_PROMPT,
+  FACT_EXTRACTION_SYSTEM_PROMPT,
+  STAFF_REPORT_SYSTEM_PROMPT,
+} from '@/lib/medicalRecordReviewPrompts';
 
 const DEFAULT_BASE_URL = 'https://api.moonshot.ai/v1';
 const DEFAULT_MODEL = 'kimi-k3';
@@ -9,40 +14,13 @@ const CHAT_MAX_ATTEMPTS = 2;
 const CHAT_TIMEOUT_MS = 15 * 60 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
-const REVIEW_SYSTEM_PROMPT = `You are an experienced OB/GYN nursing team reviewing a surrogacy medical record with a highly professional nursing clinical perspective.
-Review as skilled OB/GYN nurses would: precise, disciplined, and focused on the findings that matter for obstetric, gynecologic, and fertility care. Your analysis should reflect nursing chart-review rigor—clear clinical language, attention to course and treatment, and no speculation.
-Return ONLY valid JSON with this exact shape:
-{"patientName":"string or null","complications":[{"complication":"string","summary":"string","page":1}]}
-What counts as significant (from a professional OB/GYN nursing review standpoint, aligned with OB/GYN and IVF clinic clinical priorities):
-- Pregnancy, delivery, or postpartum complications.
-- Surgeries and procedures done for a problem.
-- Chronic, recurrent, or ongoing conditions, including mental health conditions.
-- Infections or diseases that required treatment.
-- Abnormal results that changed management or required follow-up.
-- Obstetric, gynecologic, or fertility-related history that would matter to an OB/GYN nurse or IVF clinician reviewing a surrogacy candidate.
-What to leave out:
-- Minor, incidental, or self-limited findings.
-- Isolated borderline or mildly abnormal lab values that were not acted on, such as a mild vitamin deficiency.
-- Normal or routine findings, administrative text, and billing or scheduling notes.
-Rules:
-- patientName: the patient's full name is almost always printed on page 1 (demographics header, patient label, member name, chart header, or intake form). When the supplied section contains [[PAGE 1 START]], you MUST extract that name from the text between [[PAGE 1 START]] and [[PAGE 1 END]] and return it. Look for labels such as Patient, Patient Name, Member, Member Name, Name, Client, Applicant, DOB line, or a name printed at the top of the chart. Prefer the name that is clearly the subject of the record. Do not use a provider, doctor, nurse, facility, clinic, guarantor, emergency contact, or insurance-plan name. Return null ONLY if page 1 is absent or no personal name for the patient can be found after a careful read of page 1.
-- Report the same problem only once. If it appears in several places, use the documentation that describes it best.
-- complication: the short clinical name of the event or finding (a few words).
-- summary: 1-2 sentences summarizing what the record says about that event. Include the specifics that are stated, such as onset or date, diagnosis, severity, treatment or medication, and outcome. Do not copy long passages verbatim, and do not invent details that are not in the record.
-- Every page of the record carries the markers [[PAGE n START]] and [[PAGE n END]], where n is the ORIGINAL page number of that page.
-- page MUST be the n of the marker pair that surrounds the text you are citing. Never guess, estimate, or calculate a page number, and never use a page number that has no marker in the text.
-- If nothing significant is found, still return patientName and return an empty complications array.`;
-
-const OVERVIEW_SYSTEM_PROMPT = `You write the introductory paragraph and overall summary of a surrogacy medical-record review.
-Write in the voice of an experienced clinical team reviewing with a highly professional medical perspective and precise analysis.
-Return ONLY valid JSON with this exact shape:
-{"introductory":"string","overallSummary":"string"}
-Rules:
-- introductory: one short paragraph. It MUST begin with the exact words: "Our experienced team has" and then continue naturally (for example, "...reviewed the medical records of [patient]..."). When a patient name is provided in the user message, you MUST use that exact name in the introductory paragraph. Never write that the patient name is missing, unknown, or not stated if a name was provided. If no name is provided, refer to the patient as "the applicant" and do not say the name is missing from the record. State that the team reviewed this surrogacy medical record with a professional clinical perspective, that we know which findings matter and present them clearly and concisely, mention how many pages were reviewed, and say that the significant issues identified are listed below. Do not name the individual findings in this paragraph. Do not start with any other phrasing.
-- overallSummary: write 2-3 short, clearly separated paragraphs summarizing the findings as a whole after they have been listed, in the same professional clinical voice. Separate paragraphs with a blank line using "\\n\\n" inside the JSON string. Organize related findings together (for example, obstetric/gynecologic history in one paragraph and other clinically significant history in another), then use the final paragraph to summarize whether the findings are mostly historical, resolved, recurrent, chronic, or ongoing when supported by the supplied findings. Do not repeat the same finding across paragraphs. If there are too few findings for multiple meaningful topics, use two concise paragraphs rather than adding filler.
-- The overallSummary is a summary, not an assessment. Do not make an eligibility decision, risk rating, recommendation, or surrogacy screening judgment.
-- Use only the findings supplied to you. Do not invent findings, diagnoses, dates, outcomes, or recommendations.
-- Plain professional English. No bullet points, no markdown, no headings.`;
+type ExtractedFact = {
+  category: string;
+  pregnancyLabel: string | null;
+  finding: string;
+  detail: string;
+  page: number;
+};
 
 function getApiKey() {
   return process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || '';
@@ -78,24 +56,90 @@ function extractJsonObject(text: string): unknown {
   }
 }
 
-function normalizeComplications(raw: unknown): MedicalComplication[] {
+function normalizeFacts(raw: unknown): ExtractedFact[] {
   if (!raw || typeof raw !== 'object') return [];
-  const list = (raw as { complications?: unknown }).complications;
+  const list = (raw as { facts?: unknown; complications?: unknown }).facts
+    ?? (raw as { complications?: unknown }).complications;
   if (!Array.isArray(list)) return [];
 
-  const results: MedicalComplication[] = [];
+  const results: ExtractedFact[] = [];
   for (const item of list) {
     if (!item || typeof item !== 'object') continue;
-    const complication = String((item as { complication?: unknown }).complication || '').trim();
-    const pageRaw = (item as { page?: unknown }).page;
+    const row = item as Record<string, unknown>;
+    const finding = String(row.finding || row.complication || '').trim();
+    const pageRaw = row.page;
     const pageNum = typeof pageRaw === 'number' ? pageRaw : Number(pageRaw);
-    if (!complication || !Number.isFinite(pageNum)) continue;
+    if (!finding || !Number.isFinite(pageNum)) continue;
     const page = Math.max(1, Math.round(pageNum));
-    const detail = item as { summary?: unknown; remark?: unknown; note?: unknown };
-    const note = String(detail.summary || detail.remark || detail.note || '').trim();
-    results.push(note ? { complication, page, note } : { complication, page });
+    const detail = String(row.detail || row.summary || row.remark || row.note || '').trim();
+    const category = String(row.category || 'other').trim() || 'other';
+    const pregnancyLabelRaw = row.pregnancyLabel ?? row.pregnancy_label;
+    const pregnancyLabel = pregnancyLabelRaw
+      ? String(pregnancyLabelRaw).trim() || null
+      : null;
+    results.push({
+      category,
+      pregnancyLabel,
+      finding,
+      detail,
+      page,
+    });
   }
   return results;
+}
+
+function dedupeFacts(items: ExtractedFact[]): ExtractedFact[] {
+  const seen = new Set<string>();
+  const out: ExtractedFact[] = [];
+  for (const item of items) {
+    const key = `${item.page}::${item.finding.toLowerCase()}::${item.category}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  out.sort(
+    (a, b) =>
+      a.page - b.page ||
+      a.category.localeCompare(b.category) ||
+      a.finding.localeCompare(b.finding)
+  );
+  return out;
+}
+
+function factsToComplications(facts: ExtractedFact[]): MedicalComplication[] {
+  const eventCategories = new Set([
+    'pregnancy_complication',
+    'obstetric_history',
+    'labor_delivery',
+    'past_medical',
+    'surgical',
+    'infectious_disease',
+    'gynecologic',
+    'mental_health',
+    'lab_abnormality',
+    'imaging',
+    'weight_bmi',
+  ]);
+  const out: MedicalComplication[] = [];
+  for (const fact of facts) {
+    if (!eventCategories.has(fact.category) && fact.category !== 'other') continue;
+    if (
+      fact.category === 'other' &&
+      !/complicat|cesarean|c-section|preterm|preeclamp|hemorrhage|abortion|infection|surgery|diagnos/i.test(
+        `${fact.finding} ${fact.detail}`
+      )
+    ) {
+      continue;
+    }
+    out.push({
+      complication: fact.pregnancyLabel
+        ? `${fact.finding} (${fact.pregnancyLabel})`
+        : fact.finding,
+      page: fact.page,
+      ...(fact.detail ? { note: fact.detail } : {}),
+    });
+  }
+  return dedupeComplications(out);
 }
 
 function dedupeComplications(items: MedicalComplication[]): MedicalComplication[] {
@@ -394,51 +438,22 @@ function extractPatientNameFromPage1Text(text: string): string | null {
   return null;
 }
 
-async function callKimiForOverview(
-  complications: MedicalComplication[],
-  pageCount: number,
-  patientName?: string | null
-): Promise<{ intro: string; summary: string; raw: string }> {
-  const findings = complications
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.complication} (page ${item.page})${item.note ? `: ${item.note}` : ''}`
-    )
+function formatFactsForPrompt(facts: ExtractedFact[]): string {
+  if (!facts.length) return 'No factual findings were extracted from the record.';
+  return facts
+    .map((f, i) => {
+      const preg = f.pregnancyLabel ? ` [${f.pregnancyLabel}]` : '';
+      const detail = f.detail ? ` — ${f.detail}` : '';
+      return `${i + 1}. [${f.category}]${preg} ${f.finding} (page ${f.page})${detail}`;
+    })
     .join('\n');
-
-  const resolvedName = cleanPatientName(patientName);
-  const userPrompt = [
-    resolvedName
-      ? `Patient name (required): ${resolvedName}. Use this exact name in the introductory paragraph.`
-      : 'Patient name was not provided. Refer to the patient as "the applicant". Do not say the name is missing or not stated.',
-    `Pages reviewed: ${pageCount || 'unknown'}.`,
-    complications.length
-      ? `Findings from the review:\n${findings}`
-      : 'The review found no significant complications.',
-    'Write the introductory paragraph and a 2-3 paragraph overall summary from a highly professional clinical perspective. The introductory paragraph MUST begin exactly with: "Our experienced team has". Separate the overall-summary paragraphs with a blank line. Return JSON only.',
-  ].join('\n\n');
-
-  const { text, raw } = await callKimiChat([
-    { role: 'system', content: OVERVIEW_SYSTEM_PROMPT },
-    { role: 'user', content: userPrompt },
-  ]);
-
-  const parsed = extractJsonObject(text) as {
-    introductory?: unknown;
-    overallSummary?: unknown;
-  };
-  return {
-    intro: String(parsed?.introductory || '').trim(),
-    summary: String(parsed?.overallSummary || '').trim(),
-    raw,
-  };
 }
 
-function remapChunkPages(
-  items: MedicalComplication[],
+function remapFactPages(
+  items: ExtractedFact[],
   startPage: number,
   endPage: number
-): MedicalComplication[] {
+): ExtractedFact[] {
   return items.map((item) => {
     if (item.page >= 1 && item.page <= endPage - startPage + 1 && item.page < startPage) {
       return { ...item, page: startPage + item.page - 1 };
@@ -449,6 +464,62 @@ function remapChunkPages(
     }
     return item;
   });
+}
+
+async function generateClinicReport(
+  facts: ExtractedFact[],
+  pageCount: number,
+  patientName?: string | null
+): Promise<{ report: string; raw: string }> {
+  const resolvedName = cleanPatientName(patientName);
+  const userPrompt = [
+    resolvedName
+      ? `Patient / surrogate candidate name: ${resolvedName}.`
+      : 'Patient name was not identified. Refer to the candidate as "the applicant".',
+    `Pages reviewed in source PDF: ${pageCount || 'unknown'}.`,
+    `Extracted factual inventory (use ONLY these facts; cite page numbers):\n${formatFactsForPrompt(facts)}`,
+    'Produce the clinic-ready Markdown summary with all 10 required sections. Return JSON only.',
+  ].join('\n\n');
+
+  const { text, raw } = await callKimiChat([
+    { role: 'system', content: CLINIC_REPORT_SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ]);
+  const parsed = extractJsonObject(text) as { report?: unknown };
+  const report = String(parsed?.report || '').trim();
+  if (!report) throw new Error('Clinic report generation returned empty content');
+  return { report, raw };
+}
+
+async function generateStaffReport(
+  facts: ExtractedFact[],
+  pageCount: number,
+  patientName?: string | null
+): Promise<{ report: string; complexityTier: number | null; raw: string }> {
+  const resolvedName = cleanPatientName(patientName);
+  const userPrompt = [
+    resolvedName
+      ? `Patient / surrogate candidate name: ${resolvedName}.`
+      : 'Patient name was not identified. Refer to the candidate as "the applicant".',
+    `Pages reviewed in source PDF: ${pageCount || 'unknown'}.`,
+    `Extracted factual inventory (use ONLY these facts; cite page numbers):\n${formatFactsForPrompt(facts)}`,
+    'Produce the internal Babytree staff Markdown reference with all 6 required sections and complexityTier. Return JSON only.',
+  ].join('\n\n');
+
+  const { text, raw } = await callKimiChat([
+    { role: 'system', content: STAFF_REPORT_SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ]);
+  const parsed = extractJsonObject(text) as {
+    report?: unknown;
+    complexityTier?: unknown;
+  };
+  const report = String(parsed?.report || '').trim();
+  if (!report) throw new Error('Staff report generation returned empty content');
+  const tierRaw = Number(parsed?.complexityTier);
+  const complexityTier =
+    tierRaw === 1 || tierRaw === 2 || tierRaw === 3 ? tierRaw : null;
+  return { report, complexityTier, raw };
 }
 
 function buildExtractBatches(
@@ -493,6 +564,9 @@ export async function analyzeMedicalRecordPdf(
   complications: MedicalComplication[];
   intro: string;
   summary: string;
+  clinicReport: string;
+  staffReport: string;
+  complexityTier: number | null;
   rawAiResponse: string;
   pageCount: number;
 }> {
@@ -504,7 +578,6 @@ export async function analyzeMedicalRecordPdf(
   const extractedParts: Array<{ startPage: number; endPage: number; text: string }> = [];
   const extractErrors: string[] = [];
 
-  // Phase 1: upload+extract all PDF chunks (chat is the slow step; do it once after).
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     const chunkName = `${fileName.replace(/\.pdf$/i, '')}.p${chunk.startPage}-${chunk.endPage}.pdf`;
@@ -537,10 +610,9 @@ export async function analyzeMedicalRecordPdf(
     );
   }
 
-  // Phase 2: fewer chat calls over extracted text (avoids 11 sequential chat timeouts).
   const chatBatches = buildExtractBatches(extractedParts);
 
-  const allComplications: MedicalComplication[] = [];
+  const allFacts: ExtractedFact[] = [];
   const rawParts: string[] = [];
   const chatErrors: string[] = [];
   let recordPatientName: string | null = null;
@@ -549,15 +621,15 @@ export async function analyzeMedicalRecordPdf(
     const batch = chatBatches[i];
     try {
       const { text, raw } = await callKimiChat([
-        { role: 'system', content: REVIEW_SYSTEM_PROMPT },
+        { role: 'system', content: FACT_EXTRACTION_SYSTEM_PROMPT },
         { role: 'system', content: batch.text },
         {
           role: 'user',
           content:
-            `Review the medical record above and report only the significant complications, ` +
-            `each with a short summary and the page number taken from its [[PAGE n START]] / [[PAGE n END]] markers. ` +
+            `Extract a complete factual inventory from the medical record above, covering all required categories. ` +
+            `Cite page numbers from [[PAGE n START]] / [[PAGE n END]] markers. ` +
             (batch.startPage === 1
-              ? `The patient's full name is on page 1. Read it from the content between [[PAGE 1 START]] and [[PAGE 1 END]] (demographics header, Patient/Member/Name label, or chart top) and return it as patientName. Do not return null unless no personal patient name appears on page 1. `
+              ? `The patient's full name is on page 1. Read it from [[PAGE 1 START]]…[[PAGE 1 END]] and return it as patientName. `
               : `Return patientName as null because this section does not contain page 1. `) +
             `This section covers ORIGINAL pages ${batch.startPage}-${batch.endPage}. Return JSON only.`,
         },
@@ -565,7 +637,7 @@ export async function analyzeMedicalRecordPdf(
 
       const parsed = extractJsonObject(text) as {
         patientName?: unknown;
-        complications?: unknown;
+        facts?: unknown;
       };
       if (!recordPatientName && batch.startPage === 1) {
         recordPatientName = cleanPatientName(parsed.patientName);
@@ -573,9 +645,7 @@ export async function analyzeMedicalRecordPdf(
       if (!recordPatientName && /\[\[PAGE\s*1\s*START\]\]/i.test(batch.text)) {
         recordPatientName = extractPatientNameFromPage1Text(batch.text);
       }
-      allComplications.push(
-        ...remapChunkPages(normalizeComplications(parsed), batch.startPage, batch.endPage)
-      );
+      allFacts.push(...remapFactPages(normalizeFacts(parsed), batch.startPage, batch.endPage));
       rawParts.push(
         JSON.stringify({
           batch: i + 1,
@@ -590,11 +660,12 @@ export async function analyzeMedicalRecordPdf(
     }
   }
 
-  if (allComplications.length === 0 && chatErrors.length > 0) {
+  if (allFacts.length === 0 && chatErrors.length > 0) {
     throw new Error(chatErrors[0]);
   }
 
-  const complications = dedupeComplications(allComplications);
+  const facts = dedupeFacts(allFacts);
+  const complications = factsToComplications(facts);
 
   if (!recordPatientName) {
     for (const part of extractedParts) {
@@ -608,20 +679,29 @@ export async function analyzeMedicalRecordPdf(
   const resolvedPatientName =
     cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
 
-  // Phase 3: one pass over the merged findings for the opening/closing paragraphs.
-  let intro = '';
-  let summary = '';
+  let clinicReport = '';
+  let staffReport = '';
+  let complexityTier: number | null = null;
+
   try {
-    const overview = await callKimiForOverview(
-      complications,
-      pageCount,
-      resolvedPatientName
-    );
-    intro = overview.intro;
-    summary = overview.summary;
-    rawParts.push(JSON.stringify({ overview: overview.raw }));
+    const clinic = await generateClinicReport(facts, pageCount, resolvedPatientName);
+    clinicReport = clinic.report;
+    rawParts.push(JSON.stringify({ clinicReport: clinic.raw }));
   } catch (error: any) {
-    chatErrors.push(`overview: ${error?.message || 'failed'}`);
+    chatErrors.push(`clinic_report: ${error?.message || 'failed'}`);
+  }
+
+  try {
+    const staff = await generateStaffReport(facts, pageCount, resolvedPatientName);
+    staffReport = staff.report;
+    complexityTier = staff.complexityTier;
+    rawParts.push(JSON.stringify({ staffReport: staff.raw }));
+  } catch (error: any) {
+    chatErrors.push(`staff_report: ${error?.message || 'failed'}`);
+  }
+
+  if (!clinicReport && !staffReport) {
+    throw new Error(chatErrors[0] || 'Failed to generate clinic and staff reports');
   }
 
   const notes = [...extractErrors, ...chatErrors];
@@ -629,10 +709,23 @@ export async function analyzeMedicalRecordPdf(
     rawParts.push(JSON.stringify({ warnings: notes }));
   }
 
+  // Keep intro/summary for older UI: short pointers into the dual reports.
+  const intro = clinicReport
+    ? 'Clinic-ready and internal staff reports were generated from this medical record. Open each report tab below (or download PDFs).'
+    : '';
+  const summary = staffReport
+    ? complexityTier
+      ? `Internal Case Complexity Flag: Tier ${complexityTier}. See Staff Report for details.`
+      : 'See Staff Report for the internal Case Complexity Flag and triage notes.'
+    : '';
+
   return {
     complications,
     intro,
     summary,
+    clinicReport,
+    staffReport,
+    complexityTier,
     rawAiResponse: `[${rawParts.join(',')}]`,
     pageCount,
   };
