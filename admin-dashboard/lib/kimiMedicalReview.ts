@@ -549,7 +549,7 @@ async function generateStaffReport(
       : 'Patient name was not identified. Refer to the candidate as "the applicant".',
     `Pages reviewed in source PDF: ${pageCount || 'unknown'}.`,
     `Extracted factual inventory (use ONLY these facts; cite page numbers):\n${formatFactsForPrompt(facts)}`,
-    'Produce the internal Babytree staff Markdown reference with all 6 required sections and complexityTier. Return JSON only.',
+    'Produce the internal Babytree staff Markdown reference with all 7 required sections (including Agency & Surrogate Confirmation as tables) and complexityTier. Return JSON only.',
   ].join('\n\n');
 
   const { text, raw } = await callKimiChat(
