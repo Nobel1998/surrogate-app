@@ -634,17 +634,22 @@ export default function MedicalRecordReviewsPage() {
 
                 {(selected.status === 'analyzing' ||
                   analyzingId === selected.id ||
+                  String(selected.error_message || '').startsWith('PROGRESS:') ||
                   analyzeDebugLog.length > 0) && (
-                  <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs p-3 rounded space-y-2">
-                    <div className="font-semibold text-sm">Analysis debug (visible on webpage)</div>
-                    <div className="font-mono break-words">
+                  <div className="bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs p-3 rounded space-y-2">
+                    <div className="font-semibold text-sm">Analysis debug（看这里）</div>
+                    <div className="font-mono break-words text-sm">
                       Server progress:{' '}
-                      {selected.error_message?.startsWith('PROGRESS:')
+                      {String(selected.error_message || '').startsWith('PROGRESS:')
                         ? selected.error_message
                         : selected.status === 'analyzing'
                           ? '(no PROGRESS yet — if this stays empty, after() may not be running on Vercel)'
                           : '—'}
                     </div>
+                    <p className="text-[11px] text-amber-800">
+                      成功时会看到 reports_parallel → clinic_report_ok / staff_report_ok → 状态变为 Analyzed。
+                      若停在 clinic_report 超过 2 分钟，可点 Retry Review。
+                    </p>
                     {analyzeDebugLog.length > 0 ? (
                       <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">
                         {analyzeDebugLog.map((line, idx) => (

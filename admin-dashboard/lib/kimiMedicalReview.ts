@@ -11,7 +11,10 @@ const DEFAULT_MODEL = 'kimi-k3';
 const PAGES_PER_CHUNK = 8;
 const UPLOAD_MAX_ATTEMPTS = 3;
 const CHAT_MAX_ATTEMPTS = 2;
-const CHAT_TIMEOUT_MS = 15 * 60 * 1000;
+/** Fact-extraction chats (longer OK). Must stay under Vercel maxDuration budget. */
+const CHAT_TIMEOUT_MS = 4 * 60 * 1000;
+/** Clinic/staff synthesis — keep short so we fail before the serverless kill. */
+const REPORT_CHAT_TIMEOUT_MS = 90 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
 type ExtractedFact = {
@@ -306,12 +309,16 @@ async function deleteRemoteFile(fileId: string): Promise<void> {
 }
 
 async function callKimiChat(
-  messages: Array<{ role: 'system' | 'user'; content: string }>
+  messages: Array<{ role: 'system' | 'user'; content: string }>,
+  options?: { timeoutMs?: number; maxCompletionTokens?: number }
 ): Promise<{ text: string; raw: string }> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Missing MOONSHOT_API_KEY (or KIMI_API_KEY)');
   }
+
+  const timeoutMs = options?.timeoutMs ?? CHAT_TIMEOUT_MS;
+  const maxCompletionTokens = options?.maxCompletionTokens ?? 32768;
 
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= CHAT_MAX_ATTEMPTS; attempt++) {
@@ -327,10 +334,10 @@ async function callKimiChat(
         body: JSON.stringify({
           model: getModel(),
           reasoning_effort: 'low',
-          max_completion_tokens: 32768,
+          max_completion_tokens: maxCompletionTokens,
           messages,
         }),
-        signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
 
       const bodyText = await resp.text();
@@ -440,13 +447,20 @@ function extractPatientNameFromPage1Text(text: string): string | null {
 
 function formatFactsForPrompt(facts: ExtractedFact[]): string {
   if (!facts.length) return 'No factual findings were extracted from the record.';
-  return facts
-    .map((f, i) => {
-      const preg = f.pregnancyLabel ? ` [${f.pregnancyLabel}]` : '';
-      const detail = f.detail ? ` — ${f.detail}` : '';
-      return `${i + 1}. [${f.category}]${preg} ${f.finding} (page ${f.page})${detail}`;
-    })
-    .join('\n');
+  // Keep prompts bounded so clinic/staff synthesis finishes inside Vercel time limits.
+  const maxFacts = 60;
+  const sliced = facts.length > maxFacts ? facts.slice(0, maxFacts) : facts;
+  const lines = sliced.map((f, i) => {
+    const preg = f.pregnancyLabel ? ` [${f.pregnancyLabel}]` : '';
+    const detail = f.detail ? ` — ${f.detail.slice(0, 180)}` : '';
+    return `${i + 1}. [${f.category}]${preg} ${f.finding} (page ${f.page})${detail}`;
+  });
+  if (facts.length > maxFacts) {
+    lines.push(
+      `... plus ${facts.length - maxFacts} additional facts omitted from this prompt for length; still cite only facts listed above.`
+    );
+  }
+  return lines.join('\n');
 }
 
 function remapFactPages(
@@ -481,10 +495,13 @@ async function generateClinicReport(
     'Produce the clinic-ready Markdown summary with all 10 required sections. Return JSON only.',
   ].join('\n\n');
 
-  const { text, raw } = await callKimiChat([
-    { role: 'system', content: CLINIC_REPORT_SYSTEM_PROMPT },
-    { role: 'user', content: userPrompt },
-  ]);
+  const { text, raw } = await callKimiChat(
+    [
+      { role: 'system', content: CLINIC_REPORT_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    { timeoutMs: REPORT_CHAT_TIMEOUT_MS, maxCompletionTokens: 12288 }
+  );
   const parsed = extractJsonObject(text) as { report?: unknown };
   const report = String(parsed?.report || '').trim();
   if (!report) throw new Error('Clinic report generation returned empty content');
@@ -506,10 +523,13 @@ async function generateStaffReport(
     'Produce the internal Babytree staff Markdown reference with all 6 required sections and complexityTier. Return JSON only.',
   ].join('\n\n');
 
-  const { text, raw } = await callKimiChat([
-    { role: 'system', content: STAFF_REPORT_SYSTEM_PROMPT },
-    { role: 'user', content: userPrompt },
-  ]);
+  const { text, raw } = await callKimiChat(
+    [
+      { role: 'system', content: STAFF_REPORT_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    { timeoutMs: REPORT_CHAT_TIMEOUT_MS, maxCompletionTokens: 12288 }
+  );
   const parsed = extractJsonObject(text) as {
     report?: unknown;
     complexityTier?: unknown;
@@ -702,23 +722,31 @@ export async function analyzeMedicalRecordPdf(
   let staffReport = '';
   let complexityTier: number | null = null;
 
-  await report('clinic_report', `facts=${facts.length}`);
-  try {
-    const clinic = await generateClinicReport(facts, pageCount, resolvedPatientName);
-    clinicReport = clinic.report;
-    rawParts.push(JSON.stringify({ clinicReport: clinic.raw }));
-  } catch (error: any) {
-    chatErrors.push(`clinic_report: ${error?.message || 'failed'}`);
+  await report('reports_parallel', `facts=${facts.length}`);
+  const [clinicResult, staffResult] = await Promise.allSettled([
+    generateClinicReport(facts, pageCount, resolvedPatientName),
+    generateStaffReport(facts, pageCount, resolvedPatientName),
+  ]);
+
+  if (clinicResult.status === 'fulfilled') {
+    clinicReport = clinicResult.value.report;
+    rawParts.push(JSON.stringify({ clinicReport: clinicResult.value.raw }));
+    await report('clinic_report_ok', `len=${clinicReport.length}`);
+  } else {
+    const msg = clinicResult.reason?.message || String(clinicResult.reason) || 'failed';
+    chatErrors.push(`clinic_report: ${msg}`);
+    await report('clinic_report_FAILED', String(msg).slice(0, 160));
   }
 
-  await report('staff_report', `facts=${facts.length}`);
-  try {
-    const staff = await generateStaffReport(facts, pageCount, resolvedPatientName);
-    staffReport = staff.report;
-    complexityTier = staff.complexityTier;
-    rawParts.push(JSON.stringify({ staffReport: staff.raw }));
-  } catch (error: any) {
-    chatErrors.push(`staff_report: ${error?.message || 'failed'}`);
+  if (staffResult.status === 'fulfilled') {
+    staffReport = staffResult.value.report;
+    complexityTier = staffResult.value.complexityTier;
+    rawParts.push(JSON.stringify({ staffReport: staffResult.value.raw }));
+    await report('staff_report_ok', `len=${staffReport.length} tier=${complexityTier}`);
+  } else {
+    const msg = staffResult.reason?.message || String(staffResult.reason) || 'failed';
+    chatErrors.push(`staff_report: ${msg}`);
+    await report('staff_report_FAILED', String(msg).slice(0, 160));
   }
 
   if (!clinicReport && !staffReport) {

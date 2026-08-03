@@ -67,7 +67,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (existing.status === 'analyzing') {
       const updatedAt = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
-      const staleMs = 10 * 60 * 1000;
+      // Allow retry quickly when progress freezes mid-AI (Vercel kill leaves stale analyzing).
+      const staleMs = 2 * 60 * 1000;
       if (updatedAt && Date.now() - updatedAt < staleMs) {
         // #region agent log
         fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
@@ -134,6 +135,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const supabase = auth.supabase;
     after(async () => {
+      const startedAt = Date.now();
+      // Leave headroom before Vercel maxDuration=300s so we can mark failed instead of freezing.
+      const budgetMs = 270_000;
       // #region agent log
       fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
         method: 'POST',
@@ -143,18 +147,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
         },
         body: JSON.stringify({
           sessionId: '5244e3',
-          runId: 'prod-debug',
-          hypothesisId: 'A',
+          runId: 'post-fix',
+          hypothesisId: 'D',
           location: 'analyze/route.ts:afterStart',
-          message: 'after() started',
-          data: { id },
+          message: 'after() started with budget',
+          data: { id, budgetMs },
           timestamp: Date.now(),
         }),
       }).catch(() => {});
       // #endregion
       try {
         await setAnalysisProgress(supabase, id, '0.after_started', 'background job running', 'A');
-        await runMedicalRecordAnalysis(supabase, id, providedPdfBytes);
+        await Promise.race([
+          runMedicalRecordAnalysis(supabase, id, providedPdfBytes),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(
+                new Error(
+                  `Analysis timed out after ${Math.round(budgetMs / 1000)}s (near Vercel limit). Last step was likely clinic/staff report generation — click Retry Review.`
+                )
+              );
+            }, budgetMs);
+          }),
+        ]);
         // #region agent log
         fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
           method: 'POST',
@@ -164,11 +179,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
           },
           body: JSON.stringify({
             sessionId: '5244e3',
-            runId: 'prod-debug',
-            hypothesisId: 'A',
+            runId: 'post-fix',
+            hypothesisId: 'D',
             location: 'analyze/route.ts:afterOk',
             message: 'after() finished ok',
-            data: { id },
+            data: { id, elapsedMs: Date.now() - startedAt },
             timestamp: Date.now(),
           }),
         }).catch(() => {});
@@ -185,11 +200,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
           },
           body: JSON.stringify({
             sessionId: '5244e3',
-            runId: 'prod-debug',
-            hypothesisId: 'A',
+            runId: 'post-fix',
+            hypothesisId: 'D',
             location: 'analyze/route.ts:afterErr',
             message: 'after() failed',
-            data: { id, error: String(message).slice(0, 300) },
+            data: { id, error: String(message).slice(0, 300), elapsedMs: Date.now() - startedAt },
             timestamp: Date.now(),
           }),
         }).catch(() => {});
