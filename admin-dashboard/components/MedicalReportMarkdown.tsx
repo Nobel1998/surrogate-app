@@ -44,7 +44,7 @@ function ReportBlocks({ blocks, variant }: { blocks: ReportBlock[]; variant: 'cl
           return (
             <h4
               key={idx}
-              className={`${size} font-semibold ${headingColor} pt-1 border-b ${tableBorder} pb-1`}
+              className={`${size} font-semibold ${headingColor} pt-1 border-b ${headingBorder} pb-1`}
             >
               {renderInline(block.text)}
             </h4>
