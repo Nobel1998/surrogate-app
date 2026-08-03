@@ -137,7 +137,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     after(async () => {
       const startedAt = Date.now();
       // Leave headroom before Vercel maxDuration=300s so we can mark failed instead of freezing.
-      const budgetMs = 760_000;
+      const budgetMs = 270_000;
       // #region agent log
       fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577', {
         method: 'POST',
