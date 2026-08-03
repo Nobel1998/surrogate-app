@@ -9,7 +9,7 @@ import {
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 800;
+export const maxDuration = 300; // Hobby max is 300s; Pro can go higher — checkpoint resume handles long PDFs
 
 type RouteContext = { params: Promise<{ id: string }> };
 
