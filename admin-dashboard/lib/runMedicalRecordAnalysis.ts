@@ -137,6 +137,7 @@ export async function runMedicalRecordAnalysis(
   supabase: SupabaseClient,
   reviewId: string,
   providedPdfBytes?: Uint8Array | null,
+  options?: { deadlineAt?: number },
 ) {
   await setAnalysisProgress(supabase, reviewId, '1.load_record', 'fetching review row', 'C');
 
@@ -313,6 +314,7 @@ export async function runMedicalRecordAnalysis(
     result = await analyzeMedicalRecordPdf(pdfBytes, {
       fileName: existing.file_name || 'medical-record.pdf',
       patientName,
+      deadlineAt: options?.deadlineAt,
       onProgress: async (step, detail) => {
         await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail, 'D');
       },

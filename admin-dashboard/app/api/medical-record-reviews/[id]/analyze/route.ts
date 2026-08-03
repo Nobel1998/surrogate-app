@@ -9,7 +9,13 @@ import {
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // Hobby max is 300s; Pro can go higher — checkpoint resume handles long PDFs
+/**
+ * Vercel function time limit:
+ * - Hobby: max 300s (current)
+ * - Pro / Enterprise: can set up to 800s (or 1800s with Fluid Compute extended duration)
+ * Change this number only after upgrading the Vercel plan, otherwise deploy may fail.
+ */
+export const maxDuration = 300;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -158,8 +164,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       // #endregion
       try {
         await setAnalysisProgress(supabase, id, '0.after_started', 'background job running', 'A');
+        const deadlineAt = startedAt + budgetMs;
         await Promise.race([
-          runMedicalRecordAnalysis(supabase, id, providedPdfBytes),
+          runMedicalRecordAnalysis(supabase, id, providedPdfBytes, { deadlineAt }),
           new Promise<never>((_, reject) => {
             setTimeout(() => {
               reject(

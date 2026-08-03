@@ -647,8 +647,8 @@ export default function MedicalRecordReviewsPage() {
                           : '—'}
                     </div>
                     <p className="text-[11px] text-amber-800">
-                      成功路径：facts_saved → reports_parallel → clinic_report_ok / staff_report_ok → Analyzed。
-                      若第一次超时，再点 Retry：应出现 resume_reports（跳过 PDF 提取，只生成报告）。
+                      Hobby 套餐单次最多约 300 秒。长 PDF 会先 facts_saved / defer_reports，再点 Retry
+                      走 resume_reports（只生成报告）。Pro 可将 maxDuration 提到 800。
                     </p>
                     {analyzeDebugLog.length > 0 ? (
                       <ul className="max-h-48 overflow-y-auto space-y-1 font-mono border-t border-amber-200 pt-2">

@@ -671,6 +671,8 @@ export async function analyzeMedicalRecordPdf(
   options?: {
     fileName?: string;
     patientName?: string | null;
+    /** Absolute timestamp; if remaining time is too low after facts, skip report synthesis. */
+    deadlineAt?: number;
     onProgress?: (step: string, detail?: string) => void | Promise<void>;
     /** Called after facts are extracted so the caller can checkpoint before report synthesis. */
     onFactsReady?: (checkpoint: MedicalRecordFactsCheckpoint) => void | Promise<void>;
@@ -684,6 +686,8 @@ export async function analyzeMedicalRecordPdf(
   complexityTier: number | null;
   rawAiResponse: string;
   pageCount: number;
+  /** True when facts were saved but reports were deferred to a Retry (time budget). */
+  deferredReports?: boolean;
 }> {
   const report = async (step: string, detail?: string) => {
     try {
@@ -825,6 +829,22 @@ export async function analyzeMedicalRecordPdf(
     await options?.onFactsReady?.(checkpoint);
   } catch {
     // checkpoint persist is best-effort; reports may still succeed in this run
+  }
+
+  // Reserve time for clinic+staff (parallel, each up to ~120s). If not enough left,
+  // stop here so Retry can resume reports with a fresh Vercel time budget.
+  const REPORT_RESERVE_MS = 130_000;
+  const deadlineAt = options?.deadlineAt;
+  if (deadlineAt && deadlineAt - Date.now() < REPORT_RESERVE_MS) {
+    await report(
+      'defer_reports',
+      `remaining=${Math.max(0, Math.round((deadlineAt - Date.now()) / 1000))}s < ${Math.round(REPORT_RESERVE_MS / 1000)}s reserve`
+    );
+    const err = new Error(
+      'FACTS_CHECKPOINT_READY: Facts saved. Click Retry Review to generate clinic/staff reports (PDF extract will be skipped).'
+    );
+    (err as Error & { code?: string }).code = 'FACTS_CHECKPOINT_READY';
+    throw err;
   }
 
   const synthesized = await synthesizeReportsFromFacts(
