@@ -23,6 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -31,9 +32,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="light" style={{ colorScheme: "light" }}>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gray-50 min-h-screen`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gray-50 text-gray-900 min-h-screen`}
       >
         <ClientLayout>{children}</ClientLayout>
       </body>
