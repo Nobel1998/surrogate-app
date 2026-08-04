@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { sanitizeAddressText } from './extractLocationFromAddress';
 import { toEnglishProvinceLabel } from './resolveIpRegion';
 import { splitAirportFields } from './splitAirportFields';
+import { labelParentApplicationOption } from './parentApplicationOptionLabels';
 
 interface ApplicationData {
   [key: string]: any;
@@ -18,6 +19,9 @@ const formatBoolean = (value: any): string => {
 // Helper function to format value or return N/A
 const formatValue = (value: any): string => {
   if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  const labeled = labelParentApplicationOption(value);
+  if (labeled) return sanitizeAddressText(labeled) || 'N/A';
   return sanitizeAddressText(String(value)) || 'N/A';
 };
 
@@ -188,9 +192,7 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
 
     // Step 4: Medical & Fertility History
     addSection('Step 4: Medical & Fertility History', [
-      ['Reason for Pursuing Surrogacy', Array.isArray(app.reasonForSurrogacy) 
-        ? app.reasonForSurrogacy.join(', ') 
-        : formatValue(app.reasonForSurrogacy)],
+      ['Reason for Pursuing Surrogacy', formatValue(app.reasonForSurrogacy)],
       ['Have You Undergone IVF', formatBoolean(app.undergoneIVF)],
       ['Do You Need Donor Eggs', formatBoolean(app.needDonorEggs)],
       ['Do You Need Donor Sperm', formatBoolean(app.needDonorSperm)],
@@ -215,12 +217,8 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
       ['Prefer Surrogate with Flexible Schedule', formatBoolean(app.preferFlexibleSchedule)],
       ['Do You Have Diet Preference During Pregnancy', formatBoolean(app.dietPreferenceYes)],
       ['Diet Preference', formatValue(app.dietPreference)],
-      ['Communication Preferences', Array.isArray(app.communicationPreference)
-        ? app.communicationPreference.join(', ')
-        : formatValue(app.communicationPreference)],
-      ['Relationship Style With Surrogate', Array.isArray(app.relationshipStyle)
-        ? app.relationshipStyle.join(', ')
-        : formatValue(app.relationshipStyle)],
+      ['Communication Preferences', formatValue(app.communicationPreference)],
+      ['Relationship Style With Surrogate', formatValue(app.relationshipStyle)],
       ['Prefer Surrogate to Follow Specific OB/GYN Guidelines', formatBoolean(app.preferSpecificObGynGuidelines)],
     ], [148, 103, 189]);
 

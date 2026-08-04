@@ -23,6 +23,9 @@ import {
 import { translateViewLabel } from '../i18n/viewApplicationLabels';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { splitAirportFields } from '../utils/splitAirportFields';
+import { parseApplicationFormData } from '../utils/parseApplicationFormData';
+import { formatPhoneForDisplay } from '../utils/parentPhone';
+import { labelParentApplicationOption } from '../utils/parentApplicationOptionLabels';
 
 export default function ViewApplicationScreen({ navigation }) {
   const { user } = useAuth();
@@ -33,7 +36,11 @@ export default function ViewApplicationScreen({ navigation }) {
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    navigation.setOptions?.({ title: tv('My Application') });
+    navigation.setOptions?.({
+      title: tv('My Application'),
+      headerBackTitleVisible: false,
+      headerBackTitle: '',
+    });
   }, [language, navigation]);
 
   // Reload data when screen comes into focus (e.g., after editing)
@@ -69,14 +76,22 @@ export default function ViewApplicationScreen({ navigation }) {
           .maybeSingle()
       ]);
 
-      // Determine which application to show (prefer the most recent one)
+      // Prefer the application matching the user's role when both exist
       let applicationData = null;
       let applicationType = null;
+      const role = String(user?.role || '').toLowerCase();
 
-      if (surrogateResult.data && intendedParentResult.data) {
-        // Both exist, choose the most recent one
+      if (role === 'parent' && intendedParentResult.data) {
+        applicationData = intendedParentResult.data;
+        applicationType = 'intended_parent';
+      } else if (role === 'surrogate' && surrogateResult.data) {
+        applicationData = surrogateResult.data;
+        applicationType = 'surrogate';
+      } else if (surrogateResult.data && intendedParentResult.data) {
         const surrogateDate = new Date(surrogateResult.data.created_at || 0);
-        const intendedParentDate = new Date(intendedParentResult.data.submitted_at || intendedParentResult.data.created_at || 0);
+        const intendedParentDate = new Date(
+          intendedParentResult.data.submitted_at || intendedParentResult.data.created_at || 0
+        );
         if (intendedParentDate > surrogateDate) {
           applicationData = intendedParentResult.data;
           applicationType = 'intended_parent';
@@ -94,9 +109,8 @@ export default function ViewApplicationScreen({ navigation }) {
 
       if (applicationData) {
         setApplication({ ...applicationData, applicationType });
-        // Parse form_data JSON
         try {
-          const parsed = applicationData.form_data ? (typeof applicationData.form_data === 'string' ? JSON.parse(applicationData.form_data) : applicationData.form_data) : {};
+          const parsed = parseApplicationFormData(applicationData.form_data);
           const airportFields = splitAirportFields(parsed.nearestAirport, parsed.airportDistance);
           setFormData({
             ...parsed,
@@ -108,6 +122,9 @@ export default function ViewApplicationScreen({ navigation }) {
           console.error('Error parsing form_data:', e);
           setFormData({ applicationType });
         }
+      } else {
+        setApplication(null);
+        setFormData({});
       }
 
       // Log errors (but don't fail if one table has no data)
@@ -134,9 +151,17 @@ export default function ViewApplicationScreen({ navigation }) {
     if (value === null || value === undefined || value === '') return tv('N/A');
     if (value === true) return tv('Yes');
     if (value === false) return tv('No');
-    const str = String(value);
-    const labeled = tv(str);
-    if (labeled !== str) return labeled;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return tv('N/A');
+      return value
+        .map((item) => formatValue(item))
+        .filter((item) => item && item !== tv('N/A'))
+        .join(', ') || tv('N/A');
+    }
+    const labeled = labelParentApplicationOption(value);
+    const str = String(labeled || value);
+    const fromView = tv(str);
+    if (fromView !== str) return fromView;
     return translateFormUi(language, str);
   };
 
@@ -237,6 +262,42 @@ export default function ViewApplicationScreen({ navigation }) {
     t
   );
   const submittedAt = application.created_at || application.submitted_at;
+  const isParentApp = formData.applicationType === 'intended_parent';
+
+  const formatParentDob = (prefix) => {
+    const m = formData[`${prefix}DateOfBirthMonth`];
+    const d = formData[`${prefix}DateOfBirthDay`];
+    const y = formData[`${prefix}DateOfBirthYear`];
+    if (m && d && y) return `${m}/${d}/${y}`;
+    return '';
+  };
+
+  const formatParentPhone = (prefix) => {
+    const cc = formData[`${prefix}PhoneCountryCode`];
+    const area = formData[`${prefix}PhoneAreaCode`];
+    const num = formData[`${prefix}PhoneNumber`];
+    if (cc && area && num) return formatPhoneForDisplay(`+${cc}${area}${num}`) || `+${cc} (${area}) ${num}`;
+    if (num) return formatPhoneForDisplay(num) || String(num);
+    return '';
+  };
+
+  const formatParentAddress = (prefix) => {
+    const parts = [
+      formData[`${prefix}AddressStreet`],
+      formData[`${prefix}AddressStreet2`],
+      formData[`${prefix}AddressCity`],
+      formData[`${prefix}AddressState`],
+      formData[`${prefix}AddressZip`],
+    ]
+      .map((p) => String(p || '').trim())
+      .filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const parent1FullName = [formData.parent1FirstName, formData.parent1LastName]
+    .map((p) => String(p || '').trim())
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -273,6 +334,126 @@ export default function ViewApplicationScreen({ navigation }) {
           <Text style={styles.editButtonText}>{t('applicationStatus.editApplication')}</Text>
         </TouchableOpacity>
 
+        {isParentApp ? (
+          <>
+            {renderSection('Family Structure & Basic Information', 'users', '#2196F3',
+              <>
+                {renderField('Family Structure', formData.familyStructure)}
+                {renderField('Hear About Us', formData.hearAboutUs)}
+              </>
+            )}
+
+            {renderSection('Intended Parent 1', 'user', '#4CAF50',
+              <>
+                {(formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0) || formData.photoUrl ? (
+                  <View style={styles.photoContainer}>
+                    <Text style={styles.fieldLabel}>
+                      {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0
+                        ? `${tv('Intended Parent Photos')} (${formData.photos.length} ${tv('photos')})`
+                        : tv('Intended Parent Photo')}
+                    </Text>
+                    {formData.photos && Array.isArray(formData.photos) && formData.photos.length > 0 ? (
+                      <View style={styles.photosGrid}>
+                        {formData.photos.map((photoUrl, index) => (
+                          <View key={index} style={styles.photoItem}>
+                            <Image
+                              source={{ uri: photoUrl }}
+                              style={styles.photoThumbnail}
+                              resizeMode="cover"
+                            />
+                            <Text style={styles.photoLabel}>{tv('Photo')} {index + 1}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : formData.photoUrl ? (
+                      <Image
+                        source={{ uri: formData.photoUrl }}
+                        style={styles.photoPreview}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+                {renderField('Full Name', parent1FullName)}
+                {renderField('First Name', formData.parent1FirstName)}
+                {renderField('Last Name', formData.parent1LastName)}
+                {renderField('Date of Birth', formatParentDob('parent1'))}
+                {renderField('Gender', formData.parent1Gender)}
+                {renderField('Blood Type', formData.parent1BloodType)}
+                {renderField('Race/Ethnicity', formData.parent1Race)}
+                {renderField('Citizenship', formData.parent1Citizenship)}
+                {renderField('Occupation', formData.parent1Occupation)}
+                {renderField('Languages', formData.parent1Languages)}
+                {renderField('Phone', formatParentPhone('parent1'))}
+                {renderField('Email', formData.parent1Email)}
+                {renderField('Emergency Contact', formData.parent1EmergencyContact)}
+                {renderField('Address', formatParentAddress('parent1'))}
+              </>
+            )}
+
+            {(formData.parent2FirstName || formData.parent2LastName) ? (
+              renderSection('Intended Parent 2', 'user', '#9C27B0',
+                <>
+                  {renderField('First Name', formData.parent2FirstName)}
+                  {renderField('Last Name', formData.parent2LastName)}
+                  {renderField('Date of Birth', formatParentDob('parent2'))}
+                  {renderField('Gender', formData.parent2Gender)}
+                  {renderField('Blood Type', formData.parent2BloodType)}
+                  {renderField('Citizenship', formData.parent2Citizenship)}
+                  {renderField('Occupation', formData.parent2Occupation)}
+                  {renderField('Languages', formData.parent2Languages)}
+                  {renderField('Phone', formatParentPhone('parent2'))}
+                  {renderField('Email', formData.parent2Email)}
+                </>
+              )
+            ) : null}
+
+            {renderSection('Family Background', 'heart', '#E91E63',
+              <>
+                {renderField('How Long Have You Been Together', formData.howLongTogether)}
+                {renderBooleanField('Do You Have Any Children', formData.haveChildren)}
+                {renderField('Children Details', formData.childrenDetails)}
+              </>
+            )}
+
+            {renderSection('Medical & Fertility History', 'activity', '#FF9800',
+              <>
+                {renderField(
+                  'Reason for Pursuing Surrogacy',
+                  formData.reasonForSurrogacy
+                )}
+                {renderBooleanField('Have You Undergone IVF', formData.undergoneIVF)}
+                {renderBooleanField('Do You Need Donor Eggs', formData.needDonorEggs)}
+                {renderBooleanField('Do You Need Donor Sperm', formData.needDonorSperm)}
+                {renderBooleanField('Do You Currently Have Embryos', formData.haveEmbryos)}
+                {renderField('Number of Embryos', formData.numberOfEmbryos)}
+                {renderBooleanField('PGT-A Tested', formData.pgtATested)}
+                {renderField('Embryo Development Day', formData.embryoDevelopmentDay)}
+                {renderField('Frozen at Which Clinic', formData.frozenAtClinic)}
+                {renderField('Clinic Email', formData.clinicEmail)}
+                {renderField('Fertility Doctor Name', formData.fertilityDoctorName)}
+                {renderField('HIV/Hepatitis/STD Status', formData.hivHepatitisStdStatus || formData.hivHepatitisSTD)}
+              </>
+            )}
+
+            {renderSection('Surrogate Preferences', 'heart', '#3F51B5',
+              <>
+                {renderField('Preferred Surrogate Age Range', formData.preferredSurrogateAgeRange)}
+                {renderField('Surrogate Location Preference', formData.surrogateLocationPreference)}
+                {renderField('Specific States', formData.specificStates)}
+                {renderBooleanField(
+                  'Accept Surrogate with Previous C-sections',
+                  formData.acceptPreviousCsection ?? formData.acceptPreviousCSections
+                )}
+                {renderField(
+                  'Communication Preferences',
+                  formData.communicationPreference
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <>
         {/* Step 1: Personal Information */}
         {renderSection('Personal Information', 'user', '#2196F3',
           <>
@@ -548,6 +729,8 @@ export default function ViewApplicationScreen({ navigation }) {
             {renderBooleanField('Authorization Agreed', formData.authorizationAgreed)}
             {renderField('Applicant Address', formData.applicantAddress)}
             {renderField('Emergency Contact', formData.emergencyContact)}
+          </>
+        )}
           </>
         )}
 

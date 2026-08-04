@@ -237,7 +237,8 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
               profile.phone
                 ? () => {
                     const tel = formatPhoneForTel(profile.phone);
-                    if (tel) Linking.openURL(`tel:${tel}`);
+                    const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
+                    if (cleanTel) Linking.openURL(`tel:${cleanTel}`);
                   }
                 : null
             )}
@@ -509,7 +510,8 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                   style={styles.quickActionButton}
                   onPress={() => {
                     const tel = formatPhoneForTel(profile.phone);
-                    if (tel) Linking.openURL(`tel:${tel}`);
+                    const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
+                    if (cleanTel) Linking.openURL(`tel:${cleanTel}`);
                   }}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>

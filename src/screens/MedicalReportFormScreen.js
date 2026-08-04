@@ -26,9 +26,8 @@ import TimePickerField from '../components/TimePickerField';
 import { useNotifications } from '../context/NotificationContext';
 import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT, parseAppointmentTime } from '../utils/syncAppointmentFromMedicalReport';
 
-function defaultVisitTimeNow() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+function defaultVisitTime() {
+  return '09:00';
 }
 
 export default function MedicalReportFormScreen({ route }) {
@@ -43,7 +42,7 @@ export default function MedicalReportFormScreen({ route }) {
   const [providerName, setProviderName] = useState('');
   const [providerContact, setProviderContact] = useState('');
   const [visitDate, setVisitDate] = useState('');
-  const [visitTime, setVisitTime] = useState(defaultVisitTimeNow);
+  const [visitTime, setVisitTime] = useState(defaultVisitTime);
   const [proofImage, setProofImage] = useState(null);
   const [existingProofUrl, setExistingProofUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -70,20 +69,20 @@ export default function MedicalReportFormScreen({ route }) {
       delete rd.provider_contact;
       delete rd.visit_time;
       setProviderContact(contact === EMPTY_PROVIDER_CONTACT ? '' : contact);
-      setVisitTime(savedVisitTime || defaultVisitTimeNow());
+      setVisitTime(savedVisitTime || defaultVisitTime());
       setFormData(rd);
       setExistingProofUrl(existingReport.proof_image_url || null);
       setProofImage(null);
       return;
     }
 
-    // Set default visit date/time to now for new check-ins
+    // Set default visit date to today; visit time defaults to 9:00 AM (optional)
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const year = today.getFullYear();
     setVisitDate(`${month}-${day}-${year}`);
-    setVisitTime(defaultVisitTimeNow());
+    setVisitTime(defaultVisitTime());
   }, [existingReport?.id]);
 
   const handleFieldChange = (key, value) => {
@@ -228,12 +227,10 @@ export default function MedicalReportFormScreen({ route }) {
       return;
     }
 
-    if (!visitTime || !String(visitTime).trim()) {
-      Alert.alert(
-        t('common.error') || 'Validation Error',
-        t('medicalReport.visitTimeRequired') || 'Please select visit time.'
-      );
-      return;
+    const resolvedVisitTime = String(visitTime || '').trim() || defaultVisitTime();
+    // keep local state in sync if user left it blank
+    if (!String(visitTime || '').trim() && resolvedVisitTime) {
+      setVisitTime(resolvedVisitTime);
     }
 
     const parsedDate = parseMMDDYYYYToISO(visitDate);
@@ -473,7 +470,7 @@ export default function MedicalReportFormScreen({ route }) {
       const reportDataWithContact = {
         ...formData,
         provider_contact: resolveProviderContact(providerContact),
-        visit_time: String(visitTime || '').trim(),
+        visit_time: String(visitTime || '').trim() || defaultVisitTime(),
       };
 
       if (isEditing) {
@@ -1115,12 +1112,12 @@ export default function MedicalReportFormScreen({ route }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t('medicalReport.visitTime')} *</Text>
+            <Text style={styles.sectionLabel}>{t('medicalReport.visitTime')}</Text>
             <TimePickerField
               style={styles.input}
               value={visitTime}
               onChange={setVisitTime}
-              placeholder={t('medicalReport.visitTimePlaceholder') || 'Select visit time'}
+              placeholder={t('medicalReport.visitTimePlaceholder') || '9:00 AM'}
             />
           </View>
 

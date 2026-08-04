@@ -10,7 +10,8 @@ export function digitsOnly(raw) {
 
 /**
  * Merge country/area/local (or a raw profile string) into normalized parts.
- * US/NANP: +1(123)456-7890
+ * US/NANP display: +1(123)456-7890
+ * US/NANP tel URI: +1-123-456-7890 (dashes help dialers that misread +1123...)
  */
 export function parseParentPhoneParts({
   countryCode = '',
@@ -24,7 +25,14 @@ export function parseParentPhoneParts({
     digitsOnly(`${countryCode}${areaCode}${phoneNumber}`);
 
   if (!all) {
-    return { countryCode: '', areaCode: '', phoneNumber: '', e164: '', display: '' };
+    return {
+      countryCode: '',
+      areaCode: '',
+      phoneNumber: '',
+      e164: '',
+      tel: '',
+      display: '',
+    };
   }
 
   let cc = '';
@@ -73,6 +81,13 @@ export function parseParentPhoneParts({
         ? `+${cc}${area}${local}`
         : `${area}${local}`;
 
+  // US/NANP: use national 10-digit dashed form (no +1). Many dialers (zh locale)
+  // strip separators from +11234567890 and redisplay as +1(1)(234)567-890.
+  const tel =
+    cc === '1' && area.length === 3 && local.length === 7
+      ? `${area}-${local.slice(0, 3)}-${local.slice(3)}`
+      : e164;
+
   const display =
     cc === '1' && area.length === 3 && local.length === 7
       ? `+1(${area})${local.slice(0, 3)}-${local.slice(3)}`
@@ -85,6 +100,7 @@ export function parseParentPhoneParts({
     areaCode: area,
     phoneNumber: local,
     e164,
+    tel,
     display,
   };
 }
@@ -98,13 +114,19 @@ export function formatParentPhoneForProfile(data) {
   return parts.display || parts.e164 || '';
 }
 
+/** Value for Linking.openURL(`tel:...`) — NANP uses dashed form for dialer clarity. */
 export function formatPhoneForTel(rawOrParts) {
-  if (rawOrParts && typeof rawOrParts === 'object') {
-    const parts = parseParentPhoneParts(rawOrParts);
-    return parts.e164 || '';
-  }
-  const parts = parseParentPhoneParts({ raw: rawOrParts });
-  return parts.e164 || digitsOnly(rawOrParts);
+  const parts =
+    rawOrParts && typeof rawOrParts === 'object' && !Array.isArray(rawOrParts)
+      ? parseParentPhoneParts(rawOrParts)
+      : parseParentPhoneParts({ raw: rawOrParts });
+  return (
+    parts.tel ||
+    parts.e164 ||
+    (digitsOnly(typeof rawOrParts === 'string' || typeof rawOrParts === 'number' ? rawOrParts : '')
+      ? `+${digitsOnly(rawOrParts)}`
+      : '')
+  );
 }
 
 export function formatPhoneForDisplay(raw) {

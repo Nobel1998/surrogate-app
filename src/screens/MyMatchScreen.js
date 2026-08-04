@@ -289,7 +289,12 @@ export default function MyMatchScreen({ navigation }) {
             console.error('Error loading parent profile:', parentError);
           } else {
             console.log('Loaded parent profile for match:', parentProfile);
-            setPartnerProfile(parentProfile);
+            const normalizedPhone = formatPhoneForDisplay(parentProfile?.phone);
+            setPartnerProfile(
+              normalizedPhone && normalizedPhone !== parentProfile?.phone
+                ? { ...parentProfile, phone: normalizedPhone }
+                : parentProfile
+            );
           }
         } else if (!isSurrogate && match.surrogate_id) {
           const { data: surrogateProfile, error: surrogateError } = await supabase
@@ -1549,8 +1554,27 @@ export default function MyMatchScreen({ navigation }) {
             <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => {
-                const tel = formatPhoneForTel(partnerProfile?.phone);
-                if (tel) Linking.openURL(`tel:${tel}`);
+                const raw = partnerProfile?.phone;
+                const digits = String(raw || '').replace(/\D/g, '');
+                let national = digits;
+                if (national.length === 11 && national.startsWith('1')) {
+                  national = national.slice(1);
+                }
+                // Dialers (esp. zh locale) reformat +11234567890 as +1(1)(234)567-890.
+                // Open 10-digit NANP national form so the dialer shows (123) 456-7890.
+                let openUrl = '';
+                if (national.length === 10) {
+                  openUrl = `tel:${national.slice(0, 3)}-${national.slice(3, 6)}-${national.slice(6)}`;
+                } else {
+                  const tel = formatPhoneForTel(raw);
+                  const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
+                  openUrl = cleanTel ? `tel:${cleanTel}` : '';
+                }
+                if (!openUrl) {
+                  Alert.alert(t('common.error'), t('myMatch.phoneNotAvailable') || 'Phone number not available.');
+                  return;
+                }
+                Linking.openURL(openUrl);
               }}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>

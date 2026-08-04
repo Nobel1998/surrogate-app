@@ -325,7 +325,12 @@ function AppStackNavigator({ initialRouteName = 'MainTabs' }) {
       <Stack.Screen
         name="ViewApplication"
         component={ViewApplicationScreen}
-        options={{ title: 'My Application', headerShown: true }}
+        options={{
+          title: 'My Application',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerBackTitle: '',
+        }}
       />
       <Stack.Screen name="OBAppointments" component={OBAppointmentsScreen} />
       <Stack.Screen name="IVFAppointments" component={IVFAppointmentsScreen} />

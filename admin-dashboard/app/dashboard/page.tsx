@@ -10,6 +10,7 @@ import { generateApplicationPDF } from '../../lib/generateApplicationPDF';
 import { resolveDisplayLocation, sanitizeAddressText } from '../../lib/extractLocationFromAddress';
 import { resolveIpRegionDetailed, toEnglishProvinceLabel } from '../../lib/resolveIpRegion';
 import { splitAirportFields } from '../../lib/splitAirportFields';
+import { labelParentApplicationOption } from '../../lib/parentApplicationOptionLabels';
 
 // Intended Parent Approve/Reject Button Component
 function IntendedParentApproveButton({ id, currentStatus, onUpdate }: { id: number; currentStatus?: string; onUpdate?: () => void }) {
@@ -688,14 +689,20 @@ export default function Home() {
 
   const renderTextField = (label: string, key: string, opts?: { multiline?: boolean; className?: string; aliases?: string[] }) => {
     const raw = readField(key, opts?.aliases);
-    const display = raw === true ? 'Yes' : raw === false ? 'No' : (raw == null || raw === '' ? 'N/A' : String(raw));
+    let display = 'N/A';
+    if (raw === true) display = 'Yes';
+    else if (raw === false) display = 'No';
+    else if (raw != null && raw !== '') {
+      const labeled = labelParentApplicationOption(raw);
+      display = labeled || String(raw);
+    }
     return (
       <div className={opts?.className}>
         <label className="block text-sm font-medium text-gray-500">{label}</label>
         {isEditingApplication ? (
           opts?.multiline ? (
             <textarea
-              value={raw == null ? '' : String(raw)}
+              value={raw == null ? '' : Array.isArray(raw) ? raw.join(', ') : String(raw)}
               onChange={(e) => updateEditField(key, e.target.value)}
               rows={4}
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
@@ -703,7 +710,7 @@ export default function Home() {
           ) : (
             <input
               type="text"
-              value={raw == null ? '' : String(raw)}
+              value={raw == null ? '' : Array.isArray(raw) ? raw.join(', ') : String(raw)}
               onChange={(e) => updateEditField(key, e.target.value)}
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
             />
@@ -1339,9 +1346,7 @@ export default function Home() {
                             <input type="text" value={editFormData.reasonForSurrogacy == null ? '' : Array.isArray(editFormData.reasonForSurrogacy) ? editFormData.reasonForSurrogacy.join(', ') : String(editFormData.reasonForSurrogacy)} onChange={(e) => updateEditField('reasonForSurrogacy', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                           ) : (
                             <p className="text-sm text-gray-900">
-                              {Array.isArray(selectedApp.reasonForSurrogacy)
-                                ? selectedApp.reasonForSurrogacy.join(', ')
-                                : selectedApp.reasonForSurrogacy || 'N/A'}
+                              {labelParentApplicationOption(selectedApp.reasonForSurrogacy) || 'N/A'}
                             </p>
                           )}
                         </div>
@@ -1378,9 +1383,7 @@ export default function Home() {
                             <input type="text" value={editFormData.communicationPreference == null ? '' : Array.isArray(editFormData.communicationPreference) ? editFormData.communicationPreference.join(', ') : String(editFormData.communicationPreference)} onChange={(e) => updateEditField('communicationPreference', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                           ) : (
                             <p className="text-sm text-gray-900">
-                              {Array.isArray(selectedApp.communicationPreference)
-                                ? selectedApp.communicationPreference.join(', ')
-                                : selectedApp.communicationPreference || 'N/A'}
+                              {labelParentApplicationOption(selectedApp.communicationPreference) || 'N/A'}
                             </p>
                           )}
                         </div>
@@ -1390,9 +1393,7 @@ export default function Home() {
                             <input type="text" value={editFormData.relationshipStyle == null ? '' : Array.isArray(editFormData.relationshipStyle) ? editFormData.relationshipStyle.join(', ') : String(editFormData.relationshipStyle)} onChange={(e) => updateEditField('relationshipStyle', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                           ) : (
                             <p className="text-sm text-gray-900">
-                              {Array.isArray(selectedApp.relationshipStyle)
-                                ? selectedApp.relationshipStyle.join(', ')
-                                : selectedApp.relationshipStyle || 'N/A'}
+                              {labelParentApplicationOption(selectedApp.relationshipStyle) || 'N/A'}
                             </p>
                           )}
                         </div>

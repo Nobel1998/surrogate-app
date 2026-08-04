@@ -126,7 +126,7 @@ export default function StepStatusPage() {
   const [updateTab, setUpdateTab] = useState<'note' | 'medical'>('note');
   const [medicalStage, setMedicalStage] = useState('Pre-Transfer');
   const [medicalVisitDate, setMedicalVisitDate] = useState('');
-  const [medicalVisitTime, setMedicalVisitTime] = useState('');
+  const [medicalVisitTime, setMedicalVisitTime] = useState('09:00');
   const [medicalProviderName, setMedicalProviderName] = useState('');
   const [medicalProviderContact, setMedicalProviderContact] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
@@ -511,7 +511,7 @@ export default function StepStatusPage() {
   const resetMedicalCheckInForm = () => {
     setEditingMedicalReportId(null);
     setMedicalVisitDate('');
-    setMedicalVisitTime('');
+    setMedicalVisitTime('09:00');
     setMedicalProviderName('');
     setMedicalProviderContact('');
     setMedicalReportData({});
@@ -531,7 +531,7 @@ export default function StepStatusPage() {
     setEditingMedicalReportId(String(report.id));
     setMedicalStage(report.stage || 'Pre-Transfer');
     setMedicalVisitDate(String(report.visit_date || '').slice(0, 10));
-    setMedicalVisitTime(String(visitTime).slice(0, 5));
+    setMedicalVisitTime(String(visitTime).slice(0, 5) || '09:00');
     setMedicalProviderName(report.provider_name || '');
     setMedicalProviderContact(contact === '888888' ? '' : contact);
     setMedicalReportData(rest);
@@ -683,17 +683,15 @@ export default function StepStatusPage() {
       alert('Please select a visit date');
       return;
     }
-    if (!medicalVisitTime.trim()) {
-      alert('Please select a visit time');
-      return;
-    }
+
+    const resolvedVisitTime = medicalVisitTime.trim() || '09:00';
 
     setSavingMedical(true);
     try {
       const reportData = {
         ...medicalReportData,
         provider_contact: medicalProviderContact.trim() || '888888',
-        visit_time: medicalVisitTime.trim(),
+        visit_time: resolvedVisitTime,
       };
       if (reportData.next_appointment_date) {
         const next = String(reportData.next_appointment_date).trim();
@@ -1511,10 +1509,10 @@ export default function StepStatusPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Visit Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visit Time (optional, default 9:00 AM)</label>
                   <input
                     type="time"
-                    value={medicalVisitTime}
+                    value={medicalVisitTime || '09:00'}
                     onChange={(e) => setMedicalVisitTime(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />

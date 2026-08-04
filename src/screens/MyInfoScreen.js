@@ -15,6 +15,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import DatePickerField from '../components/DatePickerField';
+import { formatPhoneForDisplay } from '../utils/parentPhone';
+import { syncMyInfoToApplication } from '../utils/syncMyInfoToApplication';
 
 export default function MyInfoScreen({ navigation }) {
   const { user } = useAuth();
@@ -99,6 +101,8 @@ export default function MyInfoScreen({ navigation }) {
     try {
       // Parse date of birth from display format to ISO format
       const dateOfBirthISO = parseDateFromInput(dateOfBirthDisplay);
+      const normalizedPhone =
+        formatPhoneForDisplay(profileData.phone.trim()) || profileData.phone.trim() || null;
       
       // First, get existing invite_code to preserve it (required field)
       let existingInviteCode = null;
@@ -122,19 +126,21 @@ export default function MyInfoScreen({ navigation }) {
         }
         existingInviteCode = code;
       }
+
+      const profilePayload = {
+        id: user.id,
+        name: profileData.name.trim(),
+        email: profileData.email.trim() || user.email,
+        phone: normalizedPhone,
+        date_of_birth: dateOfBirthISO || null,
+        race: profileData.race.trim() || null,
+        location: profileData.location.trim() || null,
+        invite_code: existingInviteCode,
+      };
       
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          name: profileData.name.trim(),
-          email: profileData.email.trim() || user.email,
-          phone: profileData.phone.trim() || null,
-          date_of_birth: dateOfBirthISO || null,
-          race: profileData.race.trim() || null,
-          location: profileData.location.trim() || null,
-          invite_code: existingInviteCode, // Preserve existing invite_code
-        }, { onConflict: 'id' });
+        .upsert(profilePayload, { onConflict: 'id' });
 
       if (error) {
         console.error('Error updating profile:', error);
@@ -150,6 +156,20 @@ export default function MyInfoScreen({ navigation }) {
 
       if (authError) {
         console.error('Error updating auth user:', authError);
+      }
+
+      // Push overlapping fields into latest application (admin dashboard reads form_data)
+      const { error: appSyncError } = await syncMyInfoToApplication(
+        user.id,
+        profilePayload,
+        user.role
+      );
+      if (appSyncError) {
+        console.warn('Application sync from My Info failed:', appSyncError.message || appSyncError);
+      }
+
+      if (normalizedPhone && normalizedPhone !== profileData.phone) {
+        setProfileData((prev) => ({ ...prev, phone: normalizedPhone }));
       }
 
       Alert.alert(t('common.success'), t('myInfo.saveSuccess'), [
