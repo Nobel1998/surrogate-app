@@ -3699,14 +3699,14 @@ export default function MatchesPage() {
                                     />
                                     <input
                                       type="text"
-                                      placeholder="Phone"
+                                      placeholder="Phone/Email"
                                       value={medicalInfoForm.ivf_clinic_phone || ''}
                                       onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_phone: e.target.value})}
                                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                     <input
                                       type="email"
-                                      placeholder="Email"
+                                      placeholder="Phone/Email"
                                       value={medicalInfoForm.ivf_clinic_email || ''}
                                       onChange={(e) => setMedicalInfoForm({...medicalInfoForm, ivf_clinic_email: e.target.value})}
                                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3778,10 +3778,10 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.ivf_clinic_address)}</div>
                                     )}
                                     {medicalInfo.ivf_clinic_phone && (
-                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.ivf_clinic_phone}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone/Email: {medicalInfo.ivf_clinic_phone}</div>
                                     )}
                                     {medicalInfo.ivf_clinic_email && (
-                                      <div className="text-xs text-gray-600">Email: {medicalInfo.ivf_clinic_email}</div>
+                                      <div className="text-xs text-gray-600">Phone/Email: {medicalInfo.ivf_clinic_email}</div>
                                     )}
                                   </div>
                                 )}
@@ -3813,14 +3813,14 @@ export default function MatchesPage() {
                                     />
                                     <input
                                       type="text"
-                                      placeholder="Phone"
+                                      placeholder="Phone/Email"
                                       value={medicalInfoForm.obgyn_clinic_phone || ''}
                                       onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_phone: e.target.value})}
                                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
                                     />
                                     <input
                                       type="email"
-                                      placeholder="Email"
+                                      placeholder="Phone/Email"
                                       value={medicalInfoForm.obgyn_clinic_email || ''}
                                       onChange={(e) => setMedicalInfoForm({...medicalInfoForm, obgyn_clinic_email: e.target.value})}
                                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -3892,10 +3892,10 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.obgyn_clinic_address)}</div>
                                     )}
                                     {medicalInfo.obgyn_clinic_phone && (
-                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.obgyn_clinic_phone}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone/Email: {medicalInfo.obgyn_clinic_phone}</div>
                                     )}
                                     {medicalInfo.obgyn_clinic_email && (
-                                      <div className="text-xs text-gray-600">Email: {medicalInfo.obgyn_clinic_email}</div>
+                                      <div className="text-xs text-gray-600">Phone/Email: {medicalInfo.obgyn_clinic_email}</div>
                                     )}
                                   </div>
                                 )}
@@ -3920,7 +3920,7 @@ export default function MatchesPage() {
                                     />
                                     <input
                                       type="text"
-                                      placeholder="Phone"
+                                      placeholder="Phone/Email"
                                       value={medicalInfoForm.delivery_hospital_phone || ''}
                                       onChange={(e) => setMedicalInfoForm({...medicalInfoForm, delivery_hospital_phone: e.target.value})}
                                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -3994,7 +3994,7 @@ export default function MatchesPage() {
                                       <div className="text-xs text-gray-600 mb-0.5">{sanitizeAddressText(medicalInfo.delivery_hospital_address)}</div>
                                     )}
                                     {medicalInfo.delivery_hospital_phone && (
-                                      <div className="text-xs text-gray-600 mb-0.5">Phone: {medicalInfo.delivery_hospital_phone}</div>
+                                      <div className="text-xs text-gray-600 mb-0.5">Phone/Email: {medicalInfo.delivery_hospital_phone}</div>
                                     )}
                                     {medicalInfo.delivery_hospital_email && (
                                       <div className="text-xs text-gray-600">Email: {medicalInfo.delivery_hospital_email}</div>

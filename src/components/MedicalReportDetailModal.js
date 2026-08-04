@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { looksLikeEmail } from '../utils/contactDisplay';
 
 function formatVisitDate(visitDate) {
   if (!visitDate) return 'N/A';
@@ -224,11 +223,8 @@ export default function MedicalReportDetailModal({
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
                 <View style={styles.contactRow}>
-                  <Icon
-                    name={looksLikeEmail(reportData.provider_contact) ? 'mail' : 'phone'}
-                    size={16}
-                    color="#64748B"
-                  />
+                  <Icon name="phone" size={16} color="#64748B" />
+                  <Icon name="mail" size={16} color="#64748B" />
                   <Text style={styles.sectionValue}>{formatValue(reportData.provider_contact)}</Text>
                 </View>
               </View>
@@ -237,6 +233,7 @@ export default function MedicalReportDetailModal({
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
                 <View style={styles.contactRow}>
                   <Icon name="phone" size={16} color="#64748B" />
+                  <Icon name="mail" size={16} color="#64748B" />
                   <Text style={styles.sectionValue}>888888</Text>
                 </View>
               </View>

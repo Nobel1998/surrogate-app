@@ -26,7 +26,6 @@ import {
   getEffectiveAppointmentStatus,
 } from '../utils/autoCompletePastAppointments';
 import { formatDateOnlyDisplay } from '../utils/dateOnly';
-import { getAppointmentContacts } from '../utils/contactDisplay';
 
 const STATUS_COLORS = {
   scheduled: '#3B82F6',
@@ -323,28 +322,17 @@ export default function IVFAppointmentsScreen({ navigation }) {
                   </View>
                 ) : null}
                 {(() => {
-                  const { phone, email, showPlaceholder } = getAppointmentContacts(appointment);
+                  const values = [
+                    String(appointment.clinic_phone || '').trim(),
+                    String(appointment.clinic_email || '').trim(),
+                  ].filter((v, i, arr) => v && v !== '888888' && arr.indexOf(v) === i);
+                  const text = values.length > 0 ? values.join(' / ') : '888888';
                   return (
-                    <>
-                      {phone ? (
-                        <View style={styles.infoRow}>
-                          <Icon name="phone" size={16} color="#666" />
-                          <Text style={styles.infoText}>{phone}</Text>
-                        </View>
-                      ) : null}
-                      {email ? (
-                        <View style={styles.infoRow}>
-                          <Icon name="mail" size={16} color="#666" />
-                          <Text style={styles.infoText}>{email}</Text>
-                        </View>
-                      ) : null}
-                      {showPlaceholder ? (
-                        <View style={styles.infoRow}>
-                          <Icon name="phone" size={16} color="#666" />
-                          <Text style={styles.infoText}>888888</Text>
-                        </View>
-                      ) : null}
-                    </>
+                    <View style={styles.infoRow}>
+                      <Icon name="phone" size={16} color="#666" />
+                      <Icon name="mail" size={16} color="#666" style={{ marginLeft: -4 }} />
+                      <Text style={styles.infoText}>{text}</Text>
+                    </View>
                   );
                 })()}
                 {appointment.notes ? (

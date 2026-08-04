@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import DateInput from '@/components/DateInput';
-import { getAppointmentContacts } from '@/lib/contactDisplay';
 
 // Stage labels for displaying friendly names
 const STAGE_LABELS: Record<string, string> = {
@@ -928,8 +927,8 @@ export default function StepStatusPage() {
                       {renderField('Clinic Name', medicalInfo.ivf_clinic_name)}
                       {renderField('Doctor', medicalInfo.ivf_clinic_doctor_name)}
                       {renderField('Address', medicalInfo.ivf_clinic_address)}
-                      {renderField('Phone', medicalInfo.ivf_clinic_phone)}
-                      {renderField('Email', medicalInfo.ivf_clinic_email)}
+                      {renderField('Phone/Email', medicalInfo.ivf_clinic_phone)}
+                      {renderField('Phone/Email', medicalInfo.ivf_clinic_email)}
                     </div>
                   </div>
                   <div>
@@ -938,8 +937,8 @@ export default function StepStatusPage() {
                       {renderField('Doctor', medicalInfo.obgyn_doctor_name)}
                       {renderField('Clinic', medicalInfo.obgyn_clinic_name)}
                       {renderField('Address', medicalInfo.obgyn_clinic_address)}
-                      {renderField('Phone', medicalInfo.obgyn_clinic_phone)}
-                      {renderField('Email', medicalInfo.obgyn_clinic_email)}
+                      {renderField('Phone/Email', medicalInfo.obgyn_clinic_phone)}
+                      {renderField('Phone/Email', medicalInfo.obgyn_clinic_email)}
                     </div>
                   </div>
                   <div>
@@ -947,7 +946,7 @@ export default function StepStatusPage() {
                     <div className="grid grid-cols-2 gap-x-8 bg-gray-50 p-4 rounded">
                       {renderField('Hospital', medicalInfo.delivery_hospital_name)}
                       {renderField('Address', medicalInfo.delivery_hospital_address)}
-                      {renderField('Phone', medicalInfo.delivery_hospital_phone)}
+                      {renderField('Phone/Email', medicalInfo.delivery_hospital_phone)}
                     </div>
                   </div>
                 </div>
@@ -1177,16 +1176,16 @@ export default function StepStatusPage() {
                                 <div className="col-span-2"><span className="font-medium text-gray-700">Address:</span> {appointment.clinic_address}</div>
                               )}
                               {(() => {
-                                const { phone, email } = getAppointmentContacts(appointment);
+                                const values = [
+                                  String(appointment.clinic_phone || '').trim(),
+                                  String(appointment.clinic_email || '').trim(),
+                                ].filter((v, i, arr) => v && v !== '888888' && arr.indexOf(v) === i);
+                                if (values.length === 0) return null;
                                 return (
-                                  <>
-                                    {phone && (
-                                      <div><span className="font-medium text-gray-700">Phone:</span> {phone}</div>
-                                    )}
-                                    {email && (
-                                      <div><span className="font-medium text-gray-700">Email:</span> {email}</div>
-                                    )}
-                                  </>
+                                  <div className="col-span-2">
+                                    <span className="font-medium text-gray-700">Phone/Email:</span>{' '}
+                                    {values.join(' / ')}
+                                  </div>
                                 );
                               })()}
                               {appointment.appointment_type && (
@@ -1531,12 +1530,12 @@ export default function StepStatusPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider Contact (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider Contact — Phone/Email (Optional)</label>
                   <input
                     type="text"
                     value={medicalProviderContact}
                     onChange={(e) => setMedicalProviderContact(e.target.value)}
-                    placeholder="e.g. phone, email"
+                    placeholder="phone / email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -2351,7 +2350,7 @@ const renderMedicalReportDetailModal = (
               </div>
               {hasMedicalReportValue(reportData.provider_contact) && (
                 <div>
-                  <span className="block text-xs font-semibold text-gray-500 uppercase">Provider Contact</span>
+                  <span className="block text-xs font-semibold text-gray-500 uppercase">Phone/Email</span>
                   <span className="block text-sm font-medium text-gray-900 mt-1">{String(reportData.provider_contact)}</span>
                 </div>
               )}
