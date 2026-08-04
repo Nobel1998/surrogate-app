@@ -382,6 +382,7 @@ export default function ViewApplicationScreen({ navigation }) {
                 {renderField('Blood Type', formData.parent1BloodType)}
                 {renderField('Race/Ethnicity', formData.parent1Race)}
                 {renderField('Citizenship', formData.parent1Citizenship)}
+                {renderField('Country/State of Residence', formData.parent1CountryState)}
                 {renderField('Occupation', formData.parent1Occupation)}
                 {renderField('Languages', formData.parent1Languages)}
                 {renderField('Phone', formatParentPhone('parent1'))}
@@ -391,7 +392,7 @@ export default function ViewApplicationScreen({ navigation }) {
               </>
             )}
 
-            {(formData.parent2FirstName || formData.parent2LastName) ? (
+            {(formData.parent2FirstName || formData.parent2LastName || formData.parent2Email) ? (
               renderSection('Intended Parent 2', 'user', '#9C27B0',
                 <>
                   {renderField('First Name', formData.parent2FirstName)}
@@ -399,7 +400,9 @@ export default function ViewApplicationScreen({ navigation }) {
                   {renderField('Date of Birth', formatParentDob('parent2'))}
                   {renderField('Gender', formData.parent2Gender)}
                   {renderField('Blood Type', formData.parent2BloodType)}
+                  {renderField('Race/Ethnicity', formData.parent2Race)}
                   {renderField('Citizenship', formData.parent2Citizenship)}
+                  {renderField('Country/State of Residence', formData.parent2CountryState)}
                   {renderField('Occupation', formData.parent2Occupation)}
                   {renderField('Languages', formData.parent2Languages)}
                   {renderField('Phone', formatParentPhone('parent2'))}
@@ -445,10 +448,103 @@ export default function ViewApplicationScreen({ navigation }) {
                   'Accept Surrogate with Previous C-sections',
                   formData.acceptPreviousCsection ?? formData.acceptPreviousCSections
                 )}
-                {renderField(
-                  'Communication Preferences',
-                  formData.communicationPreference
+                {renderBooleanField(
+                  'Prefer Surrogate Who Does Not Work During Pregnancy',
+                  formData.preferNoWorkDuringPregnancy
                 )}
+                {renderBooleanField('Prefer Surrogate with Stable Home Environment', formData.preferStableHome)}
+                {renderBooleanField('Prefer Surrogate with Flexible Schedule', formData.preferFlexibleSchedule)}
+                {renderBooleanField(
+                  'Do You Have Diet Preference During Pregnancy',
+                  formData.dietPreferenceYes ?? formData.haveDietPreference
+                )}
+                {renderField('Diet Preference', formData.dietPreference)}
+                {renderField('Communication Preferences', formData.communicationPreference)}
+                {renderField('Relationship Style With Surrogate', formData.relationshipStyle)}
+                {renderBooleanField(
+                  'Prefer Surrogate to Follow Specific OB/GYN Guidelines',
+                  formData.preferSpecificObGynGuidelines
+                )}
+              </>
+            )}
+
+            {renderSection('Additional Surrogate Preferences', 'heart', '#009688',
+              <>
+                {renderBooleanField('Prefer Surrogate to Avoid Heavy Lifting', formData.preferAvoidHeavyLifting)}
+                {renderBooleanField(
+                  'Prefer Surrogate to Avoid Travel During Pregnancy',
+                  formData.preferAvoidTravel
+                )}
+                {renderBooleanField(
+                  'Comfortable with Surrogate Delivering in Her Local Hospital',
+                  formData.comfortableWithLocalHospital
+                )}
+                {renderBooleanField(
+                  'Prefer Surrogate Who is Open to Selective Reduction',
+                  formData.preferOpenToSelectiveReduction
+                )}
+                {renderBooleanField(
+                  'Prefer Surrogate Who is Open to Termination for Medical Reasons',
+                  formData.preferOpenToTerminationMedical
+                )}
+                {renderField(
+                  'Prefer Surrogate with Previous Surrogacy Experience',
+                  formData.preferPreviousSurrogacyExperience
+                )}
+                {renderBooleanField(
+                  'Prefer Surrogate with Strong Support System',
+                  formData.preferStrongSupportSystem
+                )}
+                {renderField('Prefer Surrogate Who is Married', formData.preferMarried)}
+                {renderBooleanField('Prefer Surrogate with Stable Income', formData.preferStableIncome)}
+                {renderField(
+                  'Prefer Surrogate Who is Comfortable with Intended Parents Attending Appointments',
+                  formData.preferComfortableWithAppointments
+                )}
+                {renderField(
+                  'Prefer Surrogate Who is Comfortable with Intended Parents Being Present at Birth',
+                  formData.preferComfortableWithBirth
+                )}
+              </>
+            )}
+
+            {renderSection('General Questions', 'help-circle', '#FF5722',
+              <>
+                {renderBooleanField(
+                  'Will You Transfer More Than One Embryo',
+                  formData.willTransferMoreThanOneEmbryo
+                )}
+                {renderField('Attorney Name', formData.attorneyName)}
+                {renderField('Attorney Email', formData.attorneyEmail)}
+                {renderBooleanField('Do You Have a Translator', formData.haveTranslator)}
+                {formData.haveTranslator ? (
+                  <>
+                    {renderField('Translator Name', formData.translatorName)}
+                    {renderField('Translator Email', formData.translatorEmail)}
+                  </>
+                ) : null}
+                {renderBooleanField(
+                  'Are You Prepared for the Possibility of a Failed Embryo Transfer',
+                  formData.preparedForFailedTransfer
+                )}
+                {renderBooleanField(
+                  'Are You Willing to Attempt Multiple Cycles if Needed',
+                  formData.willingToAttemptMultipleCycles
+                )}
+                {renderBooleanField(
+                  'Are You Emotionally Prepared for the Full Surrogacy Journey',
+                  formData.emotionallyPrepared
+                )}
+                {renderBooleanField(
+                  'Are You Able to Handle Potential Delays or Medical Risks',
+                  formData.ableToHandleDelaysOrRisks
+                )}
+              </>
+            )}
+
+            {renderSection('Letter to Surrogate', 'mail', '#E91E63',
+              <>
+                {renderField('Letter to Surrogate', formData.letterToSurrogate)}
               </>
             )}
           </>

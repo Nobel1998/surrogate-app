@@ -10,24 +10,25 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather as Icon } from '@expo/vector-icons';
 
+/** Build a local Date at a fixed calendar day so DST/timezone shifts cannot move the hour. */
+function timePartsToDate(hours, minutes) {
+  return new Date(2000, 0, 1, hours, minutes, 0, 0);
+}
+
 function parseTimeToDate(value) {
   const s = String(value || '').trim();
   const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (m24) {
     const h = Math.min(23, Math.max(0, parseInt(m24[1], 10)));
     const min = Math.min(59, Math.max(0, parseInt(m24[2], 10)));
-    const d = new Date();
-    d.setHours(h, min, 0, 0);
-    return d;
+    return timePartsToDate(h, min);
   }
   const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
   if (m12) {
     let h = parseInt(m12[1], 10) % 12;
     if (m12[3].toLowerCase() === 'pm') h += 12;
     const min = parseInt(m12[2], 10);
-    const d = new Date();
-    d.setHours(h, min, 0, 0);
-    return d;
+    return timePartsToDate(h, min);
   }
   return null;
 }
@@ -61,13 +62,10 @@ export default function TimePickerField({
 }) {
   const [open, setOpen] = useState(false);
   const [draftDate, setDraftDate] = useState(null);
+  const [pickerKey, setPickerKey] = useState(0);
 
   const parsed = useMemo(() => parseTimeToDate(value), [value]);
-  const fallbackDate = useMemo(() => {
-    const d = new Date();
-    d.setSeconds(0, 0);
-    return d;
-  }, []);
+  const fallbackDate = useMemo(() => timePartsToDate(9, 0), []);
 
   const pickerValue = draftDate || parsed || fallbackDate;
   const display = value ? String(value) : '';
@@ -75,6 +73,7 @@ export default function TimePickerField({
   const openPicker = () => {
     if (!editable) return;
     setDraftDate(parsed || fallbackDate);
+    setPickerKey((k) => k + 1);
     setOpen(true);
   };
 
@@ -96,6 +95,12 @@ export default function TimePickerField({
   const confirmIos = () => {
     commit(draftDate || pickerValue);
     setOpen(false);
+    setDraftDate(null);
+  };
+
+  const cancelIos = () => {
+    setOpen(false);
+    setDraftDate(null);
   };
 
   return (
@@ -122,6 +127,7 @@ export default function TimePickerField({
 
       {open && Platform.OS === 'android' && (
         <DateTimePicker
+          key={`android-time-${pickerKey}`}
           value={pickerValue}
           mode="time"
           display="default"
@@ -131,32 +137,36 @@ export default function TimePickerField({
       )}
 
       {Platform.OS === 'ios' && (
-        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Modal visible={open} transparent animationType="slide" onRequestClose={cancelIos}>
           <View style={styles.modalOverlay}>
             <TouchableOpacity
               style={styles.modalBackdrop}
               activeOpacity={1}
-              onPress={() => setOpen(false)}
+              onPress={cancelIos}
             />
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12}>
+                <TouchableOpacity onPress={cancelIos} hitSlop={12}>
                   <Text style={styles.modalCancel}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={confirmIos} hitSlop={12}>
                   <Text style={styles.modalAction}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <DateTimePicker
-                value={pickerValue}
-                mode="time"
-                display="spinner"
-                themeVariant="light"
-                textColor="#0F172A"
-                is24Hour={!use12Hour}
-                onChange={onPickerChange}
-                style={styles.iosPicker}
-              />
+              {open ? (
+                <DateTimePicker
+                  key={`ios-time-${pickerKey}`}
+                  value={pickerValue}
+                  mode="time"
+                  display="spinner"
+                  themeVariant="light"
+                  textColor="#0F172A"
+                  is24Hour={!use12Hour}
+                  minuteInterval={1}
+                  onChange={onPickerChange}
+                  style={styles.iosPicker}
+                />
+              ) : null}
             </View>
           </View>
         </Modal>

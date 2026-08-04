@@ -362,16 +362,22 @@ export default function Home() {
     loadApplications();
   }, []);
 
-  // Always re-resolve region from IP when opening a detail view.
-  // Stored signup_ip_region may be wrong if it came from an inaccurate global geo DB.
+  // Resolve region from IP when opening a detail view.
+  // Always clear the Resolving… flag — including when no IP is available.
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (!selectedApp) return;
+      if (!selectedApp) {
+        setResolvingIpRegion(false);
+        return;
+      }
       const ip = String(
         selectedApp.applicantIp || selectedApp.signup_ip || selectedApp.ip_address || ''
       ).trim();
-      if (!ip || ip === 'N/A') return;
+      if (!ip || ip === 'N/A') {
+        setResolvingIpRegion(false);
+        return;
+      }
       setResolvingIpRegion(true);
       try {
         const storedRegion = String(selectedApp.applicantIpRegion || '').trim() || null;
@@ -391,6 +397,8 @@ export default function Home() {
             );
           }
         }
+      } catch (err) {
+        console.warn('IP region resolve failed:', err);
       } finally {
         if (!cancelled) setResolvingIpRegion(false);
       }
@@ -1032,7 +1040,6 @@ export default function Home() {
                       <div className="flex flex-wrap gap-x-2 gap-y-1">
                         <button
                           onClick={() => {
-                            setResolvingIpRegion(true);
                             setSelectedApp(app);
                           }}
                           className="text-blue-600 hover:text-blue-900 text-xs font-medium"

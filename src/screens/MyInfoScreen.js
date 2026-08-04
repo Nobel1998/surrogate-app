@@ -101,8 +101,15 @@ export default function MyInfoScreen({ navigation }) {
     try {
       // Parse date of birth from display format to ISO format
       const dateOfBirthISO = parseDateFromInput(dateOfBirthDisplay);
-      const normalizedPhone =
-        formatPhoneForDisplay(profileData.phone.trim()) || profileData.phone.trim() || null;
+      const role = String(user?.role || '').toLowerCase();
+      // Surrogates: keep phone as entered (do not assume US +1).
+      // Parents: normalize to NANP display when possible.
+      const phoneTrimmed = profileData.phone.trim();
+      const normalizedPhone = phoneTrimmed
+        ? role === 'surrogate'
+          ? formatPhoneForDisplay(phoneTrimmed, { defaultCountryCode: '' }) || phoneTrimmed
+          : formatPhoneForDisplay(phoneTrimmed) || phoneTrimmed
+        : null;
       
       // First, get existing invite_code to preserve it (required field)
       let existingInviteCode = null;

@@ -11,13 +11,17 @@ export function digitsOnly(raw) {
 /**
  * Merge country/area/local (or a raw profile string) into normalized parts.
  * US/NANP display: +1(123)456-7890
- * US/NANP tel URI: +1-123-456-7890 (dashes help dialers that misread +1123...)
+ * US/NANP tel URI: national dashed form (no +1) for dialer clarity.
+ *
+ * @param {{ defaultCountryCode?: string|null }} [options]
+ *   When defaultCountryCode is ''/null, 10-digit numbers are NOT assumed to be US (+1).
  */
 export function parseParentPhoneParts({
   countryCode = '',
   areaCode = '',
   phoneNumber = '',
   raw = '',
+  defaultCountryCode = '1',
 } = {}) {
   const explicitCc = digitsOnly(countryCode);
   let all =
@@ -36,6 +40,10 @@ export function parseParentPhoneParts({
   }
 
   let cc = '';
+  const fallbackCc =
+    defaultCountryCode == null || defaultCountryCode === ''
+      ? ''
+      : digitsOnly(defaultCountryCode);
 
   // 11+ digits starting with 1 → US country code + 10-digit national
   if (all.length >= 11 && all.startsWith('1')) {
@@ -49,8 +57,8 @@ export function parseParentPhoneParts({
     cc = explicitCc;
     all = all.slice(explicitCc.length);
   } else if (all.length === 10) {
-    // 10-digit national number; keep explicit country or default US
-    cc = explicitCc || '1';
+    // 10-digit national number; only default to US when configured
+    cc = explicitCc || fallbackCc;
   } else {
     cc = explicitCc;
   }
@@ -86,14 +94,14 @@ export function parseParentPhoneParts({
   const tel =
     cc === '1' && area.length === 3 && local.length === 7
       ? `${area}-${local.slice(0, 3)}-${local.slice(3)}`
-      : e164;
+      : e164 || all;
 
   const display =
     cc === '1' && area.length === 3 && local.length === 7
       ? `+1(${area})${local.slice(0, 3)}-${local.slice(3)}`
       : cc && area && local
         ? `+${cc}(${area})${local}`
-        : e164 || '';
+        : e164 || all || '';
 
   return {
     countryCode: cc,
@@ -129,7 +137,11 @@ export function formatPhoneForTel(rawOrParts) {
   );
 }
 
-export function formatPhoneForDisplay(raw) {
-  const parts = parseParentPhoneParts({ raw });
+export function formatPhoneForDisplay(raw, options = {}) {
+  const defaultCountryCode =
+    Object.prototype.hasOwnProperty.call(options, 'defaultCountryCode')
+      ? options.defaultCountryCode
+      : '1';
+  const parts = parseParentPhoneParts({ raw, defaultCountryCode });
   return parts.display || String(raw || '').trim() || '';
 }

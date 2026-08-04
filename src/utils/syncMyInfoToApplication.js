@@ -50,7 +50,11 @@ export async function syncMyInfoToApplication(userId, profile, roleHint) {
 
   const name = String(profile.name || '').trim();
   const phoneDisplay =
-    formatPhoneForDisplay(profile.phone) || String(profile.phone || '').trim() || '';
+    role === 'surrogate'
+      ? formatPhoneForDisplay(profile.phone, { defaultCountryCode: '' }) ||
+        String(profile.phone || '').trim() ||
+        ''
+      : formatPhoneForDisplay(profile.phone) || String(profile.phone || '').trim() || '';
   const dobIso = profile.date_of_birth || null;
   const race = String(profile.race || '').trim();
   const location = String(profile.location || '').trim();
