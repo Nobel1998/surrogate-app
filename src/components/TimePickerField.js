@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather as Icon } from '@expo/vector-icons';
 
-/** Build a local Date at a fixed calendar day so DST/timezone shifts cannot move the hour. */
+/** Fixed local calendar day so DST/timezone cannot shift the hour. */
 function timePartsToDate(hours, minutes) {
   return new Date(2000, 0, 1, hours, minutes, 0, 0);
 }
@@ -47,6 +47,8 @@ function formatTimeValue(date, use12Hour) {
 
 /**
  * Tap-to-open time picker. Stores "HH:MM" (24h) by default.
+ * iOS spinner keeps a stable `value` while open (updates go to a ref) so the
+ * wheel can scroll freely without being reset by controlled re-renders.
  */
 export default function TimePickerField({
   value,
@@ -55,24 +57,24 @@ export default function TimePickerField({
   style,
   textStyle,
   editable = true,
-  /** Display/store as 12-hour "h:mm am/pm" when true; otherwise "HH:MM". */
   use12Hour = false,
   iconColor = '#94A3B8',
   iconSize = 18,
 }) {
   const [open, setOpen] = useState(false);
-  const [draftDate, setDraftDate] = useState(null);
+  const [openValue, setOpenValue] = useState(null);
   const [pickerKey, setPickerKey] = useState(0);
+  const draftRef = useRef(null);
 
   const parsed = useMemo(() => parseTimeToDate(value), [value]);
   const fallbackDate = useMemo(() => timePartsToDate(9, 0), []);
-
-  const pickerValue = draftDate || parsed || fallbackDate;
   const display = value ? String(value) : '';
 
   const openPicker = () => {
     if (!editable) return;
-    setDraftDate(parsed || fallbackDate);
+    const initial = parsed || fallbackDate;
+    draftRef.current = initial;
+    setOpenValue(initial);
     setPickerKey((k) => k + 1);
     setOpen(true);
   };
@@ -89,18 +91,24 @@ export default function TimePickerField({
       if (selected) commit(selected);
       return;
     }
-    if (selected) setDraftDate(selected);
+    // iOS: record selection in a ref only — do NOT setState here or the
+    // spinner resets / locks while scrolling.
+    if (selected) {
+      draftRef.current = selected;
+    }
   };
 
   const confirmIos = () => {
-    commit(draftDate || pickerValue);
+    commit(draftRef.current || openValue || fallbackDate);
     setOpen(false);
-    setDraftDate(null);
+    setOpenValue(null);
+    draftRef.current = null;
   };
 
   const cancelIos = () => {
     setOpen(false);
-    setDraftDate(null);
+    setOpenValue(null);
+    draftRef.current = null;
   };
 
   return (
@@ -128,7 +136,7 @@ export default function TimePickerField({
       {open && Platform.OS === 'android' && (
         <DateTimePicker
           key={`android-time-${pickerKey}`}
-          value={pickerValue}
+          value={openValue || fallbackDate}
           mode="time"
           display="default"
           is24Hour={!use12Hour}
@@ -153,16 +161,15 @@ export default function TimePickerField({
                   <Text style={styles.modalAction}>Done</Text>
                 </TouchableOpacity>
               </View>
-              {open ? (
+              {open && openValue ? (
                 <DateTimePicker
                   key={`ios-time-${pickerKey}`}
-                  value={pickerValue}
+                  value={openValue}
                   mode="time"
                   display="spinner"
                   themeVariant="light"
                   textColor="#0F172A"
                   is24Hour={!use12Hour}
-                  minuteInterval={1}
                   onChange={onPickerChange}
                   style={styles.iosPicker}
                 />

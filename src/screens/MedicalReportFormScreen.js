@@ -24,7 +24,7 @@ import { uploadMedia } from '../utils/mediaUpload';
 import DatePickerField from '../components/DatePickerField';
 import TimePickerField from '../components/TimePickerField';
 import { useNotifications } from '../context/NotificationContext';
-import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT, parseAppointmentTime } from '../utils/syncAppointmentFromMedicalReport';
+import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT } from '../utils/syncAppointmentFromMedicalReport';
 
 function defaultVisitTime() {
   return '09:00';
@@ -121,11 +121,14 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('medicalReport.nextCheckTime')}</Text>
+        <Text style={styles.helperText}>
+          {t('medicalReport.nextCheckTimeOptionalHint') || 'Optional. Defaults to 9:00 AM if left blank.'}
+        </Text>
         <TimePickerField
           style={styles.input}
           value={formData.next_appointment_time || ''}
           onChange={(value) => handleFieldChange('next_appointment_time', value)}
-          placeholder={t('medicalReport.nextCheckTimePlaceholder')}
+          placeholder={t('medicalReport.nextCheckTimePlaceholder') || '9:00 AM (optional)'}
         />
       </View>
     </>
@@ -262,14 +265,7 @@ export default function MedicalReportFormScreen({ route }) {
         );
         return;
       }
-      if (!parseAppointmentTime(formData.next_appointment_time)) {
-        Alert.alert(
-          t('common.error') || 'Validation Error',
-          t('medicalReport.nextCheckTimeRequired') ||
-            'Please select next appointment time.'
-        );
-        return;
-      }
+      // Next appointment time is optional; blank → default 09:00 on save/sync
     }
 
     setSaving(true);

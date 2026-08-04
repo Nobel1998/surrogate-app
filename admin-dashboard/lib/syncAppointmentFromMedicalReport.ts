@@ -343,32 +343,26 @@ export async function syncAppointmentFromMedicalReport(
   let nextAppointmentId: string | null = null;
   let appointmentTime: string | null = null;
   if (nextDateISO) {
-    appointmentTime = parseAppointmentTime(reportData.next_appointment_time);
-    if (appointmentTime) {
-      nextAppointmentId = await upsertAppointmentByKind(supabase, {
-        table: targetTable,
-        reportId,
-        userId,
-        kind: 'next',
-        stage,
-        appointmentDateISO: nextDateISO,
-        payload: {
-          ...basePayload,
-          appointment_date: nextDateISO,
-          appointment_time: appointmentTime,
-          notes: String(reportData?.notes || '').trim()
-            ? String(reportData.notes).trim()
-            : `From medical check-in next check (${stage})`,
-          status: 'scheduled',
-        },
-      });
-    } else {
-      await supabase
-        .from(targetTable)
-        .delete()
-        .eq('source_medical_report_id', reportId)
-        .eq('source_kind', 'next');
-    }
+    // Time optional: default to 09:00 when date is set without a time
+    appointmentTime =
+      parseAppointmentTime(reportData.next_appointment_time) || '09:00:00';
+    nextAppointmentId = await upsertAppointmentByKind(supabase, {
+      table: targetTable,
+      reportId,
+      userId,
+      kind: 'next',
+      stage,
+      appointmentDateISO: nextDateISO,
+      payload: {
+        ...basePayload,
+        appointment_date: nextDateISO,
+        appointment_time: appointmentTime,
+        notes: String(reportData?.notes || '').trim()
+          ? String(reportData.notes).trim()
+          : `From medical check-in next check (${stage})`,
+        status: 'scheduled',
+      },
+    });
   } else {
     await supabase
       .from(targetTable)
