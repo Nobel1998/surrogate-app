@@ -502,7 +502,9 @@ const baseTranslations = {
       nextCheckDate: 'Next Check Date (MM-DD-YYYY)',
       nextCheckTime: 'Next Check Time (optional)',
       nextCheckTimePlaceholder: 'e.g. 9:00 am or 2:30 pm',
-      nextCheckHint: 'Saved to My Match → IVF or OB Appointments automatically.',
+      nextCheckHint: 'Saved to My Match → IVF or OB Appointments automatically. Visit date is also saved as a completed appointment.',
+      nextCheckPastDate: 'Next appointment date cannot be in the past.',
+      nextCheckInvalidDate: 'Please enter a valid next appointment date in MM-DD-YYYY format.',
       screeningTests: 'Screening Tests',
       tested: 'Tested',
       normal: 'Normal',
@@ -546,11 +548,11 @@ const baseTranslations = {
     // Points Rewards
     points: {
       congratulations: '🎉 Congratulations! You earned points!',
-      baseHitReward: '+{points} points ({value}) - Base Hit',
-      speedBonusReward: '+{points} points ({value}) - Speed Bonus (Same Day Upload!)',
+      baseHitReward: '+{{points}} points ({{value}}) - Base Hit',
+      speedBonusReward: '+{{points}} points ({{value}}) - Speed Bonus (Same Day Upload!)',
       baseHitDescription: 'Medical report submission reward',
       speedBonusDescription: 'Speed bonus for same-day report upload',
-      totalPointsEarned: 'Total: {points} points earned!',
+      totalPointsEarned: 'Total: {{points}} points earned!',
       fullParticipationAchieved: '🎊 Congratulations! You\'ve reached 5,000 points and earned the Full Participation Reward of $500! Your reward request has been submitted and will be processed soon.',
       fullParticipationRewardNote: 'Automatic reward request for reaching 5,000 points (Full Participation Reward)',
       pointsGoal: 'Goal: 5,000 points = $500 (10 points = $1)',
@@ -707,6 +709,9 @@ const baseTranslations = {
       errorInvalidEmailFormat: 'Please enter a valid email',
       progressSaved: 'Progress Saved',
       accountCreatedProgressSaved: 'Account created and progress saved. Please continue.',
+      progressSavedContinueLater: 'Your answers were saved. Open the application again anytime to continue from where you left off.',
+      saveAndExit: 'Save & Exit',
+      continuingDraft: 'Continuing your saved application…',
       submissionSuccess: 'Application Submitted',
       submissionSuccessMessage: 'Thank you for submitting your surrogacy application. Our team will review your application and contact you within 5-7 business days.',
       updateSuccess: 'Application Updated',
@@ -1723,7 +1728,9 @@ const baseTranslations = {
       nextCheckDate: '下次检查日期 (MM-DD-YYYY)',
       nextCheckTime: '下次检查时间（可选）',
       nextCheckTimePlaceholder: '例如 9:00 am 或 2:30 pm',
-      nextCheckHint: '将自动同步到 My Match → IVF / OB 预约。',
+      nextCheckHint: '将自动同步到 My Match → IVF / OB 预约。本次 visit date 也会作为已完成预约显示。',
+      nextCheckPastDate: '下次预约日期不能是过去的日期。',
+      nextCheckInvalidDate: '请输入有效的下次预约日期（MM-DD-YYYY）。',
       screeningTests: '筛查测试',
       tested: '已检测',
       normal: '正常',
@@ -1767,11 +1774,11 @@ const baseTranslations = {
     // Points Rewards - Chinese
     points: {
       congratulations: '🎉 恭喜！您获得了积分！',
-      baseHitReward: '+{points} 积分（{value}）- 基础奖励',
-      speedBonusReward: '+{points} 积分（{value}）- 极速奖（当天上传！）',
+      baseHitReward: '+{{points}} 积分（{{value}}）- 基础奖励',
+      speedBonusReward: '+{{points}} 积分（{{value}}）- 极速奖（当天上传！）',
       baseHitDescription: '医疗报告提交奖励',
       speedBonusDescription: '当天上传报告的极速奖励',
-      totalPointsEarned: '总计：获得 {points} 积分！',
+      totalPointsEarned: '总计：获得 {{points}} 积分！',
       fullParticipationAchieved: '🎊 恭喜！您已达到5,000积分，获得全程参与奖$500！您的兑换申请已提交，我们将尽快处理。',
       fullParticipationRewardNote: '达到5,000积分的自动兑换申请（全程参与奖）',
       pointsGoal: '目标：5,000积分 = $500（10积分 = $1）',
@@ -1899,6 +1906,9 @@ const baseTranslations = {
       errorInvalidEmailFormat: '请输入有效的电子邮件',
       progressSaved: '进度已保存',
       accountCreatedProgressSaved: '账户已创建，进度已保存。请继续。',
+      progressSavedContinueLater: '已保存当前填写内容。再次打开申请表即可从离开的页面继续。',
+      saveAndExit: '保存并退出',
+      continuingDraft: '正在恢复已保存的申请…',
       submissionSuccess: '申请已提交',
       submissionSuccessMessage: '感谢您提交代孕申请。我们的团队将审核您的申请，并在5-7个工作日内与您联系。',
       updateSuccess: '申请已更新',
@@ -2931,7 +2941,9 @@ const baseTranslations = {
       nextCheckDate: 'Fecha de próxima revisión (MM-DD-YYYY)',
       nextCheckTime: 'Hora de próxima revisión (opcional)',
       nextCheckTimePlaceholder: 'ej. 9:00 am o 2:30 pm',
-      nextCheckHint: 'Se guarda automáticamente en My Match → citas IVF u OB.',
+      nextCheckHint: 'Se guarda automáticamente en My Match → citas IVF u OB. La fecha de visita también se guarda como cita completada.',
+      nextCheckPastDate: 'La fecha de la próxima cita no puede ser en el pasado.',
+      nextCheckInvalidDate: 'Ingrese una fecha válida de próxima cita (MM-DD-YYYY).',
       screeningTests: 'Pruebas de Detección',
       tested: 'Probado',
       normal: 'Normal',
@@ -2975,11 +2987,11 @@ const baseTranslations = {
     // Points Rewards - Spanish
     points: {
       congratulations: '🎉 ¡Felicidades! ¡Ganaste puntos!',
-      baseHitReward: '+{points} puntos ({value}) - Golpe Base',
-      speedBonusReward: '+{points} puntos ({value}) - Bono de Velocidad (¡Subida el Mismo Día!)',
+      baseHitReward: '+{{points}} puntos ({{value}}) - Golpe Base',
+      speedBonusReward: '+{{points}} puntos ({{value}}) - Bono de Velocidad (¡Subida el Mismo Día!)',
       baseHitDescription: 'Recompensa por envío de informe médico',
       speedBonusDescription: 'Bono de velocidad por subir informe el mismo día',
-      totalPointsEarned: 'Total: ¡{points} puntos ganados!',
+      totalPointsEarned: 'Total: ¡{{points}} puntos ganados!',
       fullParticipationAchieved: '🎊 ¡Felicidades! Has alcanzado 5,000 puntos y ganado la Recompensa de Participación Completa de $500! Tu solicitud de recompensa ha sido enviada y será procesada pronto.',
       fullParticipationRewardNote: 'Solicitud automática de recompensa por alcanzar 5,000 puntos (Recompensa de Participación Completa)',
       pointsGoal: 'Meta: 5,000 puntos = $500 (10 puntos = $1)',
@@ -3107,6 +3119,9 @@ const baseTranslations = {
       errorInvalidEmailFormat: 'Por favor ingrese un correo electrónico válido',
       progressSaved: 'Progreso Guardado',
       accountCreatedProgressSaved: 'Cuenta creada y progreso guardado. Por favor continúe.',
+      progressSavedContinueLater: 'Sus respuestas se guardaron. Abra la solicitud cuando quiera y continúe desde donde lo dejó.',
+      saveAndExit: 'Guardar y salir',
+      continuingDraft: 'Continuando su solicitud guardada…',
       submissionSuccess: 'Solicitud Enviada',
       submissionSuccessMessage: 'Gracias por enviar su solicitud de gestación subrogada. Nuestro equipo revisará su solicitud y se pondrá en contacto con usted en un plazo de 5-7 días hábiles.',
       updateSuccess: 'Solicitud Actualizada',
@@ -3815,12 +3830,19 @@ export const translate = (key, language = 'en', variables = {}) => {
     return key;
   }
   
-  // Replace variables in the format {{variable}}
-  return value.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+  // Replace {{variable}} first, then leftover {variable} for legacy strings
+  let result = value.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
     if (Object.prototype.hasOwnProperty.call(variables, varName)) {
       return String(variables[varName]);
     }
     return match;
   });
+  result = result.replace(/\{(\w+)\}/g, (match, varName) => {
+    if (Object.prototype.hasOwnProperty.call(variables, varName)) {
+      return String(variables[varName]);
+    }
+    return match;
+  });
+  return result;
 };
 

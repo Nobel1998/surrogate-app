@@ -319,6 +319,7 @@ export default function MyInfoScreen({ navigation }) {
               onChange={setDateOfBirthDisplay}
               format="MM-DD-YYYY"
               placeholder={t('myInfoAdditional.enterDateOfBirth')}
+              variant="dob"
             />
             <Text style={styles.inputHint}>{t('myInfo.dateFormat')}</Text>
           </View>

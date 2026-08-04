@@ -12,6 +12,17 @@ import { translateFormUi } from '../i18n/formUiStrings';
 import { extractLocationFromAddress, sanitizeAddressText } from '../utils/extractLocationFromAddress';
 import { getClientIpInfo } from '../utils/getClientIp';
 import DatePickerField from '../components/DatePickerField';
+import { splitAirportFields } from '../utils/splitAirportFields';
+import {
+  getSurrogateDraftKey,
+  buildDraftEnvelope,
+  saveApplicationDraft,
+  clearApplicationDraft,
+  loadBestApplicationDraft,
+  persistDraftForAuthHandoff,
+  consolidateDraftToUser,
+  PENDING_SURROGATE_DRAFT_KEY,
+} from '../utils/applicationDraft';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -37,6 +48,16 @@ function parseDateOfBirthParts(raw) {
   }
 
   return { month: '', day: '', year: '' };
+}
+
+function applyAirportFields(data) {
+  if (!data) return data;
+  const split = splitAirportFields(data.nearestAirport, data.airportDistance);
+  return {
+    ...data,
+    nearestAirport: split.nearestAirport || '',
+    airportDistance: split.airportDistance || '',
+  };
 }
 
 function applyDateOfBirthParts(data) {
@@ -90,6 +111,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
   const photoUploadTokenRef = useRef({});
+  const draftHydratedRef = useRef(false);
+  const skipExitPromptRef = useRef(false);
+  const applicationDataRef = useRef(null);
+  const currentStepRef = useRef(1);
+  const photosRef = useRef([]);
   const [applicationData, setApplicationData] = useState(() => {
     const profileName = user?.name || user?.user_metadata?.name || '';
     const nameParts = (() => {
@@ -515,123 +541,210 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     return code;
   };
 
-  // Draft storage helpers
-  const getDraftKey = () => (user?.id ? `application_draft_${user.id}` : 'application_draft_guest');
+  // Draft storage helpers — save/resume mid-form on any step
+  const getDraftKey = () => getSurrogateDraftKey(user?.id);
+
+  const applyPhotosFromUrls = (urls) => {
+    if (!Array.isArray(urls) || urls.length === 0) return;
+    setPhotos(
+      urls.map((url, idx) => ({
+        uri: null,
+        url,
+        fileName: `IMG_${idx + 1}.jpeg`,
+        fileSize: null,
+        uploading: false,
+      }))
+    );
+  };
+
+  const applyDraftData = (mergedRaw, step = 1) => {
+    const merged = mergedRaw || {};
+    setApplicationData((prev) => {
+      const next = hydrateHeightWeightFields({ ...prev, ...merged });
+      const withNames = applyNamePartsFromFullName(next, next.fullName);
+      if (!String(withNames.fullName || '').trim()) {
+        withNames.fullName = composeNameFromParts(withNames);
+      }
+      if (!String(withNames.email || '').trim()) {
+        withNames.email = prev.email || user?.email || '';
+      }
+      return applyAirportFields(applyDateOfBirthParts(withNames));
+    });
+    if (Array.isArray(merged.photos) && merged.photos.length > 0) {
+      applyPhotosFromUrls(merged.photos);
+    } else if (merged.photoUrl) {
+      applyPhotosFromUrls([merged.photoUrl]);
+    }
+    const safeStep = Math.min(totalSteps, Math.max(1, Number(step) || 1));
+    setTimeout(() => {
+      setFormVersion(Date.now());
+      setCurrentStep(safeStep);
+      draftHydratedRef.current = true;
+    }, 0);
+  };
+
+  const saveDraftNow = async (overrides = {}) => {
+    try {
+      const key = overrides.key || getDraftKey();
+      const data = overrides.data || applicationDataRef.current;
+      const step = overrides.currentStep ?? currentStepRef.current;
+      const photoList = overrides.photos || photosRef.current;
+      const envelope = buildDraftEnvelope({
+        currentStep: step,
+        data,
+        photos: photoList,
+      });
+      await saveApplicationDraft(key, envelope);
+      return true;
+    } catch (err) {
+      console.log('⚠️ saveDraftNow error:', err?.message || err);
+      return false;
+    }
+  };
 
   const loadDraft = async (userIdOverride = null) => {
     try {
       const uid = userIdOverride || user?.id;
-      // Only restore for authenticated users to keep first-time guests blank
-      if (!uid) {
+      const userKey = getSurrogateDraftKey(uid || null);
+      const guestKey = getSurrogateDraftKey(null);
+
+      // Soft-register remounts the navigator: filled step-1 data often still lives
+      // on guest/pending keys while this screen only used to read the user key.
+      const best = await loadBestApplicationDraft([
+        PENDING_SURROGATE_DRAFT_KEY,
+        userKey,
+        guestKey,
+      ]);
+
+      if (best?.draft?.data) {
+        applyDraftData(best.draft.data, best.draft.currentStep);
+        if (best.draft.photos?.length && !best.draft.data.photos?.length) {
+          applyPhotosFromUrls(best.draft.photos);
+        }
+        if (uid) {
+          await consolidateDraftToUser({
+            draft: best.draft,
+            userKey: getSurrogateDraftKey(uid),
+            guestKey,
+            pendingKey: PENDING_SURROGATE_DRAFT_KEY,
+          });
+        }
         return;
       }
-      // 1) If logged in, try to pull latest application from Supabase
-      {
-        const { data: latest, error } = await supabase
-          .from('applications')
-          .select('full_name, phone, form_data, status, created_at')
-          .eq('user_id', uid)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          console.log('⚠️ Load draft from Supabase failed:', error.message);
-        }
-
-        if (latest) {
-          let parsed = {};
-          try {
-            parsed = latest.form_data ? JSON.parse(latest.form_data) : {};
-          } catch (e) {
-            // ignore parse error, fallback to parsed = {}
-          }
-          const merged = {
-            fullName: latest.full_name || parsed.fullName || applicationData.fullName,
-            phoneNumber: latest.phone || parsed.phoneNumber || applicationData.phoneNumber,
-            age: parsed.age || applicationData.age || '',
-            dateOfBirth: parsed.dateOfBirth || applicationData.dateOfBirth || '',
-            address: parsed.address || applicationData.address,
-            hearAboutUs: parsed.hearAboutUs || applicationData.hearAboutUs,
-          race: parsed.race || applicationData.race || '',
-          referralCode: parsed.referralCode || applicationData.referralCode || '',
-            ...parsed,
-          };
-          // Set photos array if photos exist
-          if (merged.photos && Array.isArray(merged.photos)) {
-            const loadedPhotos = merged.photos.map((url, idx) => ({
-              uri: null,
-              url: url,
-              fileName: `IMG_${idx + 1}.jpeg`,
-              fileSize: null,
-              uploading: false,
-            }));
-            setPhotos(loadedPhotos);
-          } else if (merged.photoUrl) {
-            // Backward compatibility: convert single photoUrl to photos array
-            setPhotos([{
-              uri: null,
-              url: merged.photoUrl,
-              fileName: 'IMG_1.jpeg',
-              fileSize: null,
-              uploading: false,
-            }]);
-          }
-          // ensure state updates flush before formVersion bump
-          setApplicationData(prev => {
-            const next = hydrateHeightWeightFields({ ...prev, ...merged });
-            const withNames = applyNamePartsFromFullName(next, next.fullName);
-            if (!String(withNames.fullName || '').trim()) {
-              withNames.fullName = composeNameFromParts(withNames);
-            }
-            // Don't let empty draft email wipe profile/autofill email
-            if (!String(withNames.email || '').trim()) {
-              withNames.email = prev.email || user?.email || '';
-            }
-            return applyDateOfBirthParts(withNames);
-          });
-          setTimeout(() => {
-            const newVersion = Date.now();
-            setFormVersion(newVersion);
-            setCurrentStep(1);
-          }, 0);
-          return;
-        }
+      // Logged-in: optional DB prefill only when no local draft (start at step 1)
+      if (!uid) {
+        draftHydratedRef.current = true;
+        return;
       }
 
-      // 2) Fallback to local draft (authenticated users only)
-      const draft = await AsyncStorageLib.getItem(userIdOverride ? `application_draft_${uid}` : getDraftKey());
-      if (draft) {
-        const parsed = JSON.parse(draft);
-        setApplicationData(prev => {
-          const next = hydrateHeightWeightFields({ ...prev, ...parsed });
-          const withNames = applyNamePartsFromFullName(next, next.fullName);
-          if (!String(withNames.fullName || '').trim()) {
-            withNames.fullName = composeNameFromParts(withNames);
-          }
-          if (!String(withNames.email || '').trim()) {
-            withNames.email = prev.email || user?.email || '';
-          }
-          return applyDateOfBirthParts(withNames);
-        });
-        setTimeout(() => {
-          const newVersion = Date.now();
-          setFormVersion(newVersion);
-          setCurrentStep(1);
-        }, 0);
+      const { data: latest, error } = await supabase
+        .from('applications')
+        .select('full_name, phone, form_data, status, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.log('⚠️ Load draft from Supabase failed:', error.message);
       }
+
+      if (latest) {
+        let parsed = {};
+        try {
+          parsed = latest.form_data ? JSON.parse(latest.form_data) : {};
+        } catch (e) {
+          // ignore
+        }
+        const merged = {
+          fullName: latest.full_name || parsed.fullName || '',
+          phoneNumber: latest.phone || parsed.phoneNumber || '',
+          ...parsed,
+        };
+        applyDraftData(merged, 1);
+        return;
+      }
+
+      draftHydratedRef.current = true;
     } catch (err) {
       console.log('⚠️ loadDraft error:', err.message);
+      draftHydratedRef.current = true;
     }
   };
 
   useEffect(() => {
+    applicationDataRef.current = applicationData;
+  }, [applicationData]);
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+  }, [currentStep]);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+
+  // Autosave draft whenever form progress changes
+  useEffect(() => {
+    if (editMode) return;
+    if (!draftHydratedRef.current) return;
+    const timer = setTimeout(() => {
+      saveDraftNow();
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [applicationData, currentStep, photos, user?.id, editMode]);
+
+  const navigateAfterExit = () => {
+    skipExitPromptRef.current = true;
+    if (user) {
+      navigation.navigate('MainTabs');
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Landing');
+    }
+  };
+
+  const handleSaveAndExit = async () => {
+    if (editMode) {
+      navigateAfterExit();
+      return;
+    }
+    const ok = await saveDraftNow();
+    Alert.alert(
+      ok ? t('application.progressSaved') : t('application.errorSavingProgress'),
+      ok ? t('application.progressSavedContinueLater') : t('application.errorSavingProgressMessage'),
+      [{ text: t('common.ok'), onPress: navigateAfterExit }]
+    );
+  };
+
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      if (skipExitPromptRef.current || isLoading || editMode) return;
+      // Always persist before leaving so user can resume any page
+      e.preventDefault();
+      (async () => {
+        await saveDraftNow();
+        skipExitPromptRef.current = true;
+        navigation.dispatch(e.data.action);
+      })();
+    });
+    return unsub;
+  }, [navigation, isLoading, user?.id, editMode]);
+
+  useEffect(() => {
+    if (editMode && existingData) {
+      draftHydratedRef.current = true;
+      return;
+    }
     loadDraft();
   }, [user?.id]);
 
   // Fallback: when user logs in and has profile/metadata, update form fields directly
   useEffect(() => {
     if (!user) return;
+    // Wait for local draft restore after soft-register remount so profile autofill
+    // does not briefly replace a richer in-progress form.
+    if (!draftHydratedRef.current) return;
     const meta = user.user_metadata || {};
     const profileName = user.name || meta.name || '';
     setApplicationData((prev) => {
@@ -654,10 +767,10 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
   useFocusEffect(
     React.useCallback(() => {
+      skipExitPromptRef.current = false;
       if (editMode && existingData) {
-        // Load existing data for editing
         console.log('📝 Loading existing application data for editing');
-        setApplicationData(prev => {
+        setApplicationData((prev) => {
           const next = hydrateHeightWeightFields({
             ...prev,
             ...existingData,
@@ -668,28 +781,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           }
           return applyDateOfBirthParts(withNames);
         });
-        // Set photos array if photos exist
         if (existingData.photos && Array.isArray(existingData.photos)) {
-          const loadedPhotos = existingData.photos.map((url, idx) => ({
-            uri: null,
-            url: url,
-            fileName: `IMG_${idx + 1}.jpeg`,
-            fileSize: null,
-            uploading: false,
-          }));
-          setPhotos(loadedPhotos);
+          applyPhotosFromUrls(existingData.photos);
         } else if (existingData.photoUrl) {
-          // Backward compatibility: convert single photoUrl to photos array
-          setPhotos([{
-            uri: null,
-            url: existingData.photoUrl,
-            fileName: 'IMG_1.jpeg',
-            fileSize: null,
-            uploading: false,
-          }]);
+          applyPhotosFromUrls([existingData.photoUrl]);
         }
-      } else if (user?.id) {
-        loadDraft(user.id);
+        draftHydratedRef.current = true;
+      } else {
+        loadDraft(user?.id || null);
       }
     }, [user?.id, editMode, existingData])
   );
@@ -1158,6 +1257,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         if (!requireText(applicationData.legalProblems, v('legalProblems'))) return false;
         if (!requireText(applicationData.jailTime, v('jailTime'))) return false;
         if (!requireText(applicationData.nearestAirport, v('nearestAirport'))) return false;
+        if (!requireText(applicationData.airportDistance, v('airportDistance'))) return false;
         if (!requireText(applicationData.pets, v('pets'))) return false;
         if (!requireText(applicationData.livingSituation, v('livingSituation'))) return false;
         if (!requireAnswered(applicationData.ownCar, v('ownCar'))) return false;
@@ -1333,14 +1433,21 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // Lazy registration: require auth after Step 1 if not logged in
     if (currentStep === 1 && !user) {
       if (!validateStep(1)) return;
-      // Save local draft before prompting auth
-      AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData))
-        .then(() => console.log('💾 Draft saved locally before auth:', applicationData))
-        .catch(() => {});
+      // Persist full step-1 snapshot before auth remount can wipe in-memory state
+      const envelope = buildDraftEnvelope({
+        currentStep: 1,
+        data: applicationDataRef.current || applicationData,
+        photos: photosRef.current || photos,
+      });
+      await persistDraftForAuthHandoff({
+        envelope,
+        guestKey: getSurrogateDraftKey(null),
+        pendingKey: PENDING_SURROGATE_DRAFT_KEY,
+      });
       const emailFromForm = String(applicationData.email || '').trim();
       if (emailFromForm) {
         setAuthEmail(emailFromForm);
@@ -1380,6 +1487,20 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
       Alert.alert(t('common.error'), t('application.errorInvalidEmailFormat'));
       return;
     }
+    // Snapshot form to guest+pending BEFORE signUp — auth remounts the whole navigator
+    const snapshotData = applicationDataRef.current || applicationData;
+    const snapshotPhotos = photosRef.current || photos;
+    const handoffEnvelope = buildDraftEnvelope({
+      currentStep: currentStepRef.current || 1,
+      data: snapshotData,
+      photos: snapshotPhotos,
+    });
+    await persistDraftForAuthHandoff({
+      envelope: handoffEnvelope,
+      guestKey: getSurrogateDraftKey(null),
+      pendingKey: PENDING_SURROGATE_DRAFT_KEY,
+    });
+
     // Mark intent to resume application flow before auth state changes
     console.log('🔖 pre-signup: setting resume_application_flow=true');
     await AsyncStorageLib.setItem('resume_application_flow', 'true');
@@ -1392,14 +1513,14 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         options: {
           data: {
             role,
-            name: resolveFullName(applicationData),
-            phone: applicationData.phoneNumber,
-            address: sanitizeAddressText(applicationData.address) || '',
-            age: applicationData.age || '',
-            date_of_birth: applicationData.dateOfBirth || '',
-            hear_about_us: applicationData.hearAboutUs || '',
-            race: applicationData.race || '',
-            referred_by: applicationData.referralCode?.trim() || null,
+            name: resolveFullName(snapshotData),
+            phone: snapshotData.phoneNumber,
+            address: sanitizeAddressText(snapshotData.address) || '',
+            age: snapshotData.age || '',
+            date_of_birth: snapshotData.dateOfBirth || '',
+            hear_about_us: snapshotData.hearAboutUs || '',
+            race: snapshotData.race || '',
+            referred_by: snapshotData.referralCode?.trim() || null,
           },
         },
       });
@@ -1437,21 +1558,21 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         let attempts = 0;
         while (attempts < 3) {
           // Extract location from address if not already set
-          const extractedLocation = extractLocationFromAddress(applicationData.address);
+          const extractedLocation = extractLocationFromAddress(snapshotData.address);
           const ipInfo = await getClientIpInfo();
           
           const profilePayload = {
             id: userId,
             role,
-            name: resolveFullName(applicationData),
-            phone: applicationData.phoneNumber,
-            date_of_birth: applicationData.dateOfBirth || null,
+            name: resolveFullName(snapshotData),
+            phone: snapshotData.phoneNumber,
+            date_of_birth: snapshotData.dateOfBirth || null,
             email: authEmail.trim(),
-            address: sanitizeAddressText(applicationData.address) || '',
+            address: sanitizeAddressText(snapshotData.address) || '',
             location: extractedLocation || '', // Auto-extract city from address
             invite_code: inviteCode,
-            race: applicationData.race || '',
-            referred_by: applicationData.referralCode?.trim() || null,
+            race: snapshotData.race || '',
+            referred_by: snapshotData.referralCode?.trim() || null,
           };
           if (ipInfo.ip) profilePayload.signup_ip = ipInfo.ip;
           if (ipInfo.region) profilePayload.signup_ip_region = ipInfo.region;
@@ -1475,22 +1596,23 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         console.log('🔖 setting resume_application_flow=true after lazy signup');
         await AsyncStorageLib.setItem('resume_application_flow', 'true');
 
-        // Save local draft under the new user key
-        await AsyncStorageLib.setItem(`application_draft_${userId}`, JSON.stringify(applicationData));
+        await persistDraftForAuthHandoff({
+          envelope: handoffEnvelope,
+          guestKey: getSurrogateDraftKey(null),
+          pendingKey: PENDING_SURROGATE_DRAFT_KEY,
+          userKey: getSurrogateDraftKey(userId),
+        });
 
-        // Force state reapply immediately by reloading draft with the new user id
+        // If this instance is still mounted, re-apply; remount path uses loadDraft fallbacks
         await loadDraft(userId);
-        const newVersion = Date.now();
-        setFormVersion(newVersion);
-        setCurrentStep(1);
+        setFormVersion(Date.now());
       }
 
       // Store email into form for continuity
       updateField('email', authEmail.trim());
       setShowAuthPrompt(false);
       // pass draft via route params to survive navigator remounts
-      navigation.setParams({ draft: applicationData, draftVersion: Date.now() });
-      setCurrentStep(1);
+      navigation.setParams({ draft: snapshotData, draftVersion: Date.now() });
       Alert.alert(t('application.progressSaved'), t('application.accountCreatedProgressSaved'));
     } catch (error) {
       console.error('Lazy signup error:', error);
@@ -1643,8 +1765,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
         resultData = data;
       }
 
-      // Application submitted/updated successfully; clear resume flag
+      // Application submitted/updated successfully; clear resume flag + mid-form draft
       await AsyncStorageLib.removeItem('resume_application_flow');
+      await clearApplicationDraft(getDraftKey());
+      await clearApplicationDraft(getSurrogateDraftKey(null));
+      await clearApplicationDraft(PENDING_SURROGATE_DRAFT_KEY);
+      skipExitPromptRef.current = true;
 
       // Create local application object for history
       const application = {
@@ -1770,6 +1896,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           format="MM/DD/YYYY"
           placeholder={tf("MM/DD/YYYY")}
           style={styles.input}
+          variant="dob"
         />
       </View>
 
@@ -2145,6 +2272,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   format="MM/DD/YYYY"
                   placeholder={tf("MM/DD/YYYY")}
                   style={styles.input}
+                  variant="dob"
                 />
               </View>
       
@@ -2372,6 +2500,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
                   format="MM/DD/YYYY"
                   placeholder={tf("Partner's date of birth (MM/DD/YYYY)")}
                   style={[styles.input, { marginTop: 10 }]}
+                  variant="dob"
                 />
               </View>
             </>
@@ -2482,12 +2611,22 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Nearest Airport */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{tf("What is the name of the nearest airport to your home and how many miles is it away from your home? *")}</Text>
+        <Text style={styles.label}>{tf("Nearest airport to your home *")}</Text>
         <TextInput
           style={styles.input}
           value={applicationData.nearestAirport || ''}
           onChangeText={(value) => updateField('nearestAirport', value)}
-          placeholder={tf("Airport name and distance in miles")}
+          placeholder={tf("Airport name (e.g., LAX)")}
+        />
+      </View>
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{tf("How many miles is it from your home? *")}</Text>
+        <TextInput
+          style={styles.input}
+          value={applicationData.airportDistance || ''}
+          onChangeText={(value) => updateField('airportDistance', value)}
+          placeholder={tf("Distance in miles (e.g., 100)")}
+          keyboardType="numeric"
         />
       </View>
 
@@ -4934,7 +5073,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
 
       {/* Surrogate Lifestyle Photos Upload (6 photos) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{tf("Please upload your pictures * (at least 1, up to 6)")}</Text>
+        <Text style={styles.label}>{tf("Please upload your pictures *")}</Text>
+        <Text style={styles.subLabel}>
+          {tf("Upload limit: at least 1, maximum 6 photos. Images only (JPG, PNG, etc.).")}
+          {' '}
+          ({(photos || []).filter(Boolean).length}/6)
+        </Text>
         <View style={styles.photosContainer}>
           {[0, 1, 2, 3, 4, 5].map((index) => {
             const photo = photos[index];
@@ -5015,13 +5159,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backHomeButton}
-              onPress={() => {
-                if (user) {
-                  navigation.navigate('MainTabs');
-                } else {
-                  navigation.navigate('Landing');
-                }
-              }}
+              onPress={handleSaveAndExit}
             >
               <Text style={styles.backHomeText}>{t('application.backToHome')}</Text>
             </TouchableOpacity>
@@ -5045,6 +5183,12 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
           {currentStep === 6 && renderStep6()}
           {currentStep === 7 && renderStep7()}
           {currentStep === 8 && renderStep8()}
+
+          {!editMode && (
+            <TouchableOpacity style={styles.saveExitButton} onPress={handleSaveAndExit}>
+              <Text style={styles.saveExitButtonText}>{t('application.saveAndExit')}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.buttonContainer}>
             {currentStep > 1 && (
@@ -5310,6 +5454,17 @@ const styles = StyleSheet.create({
   },
   checkboxTextSelected: {
     color: '#2A7BF6',
+    fontWeight: '600',
+  },
+  saveExitButton: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  saveExitButtonText: {
+    color: '#2A7BF6',
+    fontSize: 15,
     fontWeight: '600',
   },
   buttonContainer: {

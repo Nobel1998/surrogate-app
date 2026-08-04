@@ -9,22 +9,23 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Modal,
-  TextInput,
   Platform,
   SafeAreaView,
   StatusBar,
-  KeyboardAvoidingView,
-  Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useParentMatch } from '../context/ParentMatchContext';
 import { useNotifications } from '../context/NotificationContext';
-import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import MedicalReportDetailModal, {
+  fetchMedicalReportForAppointment,
+} from '../components/MedicalReportDetailModal';
+import {
+  autoCompletePastAppointments,
+  getEffectiveAppointmentStatus,
+} from '../utils/autoCompletePastAppointments';
+import { formatDateOnlyDisplay } from '../utils/dateOnly';
 
 const STATUS_COLORS = {
   scheduled: '#3B82F6',
@@ -37,29 +38,17 @@ export default function OBAppointmentsScreen({ navigation }) {
   const { user } = useAuth();
   const parentMatch = useParentMatch();
   const { scheduleMedicalAppointmentReminders, cancelMedicalAppointmentReminders } = useNotifications();
-  const { t } = useLanguage();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [matchId, setMatchId] = useState(null);
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
+  const [selectedMedicalReport, setSelectedMedicalReport] = useState(null);
+  const [loadingCheckIn, setLoadingCheckIn] = useState(false);
   const isParent = (user?.role || '').toLowerCase() === 'parent';
-  const [formData, setFormData] = useState({
-    appointment_date: new Date(),
-    appointment_time: new Date(),
-    provider_name: '',
-    clinic_name: '',
-    clinic_address: '',
-    clinic_phone: '',
-    notes: '',
-  });
+  const isSurrogate = (user?.role || '').toLowerCase() === 'surrogate';
 
   useEffect(() => {
     if (!user?.id || isParent) return;
-    loadMatchId();
     loadAppointments();
   }, [user?.id, isParent]);
 
@@ -90,25 +79,6 @@ export default function OBAppointmentsScreen({ navigation }) {
     }, [user?.id, isParent, parentMatch.refreshMatches])
   );
 
-  const loadMatchId = async () => {
-    if (!user?.id) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('surrogate_matches')
-        .select('id')
-        .eq('surrogate_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (!error && data) {
-        setMatchId(data.id);
-      }
-    } catch (error) {
-      console.error('Error loading match ID:', error);
-    }
-  };
-
   const loadAppointmentsForUser = async (targetUserId) => {
     setLoading(true);
     try {
@@ -120,14 +90,21 @@ export default function OBAppointmentsScreen({ navigation }) {
         .order('appointment_time', { ascending: true });
 
       if (error) throw error;
-      setAppointments(data || []);
+      let list = data || [];
+      list = await autoCompletePastAppointments({
+        table: 'ob_appointments',
+        appointments: list,
+        cancelReminder: !isParent ? cancelMedicalAppointmentReminders : undefined,
+      });
+      setAppointments(list);
 
-      if (Array.isArray(data)) {
-        data.forEach((appointment) => {
+      if (Array.isArray(list) && !isParent) {
+        list.forEach((appointment) => {
           if (!appointment?.id) return;
           const appointmentKey = `ob_${appointment.id}`;
+          const effectiveStatus = getEffectiveAppointmentStatus(appointment);
 
-          if (appointment.status === 'scheduled') {
+          if (effectiveStatus === 'scheduled') {
             void scheduleMedicalAppointmentReminders({
               appointmentKey,
               appointmentType: 'OB',
@@ -184,115 +161,12 @@ export default function OBAppointmentsScreen({ navigation }) {
     }
   };
 
-  const handleAdd = () => {
-    setFormData({
-      appointment_date: new Date(),
-      appointment_time: new Date(),
-      provider_name: '',
-      clinic_name: '',
-      clinic_address: '',
-      clinic_phone: '',
-      notes: '',
-    });
-    setShowAddModal(true);
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setFormData({ ...formData, appointment_date: selectedDate });
-    }
-  };
-
-  const handleTimeChange = (event, selectedTime) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      setFormData({ ...formData, appointment_time: selectedTime });
-    }
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const formatDate = (date) => formatDateOnlyDisplay(date);
 
   const formatTime = (time) => {
     if (!time) return '';
     const t = new Date(`2000-01-01T${time}`);
     return t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.provider_name || !formData.clinic_name) {
-      Alert.alert('Error', 'Please fill in provider name and clinic name');
-      return;
-    }
-
-    try {
-      const appointmentDate = formData.appointment_date.toISOString().split('T')[0];
-      const appointmentTime = formData.appointment_time.toTimeString().split(' ')[0].substring(0, 5);
-
-      const { data: insertedAppointment, error } = await supabase
-        .from('ob_appointments')
-        .insert({
-          user_id: user.id,
-          match_id: matchId,
-          appointment_date: appointmentDate,
-          appointment_time: appointmentTime,
-          provider_name: formData.provider_name.trim(),
-          clinic_name: formData.clinic_name.trim(),
-          clinic_address: formData.clinic_address.trim() || null,
-          clinic_phone: formData.clinic_phone.trim() || null,
-          notes: formData.notes.trim() || null,
-          status: 'scheduled',
-        })
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      const reminderResult = await scheduleMedicalAppointmentReminders({
-        appointmentKey: `ob_${insertedAppointment.id}`,
-        appointmentType: 'OB',
-        appointmentDate,
-        appointmentTime,
-        providerName: formData.provider_name.trim(),
-        clinicName: formData.clinic_name.trim(),
-      });
-
-      const reminderText = reminderResult?.scheduledCount
-        ? ` (${reminderResult.scheduledCount} reminder${reminderResult.scheduledCount > 1 ? 's' : ''} scheduled)`
-        : '';
-
-      Alert.alert('Success', `Appointment scheduled successfully${reminderText}`);
-      setShowAddModal(false);
-      loadAppointments();
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-      Alert.alert('Error', 'Failed to create appointment');
-    }
-  };
-
-  const handleStatusUpdate = async (appointmentId, newStatus) => {
-    try {
-      const { error } = await supabase
-        .from('ob_appointments')
-        .update({ status: newStatus })
-        .eq('id', appointmentId);
-
-      if (error) throw error;
-
-      if (newStatus !== 'scheduled') {
-        await cancelMedicalAppointmentReminders(`ob_${appointmentId}`);
-      }
-
-      Alert.alert('Success', 'Appointment status updated');
-      loadAppointments();
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      Alert.alert('Error', 'Failed to update appointment status');
-    }
   };
 
   const handleDelete = async (appointmentId) => {
@@ -326,6 +200,33 @@ export default function OBAppointmentsScreen({ navigation }) {
     );
   };
 
+  const openLinkedCheckIn = async (appointment) => {
+    const effectiveStatus = getEffectiveAppointmentStatus(appointment);
+    if (!appointment || effectiveStatus !== 'completed') return;
+    const ownerId = isParent ? matchedSurrogateId : user?.id;
+    if (!ownerId) {
+      Alert.alert('Check-in', 'Unable to load linked medical check-in.');
+      return;
+    }
+    setLoadingCheckIn(true);
+    try {
+      const report = await fetchMedicalReportForAppointment(supabase, appointment, ownerId);
+      if (!report) {
+        Alert.alert(
+          'Check-in',
+          'No medical check-in found for this appointment yet. Submit one in My Journey for this visit date.'
+        );
+        return;
+      }
+      setSelectedMedicalReport(report);
+    } catch (e) {
+      console.error('Error loading linked check-in:', e);
+      Alert.alert('Error', 'Failed to load medical check-in');
+    } finally {
+      setLoadingCheckIn(false);
+    }
+  };
+
   if (loading && appointments.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -352,13 +253,7 @@ export default function OBAppointmentsScreen({ navigation }) {
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>OB Appointments</Text>
-        {isParent ? (
-          <View style={{ width: 24 }} />
-        ) : (
-          <TouchableOpacity onPress={handleAdd}>
-            <Icon name="plus" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-        )}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView
@@ -368,12 +263,34 @@ export default function OBAppointmentsScreen({ navigation }) {
         {appointments.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="calendar" size={48} color="#CCC" />
-            <Text style={styles.emptyText}>{isParent ? 'No surrogate appointments yet' : 'No appointments scheduled'}</Text>
-            {!isParent && <Text style={styles.emptySubtext}>Tap + to schedule an appointment</Text>}
+            <Text style={styles.emptyText}>
+              {isParent ? 'No surrogate appointments yet' : 'No appointments yet'}
+            </Text>
+            {!isParent && (
+              <Text style={styles.emptySubtext}>
+                Next checks from OBGYN medical check-ins appear here automatically.
+                Each check-in visit is also listed as completed.
+              </Text>
+            )}
           </View>
         ) : (
-          appointments.map((appointment) => (
-            <View key={appointment.id} style={styles.appointmentCard}>
+          appointments.map((appointment) => {
+            const effectiveStatus = getEffectiveAppointmentStatus(appointment);
+            const isCompleted = effectiveStatus === 'completed';
+            const CardWrapper = isCompleted ? TouchableOpacity : View;
+            const cardProps = isCompleted
+              ? {
+                  activeOpacity: 0.85,
+                  onPress: () => openLinkedCheckIn(appointment),
+                  disabled: loadingCheckIn,
+                }
+              : {};
+            return (
+              <CardWrapper
+                key={appointment.id}
+                style={styles.appointmentCard}
+                {...cardProps}
+              >
               <View style={styles.appointmentHeader}>
                 <View style={styles.appointmentDate}>
                   <Text style={styles.dateText}>{formatDate(appointment.appointment_date)}</Text>
@@ -382,10 +299,10 @@ export default function OBAppointmentsScreen({ navigation }) {
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: STATUS_COLORS[appointment.status] || '#999' },
+                    { backgroundColor: STATUS_COLORS[effectiveStatus] || '#999' },
                   ]}
                 >
-                  <Text style={styles.statusText}>{appointment.status}</Text>
+                  <Text style={styles.statusText}>{effectiveStatus}</Text>
                 </View>
               </View>
 
@@ -398,43 +315,35 @@ export default function OBAppointmentsScreen({ navigation }) {
                   <Icon name="map-pin" size={16} color="#666" />
                   <Text style={styles.infoText}>{appointment.clinic_name}</Text>
                 </View>
-                {appointment.clinic_address && (
+                {appointment.clinic_address ? (
                   <View style={styles.infoRow}>
                     <Icon name="navigation" size={16} color="#666" />
                     <Text style={styles.infoText}>{appointment.clinic_address}</Text>
                   </View>
-                )}
-                {appointment.clinic_phone && (
+                ) : null}
+                {appointment.clinic_phone ? (
                   <View style={styles.infoRow}>
                     <Icon name="phone" size={16} color="#666" />
                     <Text style={styles.infoText}>{appointment.clinic_phone}</Text>
                   </View>
+                ) : (
+                  <View style={styles.infoRow}>
+                    <Icon name="phone" size={16} color="#666" />
+                    <Text style={styles.infoText}>888888</Text>
+                  </View>
                 )}
-                {appointment.notes && (
+                {appointment.notes ? (
                   <View style={styles.notesContainer}>
                     <Text style={styles.notesText}>{appointment.notes}</Text>
                   </View>
-                )}
+                ) : null}
+                {isCompleted ? (
+                  <Text style={styles.tapHint}>Tap to view My Journey check-in</Text>
+                ) : null}
               </View>
 
               {!isParent && (
                 <View style={styles.appointmentActions}>
-                  {appointment.status === 'scheduled' && (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.completeButton]}
-                        onPress={() => handleStatusUpdate(appointment.id, 'completed')}
-                      >
-                        <Text style={styles.actionButtonText}>Mark Complete</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.cancelButton]}
-                        onPress={() => handleStatusUpdate(appointment.id, 'cancelled')}
-                      >
-                        <Text style={styles.actionButtonText}>Cancel</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
                   <TouchableOpacity
                     style={[styles.actionButton, styles.deleteButton]}
                     onPress={() => handleDelete(appointment.id)}
@@ -443,150 +352,29 @@ export default function OBAppointmentsScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
-            </View>
-          ))
+            </CardWrapper>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* Add Appointment Modal */}
-      <Modal visible={showAddModal} animationType="slide" transparent>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ flex: 1 }}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-            >
-              <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <SafeAreaView edges={['top']} style={styles.modalSafeArea}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Schedule OB Appointment</Text>
-                      <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                        <Icon name="x" size={24} color="#333" />
-                      </TouchableOpacity>
-                    </View>
-                  </SafeAreaView>
-
-                  <ScrollView
-                    style={styles.modalBody}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={true}
-                    contentContainerStyle={styles.modalBodyContent}
-                  >
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Date *</Text>
-                <TouchableOpacity
-                  style={styles.dateInput}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text>{formatDate(formData.appointment_date)}</Text>
-                  <Icon name="calendar" size={20} color="#666" />
-                </TouchableOpacity>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={formData.appointment_date}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                    minimumDate={new Date()}
-                  />
-                )}
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Time *</Text>
-                <TouchableOpacity
-                  style={styles.dateInput}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Text>{formatTime(formData.appointment_time.toTimeString().split(' ')[0])}</Text>
-                  <Icon name="clock" size={20} color="#666" />
-                </TouchableOpacity>
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={formData.appointment_time}
-                    mode="time"
-                    display="default"
-                    onChange={handleTimeChange}
-                  />
-                )}
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Provider Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.provider_name}
-                  onChangeText={(text) => setFormData({ ...formData, provider_name: text })}
-                  placeholder="Dr. Smith"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Clinic Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.clinic_name}
-                  onChangeText={(text) => setFormData({ ...formData, clinic_name: text })}
-                  placeholder="ABC Medical Center"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Clinic Address</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.clinic_address}
-                  onChangeText={(text) => setFormData({ ...formData, clinic_address: text })}
-                  placeholder="123 Main St, City, State"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Clinic Phone</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.clinic_phone}
-                  onChangeText={(text) => setFormData({ ...formData, clinic_phone: text })}
-                  placeholder="(555) 123-4567"
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Notes</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={formData.notes}
-                  onChangeText={(text) => setFormData({ ...formData, notes: text })}
-                  placeholder="Additional notes..."
-                  multiline
-                  numberOfLines={4}
-                />
-              </View>
-                  </ScrollView>
-
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.cancelModalButton]}
-                      onPress={() => setShowAddModal(false)}
-                    >
-                      <Text style={styles.cancelModalButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.submitModalButton]}
-                      onPress={handleSubmit}
-                    >
-                      <Text style={styles.submitModalButtonText}>Schedule</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+      <MedicalReportDetailModal
+        visible={!!selectedMedicalReport}
+        report={selectedMedicalReport}
+        onClose={() => setSelectedMedicalReport(null)}
+        onEdit={
+          isSurrogate && selectedMedicalReport
+            ? () => {
+                const reportToEdit = selectedMedicalReport;
+                setSelectedMedicalReport(null);
+                navigation.navigate('MedicalReportForm', {
+                  stage: reportToEdit.stage,
+                  report: reportToEdit,
+                });
+              }
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -625,16 +413,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+    paddingHorizontal: 32,
   },
   emptyText: {
     fontSize: 16,
     color: '#666',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
     color: '#999',
     marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   appointmentCard: {
     backgroundColor: '#FFF',
@@ -702,6 +494,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  tapHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#1F6FE0',
+    fontWeight: '600',
+  },
   appointmentActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -719,114 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  completeButton: {
-    backgroundColor: '#10B981',
-  },
-  cancelButton: {
-    backgroundColor: '#F59E0B',
-  },
   deleteButton: {
     backgroundColor: '#FEE2E2',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    flexGrow: 1,
-  },
-  modalSafeArea: {
-    backgroundColor: '#FFF',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  modalBody: {
-    flex: 1,
-  },
-  modalBodyContent: {
-    padding: 16,
-    paddingBottom: 20,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#FFF',
-  },
-  textArea: {
-    minHeight: 100,
-    maxHeight: 150,
-    textAlignVertical: 'top',
-  },
-  dateInput: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#FFF',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelModalButton: {
-    backgroundColor: '#F3F4F6',
-  },
-  cancelModalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  submitModalButton: {
-    backgroundColor: '#3B82F6',
-  },
-  submitModalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
   },
 });

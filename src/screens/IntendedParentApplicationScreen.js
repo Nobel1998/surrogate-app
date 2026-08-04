@@ -11,6 +11,16 @@ import { useLanguage } from '../context/LanguageContext';
 import { translateFormUi } from '../i18n/formUiStrings';
 import { getClientIpInfo } from '../utils/getClientIp';
 import DatePickerField from '../components/DatePickerField';
+import {
+  getParentDraftKey,
+  buildDraftEnvelope,
+  saveApplicationDraft,
+  clearApplicationDraft,
+  loadBestApplicationDraft,
+  persistDraftForAuthHandoff,
+  consolidateDraftToUser,
+  PENDING_PARENT_DRAFT_KEY,
+} from '../utils/applicationDraft';
 
 /** Parse MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD, or YYYY/MM/DD into month/day/year parts. */
 function parseDateOfBirthParts(raw) {
@@ -118,6 +128,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   const [photos, setPhotos] = useState([]); // Array of {uri, url, fileName, fileSize, uploading}
   const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState(null);
   const photoUploadTokenRef = useRef({});
+  const draftHydratedRef = useRef(false);
+  const skipExitPromptRef = useRef(false);
+  const applicationDataRef = useRef(null);
+  const currentStepRef = useRef(1);
+  const photosRef = useRef([]);
   
   // Refs for Step 1 scroll view and input fields
   const step1ScrollViewRef = useRef(null);
@@ -350,16 +365,106 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   });
 
   // Draft storage helpers
-  const getDraftKey = () => (user?.id ? `intended_parent_draft_${user.id}` : 'intended_parent_draft_guest');
+  const getDraftKey = () => getParentDraftKey(user?.id);
+
+  const normalizeMultiSelectFields = (parsed) => {
+    const next = { ...(parsed || {}) };
+    ['reasonForSurrogacy', 'communicationPreference', 'relationshipStyle'].forEach((key) => {
+      if (next[key] && !Array.isArray(next[key])) {
+        next[key] = next[key] ? [next[key]] : [];
+      }
+    });
+    return next;
+  };
+
+  const applyPhotosFromUrls = (urls) => {
+    const list = (urls || []).filter(Boolean);
+    if (!list.length) return;
+    setPhotos(
+      list.map((url, index) => ({
+        uri: null,
+        url,
+        fileName: `Photo_${index + 1}.jpg`,
+        fileSize: null,
+        uploading: false,
+      }))
+    );
+  };
+
+  const applyDraftData = (rawData, step = 1) => {
+    const parsed = normalizeMultiSelectFields(rawData);
+    setApplicationData((prev) => {
+      const merged = normalizeParent1PhoneFields({ ...prev, ...parsed });
+      if (!String(merged.parent1Email || '').trim()) {
+        merged.parent1Email = prev.parent1Email || user?.email || '';
+      }
+      return merged;
+    });
+    if (Array.isArray(parsed.photos) && parsed.photos.length > 0) {
+      applyPhotosFromUrls(parsed.photos);
+    } else if (parsed.photoUrl) {
+      applyPhotosFromUrls([parsed.photoUrl]);
+    }
+    const safeStep = Math.min(totalSteps, Math.max(1, Number(step) || 1));
+    setTimeout(() => {
+      setFormVersion(Date.now());
+      setCurrentStep(safeStep);
+      draftHydratedRef.current = true;
+    }, 0);
+  };
+
+  const saveDraftNow = async (overrides = {}) => {
+    try {
+      const key = overrides.key || getDraftKey();
+      const data = overrides.data || applicationDataRef.current;
+      const step = overrides.currentStep ?? currentStepRef.current;
+      const photoList = overrides.photos || photosRef.current;
+      const envelope = buildDraftEnvelope({
+        currentStep: step,
+        data,
+        photos: photoList,
+      });
+      await saveApplicationDraft(key, envelope);
+      return true;
+    } catch (err) {
+      console.log('⚠️ saveDraftNow error:', err?.message || err);
+      return false;
+    }
+  };
 
   const loadDraft = async (userIdOverride = null) => {
     try {
       const uid = userIdOverride || user?.id;
-      if (!uid) {
+      const userKey = getParentDraftKey(uid || null);
+      const guestKey = getParentDraftKey(null);
+
+      const best = await loadBestApplicationDraft([
+        PENDING_PARENT_DRAFT_KEY,
+        userKey,
+        guestKey,
+      ]);
+
+      if (best?.draft?.data) {
+        applyDraftData(best.draft.data, best.draft.currentStep);
+        if (best.draft.photos?.length && !best.draft.data.photos?.length) {
+          applyPhotosFromUrls(best.draft.photos);
+        }
+        if (uid) {
+          await consolidateDraftToUser({
+            draft: best.draft,
+            userKey: getParentDraftKey(uid),
+            guestKey,
+            pendingKey: PENDING_PARENT_DRAFT_KEY,
+          });
+        }
         return;
       }
-      
-      // 1) Try to load from Supabase
+
+      if (!uid) {
+        draftHydratedRef.current = true;
+        return;
+      }
+
       const { data: latest, error } = await supabase
         .from('intended_parent_applications')
         .select('form_data, status, created_at')
@@ -375,73 +480,76 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       if (latest && latest.form_data) {
         let parsed = {};
         try {
-          parsed = JSON.parse(latest.form_data);
-          // Ensure reasonForSurrogacy is an array (for backward compatibility)
-          if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
-            parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
-          }
-          // Ensure communicationPreference is an array (for backward compatibility)
-          if (parsed.communicationPreference && !Array.isArray(parsed.communicationPreference)) {
-            parsed.communicationPreference = parsed.communicationPreference ? [parsed.communicationPreference] : [];
-          }
-          // Ensure relationshipStyle is an array (for backward compatibility)
-          if (parsed.relationshipStyle && !Array.isArray(parsed.relationshipStyle)) {
-            parsed.relationshipStyle = parsed.relationshipStyle ? [parsed.relationshipStyle] : [];
-          }
+          parsed = typeof latest.form_data === 'string' ? JSON.parse(latest.form_data) : latest.form_data;
         } catch (e) {
           console.error('Error parsing form_data:', e);
         }
-        
-        setApplicationData((prev) => {
-          const merged = normalizeParent1PhoneFields({ ...prev, ...parsed });
-          // Don't let empty draft email wipe signup/profile autofill
-          if (!String(merged.parent1Email || '').trim()) {
-            merged.parent1Email = prev.parent1Email || user?.email || '';
-          }
-          return merged;
-        });
-        setTimeout(() => {
-          setFormVersion(Date.now());
-        }, 0);
+        applyDraftData(parsed, 1);
         return;
       }
 
-      // 2) Fallback to local draft
-      const draftKey = `intended_parent_draft_${uid}`;
-      const localDraft = await AsyncStorageLib.getItem(draftKey);
-      if (localDraft) {
-        try {
-          const parsed = JSON.parse(localDraft);
-          // Ensure reasonForSurrogacy is an array (for backward compatibility)
-          if (parsed.reasonForSurrogacy && !Array.isArray(parsed.reasonForSurrogacy)) {
-            parsed.reasonForSurrogacy = parsed.reasonForSurrogacy ? [parsed.reasonForSurrogacy] : [];
-          }
-          // Ensure communicationPreference is an array (for backward compatibility)
-          if (parsed.communicationPreference && !Array.isArray(parsed.communicationPreference)) {
-            parsed.communicationPreference = parsed.communicationPreference ? [parsed.communicationPreference] : [];
-          }
-          // Ensure relationshipStyle is an array (for backward compatibility)
-          if (parsed.relationshipStyle && !Array.isArray(parsed.relationshipStyle)) {
-            parsed.relationshipStyle = parsed.relationshipStyle ? [parsed.relationshipStyle] : [];
-          }
-          setApplicationData((prev) => {
-            const merged = normalizeParent1PhoneFields({ ...prev, ...parsed });
-            if (!String(merged.parent1Email || '').trim()) {
-              merged.parent1Email = prev.parent1Email || user?.email || '';
-            }
-            return merged;
-          });
-          setTimeout(() => {
-            setFormVersion(Date.now());
-          }, 0);
-        } catch (e) {
-          console.error('Error parsing local draft:', e);
-        }
-      }
+      draftHydratedRef.current = true;
     } catch (error) {
       console.error('Error loading draft:', error);
+      draftHydratedRef.current = true;
     }
   };
+
+  useEffect(() => {
+    applicationDataRef.current = applicationData;
+  }, [applicationData]);
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+  }, [currentStep]);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+
+  useEffect(() => {
+    if (editMode) return;
+    if (!draftHydratedRef.current) return;
+    const timer = setTimeout(() => {
+      saveDraftNow();
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [applicationData, currentStep, photos, user?.id, editMode]);
+
+  const navigateAfterExit = () => {
+    skipExitPromptRef.current = true;
+    if (user) {
+      navigation.navigate('MainTabs');
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Landing');
+    }
+  };
+
+  const handleSaveAndExit = async () => {
+    if (editMode) {
+      navigateAfterExit();
+      return;
+    }
+    const ok = await saveDraftNow();
+    Alert.alert(
+      ok ? t('application.progressSaved') : t('application.errorSavingProgress'),
+      ok ? t('application.progressSavedContinueLater') : t('application.errorSavingProgressMessage'),
+      [{ text: t('common.ok'), onPress: navigateAfterExit }]
+    );
+  };
+
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      if (skipExitPromptRef.current || isLoading || editMode) return;
+      e.preventDefault();
+      (async () => {
+        await saveDraftNow();
+        skipExitPromptRef.current = true;
+        navigation.dispatch(e.data.action);
+      })();
+    });
+    return unsub;
+  }, [navigation, isLoading, user?.id, editMode]);
 
   // Load existing application data from database if in edit mode
   const loadExistingApplication = async () => {
@@ -519,71 +627,45 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   // Load existing data if in edit mode or restore draft
   useEffect(() => {
     if (editMode && existingData) {
-      // Ensure reasonForSurrogacy is an array (for backward compatibility)
-      const dataToSet = { ...existingData };
-      if (dataToSet.reasonForSurrogacy && !Array.isArray(dataToSet.reasonForSurrogacy)) {
-        dataToSet.reasonForSurrogacy = dataToSet.reasonForSurrogacy ? [dataToSet.reasonForSurrogacy] : [];
-      }
-      // Ensure communicationPreference is an array (for backward compatibility)
-      if (dataToSet.communicationPreference && !Array.isArray(dataToSet.communicationPreference)) {
-        dataToSet.communicationPreference = dataToSet.communicationPreference ? [dataToSet.communicationPreference] : [];
-      }
-      // Ensure relationshipStyle is an array (for backward compatibility)
-      if (dataToSet.relationshipStyle && !Array.isArray(dataToSet.relationshipStyle)) {
-        dataToSet.relationshipStyle = dataToSet.relationshipStyle ? [dataToSet.relationshipStyle] : [];
-      }
+      draftHydratedRef.current = true;
+      const dataToSet = normalizeMultiSelectFields({ ...existingData });
       setApplicationData(normalizeParent1PhoneFields(dataToSet));
-      // Set photos array if photos exist
       if (dataToSet.photos && Array.isArray(dataToSet.photos) && dataToSet.photos.length > 0) {
-        const photosArray = dataToSet.photos.map((url, index) => ({
-          uri: null,
-          url: url,
-          fileName: `Photo_${index + 1}.jpg`,
-          fileSize: null,
-          uploading: false,
-        }));
-        setPhotos(photosArray);
+        applyPhotosFromUrls(dataToSet.photos);
       } else if (dataToSet.photoUrl) {
-        // Backward compatibility: single photo
-        const singlePhoto = [{
-          uri: null,
-          url: dataToSet.photoUrl,
-          fileName: 'Photo_1.jpg',
-          fileSize: null,
-          uploading: false,
-        }];
-        setPhotos(singlePhoto);
+        applyPhotosFromUrls([dataToSet.photoUrl]);
       }
     } else if (editMode && applicationId && user) {
-      // If in edit mode but no existingData provided, load from database
+      draftHydratedRef.current = true;
       loadExistingApplication();
-    } else if (user) {
-      // Pre-fill with user data if available — Phone Number is local-only (no country/area)
-      const phoneParts = splitPhoneForParentForm(user.phone || user.user_metadata?.phone || '');
-      const profileEmail = user.email || user.user_metadata?.email || '';
-      setApplicationData((prev) =>
-        normalizeParent1PhoneFields({
-          ...prev,
-          parent1Email: profileEmail || prev.parent1Email || '',
-          parent1PhoneCountryCode: phoneParts.countryCode,
-          parent1PhoneAreaCode: phoneParts.areaCode,
-          parent1PhoneNumber: phoneParts.phoneNumber,
-        })
-      );
-      // Load draft for authenticated users (will re-normalize if draft has full phone)
+    } else {
+      if (user) {
+        const phoneParts = splitPhoneForParentForm(user.phone || user.user_metadata?.phone || '');
+        const profileEmail = user.email || user.user_metadata?.email || '';
+        setApplicationData((prev) =>
+          normalizeParent1PhoneFields({
+            ...prev,
+            parent1Email: profileEmail || prev.parent1Email || '',
+            parent1PhoneCountryCode: phoneParts.countryCode,
+            parent1PhoneAreaCode: phoneParts.areaCode,
+            parent1PhoneNumber: phoneParts.phoneNumber,
+          })
+        );
+      }
       loadDraft();
     }
-  }, [editMode, existingData, applicationId, user]);
+  }, [editMode, existingData, applicationId, user?.id]);
 
-  // Save draft periodically
-  useEffect(() => {
-    if (user && formVersion > 0) {
-      const draftKey = getDraftKey();
-      AsyncStorageLib.setItem(draftKey, JSON.stringify(applicationData)).catch(err => {
-        console.error('Error saving draft:', err);
-      });
-    }
-  }, [applicationData, formVersion, user]);
+  useFocusEffect(
+    React.useCallback(() => {
+      skipExitPromptRef.current = false;
+      if (editMode) {
+        draftHydratedRef.current = true;
+        return;
+      }
+      loadDraft(user?.id || null);
+    }, [user?.id, editMode])
+  );
 
   // Check if user needs to sign up
   useEffect(() => {
@@ -735,6 +817,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   // Pick image from library (for a specific index)
   const pickPhoto = async (index) => {
     try {
+      if (photos.filter(Boolean).length >= 4 && !photos[index]) {
+        Alert.alert(t('common.limitReached'), t('common.photoLimit4'));
+        return;
+      }
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'We need photo library permission to upload your photo.');
@@ -812,6 +899,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   // Take photo with camera (for a specific index)
   const takePhoto = async (index) => {
     try {
+      if (photos.filter(Boolean).length >= 4 && !photos[index]) {
+        Alert.alert(t('common.limitReached'), t('common.photoLimit4'));
+        return;
+      }
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'We need camera permission to take your photo.');
@@ -899,13 +991,22 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     );
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep >= totalSteps) return;
     if (!validateStep(currentStep)) return;
 
     // Soft register: must create account before leaving step 1
     if (!user) {
-      AsyncStorageLib.setItem(getDraftKey(), JSON.stringify(applicationData)).catch(() => {});
+      const envelope = buildDraftEnvelope({
+        currentStep: 1,
+        data: applicationDataRef.current || applicationData,
+        photos: photosRef.current || photos,
+      });
+      await persistDraftForAuthHandoff({
+        envelope,
+        guestKey: getParentDraftKey(null),
+        pendingKey: PENDING_PARENT_DRAFT_KEY,
+      });
       const emailFromForm = String(applicationData.parent1Email || '').trim();
       if (emailFromForm) {
         setAuthEmail(emailFromForm);
@@ -1277,6 +1378,20 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       return;
     }
     
+    // Snapshot before auth remount
+    const snapshotData = applicationDataRef.current || applicationData;
+    const snapshotPhotos = photosRef.current || photos;
+    const handoffEnvelope = buildDraftEnvelope({
+      currentStep: currentStepRef.current || 1,
+      data: snapshotData,
+      photos: snapshotPhotos,
+    });
+    await persistDraftForAuthHandoff({
+      envelope: handoffEnvelope,
+      guestKey: getParentDraftKey(null),
+      pendingKey: PENDING_PARENT_DRAFT_KEY,
+    });
+
     // Mark intent to resume intended parent application flow
     console.log('🔖 pre-signup: setting resume_application_flow=intended_parent');
     await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
@@ -1291,8 +1406,8 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         options: {
           data: {
             role,
-            name: applicationData.parent1FirstName + ' ' + applicationData.parent1LastName,
-            phone: formatParentPhoneForProfile(applicationData),
+            name: `${snapshotData.parent1FirstName || ''} ${snapshotData.parent1LastName || ''}`.trim(),
+            phone: formatParentPhoneForProfile(snapshotData),
           },
         },
       });
@@ -1337,7 +1452,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       let profileUpserted = false;
       const ipInfo = await getClientIpInfo();
       while (attempts < 3) {
-        const profilePayload = buildParentProfileFromApplication(applicationData, {
+        const profilePayload = buildParentProfileFromApplication(snapshotData, {
           userId,
           email: authEmail.trim(),
           inviteCode,
@@ -1372,19 +1487,20 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         await refreshUserProfile();
       }
 
-      // Save draft under the new user key
-      await AsyncStorageLib.setItem(`intended_parent_draft_${userId}`, JSON.stringify(applicationData));
+      await persistDraftForAuthHandoff({
+        envelope: handoffEnvelope,
+        guestKey: getParentDraftKey(null),
+        pendingKey: PENDING_PARENT_DRAFT_KEY,
+        userKey: getParentDraftKey(userId),
+      });
       
       // Mark that we should stay on intended parent application flow after auth switch
       console.log('🔖 setting resume_application_flow=intended_parent after lazy signup');
       await AsyncStorageLib.setItem('resume_application_flow', 'intended_parent');
       await AsyncStorageLib.setItem('resume_application_type', 'intended_parent');
 
-      // Force state reapply immediately by reloading draft with the new user id
       await loadDraft(userId);
-      const newVersion = Date.now();
-      setFormVersion(newVersion);
-      setCurrentStep(1);
+      setFormVersion(Date.now());
 
       setShowAuthPrompt(false);
       Alert.alert('Success', 'Account created! Your progress has been saved. You can now continue with your application.');
@@ -1468,6 +1584,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
         if (error) throw error;
 
+        skipExitPromptRef.current = true;
+        await clearApplicationDraft(getDraftKey());
+        await clearApplicationDraft(getParentDraftKey(null));
+        await clearApplicationDraft(PENDING_PARENT_DRAFT_KEY);
+
         let navigated = false;
         const navigateBack = () => {
           if (!navigated) {
@@ -1539,6 +1660,13 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           .select();
 
         if (error) throw error;
+
+        await AsyncStorageLib.removeItem('resume_application_flow');
+        await AsyncStorageLib.removeItem('resume_application_type');
+        await clearApplicationDraft(getDraftKey());
+        await clearApplicationDraft(getParentDraftKey(null));
+        await clearApplicationDraft(PENDING_PARENT_DRAFT_KEY);
+        skipExitPromptRef.current = true;
 
         // Save to local storage for history
         const application = {
@@ -1630,27 +1758,34 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
   const renderNavigationButtons = () => (
     <View style={styles.navigationContainer}>
-      {currentStep > 1 && (
-        <TouchableOpacity style={styles.navButton} onPress={prevStep}>
-          <Text style={styles.navButtonText}>{tf("Previous")}</Text>
+      {!editMode && (
+        <TouchableOpacity style={styles.saveExitLink} onPress={handleSaveAndExit}>
+          <Text style={styles.saveExitLinkText}>{t('application.saveAndExit')}</Text>
         </TouchableOpacity>
       )}
-      <View style={styles.navButtonSpacer} />
-      {currentStep < totalSteps ? (
-        <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
-          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>{tf("Next")}</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={[styles.navButton, styles.navButtonPrimary, isLoading && styles.navButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={isLoading}
-        >
-          <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
-            {isLoading ? tf("Submitting...") : tf("Submit")}
-          </Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.navRow}>
+        {currentStep > 1 && (
+          <TouchableOpacity style={styles.navButton} onPress={prevStep}>
+            <Text style={styles.navButtonText}>{tf("Previous")}</Text>
+          </TouchableOpacity>
+        )}
+        <View style={styles.navButtonSpacer} />
+        {currentStep < totalSteps ? (
+          <TouchableOpacity style={[styles.navButton, styles.navButtonPrimary]} onPress={nextStep}>
+            <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>{tf("Next")}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonPrimary, isLoading && styles.navButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={isLoading}
+          >
+            <Text style={[styles.navButtonText, styles.navButtonTextPrimary]}>
+              {isLoading ? tf("Submitting...") : tf("Submit")}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 
@@ -1786,6 +1921,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           format="MM/DD/YYYY"
           placeholder={tf("MM/DD/YYYY")}
           style={styles.input}
+          variant="dob"
         />
 
         <Text style={styles.label}>{tf("Gender *")}</Text>
@@ -1998,6 +2134,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
           format="MM/DD/YYYY"
           placeholder={tf("MM/DD/YYYY")}
           style={styles.input}
+          variant="dob"
         />
 
         <Text style={styles.label}>{tf("Gender *")}</Text>
@@ -2924,7 +3061,12 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         />
 
         {/* Intended Parent Photos Upload (4 photos) */}
-        <Text style={[styles.label, { marginTop: 30 }]}>{tf("Intended Parent Photos (up to 4) *")}</Text>
+        <Text style={[styles.label, { marginTop: 30 }]}>{tf("Intended Parent Photos *")}</Text>
+        <Text style={styles.photoLimitHint}>
+          {tf("Upload limit: at least 1, maximum 4 photos. Images only (JPG, PNG, etc.).")}
+          {' '}
+          ({(photos || []).filter(Boolean).length}/4)
+        </Text>
         <View style={styles.photosContainer}>
           {[0, 1, 2, 3].map((index) => {
             const photo = photos[index];
@@ -3004,7 +3146,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Landing')}
+            onPress={handleSaveAndExit}
             style={styles.backButton}
             activeOpacity={0.7}
           >
@@ -3233,13 +3375,26 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   navigationContainer: {
-    flexDirection: 'row',
     marginTop: 24,
     marginBottom: 8,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
     backgroundColor: '#fff',
+  },
+  saveExitLink: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  saveExitLinkText: {
+    color: '#2A7BF6',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   navButton: {
     flex: 1,
@@ -3477,5 +3632,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2A7BF6',
     fontWeight: '600',
+  },
+  photoLimitHint: {
+    fontSize: 12,
+    color: '#6E7191',
+    marginBottom: 12,
+    lineHeight: 18,
   },
 });

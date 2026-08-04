@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { syncAppointmentFromMedicalReport } from '@/lib/syncAppointmentFromMedicalReport';
+import { syncAppointmentFromMedicalReport, resolveProviderContact, isDateOnlyBeforeToday } from '@/lib/syncAppointmentFromMedicalReport';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -152,6 +152,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    report_data = {
+      ...(report_data || {}),
+      provider_contact: resolveProviderContact(
+        (report_data || {}).provider_contact
+      ),
+    };
+
+    if (
+      report_data.next_appointment_date &&
+      isDateOnlyBeforeToday(report_data.next_appointment_date)
+    ) {
+      return NextResponse.json(
+        { error: 'Next appointment date cannot be in the past.' },
+        { status: 400 }
+      );
+    }
+
     const { data, error: insertError } = await supabase
       .from('medical_reports')
       .insert({
@@ -184,6 +201,7 @@ export async function POST(request: NextRequest) {
         stage,
         providerName: provider_name,
         reportData: report_data || {},
+        visitDate: visit_date,
       });
     } catch (syncErr: any) {
       console.warn('[medical-reports] POST appointment sync warning:', syncErr?.message || syncErr);
@@ -281,6 +299,23 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    report_data = {
+      ...(report_data || {}),
+      provider_contact: resolveProviderContact(
+        (report_data || {}).provider_contact
+      ),
+    };
+
+    if (
+      report_data.next_appointment_date &&
+      isDateOnlyBeforeToday(report_data.next_appointment_date)
+    ) {
+      return NextResponse.json(
+        { error: 'Next appointment date cannot be in the past.' },
+        { status: 400 }
+      );
+    }
+
     const updatePayload: Record<string, any> = {
       stage,
       visit_date,
@@ -317,6 +352,7 @@ export async function PATCH(request: NextRequest) {
         stage: data.stage || stage,
         providerName: data.provider_name ?? provider_name,
         reportData: data.report_data || report_data || {},
+        visitDate: data.visit_date || visit_date,
       });
     } catch (syncErr: any) {
       console.warn('[medical-reports] PATCH appointment sync warning:', syncErr?.message || syncErr);

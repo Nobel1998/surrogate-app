@@ -248,6 +248,8 @@ export default function RegisterScreen({ navigation }) {
           onChange={(value) => updateFormData('dateOfBirth', value)}
           format="MM/DD/YYYY"
           placeholder="MM/DD/YYYY"
+          variant="dob"
+          maximumDate={new Date()}
         />
       </View>
 

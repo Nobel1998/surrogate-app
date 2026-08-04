@@ -413,13 +413,23 @@ export default function HomeScreen() {
   };
 
   const parseISODateOnlyToLocalMidnight = (s) => {
-    // Accepts YYYY-MM-DD
+    // Accepts YYYY-MM-DD — construct local calendar date (avoid UTC midnight shift).
     if (!s || typeof s !== 'string') return null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-    const d = new Date(`${s}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return null;
-    // Normalize to local midnight to avoid timezone drift
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    const d = new Date(y, month - 1, day, 0, 0, 0, 0);
+    if (
+      Number.isNaN(d.getTime()) ||
+      d.getFullYear() !== y ||
+      d.getMonth() !== month - 1 ||
+      d.getDate() !== day
+    ) {
+      return null;
+    }
+    return d;
   };
 
   // Convert Date object to YYYY-MM-DD (for storage)

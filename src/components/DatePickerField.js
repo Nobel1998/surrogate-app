@@ -82,14 +82,41 @@ export default function DatePickerField({
   editable = true,
   maximumDate,
   minimumDate,
+  /** Used when value is empty. Defaults to today (medical / appointment dates). */
+  initialDate,
+  /**
+   * 'dob' opens near a typical adult birth year (~25 years ago).
+   * Default 'date' opens on the current year (e.g. medical check-in).
+   */
+  variant = 'date',
   iconColor = '#94A3B8',
   iconSize = 18,
 }) {
   const [open, setOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState(null);
   const formatter = FORMATS[format] || FORMATS['MM/DD/YYYY'];
   const parsed = useMemo(() => parseFlexible(value, format), [value, format]);
-  const pickerValue = parsed || new Date();
+
+  const fallbackDate = useMemo(() => {
+    if (initialDate instanceof Date && !Number.isNaN(initialDate.getTime())) {
+      return initialDate;
+    }
+    if (variant === 'dob') {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - 25);
+      return d;
+    }
+    return new Date();
+  }, [initialDate, variant]);
+
+  const pickerValue = draftDate || parsed || fallbackDate;
   const display = value ? String(value) : '';
+
+  const openPicker = () => {
+    if (!editable) return;
+    setDraftDate(parsed || fallbackDate);
+    setOpen(true);
+  };
 
   const commit = (date) => {
     if (!date || Number.isNaN(date.getTime())) return;
@@ -100,18 +127,22 @@ export default function DatePickerField({
     if (Platform.OS === 'android') {
       setOpen(false);
       if (event?.type === 'dismissed') return;
+      if (selected) commit(selected);
+      return;
     }
-    if (selected) commit(selected);
+    if (selected) setDraftDate(selected);
+  };
+
+  const confirmIos = () => {
+    commit(draftDate || pickerValue);
+    setOpen(false);
   };
 
   return (
     <>
       <TouchableOpacity
         style={[styles.field, !editable && styles.fieldDisabled, style]}
-        onPress={() => {
-          if (!editable) return;
-          setOpen(true);
-        }}
+        onPress={openPicker}
         activeOpacity={editable ? 0.7 : 1}
         disabled={!editable}
       >
@@ -143,9 +174,17 @@ export default function DatePickerField({
       {Platform.OS === 'ios' && (
         <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
           <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => setOpen(false)}
+            />
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12}>
+                  <Text style={styles.modalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmIos} hitSlop={12}>
                   <Text style={styles.modalAction}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -153,10 +192,12 @@ export default function DatePickerField({
                 value={pickerValue}
                 mode="date"
                 display="spinner"
+                themeVariant="light"
+                textColor="#0F172A"
                 onChange={onPickerChange}
                 maximumDate={maximumDate}
                 minimumDate={minimumDate}
-                style={{ alignSelf: 'center' }}
+                style={styles.iosPicker}
               />
             </View>
           </View>
@@ -199,22 +240,39 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
   },
+  modalBackdrop: {
+    flex: 1,
+  },
   modalSheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    paddingBottom: 24,
+    paddingBottom: 28,
+    width: '100%',
   },
   modalHeader: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E2E8F0',
   },
+  modalCancel: {
+    color: '#64748B',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   modalAction: {
     color: '#1F6FE0',
     fontSize: 16,
     fontWeight: '600',
+  },
+  iosPicker: {
+    width: '100%',
+    height: 216,
+    alignSelf: 'stretch',
+    backgroundColor: '#fff',
   },
 });

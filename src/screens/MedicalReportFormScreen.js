@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { uploadMedia } from '../utils/mediaUpload';
 import DatePickerField from '../components/DatePickerField';
 import { useNotifications } from '../context/NotificationContext';
-import { syncAppointmentFromMedicalReport } from '../utils/syncAppointmentFromMedicalReport';
+import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT } from '../utils/syncAppointmentFromMedicalReport';
 
 export default function MedicalReportFormScreen({ route }) {
   const navigation = useNavigation();
@@ -106,6 +106,7 @@ export default function MedicalReportFormScreen({ route }) {
           onChange={(value) => handleFieldChange('next_appointment_date', value)}
           format="MM-DD-YYYY"
           placeholder="e.g. 01-15-2026"
+          minimumDate={new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())}
         />
       </View>
       <View style={styles.section}>
@@ -219,6 +220,28 @@ export default function MedicalReportFormScreen({ route }) {
     if (!parsedDate) {
       Alert.alert('Validation Error', 'Please enter a valid visit date in MM-DD-YYYY format.');
       return;
+    }
+
+    const nextRaw = formData.next_appointment_date;
+    if (nextRaw && String(nextRaw).trim()) {
+      const nextParsed = parseMMDDYYYYToISO(String(nextRaw).trim());
+      if (!nextParsed) {
+        Alert.alert(
+          t('common.error') || 'Validation Error',
+          t('medicalReport.nextCheckInvalidDate') ||
+            'Please enter a valid next appointment date in MM-DD-YYYY format.'
+        );
+        return;
+      }
+      const nextISO = formatDateToISO(nextParsed);
+      if (isDateOnlyBeforeToday(nextISO)) {
+        Alert.alert(
+          t('common.error') || 'Validation Error',
+          t('medicalReport.nextCheckPastDate') ||
+            'Next appointment date cannot be in the past.'
+        );
+        return;
+      }
     }
 
     setSaving(true);
@@ -375,7 +398,7 @@ export default function MedicalReportFormScreen({ route }) {
     }
   };
 
-  const syncNextCheckAppointment = async (reportId, reportDataWithContact) => {
+  const syncNextCheckAppointment = async (reportId, reportDataWithContact, visitDateISO) => {
     try {
       const syncResult = await syncAppointmentFromMedicalReport({
         reportId,
@@ -383,11 +406,10 @@ export default function MedicalReportFormScreen({ route }) {
         stage: currentStage,
         providerName: providerName.trim() || null,
         reportData: reportDataWithContact,
+        visitDate: visitDateISO,
       });
 
       if (syncResult?.cleared && syncResult.table && syncResult.appointmentId == null) {
-        // Best-effort cancel for any previous reminders keyed by old appointment id is skipped
-        // when we only know the table. Screens re-schedule on load.
         return syncResult;
       }
 
@@ -407,7 +429,6 @@ export default function MedicalReportFormScreen({ route }) {
       return syncResult;
     } catch (syncErr) {
       console.error('Failed to sync next check appointment:', syncErr);
-      // Don't fail the medical report save if appointment sync fails (e.g. migration not applied)
       return { ok: false, error: syncErr };
     }
   };
@@ -416,10 +437,10 @@ export default function MedicalReportFormScreen({ route }) {
     try {
       const visitDateISO = formatDateToISO(parseMMDDYYYYToISO(visitDate));
 
-      // Store provider contact in report_data if provided
+      // Store provider contact; empty → 888888 placeholder
       const reportDataWithContact = {
         ...formData,
-        ...(providerContact.trim() && { provider_contact: providerContact.trim() }),
+        provider_contact: resolveProviderContact(providerContact),
       };
 
       if (isEditing) {
@@ -441,7 +462,7 @@ export default function MedicalReportFormScreen({ route }) {
           throw error;
         }
 
-        await syncNextCheckAppointment(existingReport.id, reportDataWithContact);
+        await syncNextCheckAppointment(existingReport.id, reportDataWithContact, visitDateISO);
 
         console.log('Report updated successfully:', data);
         Alert.alert(
@@ -484,7 +505,7 @@ export default function MedicalReportFormScreen({ route }) {
       console.log('Report submitted successfully:', data);
       const reportId = data?.[0]?.id;
       if (reportId) {
-        await syncNextCheckAppointment(reportId, reportDataWithContact);
+        await syncNextCheckAppointment(reportId, reportDataWithContact, visitDateISO);
       }
 
       // Award points for successful submission (new check-ins only)
@@ -554,9 +575,10 @@ export default function MedicalReportFormScreen({ route }) {
       }
       
       // Show success alert with points information
-      // Format reward messages by replacing {points} placeholders
       const pointsMessage = pointsResult.rewardMessages.join('\n');
-      const totalMessage = t('points.totalPointsEarned').replace(/\{points\}/g, String(pointsResult.totalPoints));
+      const totalMessage = t('points.totalPointsEarned', {
+        points: pointsResult.totalPoints,
+      });
       let alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${totalMessage}`;
       if (pointsMessage) {
         alertMessage = `${t('medicalReport.successMessage')}\n\n${t('points.congratulations')}\n${pointsMessage}\n${totalMessage}`;
@@ -1077,7 +1099,7 @@ export default function MedicalReportFormScreen({ route }) {
                 style={styles.input}
                 value={providerContact}
                 onChangeText={setProviderContact}
-                placeholder="e.g. phone, email"
+                placeholder={`e.g. phone, email (empty → ${EMPTY_PROVIDER_CONTACT})`}
                 placeholderTextColor="#94A3B8"
               />
             </View>

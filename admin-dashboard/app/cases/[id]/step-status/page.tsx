@@ -681,8 +681,35 @@ export default function StepStatusPage() {
     try {
       const reportData = {
         ...medicalReportData,
-        ...(medicalProviderContact.trim() ? { provider_contact: medicalProviderContact.trim() } : {}),
+        provider_contact: medicalProviderContact.trim() || '888888',
       };
+      if (reportData.next_appointment_date) {
+        const next = String(reportData.next_appointment_date).trim();
+        const isoMatch = next.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const mdyMatch = next.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        let y = 0;
+        let m = 0;
+        let d = 0;
+        if (isoMatch) {
+          y = Number(isoMatch[1]);
+          m = Number(isoMatch[2]);
+          d = Number(isoMatch[3]);
+        } else if (mdyMatch) {
+          y = Number(mdyMatch[3]);
+          m = Number(mdyMatch[1]);
+          d = Number(mdyMatch[2]);
+        }
+        if (y) {
+          const target = new Date(y, m - 1, d, 0, 0, 0, 0);
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          if (target.getTime() < today.getTime()) {
+            alert('Next appointment date cannot be in the past.');
+            setSavingMedical(false);
+            return;
+          }
+        }
+      }
       const isEditing = !!editingMedicalReportId;
       const method = isEditing ? 'PATCH' : 'POST';
       const proofImageUrl = pendingMedicalProofImage

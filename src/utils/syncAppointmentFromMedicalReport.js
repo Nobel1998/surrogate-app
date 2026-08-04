@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 
+export const EMPTY_PROVIDER_CONTACT = '888888';
+
 /**
  * Convert MM-DD-YYYY or YYYY-MM-DD to YYYY-MM-DD.
  */
@@ -14,6 +16,19 @@ export function parseNextCheckDateToISO(value) {
     return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`;
   }
   return null;
+}
+
+/**
+ * True when YYYY-MM-DD is strictly before today's local calendar date.
+ */
+export function isDateOnlyBeforeToday(isoDate) {
+  const parsed = parseNextCheckDateToISO(isoDate);
+  if (!parsed) return false;
+  const [y, m, d] = parsed.split('-').map((n) => parseInt(n, 10));
+  const target = new Date(y, m - 1, d, 0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  return target.getTime() < today.getTime();
 }
 
 /**
@@ -47,51 +62,17 @@ export function otherAppointmentTableForMedicalStage(stage) {
   return stage === 'OBGYN' ? 'ivf_appointments' : 'ob_appointments';
 }
 
-/**
- * Upsert OB or IVF appointment from a medical check-in's next check fields.
- * Pre-Transfer / Post-Transfer → ivf_appointments
- * OBGYN → ob_appointments
- */
-export async function syncAppointmentFromMedicalReport({
-  reportId,
-  userId,
-  stage,
-  providerName,
-  reportData,
-}) {
-  if (!reportId || !userId || !stage) {
-    return { ok: false, skipped: true, reason: 'missing_args' };
-  }
+export function resolveProviderContact(value) {
+  const trimmed = value == null ? '' : String(value).trim();
+  return trimmed || EMPTY_PROVIDER_CONTACT;
+}
 
-  const nextDateISO = parseNextCheckDateToISO(reportData?.next_appointment_date);
-  const targetTable = appointmentTableForMedicalStage(stage);
-  const otherTable = otherAppointmentTableForMedicalStage(stage);
-
-  // Clear any appointment wrongly linked on the other table (stage change)
-  await supabase
-    .from(otherTable)
-    .delete()
-    .eq('source_medical_report_id', reportId);
-
-  if (!nextDateISO) {
-    await supabase.from(targetTable).delete().eq('source_medical_report_id', reportId);
-    return { ok: true, cleared: true, table: targetTable };
-  }
-
-  const appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
-
-  const { data: matchRow } = await supabase
-    .from('surrogate_matches')
-    .select('id')
-    .eq('surrogate_id', userId)
-    .in('status', ['active', 'matched'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let clinicName = null;
+async function loadClinicContext(userId, stage, providerName) {
+  let clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
   let clinicAddress = null;
-  let clinicPhone = null;
+  let clinicPhone = EMPTY_PROVIDER_CONTACT;
+  let resolvedProvider = providerName || null;
+
   try {
     const { data: medInfo } = await supabase
       .from('surrogate_medical_info')
@@ -103,67 +84,168 @@ export async function syncAppointmentFromMedicalReport({
     if (stage === 'OBGYN') {
       clinicName = medInfo?.obgyn_clinic_name || 'OB Clinic';
       clinicAddress = medInfo?.obgyn_clinic_address || null;
-      clinicPhone = medInfo?.obgyn_clinic_phone || null;
-      if (!providerName && medInfo?.obgyn_doctor_name) {
-        providerName = medInfo.obgyn_doctor_name;
+      clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
+      if (!resolvedProvider && medInfo?.obgyn_doctor_name) {
+        resolvedProvider = medInfo.obgyn_doctor_name;
       }
     } else {
       clinicName = medInfo?.ivf_clinic_name || 'IVF Clinic';
       clinicAddress = medInfo?.ivf_clinic_address || null;
-      clinicPhone = medInfo?.ivf_clinic_phone || null;
+      clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
     }
   } catch {
     clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
+    clinicPhone = EMPTY_PROVIDER_CONTACT;
   }
 
-  const payload = {
-    user_id: userId,
-    match_id: matchRow?.id || null,
-    appointment_date: nextDateISO,
-    appointment_time: appointmentTime,
-    provider_name: providerName || null,
-    clinic_name: clinicName,
-    clinic_address: clinicAddress,
-    clinic_phone: clinicPhone,
-    notes: `From medical check-in (${stage})`,
-    status: 'scheduled',
+  return { clinicName, clinicAddress, clinicPhone, providerName: resolvedProvider };
+}
+
+async function upsertAppointmentByKind({
+  table,
+  reportId,
+  kind,
+  payload,
+}) {
+  const { data: existing } = await supabase
+    .from(table)
+    .select('id')
+    .eq('source_medical_report_id', reportId)
+    .eq('source_kind', kind)
+    .maybeSingle();
+
+  const row = {
+    ...payload,
     source_medical_report_id: reportId,
+    source_kind: kind,
     updated_at: new Date().toISOString(),
   };
 
-  const { data: existing } = await supabase
-    .from(targetTable)
-    .select('id')
-    .eq('source_medical_report_id', reportId)
-    .maybeSingle();
-
-  let appointmentId = existing?.id || null;
   if (existing?.id) {
     const { data: updated, error } = await supabase
-      .from(targetTable)
-      .update(payload)
+      .from(table)
+      .update(row)
       .eq('id', existing.id)
       .select('id')
       .single();
     if (error) throw error;
-    appointmentId = updated.id;
+    return updated.id;
+  }
+
+  const { data: inserted, error } = await supabase
+    .from(table)
+    .insert(row)
+    .select('id')
+    .single();
+  if (error) throw error;
+  return inserted.id;
+}
+
+/**
+ * Upsert OB/IVF appointments from a medical check-in:
+ * - visit date → completed appointment (source_kind=visit)
+ * - next check date → scheduled appointment (source_kind=next)
+ */
+export async function syncAppointmentFromMedicalReport({
+  reportId,
+  userId,
+  stage,
+  providerName,
+  reportData,
+  visitDate,
+}) {
+  if (!reportId || !userId || !stage) {
+    return { ok: false, skipped: true, reason: 'missing_args' };
+  }
+
+  const nextDateISO = parseNextCheckDateToISO(reportData?.next_appointment_date);
+  const visitDateISO = parseNextCheckDateToISO(visitDate);
+  const targetTable = appointmentTableForMedicalStage(stage);
+  const otherTable = otherAppointmentTableForMedicalStage(stage);
+
+  // Clear any appointment wrongly linked on the other table (stage change)
+  await supabase.from(otherTable).delete().eq('source_medical_report_id', reportId);
+
+  const { data: matchRow } = await supabase
+    .from('surrogate_matches')
+    .select('id')
+    .eq('surrogate_id', userId)
+    .in('status', ['active', 'matched'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const clinic = await loadClinicContext(userId, stage, providerName);
+  const contactFromReport = resolveProviderContact(reportData?.provider_contact);
+  const clinicPhone =
+    contactFromReport !== EMPTY_PROVIDER_CONTACT
+      ? contactFromReport
+      : clinic.clinicPhone || EMPTY_PROVIDER_CONTACT;
+
+  const basePayload = {
+    user_id: userId,
+    match_id: matchRow?.id || null,
+    provider_name: clinic.providerName || null,
+    clinic_name: clinic.clinicName,
+    clinic_address: clinic.clinicAddress,
+    clinic_phone: clinicPhone,
+  };
+
+  let visitAppointmentId = null;
+  if (visitDateISO) {
+    visitAppointmentId = await upsertAppointmentByKind({
+      table: targetTable,
+      reportId,
+      kind: 'visit',
+      payload: {
+        ...basePayload,
+        appointment_date: visitDateISO,
+        appointment_time: '09:00:00',
+        notes: `Medical check-in visit (${stage})`,
+        status: 'completed',
+      },
+    });
   } else {
-    const { data: inserted, error } = await supabase
+    await supabase
       .from(targetTable)
-      .insert(payload)
-      .select('id')
-      .single();
-    if (error) throw error;
-    appointmentId = inserted.id;
+      .delete()
+      .eq('source_medical_report_id', reportId)
+      .eq('source_kind', 'visit');
+  }
+
+  let nextAppointmentId = null;
+  let appointmentTime = null;
+  if (nextDateISO) {
+    appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
+    nextAppointmentId = await upsertAppointmentByKind({
+      table: targetTable,
+      reportId,
+      kind: 'next',
+      payload: {
+        ...basePayload,
+        appointment_date: nextDateISO,
+        appointment_time: appointmentTime,
+        notes: `From medical check-in next check (${stage})`,
+        status: 'scheduled',
+      },
+    });
+  } else {
+    await supabase
+      .from(targetTable)
+      .delete()
+      .eq('source_medical_report_id', reportId)
+      .eq('source_kind', 'next');
   }
 
   return {
     ok: true,
     table: targetTable,
-    appointmentId,
+    visitAppointmentId,
+    appointmentId: nextAppointmentId,
     appointmentDate: nextDateISO,
     appointmentTime,
-    clinicName,
-    providerName: payload.provider_name,
+    clinicName: clinic.clinicName,
+    providerName: clinic.providerName,
+    cleared: !nextDateISO && !visitDateISO,
   };
 }
