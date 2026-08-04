@@ -92,16 +92,40 @@ async function writeAppointmentRow(
     return inserted.id as string;
   };
 
+  const stripMissingColumn = (err: any, data: Record<string, any>) => {
+    const msg = String(err?.message || '');
+    if (err?.code !== 'PGRST204') return null;
+    if (msg.includes('clinic_email') && 'clinic_email' in data) {
+      const { clinic_email: _omit, ...rest } = data;
+      return rest;
+    }
+    if (msg.includes('medical_stage') && 'medical_stage' in data) {
+      const { medical_stage: _omit, ...rest } = data;
+      return rest;
+    }
+    return null;
+  };
+
   try {
     return await attempt(row);
   } catch (err: any) {
-    const msg = String(err?.message || '');
-    if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
-      const { clinic_email: _omit, ...rest } = row;
-      return await attempt(rest);
+    const stripped = stripMissingColumn(err, row);
+    if (stripped) {
+      try {
+        return await attempt(stripped);
+      } catch (err2: any) {
+        const stripped2 = stripMissingColumn(err2, stripped);
+        if (stripped2) return await attempt(stripped2);
+        throw err2;
+      }
     }
     throw err;
   }
+}
+
+function stageFromAppointmentNotes(notes: unknown): string | null {
+  const m = String(notes || '').match(/\((Pre-Transfer|Post-Transfer|OBGYN)\)/i);
+  return m ? m[1] : null;
 }
 
 async function upsertAppointmentByKind(
@@ -111,11 +135,12 @@ async function upsertAppointmentByKind(
     reportId: string;
     userId: string;
     kind: 'visit' | 'next';
+    stage: string;
     appointmentDateISO: string;
     payload: Record<string, any>;
   }
 ) {
-  const { table, reportId, userId, kind, appointmentDateISO, payload } = opts;
+  const { table, reportId, userId, kind, stage, appointmentDateISO, payload } = opts;
   const targetTime = parseAppointmentTime(payload.appointment_time);
   if (!targetTime) {
     throw new Error('appointment_time is required to sync appointment');
@@ -124,6 +149,7 @@ async function upsertAppointmentByKind(
     ...payload,
     source_medical_report_id: reportId,
     source_kind: kind,
+    medical_stage: stage || null,
     appointment_time: targetTime,
     updated_at: new Date().toISOString(),
   };
@@ -137,15 +163,45 @@ async function upsertAppointmentByKind(
 
   const { data: sameDateRaw } = await supabase
     .from(table)
-    .select('id, source_medical_report_id, source_kind, status, appointment_time')
+    .select('id, source_medical_report_id, source_kind, status, appointment_time, notes')
     .eq('user_id', userId)
     .eq('appointment_date', appointmentDateISO)
     .neq('status', 'cancelled')
     .order('updated_at', { ascending: false });
 
+  const reportIds = [
+    ...new Set(
+      (sameDateRaw || [])
+        .map((r: any) => r.source_medical_report_id)
+        .filter(Boolean)
+    ),
+  ];
+  const stageByReportId: Record<string, string> = {};
+  if (reportIds.length) {
+    const { data: reports } = await supabase
+      .from('medical_reports')
+      .select('id, stage')
+      .in('id', reportIds);
+    (reports || []).forEach((rep: any) => {
+      if (rep?.id) stageByReportId[rep.id] = rep.stage;
+    });
+  }
+
+  const resolveCandidateStage = (r: any) => {
+    if (r.medical_stage) return r.medical_stage;
+    if (r.source_medical_report_id && stageByReportId[r.source_medical_report_id]) {
+      return stageByReportId[r.source_medical_report_id];
+    }
+    return stageFromAppointmentNotes(r.notes);
+  };
+
   const sameSlotRows = (sameDateRaw || []).filter((r: any) => {
     const rowTime = parseAppointmentTime(r.appointment_time);
     if (!rowTime || rowTime !== targetTime) return false;
+
+    const candidateStage = resolveCandidateStage(r);
+    if (stage && candidateStage && candidateStage !== stage) return false;
+
     if (kind === 'visit') {
       if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
       return true;
@@ -251,6 +307,7 @@ export async function syncAppointmentFromMedicalReport(
     clinic_address: clinicAddress,
     clinic_phone: clinicPhone || EMPTY_PROVIDER_CONTACT,
     clinic_email: clinicEmail,
+    medical_stage: stage,
   };
 
   let visitAppointmentId: string | null = null;
@@ -262,6 +319,7 @@ export async function syncAppointmentFromMedicalReport(
         reportId,
         userId,
         kind: 'visit',
+        stage,
         appointmentDateISO: visitDateISO,
         payload: {
           ...basePayload,
@@ -292,6 +350,7 @@ export async function syncAppointmentFromMedicalReport(
         reportId,
         userId,
         kind: 'next',
+        stage,
         appointmentDateISO: nextDateISO,
         payload: {
           ...basePayload,

@@ -139,27 +139,52 @@ async function writeAppointmentRow(table, existingId, row) {
     return inserted.id;
   };
 
+  const stripMissingColumn = (err, data) => {
+    const msg = String(err?.message || '');
+    if (err?.code !== 'PGRST204') return null;
+    if (msg.includes('clinic_email') && 'clinic_email' in data) {
+      const { clinic_email: _omit, ...rest } = data;
+      return rest;
+    }
+    if (msg.includes('medical_stage') && 'medical_stage' in data) {
+      const { medical_stage: _omit, ...rest } = data;
+      return rest;
+    }
+    return null;
+  };
+
   try {
     return await attempt(row);
   } catch (err) {
-    const msg = String(err?.message || '');
-    if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
-      const { clinic_email: _omit, ...rest } = row;
-      return await attempt(rest);
+    const stripped = stripMissingColumn(err, row);
+    if (stripped) {
+      try {
+        return await attempt(stripped);
+      } catch (err2) {
+        const stripped2 = stripMissingColumn(err2, stripped);
+        if (stripped2) return await attempt(stripped2);
+        throw err2;
+      }
     }
     throw err;
   }
 }
 
+function stageFromAppointmentNotes(notes) {
+  const m = String(notes || '').match(/\((Pre-Transfer|Post-Transfer|OBGYN)\)/i);
+  return m ? m[1] : null;
+}
+
 /**
- * Upsert appointment for a report kind, merging only when date AND time match.
- * Same calendar day at a different time must stay as a separate appointment.
+ * Upsert appointment for a report kind, merging only when date, time, AND
+ * medical stage match. Post-Transfer must not overwrite Pre-Transfer.
  */
 async function upsertAppointmentByKind({
   table,
   reportId,
   userId,
   kind,
+  stage,
   appointmentDateISO,
   payload,
 }) {
@@ -167,6 +192,7 @@ async function upsertAppointmentByKind({
     ...payload,
     source_medical_report_id: reportId,
     source_kind: kind,
+    medical_stage: stage || null,
     updated_at: new Date().toISOString(),
   };
   const targetTime = parseAppointmentTime(payload.appointment_time);
@@ -184,15 +210,46 @@ async function upsertAppointmentByKind({
 
   const { data: sameDateRaw } = await supabase
     .from(table)
-    .select('id, source_medical_report_id, source_kind, status, appointment_time')
+    .select('id, source_medical_report_id, source_kind, status, appointment_time, notes')
     .eq('user_id', userId)
     .eq('appointment_date', appointmentDateISO)
     .neq('status', 'cancelled')
     .order('updated_at', { ascending: false });
 
+  const reportIds = [
+    ...new Set(
+      (sameDateRaw || [])
+        .map((r) => r.source_medical_report_id)
+        .filter(Boolean)
+    ),
+  ];
+  const stageByReportId = {};
+  if (reportIds.length) {
+    const { data: reports } = await supabase
+      .from('medical_reports')
+      .select('id, stage')
+      .in('id', reportIds);
+    (reports || []).forEach((rep) => {
+      if (rep?.id) stageByReportId[rep.id] = rep.stage;
+    });
+  }
+
+  const resolveCandidateStage = (r) => {
+    if (r.medical_stage) return r.medical_stage;
+    if (r.source_medical_report_id && stageByReportId[r.source_medical_report_id]) {
+      return stageByReportId[r.source_medical_report_id];
+    }
+    return stageFromAppointmentNotes(r.notes);
+  };
+
   const sameSlotRows = (sameDateRaw || []).filter((r) => {
     const rowTime = parseAppointmentTime(r.appointment_time);
     if (!rowTime || rowTime !== targetTime) return false;
+
+    const candidateStage = resolveCandidateStage(r);
+    // Require same medical stage when candidate stage is known
+    if (stage && candidateStage && candidateStage !== stage) return false;
+
     if (kind === 'visit') {
       if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
       return true;
@@ -208,7 +265,6 @@ async function upsertAppointmentByKind({
     const linkedSame = sameSlotRows.find((r) => r.id === linked?.id);
     targetId = linkedSame?.id || sameSlotRows[0].id;
 
-    // Only remove true duplicates at the same date+time
     const extras = sameSlotRows.filter((r) => r.id !== targetId).map((r) => r.id);
     if (extras.length) {
       await supabase.from(table).delete().in('id', extras);
@@ -273,6 +329,7 @@ export async function syncAppointmentFromMedicalReport({
     clinic_address: clinic.clinicAddress,
     clinic_phone: clinicPhone,
     clinic_email: clinicEmail,
+    medical_stage: stage,
   };
 
   let visitAppointmentId = null;
@@ -284,6 +341,7 @@ export async function syncAppointmentFromMedicalReport({
         reportId,
         userId,
         kind: 'visit',
+        stage,
         appointmentDateISO: visitDateISO,
         payload: {
           ...basePayload,
@@ -314,6 +372,7 @@ export async function syncAppointmentFromMedicalReport({
         reportId,
         userId,
         kind: 'next',
+        stage,
         appointmentDateISO: nextDateISO,
         payload: {
           ...basePayload,
