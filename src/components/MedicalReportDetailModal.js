@@ -26,6 +26,40 @@ function formatValue(v) {
   return String(v);
 }
 
+function parseReportData(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  return {};
+}
+
+const NOTE_KEYS = ['notes', 'note', 'additional_notes', 'questions_for_team', 'other_concerns'];
+
+function extractNoteEntries(reportData, labelMap) {
+  const seen = new Set();
+  const entries = [];
+  for (const key of NOTE_KEYS) {
+    const raw = reportData[key];
+    if (raw == null || raw === '') continue;
+    const text = String(raw).trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    entries.push({
+      key,
+      label: labelMap[key] || key.replace(/_/g, ' '),
+      value: text,
+    });
+  }
+  return entries;
+}
+
 /**
  * Read-only medical check-in detail modal (My Journey style).
  */
@@ -51,7 +85,10 @@ export default function MedicalReportDetailModal({
       lab_test_date: t('medicalReport.labTestDate'),
       ultrasound_test_date: t('medicalReport.ultrasoundTestDate'),
       notes: t('medicalReport.notes'),
+      note: t('medicalReport.notes'),
       additional_notes: t('medicalReport.additionalNotes'),
+      questions_for_team: t('medicalReport.notes'),
+      other_concerns: 'Other Concerns',
       beta_hcg: t('medicalReport.betaHcg'),
       gestational_sac_diameter: t('medicalReport.gestationalSacDiameter'),
       yolk_sac_diameter: t('medicalReport.yolkSacDiameter'),
@@ -86,8 +123,8 @@ export default function MedicalReportDetailModal({
 
   if (!visible || !report) return null;
 
-  const reportData =
-    report.report_data && typeof report.report_data === 'object' ? report.report_data : {};
+  const reportData = parseReportData(report.report_data);
+  const noteEntries = extractNoteEntries(reportData, reportDataLabelMap);
   const uploadedByAdmin = report.uploaded_by === 'admin';
 
   return (
@@ -117,7 +154,7 @@ export default function MedicalReportDetailModal({
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator
           >
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('medicalReport.visitDate')}</Text>
@@ -147,8 +184,31 @@ export default function MedicalReportDetailModal({
               </View>
             </View>
 
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>{t('medicalReport.notes')}</Text>
+              {noteEntries.length === 0 ? (
+                <Text style={styles.notesEmpty}>—</Text>
+              ) : (
+                noteEntries.map((entry) => (
+                  <View key={entry.key} style={styles.notesBox}>
+                    {noteEntries.length > 1 ? (
+                      <Text style={styles.notesSubLabel}>{entry.label}</Text>
+                    ) : null}
+                    <Text style={styles.notesValue}>{entry.value}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
             {Object.entries(reportData)
-              .filter(([k, v]) => v != null && v !== '' && k !== 'provider_contact' && k !== 'visit_time')
+              .filter(
+                ([k, v]) =>
+                  v != null &&
+                  v !== '' &&
+                  k !== 'provider_contact' &&
+                  k !== 'visit_time' &&
+                  !NOTE_KEYS.includes(k)
+              )
               .map(([key, value]) => {
                 const label = reportDataLabelMap[key] || key.replace(/_/g, ' ');
                 return (
@@ -232,6 +292,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '88%',
     minHeight: '50%',
+    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',
@@ -274,7 +335,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   scroll: {
-    flexGrow: 0,
+    flexGrow: 1,
   },
   content: {
     padding: 16,
@@ -293,6 +354,31 @@ const styles = StyleSheet.create({
   sectionValue: {
     fontSize: 15,
     color: '#0F172A',
+    lineHeight: 22,
+  },
+  notesBox: {
+    backgroundColor: '#FFF8E7',
+    borderWidth: 1,
+    borderColor: '#F5E6B8',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  notesSubLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  notesValue: {
+    fontSize: 15,
+    color: '#0F172A',
+    lineHeight: 22,
+  },
+  notesEmpty: {
+    fontSize: 15,
+    color: '#94A3B8',
     lineHeight: 22,
   },
   badgeRow: {

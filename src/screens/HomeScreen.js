@@ -2739,6 +2739,10 @@ export default function HomeScreen() {
       if (reportData.gestational_age) keyMetrics.push(`${t('medicalReport.ga')}: ${reportData.gestational_age}`);
     }
 
+    const noteText = String(
+      reportData.notes || reportData.note || reportData.additional_notes || ''
+    ).trim();
+
     return (
       <TouchableOpacity
         key={report.id}
@@ -2793,6 +2797,12 @@ export default function HomeScreen() {
             ))}
           </View>
         )}
+        {noteText ? (
+          <View style={styles.medicalReportNotesBox}>
+            <Text style={styles.medicalReportNotesLabel}>{t('medicalReport.notes')}</Text>
+            <Text style={styles.medicalReportNotesText}>{noteText}</Text>
+          </View>
+        ) : null}
 {report.proof_image_url && (
             <TouchableOpacity
               style={styles.medicalReportImageContainer}
@@ -2823,7 +2833,10 @@ export default function HomeScreen() {
     lab_test_date: t('medicalReport.labTestDate'),
     ultrasound_test_date: t('medicalReport.ultrasoundTestDate'),
     notes: t('medicalReport.notes'),
+    note: t('medicalReport.notes'),
     additional_notes: t('medicalReport.additionalNotes'),
+    questions_for_team: t('medicalReport.notes'),
+    other_concerns: 'Other Concerns',
     beta_hcg: t('medicalReport.betaHcg'),
     gestational_sac_diameter: t('medicalReport.gestationalSacDiameter'),
     yolk_sac_diameter: t('medicalReport.yolkSacDiameter'),
@@ -2849,7 +2862,31 @@ export default function HomeScreen() {
   const renderMedicalReportDetailModal = () => {
     if (!selectedMedicalReport) return null;
     const report = selectedMedicalReport;
-    const reportData = report.report_data || {};
+    let reportData = report.report_data || {};
+    if (typeof reportData === 'string') {
+      try {
+        const parsed = JSON.parse(reportData);
+        reportData = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch {
+        reportData = {};
+      }
+    }
+    const noteKeys = ['notes', 'note', 'additional_notes', 'questions_for_team', 'other_concerns'];
+    const seenNoteText = new Set();
+    const noteEntries = noteKeys
+      .map((key) => {
+        const raw = reportData[key];
+        if (raw == null || raw === '') return null;
+        const text = String(raw).trim();
+        if (!text || seenNoteText.has(text)) return null;
+        seenNoteText.add(text);
+        return {
+          key,
+          label: reportDataLabelMap[key] || key.replace(/_/g, ' '),
+          value: text,
+        };
+      })
+      .filter(Boolean);
     const visitDate = report.visit_date ? parseISODateOnlyToLocalMidnight(report.visit_date) : null;
     const formattedDate = visitDate
       ? `${String(visitDate.getMonth() + 1).padStart(2, '0')}/${String(visitDate.getDate()).padStart(2, '0')}/${visitDate.getFullYear()}`
@@ -2956,8 +2993,23 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               </View>
+              <View style={styles.medicalReportDetailSection}>
+                <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.notes')}</Text>
+                {noteEntries.length === 0 ? (
+                  <Text style={styles.medicalReportDetailNotesEmpty}>—</Text>
+                ) : (
+                  noteEntries.map((entry) => (
+                    <View key={entry.key} style={styles.medicalReportDetailNotesBox}>
+                      {noteEntries.length > 1 ? (
+                        <Text style={styles.medicalReportDetailNotesSubLabel}>{entry.label}</Text>
+                      ) : null}
+                      <Text style={styles.medicalReportDetailNotesValue}>{entry.value}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
               {Object.entries(reportData)
-                .filter(([k]) => k !== 'provider_contact' && k !== 'visit_time')
+                .filter(([k]) => k !== 'provider_contact' && k !== 'visit_time' && !noteKeys.includes(k))
                 .map(([key, value]) => {
                   if (value == null || value === '') return null;
                   const label = reportDataLabelMap[key] || key.replace(/_/g, ' ');
@@ -5532,6 +5584,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
+  medicalReportNotesBox: {
+    marginTop: 10,
+    backgroundColor: '#FFF8E7',
+    borderWidth: 1,
+    borderColor: '#F5E6B8',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  medicalReportNotesLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  medicalReportNotesText: {
+    fontSize: 14,
+    color: '#1A1D1E',
+    lineHeight: 20,
+  },
   medicalReportImageContainer: {
     marginTop: 12,
     borderRadius: 12,
@@ -5608,11 +5681,10 @@ const styles = StyleSheet.create({
   },
   medicalReportDetailScroll: {
     flexGrow: 1,
-    maxHeight: 500,
   },
   medicalReportDetailContent: {
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
   medicalReportDetailSection: {
     marginBottom: 16,
@@ -5629,6 +5701,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#1A1D1E',
+  },
+  medicalReportDetailNotesBox: {
+    backgroundColor: '#FFF8E7',
+    borderWidth: 1,
+    borderColor: '#F5E6B8',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  medicalReportDetailNotesSubLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  medicalReportDetailNotesValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1A1D1E',
+    lineHeight: 22,
+  },
+  medicalReportDetailNotesEmpty: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#94A3B8',
   },
   medicalReportDetailImageWrap: {
     borderRadius: 12,

@@ -1093,9 +1093,9 @@ export default function StepStatusPage() {
                                 </div>
                               )}
                               {noteText ? (
-                                <div className="text-xs text-amber-900 mt-1 bg-amber-50 border border-amber-100 rounded px-1.5 py-1 whitespace-pre-wrap">
+                                <div className="text-xs text-amber-900 mt-1 bg-amber-50 border border-amber-100 rounded px-1.5 py-1 whitespace-pre-wrap break-words">
                                   <span className="font-semibold">Notes: </span>
-                                  {noteText.length > 120 ? `${noteText.slice(0, 120)}…` : noteText}
+                                  {noteText}
                                 </div>
                               ) : null}
                               <div className="flex items-center gap-2 mt-1">

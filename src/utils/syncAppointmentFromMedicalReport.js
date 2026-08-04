@@ -202,7 +202,9 @@ export async function syncAppointmentFromMedicalReport({
         ...basePayload,
         appointment_date: visitDateISO,
         appointment_time: normalizeAppointmentTime(visitTime || reportData?.visit_time),
-        notes: `Medical check-in visit (${stage})`,
+        notes: String(reportData?.notes || '').trim()
+          ? String(reportData.notes).trim()
+          : `Medical check-in visit (${stage})`,
         status: 'completed',
       },
     });
@@ -226,7 +228,9 @@ export async function syncAppointmentFromMedicalReport({
         ...basePayload,
         appointment_date: nextDateISO,
         appointment_time: appointmentTime,
-        notes: `From medical check-in next check (${stage})`,
+        notes: String(reportData?.notes || '').trim()
+          ? String(reportData.notes).trim()
+          : `From medical check-in next check (${stage})`,
         status: 'scheduled',
       },
     });
