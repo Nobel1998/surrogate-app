@@ -131,7 +131,12 @@ async function upsertAppointmentByKind(
     .order('updated_at', { ascending: false });
 
   const sameDateRows = (sameDateRaw || []).filter((r: any) => {
-    if (kind === 'visit') return true;
+    if (kind === 'visit') {
+      // Same day can still have a separate next-check at another time.
+      if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
+      return true;
+    }
+    if (r.source_kind === 'visit') return false;
     if (r.status === 'scheduled') return true;
     if (r.source_medical_report_id === reportId && r.source_kind === 'next') return true;
     return false;
@@ -263,28 +268,23 @@ export async function syncAppointmentFromMedicalReport(
   let nextAppointmentId: string | null = null;
   let appointmentTime: string | null = null;
   if (nextDateISO) {
-    if (visitDateISO && nextDateISO === visitDateISO) {
-      nextAppointmentId = visitAppointmentId;
-      appointmentTime = normalizeAppointmentTime(opts.visitTime || reportData.visit_time);
-    } else {
-      appointmentTime = normalizeAppointmentTime(reportData.next_appointment_time);
-      nextAppointmentId = await upsertAppointmentByKind(supabase, {
-        table: targetTable,
-        reportId,
-        userId,
-        kind: 'next',
-        appointmentDateISO: nextDateISO,
-        payload: {
-          ...basePayload,
-          appointment_date: nextDateISO,
-          appointment_time: appointmentTime,
-          notes: String(reportData?.notes || '').trim()
-            ? String(reportData.notes).trim()
-            : `From medical check-in next check (${stage})`,
-          status: 'scheduled',
-        },
-      });
-    }
+    appointmentTime = normalizeAppointmentTime(reportData.next_appointment_time);
+    nextAppointmentId = await upsertAppointmentByKind(supabase, {
+      table: targetTable,
+      reportId,
+      userId,
+      kind: 'next',
+      appointmentDateISO: nextDateISO,
+      payload: {
+        ...basePayload,
+        appointment_date: nextDateISO,
+        appointment_time: appointmentTime,
+        notes: String(reportData?.notes || '').trim()
+          ? String(reportData.notes).trim()
+          : `From medical check-in next check (${stage})`,
+        status: 'scheduled',
+      },
+    });
   } else {
     await supabase
       .from(targetTable)

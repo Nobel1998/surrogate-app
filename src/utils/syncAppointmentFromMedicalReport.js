@@ -178,8 +178,14 @@ async function upsertAppointmentByKind({
     .order('updated_at', { ascending: false });
 
   const sameDateRows = (sameDateRaw || []).filter((r) => {
-    if (kind === 'visit') return true;
-    // next: only merge into scheduled rows, or this report's existing next row
+    if (kind === 'visit') {
+      // Same calendar day can still have a separate next-check at another time.
+      // Never merge into / delete this report's next row.
+      if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
+      return true;
+    }
+    // next: never absorb a completed visit row; only scheduled / this report's next
+    if (r.source_kind === 'visit') return false;
     if (r.status === 'scheduled') return true;
     if (r.source_medical_report_id === reportId && r.source_kind === 'next') return true;
     return false;
@@ -288,29 +294,23 @@ export async function syncAppointmentFromMedicalReport({
   let nextAppointmentId = null;
   let appointmentTime = null;
   if (nextDateISO) {
-    // Same calendar day as this visit → already represented by the visit row; skip duplicate next
-    if (visitDateISO && nextDateISO === visitDateISO) {
-      nextAppointmentId = visitAppointmentId;
-      appointmentTime = normalizeAppointmentTime(visitTime || reportData?.visit_time);
-    } else {
-      appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
-      nextAppointmentId = await upsertAppointmentByKind({
-        table: targetTable,
-        reportId,
-        userId,
-        kind: 'next',
-        appointmentDateISO: nextDateISO,
-        payload: {
-          ...basePayload,
-          appointment_date: nextDateISO,
-          appointment_time: appointmentTime,
-          notes: String(reportData?.notes || '').trim()
-            ? String(reportData.notes).trim()
-            : `From medical check-in next check (${stage})`,
-          status: 'scheduled',
-        },
-      });
-    }
+    appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
+    nextAppointmentId = await upsertAppointmentByKind({
+      table: targetTable,
+      reportId,
+      userId,
+      kind: 'next',
+      appointmentDateISO: nextDateISO,
+      payload: {
+        ...basePayload,
+        appointment_date: nextDateISO,
+        appointment_time: appointmentTime,
+        notes: String(reportData?.notes || '').trim()
+          ? String(reportData.notes).trim()
+          : `From medical check-in next check (${stage})`,
+        status: 'scheduled',
+      },
+    });
   } else {
     await supabase
       .from(targetTable)
