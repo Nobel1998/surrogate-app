@@ -126,6 +126,7 @@ export default function MedicalReportDetailModal({
   const reportData = parseReportData(report.report_data);
   const noteEntries = extractNoteEntries(reportData, reportDataLabelMap);
   const uploadedByAdmin = report.uploaded_by === 'admin';
+  const isEmptyPlaceholder = !!report._emptyPlaceholder;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -156,6 +157,14 @@ export default function MedicalReportDetailModal({
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator
           >
+            {isEmptyPlaceholder ? (
+              <View style={styles.emptyHintBox}>
+                <Text style={styles.emptyHintText}>
+                  No medical check-in for this appointment yet.
+                </Text>
+              </View>
+            ) : null}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('medicalReport.visitDate')}</Text>
               <Text style={styles.sectionValue}>{formatVisitDate(report.visit_date)}</Text>
@@ -174,15 +183,17 @@ export default function MedicalReportDetailModal({
               </View>
             ) : null}
 
-            <View style={styles.badgeRow}>
-              <View style={uploadedByAdmin ? styles.adminBadge : styles.surrogateBadge}>
-                <Text style={uploadedByAdmin ? styles.adminBadgeText : styles.surrogateBadgeText}>
-                  {uploadedByAdmin
-                    ? t('medicalReport.adminUploaded')
-                    : t('medicalReport.surrogateUploaded')}
-                </Text>
+            {!isEmptyPlaceholder ? (
+              <View style={styles.badgeRow}>
+                <View style={uploadedByAdmin ? styles.adminBadge : styles.surrogateBadge}>
+                  <Text style={uploadedByAdmin ? styles.adminBadgeText : styles.surrogateBadgeText}>
+                    {uploadedByAdmin
+                      ? t('medicalReport.adminUploaded')
+                      : t('medicalReport.surrogateUploaded')}
+                  </Text>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('medicalReport.notes')}</Text>
@@ -219,7 +230,12 @@ export default function MedicalReportDetailModal({
                 );
               })}
 
-            {reportData.provider_contact ? (
+            {isEmptyPlaceholder ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
+                <Text style={styles.notesEmpty}>—</Text>
+              </View>
+            ) : reportData.provider_contact ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
                 <View style={styles.contactRow}>
@@ -259,35 +275,44 @@ export default function MedicalReportDetailModal({
 }
 
 /**
- * Resolve medical check-in linked to an appointment.
- * Prefer visit_date match (check-in for that visit), else source_medical_report_id.
+ * Check-in detail for a completed appointment.
+ * Only return a report when this appointment was claimed as a visit by check-in sync
+ * (source_kind=visit). Auto-completed "next" rows still point at the PREVIOUS
+ * check-in via source_medical_report_id — do not show that.
  */
 export async function fetchMedicalReportForAppointment(supabase, appointment, userId) {
   if (!appointment || !userId) return null;
 
-  if (appointment.source_medical_report_id) {
-    const { data: bySource } = await supabase
-      .from('medical_reports')
-      .select('*')
-      .eq('id', appointment.source_medical_report_id)
-      .maybeSingle();
-    if (bySource) return bySource;
+  if (String(appointment.source_kind || '') !== 'visit') {
+    return null;
   }
 
-  const visitDate = String(appointment.appointment_date || '').slice(0, 10);
-  if (visitDate) {
-    const { data: byDate } = await supabase
-      .from('medical_reports')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('visit_date', visitDate)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (byDate) return byDate;
+  if (!appointment.source_medical_report_id) {
+    return null;
   }
 
-  return null;
+  const { data: bySource } = await supabase
+    .from('medical_reports')
+    .select('*')
+    .eq('id', appointment.source_medical_report_id)
+    .maybeSingle();
+
+  return bySource || null;
+}
+
+/** Empty check-in shell shown until the surrogate submits one for this visit. */
+export function buildEmptyCheckInForAppointment(appointment) {
+  const visitDate = String(appointment?.appointment_date || '').slice(0, 10) || null;
+  return {
+    id: null,
+    visit_date: visitDate,
+    provider_name: appointment?.provider_name || null,
+    stage: null,
+    report_data: {},
+    proof_image_url: null,
+    uploaded_by: null,
+    _emptyPlaceholder: true,
+  };
 }
 
 const styles = StyleSheet.create({
@@ -394,6 +419,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#94A3B8',
     lineHeight: 22,
+  },
+  emptyHintBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  emptyHintText: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 20,
   },
   badgeRow: {
     marginBottom: 14,

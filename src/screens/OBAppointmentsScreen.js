@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
 import MedicalReportDetailModal, {
   fetchMedicalReportForAppointment,
+  buildEmptyCheckInForAppointment,
 } from '../components/MedicalReportDetailModal';
 import {
   autoCompletePastAppointments,
@@ -211,14 +212,8 @@ export default function OBAppointmentsScreen({ navigation }) {
     setLoadingCheckIn(true);
     try {
       const report = await fetchMedicalReportForAppointment(supabase, appointment, ownerId);
-      if (!report) {
-        Alert.alert(
-          'Check-in',
-          'No medical check-in found for this appointment yet. Submit one in My Journey for this visit date.'
-        );
-        return;
-      }
-      setSelectedMedicalReport(report);
+      // Auto-completed next appointments stay empty until a new check-in claims them as visit
+      setSelectedMedicalReport(report || buildEmptyCheckInForAppointment(appointment));
     } catch (e) {
       console.error('Error loading linked check-in:', e);
       Alert.alert('Error', 'Failed to load medical check-in');
@@ -330,7 +325,7 @@ export default function OBAppointmentsScreen({ navigation }) {
                   return (
                     <View style={styles.infoRow}>
                       <Icon name="phone" size={16} color="#666" />
-                      <Icon name="mail" size={16} color="#666" style={{ marginLeft: -4 }} />
+                      <Icon name="mail" size={16} color="#666" style={{ marginLeft: 8 }} />
                       <Text style={styles.infoText}>{text}</Text>
                     </View>
                   );
@@ -366,7 +361,7 @@ export default function OBAppointmentsScreen({ navigation }) {
         report={selectedMedicalReport}
         onClose={() => setSelectedMedicalReport(null)}
         onEdit={
-          isSurrogate && selectedMedicalReport
+          isSurrogate && selectedMedicalReport?.id
             ? () => {
                 const reportToEdit = selectedMedicalReport;
                 setSelectedMedicalReport(null);
