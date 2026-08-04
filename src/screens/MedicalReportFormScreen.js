@@ -259,6 +259,14 @@ export default function MedicalReportFormScreen({ route }) {
         );
         return;
       }
+      if (!parseAppointmentTime(formData.next_appointment_time)) {
+        Alert.alert(
+          t('common.error') || 'Validation Error',
+          t('medicalReport.nextCheckTimeRequired') ||
+            'Please select next appointment time.'
+        );
+        return;
+      }
     }
 
     setSaving(true);
