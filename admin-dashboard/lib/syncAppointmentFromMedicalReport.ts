@@ -116,17 +116,17 @@ async function upsertAppointmentByKind(
   }
 ) {
   const { table, reportId, userId, kind, appointmentDateISO, payload } = opts;
-  const row = {
-    ...payload,
-    source_medical_report_id: reportId,
-    source_kind: kind,
-    updated_at: new Date().toISOString(),
-  };
   const targetTime = parseAppointmentTime(payload.appointment_time);
   if (!targetTime) {
     throw new Error('appointment_time is required to sync appointment');
   }
-  row.appointment_time = targetTime;
+  const row: Record<string, any> = {
+    ...payload,
+    source_medical_report_id: reportId,
+    source_kind: kind,
+    appointment_time: targetTime,
+    updated_at: new Date().toISOString(),
+  };
 
   const { data: linked } = await supabase
     .from(table)
