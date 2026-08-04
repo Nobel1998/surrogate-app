@@ -143,9 +143,8 @@ async function writeAppointmentRow(table, existingId, row) {
 }
 
 /**
- * Upsert appointment for a report kind, merging into an existing same-date
- * appointment when present so check-in does not create a duplicate for a day
- * that was already scheduled / auto-completed.
+ * Upsert appointment for a report kind, merging only when date AND time match.
+ * Same calendar day at a different time must stay as a separate appointment.
  */
 async function upsertAppointmentByKind({
   table,
@@ -161,6 +160,7 @@ async function upsertAppointmentByKind({
     source_kind: kind,
     updated_at: new Date().toISOString(),
   };
+  const targetTime = normalizeAppointmentTime(payload.appointment_time);
 
   const { data: linked } = await supabase
     .from(table)
@@ -171,20 +171,19 @@ async function upsertAppointmentByKind({
 
   const { data: sameDateRaw } = await supabase
     .from(table)
-    .select('id, source_medical_report_id, source_kind, status')
+    .select('id, source_medical_report_id, source_kind, status, appointment_time')
     .eq('user_id', userId)
     .eq('appointment_date', appointmentDateISO)
     .neq('status', 'cancelled')
     .order('updated_at', { ascending: false });
 
-  const sameDateRows = (sameDateRaw || []).filter((r) => {
+  const sameSlotRows = (sameDateRaw || []).filter((r) => {
+    if (normalizeAppointmentTime(r.appointment_time) !== targetTime) return false;
     if (kind === 'visit') {
-      // Same calendar day can still have a separate next-check at another time.
-      // Never merge into / delete this report's next row.
+      // Never merge into this report's next row (even if time somehow matches)
       if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
       return true;
     }
-    // next: never absorb a completed visit row; only scheduled / this report's next
     if (r.source_kind === 'visit') return false;
     if (r.status === 'scheduled') return true;
     if (r.source_medical_report_id === reportId && r.source_kind === 'next') return true;
@@ -192,13 +191,12 @@ async function upsertAppointmentByKind({
   });
 
   let targetId = null;
-  if (sameDateRows.length) {
-    // Prefer a row already linked to this report, else the newest same-date row
-    const linkedSame = sameDateRows.find((r) => r.id === linked?.id);
-    targetId = linkedSame?.id || sameDateRows[0].id;
+  if (sameSlotRows.length) {
+    const linkedSame = sameSlotRows.find((r) => r.id === linked?.id);
+    targetId = linkedSame?.id || sameSlotRows[0].id;
 
-    // Remove other same-date duplicates (among merge candidates)
-    const extras = sameDateRows.filter((r) => r.id !== targetId).map((r) => r.id);
+    // Only remove true duplicates at the same date+time
+    const extras = sameSlotRows.filter((r) => r.id !== targetId).map((r) => r.id);
     if (extras.length) {
       await supabase.from(table).delete().in('id', extras);
     }
@@ -206,7 +204,6 @@ async function upsertAppointmentByKind({
     targetId = linked.id;
   }
 
-  // If a different linked row exists for this report+kind, drop it after merge
   if (linked?.id && targetId && linked.id !== targetId) {
     await supabase.from(table).delete().eq('id', linked.id);
   }

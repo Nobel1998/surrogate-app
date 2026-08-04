@@ -114,6 +114,7 @@ async function upsertAppointmentByKind(
     source_kind: kind,
     updated_at: new Date().toISOString(),
   };
+  const targetTime = normalizeAppointmentTime(payload.appointment_time);
 
   const { data: linked } = await supabase
     .from(table)
@@ -124,15 +125,15 @@ async function upsertAppointmentByKind(
 
   const { data: sameDateRaw } = await supabase
     .from(table)
-    .select('id, source_medical_report_id, source_kind, status')
+    .select('id, source_medical_report_id, source_kind, status, appointment_time')
     .eq('user_id', userId)
     .eq('appointment_date', appointmentDateISO)
     .neq('status', 'cancelled')
     .order('updated_at', { ascending: false });
 
-  const sameDateRows = (sameDateRaw || []).filter((r: any) => {
+  const sameSlotRows = (sameDateRaw || []).filter((r: any) => {
+    if (normalizeAppointmentTime(r.appointment_time) !== targetTime) return false;
     if (kind === 'visit') {
-      // Same day can still have a separate next-check at another time.
       if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
       return true;
     }
@@ -143,10 +144,10 @@ async function upsertAppointmentByKind(
   });
 
   let targetId: string | null = null;
-  if (sameDateRows.length) {
-    const linkedSame = sameDateRows.find((r: any) => r.id === linked?.id);
-    targetId = linkedSame?.id || sameDateRows[0].id;
-    const extras = sameDateRows.filter((r: any) => r.id !== targetId).map((r: any) => r.id);
+  if (sameSlotRows.length) {
+    const linkedSame = sameSlotRows.find((r: any) => r.id === linked?.id);
+    targetId = linkedSame?.id || sameSlotRows[0].id;
+    const extras = sameSlotRows.filter((r: any) => r.id !== targetId).map((r: any) => r.id);
     if (extras.length) {
       await supabase.from(table).delete().in('id', extras);
     }
