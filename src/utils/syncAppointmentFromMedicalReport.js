@@ -129,24 +129,37 @@ async function upsertAppointmentByKind({
     updated_at: new Date().toISOString(),
   };
 
-  if (existing?.id) {
-    const { data: updated, error } = await supabase
+  const write = async (data) => {
+    if (existing?.id) {
+      const { data: updated, error } = await supabase
+        .from(table)
+        .update(data)
+        .eq('id', existing.id)
+        .select('id')
+        .single();
+      if (error) throw error;
+      return updated.id;
+    }
+    const { data: inserted, error } = await supabase
       .from(table)
-      .update(row)
-      .eq('id', existing.id)
+      .insert(data)
       .select('id')
       .single();
     if (error) throw error;
-    return updated.id;
-  }
+    return inserted.id;
+  };
 
-  const { data: inserted, error } = await supabase
-    .from(table)
-    .insert(row)
-    .select('id')
-    .single();
-  if (error) throw error;
-  return inserted.id;
+  try {
+    return await write(row);
+  } catch (err) {
+    // Schema not migrated yet: retry without clinic_email
+    const msg = String(err?.message || '');
+    if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
+      const { clinic_email: _omit, ...rest } = row;
+      return await write(rest);
+    }
+    throw err;
+  }
 }
 
 /**

@@ -91,15 +91,27 @@ async function upsertAppointmentByKind(
     updated_at: new Date().toISOString(),
   };
 
-  if (existing?.id) {
-    const { error } = await supabase.from(table).update(row).eq('id', existing.id);
+  const write = async (data: Record<string, any>) => {
+    if (existing?.id) {
+      const { error } = await supabase.from(table).update(data).eq('id', existing.id);
+      if (error) throw error;
+      return existing.id as string;
+    }
+    const { data: inserted, error } = await supabase.from(table).insert(data).select('id').single();
     if (error) throw error;
-    return existing.id as string;
-  }
+    return inserted.id as string;
+  };
 
-  const { data: inserted, error } = await supabase.from(table).insert(row).select('id').single();
-  if (error) throw error;
-  return inserted.id as string;
+  try {
+    return await write(row);
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
+      const { clinic_email: _omit, ...rest } = row;
+      return await write(rest);
+    }
+    throw err;
+  }
 }
 
 export async function syncAppointmentFromMedicalReport(
