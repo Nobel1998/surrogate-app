@@ -24,7 +24,7 @@ import { uploadMedia } from '../utils/mediaUpload';
 import DatePickerField from '../components/DatePickerField';
 import TimePickerField from '../components/TimePickerField';
 import { useNotifications } from '../context/NotificationContext';
-import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT } from '../utils/syncAppointmentFromMedicalReport';
+import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT, parseAppointmentTime } from '../utils/syncAppointmentFromMedicalReport';
 
 function defaultVisitTimeNow() {
   const now = new Date();
@@ -122,13 +122,11 @@ export default function MedicalReportFormScreen({ route }) {
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('medicalReport.nextCheckTime')}</Text>
-        <TextInput
+        <TimePickerField
           style={styles.input}
           value={formData.next_appointment_time || ''}
-          onChangeText={(value) => handleFieldChange('next_appointment_time', value)}
+          onChange={(value) => handleFieldChange('next_appointment_time', value)}
           placeholder={t('medicalReport.nextCheckTimePlaceholder')}
-          placeholderTextColor="#94A3B8"
-          autoCapitalize="none"
         />
       </View>
     </>

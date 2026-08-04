@@ -36,10 +36,11 @@ export function isDateOnlyBeforeToday(isoDate) {
 }
 
 /**
- * Normalize time to HH:MM:SS. Default 09:00:00 when empty.
+ * Parse time to HH:MM:SS. Returns null when empty or unparseable.
+ * (Do NOT invent 09:00 — that created phantom morning appointments.)
  */
-export function normalizeAppointmentTime(value) {
-  if (value == null || !String(value).trim()) return '09:00:00';
+export function parseAppointmentTime(value) {
+  if (value == null || !String(value).trim()) return null;
   const s = String(value).trim();
   const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (m24) {
@@ -55,7 +56,15 @@ export function normalizeAppointmentTime(value) {
     const min = parseInt(m12[2], 10);
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
   }
-  return '09:00:00';
+  return null;
+}
+
+/**
+ * Normalize time to HH:MM:SS for display / past-due checks.
+ * Falls back only when a stored appointment row has no usable time.
+ */
+export function normalizeAppointmentTime(value) {
+  return parseAppointmentTime(value) || '09:00:00';
 }
 
 export function appointmentTableForMedicalStage(stage) {
@@ -160,7 +169,11 @@ async function upsertAppointmentByKind({
     source_kind: kind,
     updated_at: new Date().toISOString(),
   };
-  const targetTime = normalizeAppointmentTime(payload.appointment_time);
+  const targetTime = parseAppointmentTime(payload.appointment_time);
+  if (!targetTime) {
+    throw new Error('appointment_time is required to sync appointment');
+  }
+  row.appointment_time = targetTime;
 
   const { data: linked } = await supabase
     .from(table)
@@ -178,9 +191,9 @@ async function upsertAppointmentByKind({
     .order('updated_at', { ascending: false });
 
   const sameSlotRows = (sameDateRaw || []).filter((r) => {
-    if (normalizeAppointmentTime(r.appointment_time) !== targetTime) return false;
+    const rowTime = parseAppointmentTime(r.appointment_time);
+    if (!rowTime || rowTime !== targetTime) return false;
     if (kind === 'visit') {
-      // Never merge into this report's next row (even if time somehow matches)
       if (r.source_medical_report_id === reportId && r.source_kind === 'next') return false;
       return true;
     }
@@ -264,22 +277,25 @@ export async function syncAppointmentFromMedicalReport({
 
   let visitAppointmentId = null;
   if (visitDateISO) {
-    visitAppointmentId = await upsertAppointmentByKind({
-      table: targetTable,
-      reportId,
-      userId,
-      kind: 'visit',
-      appointmentDateISO: visitDateISO,
-      payload: {
-        ...basePayload,
-        appointment_date: visitDateISO,
-        appointment_time: normalizeAppointmentTime(visitTime || reportData?.visit_time),
-        notes: String(reportData?.notes || '').trim()
-          ? String(reportData.notes).trim()
-          : `Medical check-in visit (${stage})`,
-        status: 'completed',
-      },
-    });
+    const visitTimeNorm = parseAppointmentTime(visitTime || reportData?.visit_time);
+    if (visitTimeNorm) {
+      visitAppointmentId = await upsertAppointmentByKind({
+        table: targetTable,
+        reportId,
+        userId,
+        kind: 'visit',
+        appointmentDateISO: visitDateISO,
+        payload: {
+          ...basePayload,
+          appointment_date: visitDateISO,
+          appointment_time: visitTimeNorm,
+          notes: String(reportData?.notes || '').trim()
+            ? String(reportData.notes).trim()
+            : `Medical check-in visit (${stage})`,
+          status: 'completed',
+        },
+      });
+    }
   } else {
     await supabase
       .from(targetTable)
@@ -291,23 +307,32 @@ export async function syncAppointmentFromMedicalReport({
   let nextAppointmentId = null;
   let appointmentTime = null;
   if (nextDateISO) {
-    appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
-    nextAppointmentId = await upsertAppointmentByKind({
-      table: targetTable,
-      reportId,
-      userId,
-      kind: 'next',
-      appointmentDateISO: nextDateISO,
-      payload: {
-        ...basePayload,
-        appointment_date: nextDateISO,
-        appointment_time: appointmentTime,
-        notes: String(reportData?.notes || '').trim()
-          ? String(reportData.notes).trim()
-          : `From medical check-in next check (${stage})`,
-        status: 'scheduled',
-      },
-    });
+    appointmentTime = parseAppointmentTime(reportData?.next_appointment_time);
+    if (appointmentTime) {
+      nextAppointmentId = await upsertAppointmentByKind({
+        table: targetTable,
+        reportId,
+        userId,
+        kind: 'next',
+        appointmentDateISO: nextDateISO,
+        payload: {
+          ...basePayload,
+          appointment_date: nextDateISO,
+          appointment_time: appointmentTime,
+          notes: String(reportData?.notes || '').trim()
+            ? String(reportData.notes).trim()
+            : `From medical check-in next check (${stage})`,
+          status: 'scheduled',
+        },
+      });
+    } else {
+      // Date without a real time must not invent 09:00
+      await supabase
+        .from(targetTable)
+        .delete()
+        .eq('source_medical_report_id', reportId)
+        .eq('source_kind', 'next');
+    }
   } else {
     await supabase
       .from(targetTable)
