@@ -224,8 +224,10 @@ export default function MedicalReportDetailModal({
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
                 <View style={styles.contactRow}>
                   <Icon name="phone" size={16} color="#64748B" />
-                  <Icon name="mail" size={16} color="#64748B" />
-                  <Text style={styles.sectionValue}>{formatValue(reportData.provider_contact)}</Text>
+                  <Icon name="mail" size={16} color="#64748B" style={{ marginLeft: 4 }} />
+                  <Text style={[styles.sectionValue, { marginLeft: 4 }]}>
+                    {formatValue(reportData.provider_contact)}
+                  </Text>
                 </View>
               </View>
             ) : (
@@ -233,8 +235,8 @@ export default function MedicalReportDetailModal({
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
                 <View style={styles.contactRow}>
                   <Icon name="phone" size={16} color="#64748B" />
-                  <Icon name="mail" size={16} color="#64748B" />
-                  <Text style={styles.sectionValue}>888888</Text>
+                  <Icon name="mail" size={16} color="#64748B" style={{ marginLeft: 4 }} />
+                  <Text style={[styles.sectionValue, { marginLeft: 4 }]}>888888</Text>
                 </View>
               </View>
             )}
@@ -263,6 +265,15 @@ export default function MedicalReportDetailModal({
 export async function fetchMedicalReportForAppointment(supabase, appointment, userId) {
   if (!appointment || !userId) return null;
 
+  if (appointment.source_medical_report_id) {
+    const { data: bySource } = await supabase
+      .from('medical_reports')
+      .select('*')
+      .eq('id', appointment.source_medical_report_id)
+      .maybeSingle();
+    if (bySource) return bySource;
+  }
+
   const visitDate = String(appointment.appointment_date || '').slice(0, 10);
   if (visitDate) {
     const { data: byDate } = await supabase
@@ -274,15 +285,6 @@ export async function fetchMedicalReportForAppointment(supabase, appointment, us
       .limit(1)
       .maybeSingle();
     if (byDate) return byDate;
-  }
-
-  if (appointment.source_medical_report_id) {
-    const { data: bySource } = await supabase
-      .from('medical_reports')
-      .select('*')
-      .eq('id', appointment.source_medical_report_id)
-      .maybeSingle();
-    if (bySource) return bySource;
   }
 
   return null;
@@ -367,7 +369,6 @@ const styles = StyleSheet.create({
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   notesBox: {
     backgroundColor: '#FFF8E7',

@@ -109,32 +109,13 @@ async function loadClinicContext(userId, stage, providerName) {
   return { clinicName, clinicAddress, clinicPhone, clinicEmail, providerName: resolvedProvider };
 }
 
-async function upsertAppointmentByKind({
-  table,
-  reportId,
-  kind,
-  payload,
-}) {
-  const { data: existing } = await supabase
-    .from(table)
-    .select('id')
-    .eq('source_medical_report_id', reportId)
-    .eq('source_kind', kind)
-    .maybeSingle();
-
-  const row = {
-    ...payload,
-    source_medical_report_id: reportId,
-    source_kind: kind,
-    updated_at: new Date().toISOString(),
-  };
-
-  const write = async (data) => {
-    if (existing?.id) {
+async function writeAppointmentRow(table, existingId, row) {
+  const attempt = async (data) => {
+    if (existingId) {
       const { data: updated, error } = await supabase
         .from(table)
         .update(data)
-        .eq('id', existing.id)
+        .eq('id', existingId)
         .select('id')
         .single();
       if (error) throw error;
@@ -150,16 +131,81 @@ async function upsertAppointmentByKind({
   };
 
   try {
-    return await write(row);
+    return await attempt(row);
   } catch (err) {
-    // Schema not migrated yet: retry without clinic_email
     const msg = String(err?.message || '');
     if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
       const { clinic_email: _omit, ...rest } = row;
-      return await write(rest);
+      return await attempt(rest);
     }
     throw err;
   }
+}
+
+/**
+ * Upsert appointment for a report kind, merging into an existing same-date
+ * appointment when present so check-in does not create a duplicate for a day
+ * that was already scheduled / auto-completed.
+ */
+async function upsertAppointmentByKind({
+  table,
+  reportId,
+  userId,
+  kind,
+  appointmentDateISO,
+  payload,
+}) {
+  const row = {
+    ...payload,
+    source_medical_report_id: reportId,
+    source_kind: kind,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: linked } = await supabase
+    .from(table)
+    .select('id')
+    .eq('source_medical_report_id', reportId)
+    .eq('source_kind', kind)
+    .maybeSingle();
+
+  const { data: sameDateRaw } = await supabase
+    .from(table)
+    .select('id, source_medical_report_id, source_kind, status')
+    .eq('user_id', userId)
+    .eq('appointment_date', appointmentDateISO)
+    .neq('status', 'cancelled')
+    .order('updated_at', { ascending: false });
+
+  const sameDateRows = (sameDateRaw || []).filter((r) => {
+    if (kind === 'visit') return true;
+    // next: only merge into scheduled rows, or this report's existing next row
+    if (r.status === 'scheduled') return true;
+    if (r.source_medical_report_id === reportId && r.source_kind === 'next') return true;
+    return false;
+  });
+
+  let targetId = null;
+  if (sameDateRows.length) {
+    // Prefer a row already linked to this report, else the newest same-date row
+    const linkedSame = sameDateRows.find((r) => r.id === linked?.id);
+    targetId = linkedSame?.id || sameDateRows[0].id;
+
+    // Remove other same-date duplicates (among merge candidates)
+    const extras = sameDateRows.filter((r) => r.id !== targetId).map((r) => r.id);
+    if (extras.length) {
+      await supabase.from(table).delete().in('id', extras);
+    }
+  } else if (linked?.id) {
+    targetId = linked.id;
+  }
+
+  // If a different linked row exists for this report+kind, drop it after merge
+  if (linked?.id && targetId && linked.id !== targetId) {
+    await supabase.from(table).delete().eq('id', linked.id);
+  }
+
+  return writeAppointmentRow(table, targetId, row);
 }
 
 /**
@@ -218,7 +264,9 @@ export async function syncAppointmentFromMedicalReport({
     visitAppointmentId = await upsertAppointmentByKind({
       table: targetTable,
       reportId,
+      userId,
       kind: 'visit',
+      appointmentDateISO: visitDateISO,
       payload: {
         ...basePayload,
         appointment_date: visitDateISO,
@@ -240,21 +288,29 @@ export async function syncAppointmentFromMedicalReport({
   let nextAppointmentId = null;
   let appointmentTime = null;
   if (nextDateISO) {
-    appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
-    nextAppointmentId = await upsertAppointmentByKind({
-      table: targetTable,
-      reportId,
-      kind: 'next',
-      payload: {
-        ...basePayload,
-        appointment_date: nextDateISO,
-        appointment_time: appointmentTime,
-        notes: String(reportData?.notes || '').trim()
-          ? String(reportData.notes).trim()
-          : `From medical check-in next check (${stage})`,
-        status: 'scheduled',
-      },
-    });
+    // Same calendar day as this visit → already represented by the visit row; skip duplicate next
+    if (visitDateISO && nextDateISO === visitDateISO) {
+      nextAppointmentId = visitAppointmentId;
+      appointmentTime = normalizeAppointmentTime(visitTime || reportData?.visit_time);
+    } else {
+      appointmentTime = normalizeAppointmentTime(reportData?.next_appointment_time);
+      nextAppointmentId = await upsertAppointmentByKind({
+        table: targetTable,
+        reportId,
+        userId,
+        kind: 'next',
+        appointmentDateISO: nextDateISO,
+        payload: {
+          ...basePayload,
+          appointment_date: nextDateISO,
+          appointment_time: appointmentTime,
+          notes: String(reportData?.notes || '').trim()
+            ? String(reportData.notes).trim()
+            : `From medical check-in next check (${stage})`,
+          status: 'scheduled',
+        },
+      });
+    }
   } else {
     await supabase
       .from(targetTable)

@@ -67,35 +67,17 @@ export function otherAppointmentTableForMedicalStage(
   return stage === 'OBGYN' ? 'ivf_appointments' : 'ob_appointments';
 }
 
-async function upsertAppointmentByKind(
+async function writeAppointmentRow(
   supabase: any,
-  opts: {
-    table: 'ob_appointments' | 'ivf_appointments';
-    reportId: string;
-    kind: 'visit' | 'next';
-    payload: Record<string, any>;
-  }
+  table: string,
+  existingId: string | null,
+  row: Record<string, any>
 ) {
-  const { table, reportId, kind, payload } = opts;
-  const { data: existing } = await supabase
-    .from(table)
-    .select('id')
-    .eq('source_medical_report_id', reportId)
-    .eq('source_kind', kind)
-    .maybeSingle();
-
-  const row = {
-    ...payload,
-    source_medical_report_id: reportId,
-    source_kind: kind,
-    updated_at: new Date().toISOString(),
-  };
-
-  const write = async (data: Record<string, any>) => {
-    if (existing?.id) {
-      const { error } = await supabase.from(table).update(data).eq('id', existing.id);
+  const attempt = async (data: Record<string, any>) => {
+    if (existingId) {
+      const { error } = await supabase.from(table).update(data).eq('id', existingId);
       if (error) throw error;
-      return existing.id as string;
+      return existingId;
     }
     const { data: inserted, error } = await supabase.from(table).insert(data).select('id').single();
     if (error) throw error;
@@ -103,15 +85,75 @@ async function upsertAppointmentByKind(
   };
 
   try {
-    return await write(row);
+    return await attempt(row);
   } catch (err: any) {
     const msg = String(err?.message || '');
     if (err?.code === 'PGRST204' && msg.includes('clinic_email') && 'clinic_email' in row) {
       const { clinic_email: _omit, ...rest } = row;
-      return await write(rest);
+      return await attempt(rest);
     }
     throw err;
   }
+}
+
+async function upsertAppointmentByKind(
+  supabase: any,
+  opts: {
+    table: 'ob_appointments' | 'ivf_appointments';
+    reportId: string;
+    userId: string;
+    kind: 'visit' | 'next';
+    appointmentDateISO: string;
+    payload: Record<string, any>;
+  }
+) {
+  const { table, reportId, userId, kind, appointmentDateISO, payload } = opts;
+  const row = {
+    ...payload,
+    source_medical_report_id: reportId,
+    source_kind: kind,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: linked } = await supabase
+    .from(table)
+    .select('id')
+    .eq('source_medical_report_id', reportId)
+    .eq('source_kind', kind)
+    .maybeSingle();
+
+  const { data: sameDateRaw } = await supabase
+    .from(table)
+    .select('id, source_medical_report_id, source_kind, status')
+    .eq('user_id', userId)
+    .eq('appointment_date', appointmentDateISO)
+    .neq('status', 'cancelled')
+    .order('updated_at', { ascending: false });
+
+  const sameDateRows = (sameDateRaw || []).filter((r: any) => {
+    if (kind === 'visit') return true;
+    if (r.status === 'scheduled') return true;
+    if (r.source_medical_report_id === reportId && r.source_kind === 'next') return true;
+    return false;
+  });
+
+  let targetId: string | null = null;
+  if (sameDateRows.length) {
+    const linkedSame = sameDateRows.find((r: any) => r.id === linked?.id);
+    targetId = linkedSame?.id || sameDateRows[0].id;
+    const extras = sameDateRows.filter((r: any) => r.id !== targetId).map((r: any) => r.id);
+    if (extras.length) {
+      await supabase.from(table).delete().in('id', extras);
+    }
+  } else if (linked?.id) {
+    targetId = linked.id;
+  }
+
+  if (linked?.id && targetId && linked.id !== targetId) {
+    await supabase.from(table).delete().eq('id', linked.id);
+  }
+
+  return writeAppointmentRow(supabase, table, targetId, row);
 }
 
 export async function syncAppointmentFromMedicalReport(
@@ -197,7 +239,9 @@ export async function syncAppointmentFromMedicalReport(
     visitAppointmentId = await upsertAppointmentByKind(supabase, {
       table: targetTable,
       reportId,
+      userId,
       kind: 'visit',
+      appointmentDateISO: visitDateISO,
       payload: {
         ...basePayload,
         appointment_date: visitDateISO,
@@ -219,21 +263,28 @@ export async function syncAppointmentFromMedicalReport(
   let nextAppointmentId: string | null = null;
   let appointmentTime: string | null = null;
   if (nextDateISO) {
-    appointmentTime = normalizeAppointmentTime(reportData.next_appointment_time);
-    nextAppointmentId = await upsertAppointmentByKind(supabase, {
-      table: targetTable,
-      reportId,
-      kind: 'next',
-      payload: {
-        ...basePayload,
-        appointment_date: nextDateISO,
-        appointment_time: appointmentTime,
-        notes: String(reportData?.notes || '').trim()
-          ? String(reportData.notes).trim()
-          : `From medical check-in next check (${stage})`,
-        status: 'scheduled',
-      },
-    });
+    if (visitDateISO && nextDateISO === visitDateISO) {
+      nextAppointmentId = visitAppointmentId;
+      appointmentTime = normalizeAppointmentTime(opts.visitTime || reportData.visit_time);
+    } else {
+      appointmentTime = normalizeAppointmentTime(reportData.next_appointment_time);
+      nextAppointmentId = await upsertAppointmentByKind(supabase, {
+        table: targetTable,
+        reportId,
+        userId,
+        kind: 'next',
+        appointmentDateISO: nextDateISO,
+        payload: {
+          ...basePayload,
+          appointment_date: nextDateISO,
+          appointment_time: appointmentTime,
+          notes: String(reportData?.notes || '').trim()
+            ? String(reportData.notes).trim()
+            : `From medical check-in next check (${stage})`,
+          status: 'scheduled',
+        },
+      });
+    }
   } else {
     await supabase
       .from(targetTable)
