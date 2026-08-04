@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import DateInput from '@/components/DateInput';
+import { getAppointmentContacts } from '@/lib/contactDisplay';
 
 // Stage labels for displaying friendly names
 const STAGE_LABELS: Record<string, string> = {
@@ -78,10 +79,12 @@ type MedicalInfo = {
   ivf_clinic_doctor_name?: string;
   ivf_clinic_address?: string;
   ivf_clinic_phone?: string;
+  ivf_clinic_email?: string;
   obgyn_doctor_name?: string;
   obgyn_clinic_name?: string;
   obgyn_clinic_address?: string;
   obgyn_clinic_phone?: string;
+  obgyn_clinic_email?: string;
   delivery_hospital_name?: string;
   delivery_hospital_address?: string;
   delivery_hospital_phone?: string;
@@ -926,6 +929,7 @@ export default function StepStatusPage() {
                       {renderField('Doctor', medicalInfo.ivf_clinic_doctor_name)}
                       {renderField('Address', medicalInfo.ivf_clinic_address)}
                       {renderField('Phone', medicalInfo.ivf_clinic_phone)}
+                      {renderField('Email', medicalInfo.ivf_clinic_email)}
                     </div>
                   </div>
                   <div>
@@ -935,6 +939,7 @@ export default function StepStatusPage() {
                       {renderField('Clinic', medicalInfo.obgyn_clinic_name)}
                       {renderField('Address', medicalInfo.obgyn_clinic_address)}
                       {renderField('Phone', medicalInfo.obgyn_clinic_phone)}
+                      {renderField('Email', medicalInfo.obgyn_clinic_email)}
                     </div>
                   </div>
                   <div>
@@ -1171,9 +1176,19 @@ export default function StepStatusPage() {
                               {appointment.clinic_address && (
                                 <div className="col-span-2"><span className="font-medium text-gray-700">Address:</span> {appointment.clinic_address}</div>
                               )}
-                              {appointment.clinic_phone && (
-                                <div><span className="font-medium text-gray-700">Phone:</span> {appointment.clinic_phone}</div>
-                              )}
+                              {(() => {
+                                const { phone, email } = getAppointmentContacts(appointment);
+                                return (
+                                  <>
+                                    {phone && (
+                                      <div><span className="font-medium text-gray-700">Phone:</span> {phone}</div>
+                                    )}
+                                    {email && (
+                                      <div><span className="font-medium text-gray-700">Email:</span> {email}</div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                               {appointment.appointment_type && (
                                 <div><span className="font-medium text-gray-700">Type:</span> {appointment.appointment_type}</div>
                               )}

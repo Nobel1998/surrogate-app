@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabase';
+import {
+  EMPTY_PROVIDER_CONTACT,
+  splitProviderContact,
+} from './contactDisplay';
 
-export const EMPTY_PROVIDER_CONTACT = '888888';
+export { EMPTY_PROVIDER_CONTACT };
 
 /**
  * Convert MM-DD-YYYY or YYYY-MM-DD to YYYY-MM-DD.
@@ -71,13 +75,14 @@ async function loadClinicContext(userId, stage, providerName) {
   let clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
   let clinicAddress = null;
   let clinicPhone = EMPTY_PROVIDER_CONTACT;
+  let clinicEmail = null;
   let resolvedProvider = providerName || null;
 
   try {
     const { data: medInfo } = await supabase
       .from('surrogate_medical_info')
       .select(
-        'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_doctor_name'
+        'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, ivf_clinic_email, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_clinic_email, obgyn_doctor_name'
       )
       .eq('user_id', userId)
       .maybeSingle();
@@ -85,6 +90,7 @@ async function loadClinicContext(userId, stage, providerName) {
       clinicName = medInfo?.obgyn_clinic_name || 'OB Clinic';
       clinicAddress = medInfo?.obgyn_clinic_address || null;
       clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
+      clinicEmail = String(medInfo?.obgyn_clinic_email || '').trim() || null;
       if (!resolvedProvider && medInfo?.obgyn_doctor_name) {
         resolvedProvider = medInfo.obgyn_doctor_name;
       }
@@ -92,13 +98,15 @@ async function loadClinicContext(userId, stage, providerName) {
       clinicName = medInfo?.ivf_clinic_name || 'IVF Clinic';
       clinicAddress = medInfo?.ivf_clinic_address || null;
       clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
+      clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
     }
   } catch {
     clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
     clinicPhone = EMPTY_PROVIDER_CONTACT;
+    clinicEmail = null;
   }
 
-  return { clinicName, clinicAddress, clinicPhone, providerName: resolvedProvider };
+  return { clinicName, clinicAddress, clinicPhone, clinicEmail, providerName: resolvedProvider };
 }
 
 async function upsertAppointmentByKind({
@@ -177,11 +185,10 @@ export async function syncAppointmentFromMedicalReport({
     .maybeSingle();
 
   const clinic = await loadClinicContext(userId, stage, providerName);
-  const contactFromReport = resolveProviderContact(reportData?.provider_contact);
+  const fromReport = splitProviderContact(reportData?.provider_contact);
   const clinicPhone =
-    contactFromReport !== EMPTY_PROVIDER_CONTACT
-      ? contactFromReport
-      : clinic.clinicPhone || EMPTY_PROVIDER_CONTACT;
+    fromReport.phone || clinic.clinicPhone || EMPTY_PROVIDER_CONTACT;
+  const clinicEmail = fromReport.email || clinic.clinicEmail || null;
 
   const basePayload = {
     user_id: userId,
@@ -190,6 +197,7 @@ export async function syncAppointmentFromMedicalReport({
     clinic_name: clinic.clinicName,
     clinic_address: clinic.clinicAddress,
     clinic_phone: clinicPhone,
+    clinic_email: clinicEmail,
   };
 
   let visitAppointmentId = null;

@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { user_id, match_id, appointment_date, appointment_time, provider_name, clinic_name, clinic_address, clinic_phone, notes, status } = body;
+    const { user_id, match_id, appointment_date, appointment_time, provider_name, clinic_name, clinic_address, clinic_phone, clinic_email, notes, status } = body;
 
     if (!user_id || !appointment_date || !appointment_time || !provider_name || !clinic_name) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
         clinic_name,
         clinic_address: clinic_address || null,
         clinic_phone: clinic_phone || null,
+        clinic_email: clinic_email || null,
         notes: notes || null,
         status: status || 'scheduled',
       })
@@ -119,7 +120,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, appointment_date, appointment_time, provider_name, clinic_name, clinic_address, clinic_phone, notes, status } = body;
+    const { id, appointment_date, appointment_time, provider_name, clinic_name, clinic_address, clinic_phone, clinic_email, notes, status } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -135,6 +136,7 @@ export async function PUT(req: NextRequest) {
     if (clinic_name !== undefined) updateData.clinic_name = clinic_name;
     if (clinic_address !== undefined) updateData.clinic_address = clinic_address;
     if (clinic_phone !== undefined) updateData.clinic_phone = clinic_phone;
+    if (clinic_email !== undefined) updateData.clinic_email = clinic_email;
     if (notes !== undefined) updateData.notes = notes;
     if (status !== undefined) updateData.status = status;
     updateData.updated_at = new Date().toISOString();

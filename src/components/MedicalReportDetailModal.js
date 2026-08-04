@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { looksLikeEmail } from '../utils/contactDisplay';
 
 function formatVisitDate(visitDate) {
   if (!visitDate) return 'N/A';
@@ -222,12 +223,22 @@ export default function MedicalReportDetailModal({
             {reportData.provider_contact ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
-                <Text style={styles.sectionValue}>{formatValue(reportData.provider_contact)}</Text>
+                <View style={styles.contactRow}>
+                  <Icon
+                    name={looksLikeEmail(reportData.provider_contact) ? 'mail' : 'phone'}
+                    size={16}
+                    color="#64748B"
+                  />
+                  <Text style={styles.sectionValue}>{formatValue(reportData.provider_contact)}</Text>
+                </View>
               </View>
             ) : (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerContact')}</Text>
-                <Text style={styles.sectionValue}>888888</Text>
+                <View style={styles.contactRow}>
+                  <Icon name="phone" size={16} color="#64748B" />
+                  <Text style={styles.sectionValue}>888888</Text>
+                </View>
               </View>
             )}
 
@@ -355,6 +366,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
     lineHeight: 22,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notesBox: {
     backgroundColor: '#FFF8E7',

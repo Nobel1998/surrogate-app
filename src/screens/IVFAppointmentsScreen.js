@@ -26,6 +26,7 @@ import {
   getEffectiveAppointmentStatus,
 } from '../utils/autoCompletePastAppointments';
 import { formatDateOnlyDisplay } from '../utils/dateOnly';
+import { getAppointmentContacts } from '../utils/contactDisplay';
 
 const STATUS_COLORS = {
   scheduled: '#3B82F6',
@@ -321,17 +322,31 @@ export default function IVFAppointmentsScreen({ navigation }) {
                     <Text style={styles.infoText}>{appointment.clinic_address}</Text>
                   </View>
                 ) : null}
-                {appointment.clinic_phone ? (
-                  <View style={styles.infoRow}>
-                    <Icon name="phone" size={16} color="#666" />
-                    <Text style={styles.infoText}>{appointment.clinic_phone}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.infoRow}>
-                    <Icon name="phone" size={16} color="#666" />
-                    <Text style={styles.infoText}>888888</Text>
-                  </View>
-                )}
+                {(() => {
+                  const { phone, email, showPlaceholder } = getAppointmentContacts(appointment);
+                  return (
+                    <>
+                      {phone ? (
+                        <View style={styles.infoRow}>
+                          <Icon name="phone" size={16} color="#666" />
+                          <Text style={styles.infoText}>{phone}</Text>
+                        </View>
+                      ) : null}
+                      {email ? (
+                        <View style={styles.infoRow}>
+                          <Icon name="mail" size={16} color="#666" />
+                          <Text style={styles.infoText}>{email}</Text>
+                        </View>
+                      ) : null}
+                      {showPlaceholder ? (
+                        <View style={styles.infoRow}>
+                          <Icon name="phone" size={16} color="#666" />
+                          <Text style={styles.infoText}>888888</Text>
+                        </View>
+                      ) : null}
+                    </>
+                  );
+                })()}
                 {appointment.notes ? (
                   <View style={styles.notesContainer}>
                     <Text style={styles.notesText}>{appointment.notes}</Text>

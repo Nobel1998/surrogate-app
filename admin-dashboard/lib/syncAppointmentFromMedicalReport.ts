@@ -4,7 +4,14 @@
  * - next check → scheduled (source_kind=next)
  */
 
+import { splitProviderContact } from '@/lib/contactDisplay';
+
 export const EMPTY_PROVIDER_CONTACT = '888888';
+
+export function resolveProviderContact(value: unknown): string {
+  const trimmed = value == null ? '' : String(value).trim();
+  return trimmed || EMPTY_PROVIDER_CONTACT;
+}
 
 export function parseNextCheckDateToISO(value: unknown): string | null {
   if (value == null) return null;
@@ -58,11 +65,6 @@ export function otherAppointmentTableForMedicalStage(
   stage: string
 ): 'ob_appointments' | 'ivf_appointments' {
   return stage === 'OBGYN' ? 'ivf_appointments' : 'ob_appointments';
-}
-
-export function resolveProviderContact(value: unknown): string {
-  const trimmed = value == null ? '' : String(value).trim();
-  return trimmed || EMPTY_PROVIDER_CONTACT;
 }
 
 async function upsertAppointmentByKind(
@@ -139,11 +141,12 @@ export async function syncAppointmentFromMedicalReport(
   let clinicName: string | null = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
   let clinicAddress: string | null = null;
   let clinicPhone: string | null = EMPTY_PROVIDER_CONTACT;
+  let clinicEmail: string | null = null;
 
   const { data: medInfo } = await supabase
     .from('surrogate_medical_info')
     .select(
-      'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_doctor_name'
+      'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, ivf_clinic_email, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_clinic_email, obgyn_doctor_name'
     )
     .eq('user_id', userId)
     .maybeSingle();
@@ -152,6 +155,7 @@ export async function syncAppointmentFromMedicalReport(
     clinicName = medInfo?.obgyn_clinic_name || 'OB Clinic';
     clinicAddress = medInfo?.obgyn_clinic_address || null;
     clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
+    clinicEmail = String(medInfo?.obgyn_clinic_email || '').trim() || null;
     if (!providerName && medInfo?.obgyn_doctor_name) {
       providerName = medInfo.obgyn_doctor_name;
     }
@@ -159,12 +163,12 @@ export async function syncAppointmentFromMedicalReport(
     clinicName = medInfo?.ivf_clinic_name || 'IVF Clinic';
     clinicAddress = medInfo?.ivf_clinic_address || null;
     clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
+    clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
   }
 
-  const contactFromReport = resolveProviderContact(reportData.provider_contact);
-  if (contactFromReport !== EMPTY_PROVIDER_CONTACT) {
-    clinicPhone = contactFromReport;
-  }
+  const fromReport = splitProviderContact(reportData.provider_contact);
+  if (fromReport.phone) clinicPhone = fromReport.phone;
+  if (fromReport.email) clinicEmail = fromReport.email;
 
   const basePayload = {
     user_id: userId,
@@ -173,6 +177,7 @@ export async function syncAppointmentFromMedicalReport(
     clinic_name: clinicName,
     clinic_address: clinicAddress,
     clinic_phone: clinicPhone || EMPTY_PROVIDER_CONTACT,
+    clinic_email: clinicEmail,
   };
 
   let visitAppointmentId: string | null = null;
