@@ -40,6 +40,7 @@ export default function MedicalReportDetailModal({
   const reportDataLabelMap = useMemo(
     () => ({
       provider_contact: t('medicalReport.providerContact'),
+      visit_time: t('medicalReport.visitTime'),
       endometrial_thickness: t('medicalReport.endometrialThickness'),
       endometrial_type: t('medicalReport.endometrialType'),
       follicle_1_mm: `${t('medicalReport.follicle')} 1 (mm)`,
@@ -122,6 +123,12 @@ export default function MedicalReportDetailModal({
               <Text style={styles.sectionTitle}>{t('medicalReport.visitDate')}</Text>
               <Text style={styles.sectionValue}>{formatVisitDate(report.visit_date)}</Text>
             </View>
+            {reportData.visit_time ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('medicalReport.visitTime')}</Text>
+                <Text style={styles.sectionValue}>{formatValue(reportData.visit_time)}</Text>
+              </View>
+            ) : null}
 
             {report.provider_name ? (
               <View style={styles.section}>
@@ -141,7 +148,7 @@ export default function MedicalReportDetailModal({
             </View>
 
             {Object.entries(reportData)
-              .filter(([k, v]) => v != null && v !== '' && k !== 'provider_contact')
+              .filter(([k, v]) => v != null && v !== '' && k !== 'provider_contact' && k !== 'visit_time')
               .map(([key, value]) => {
                 const label = reportDataLabelMap[key] || key.replace(/_/g, ' ');
                 return (

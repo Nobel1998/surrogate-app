@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
         providerName: provider_name,
         reportData: report_data || {},
         visitDate: visit_date,
+        visitTime: (report_data || {}).visit_time || null,
       });
     } catch (syncErr: any) {
       console.warn('[medical-reports] POST appointment sync warning:', syncErr?.message || syncErr);
@@ -353,6 +354,7 @@ export async function PATCH(request: NextRequest) {
         providerName: data.provider_name ?? provider_name,
         reportData: data.report_data || report_data || {},
         visitDate: data.visit_date || visit_date,
+        visitTime: (data.report_data || report_data || {}).visit_time || null,
       });
     } catch (syncErr: any) {
       console.warn('[medical-reports] PATCH appointment sync warning:', syncErr?.message || syncErr);

@@ -109,6 +109,7 @@ export async function syncAppointmentFromMedicalReport(
     providerName?: string | null;
     reportData?: Record<string, any> | null;
     visitDate?: string | null;
+    visitTime?: string | null;
   }
 ) {
   const { reportId, userId, stage } = opts;
@@ -183,7 +184,7 @@ export async function syncAppointmentFromMedicalReport(
       payload: {
         ...basePayload,
         appointment_date: visitDateISO,
-        appointment_time: '09:00:00',
+        appointment_time: normalizeAppointmentTime(opts.visitTime || reportData.visit_time),
         notes: `Medical check-in visit (${stage})`,
         status: 'completed',
       },

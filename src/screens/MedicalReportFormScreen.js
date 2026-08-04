@@ -22,8 +22,14 @@ import { useLanguage } from '../context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import { uploadMedia } from '../utils/mediaUpload';
 import DatePickerField from '../components/DatePickerField';
+import TimePickerField from '../components/TimePickerField';
 import { useNotifications } from '../context/NotificationContext';
 import { syncAppointmentFromMedicalReport, isDateOnlyBeforeToday, resolveProviderContact, EMPTY_PROVIDER_CONTACT } from '../utils/syncAppointmentFromMedicalReport';
+
+function defaultVisitTimeNow() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
 
 export default function MedicalReportFormScreen({ route }) {
   const navigation = useNavigation();
@@ -37,6 +43,7 @@ export default function MedicalReportFormScreen({ route }) {
   const [providerName, setProviderName] = useState('');
   const [providerContact, setProviderContact] = useState('');
   const [visitDate, setVisitDate] = useState('');
+  const [visitTime, setVisitTime] = useState(defaultVisitTimeNow);
   const [proofImage, setProofImage] = useState(null);
   const [existingProofUrl, setExistingProofUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -59,20 +66,24 @@ export default function MedicalReportFormScreen({ route }) {
         ? { ...existingReport.report_data }
         : {};
       const contact = rd.provider_contact || '';
+      const savedVisitTime = rd.visit_time || '';
       delete rd.provider_contact;
-      setProviderContact(contact);
+      delete rd.visit_time;
+      setProviderContact(contact === EMPTY_PROVIDER_CONTACT ? '' : contact);
+      setVisitTime(savedVisitTime || defaultVisitTimeNow());
       setFormData(rd);
       setExistingProofUrl(existingReport.proof_image_url || null);
       setProofImage(null);
       return;
     }
 
-    // Set default visit date to today for new check-ins
+    // Set default visit date/time to now for new check-ins
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const year = today.getFullYear();
     setVisitDate(`${month}-${day}-${year}`);
+    setVisitTime(defaultVisitTimeNow());
   }, [existingReport?.id]);
 
   const handleFieldChange = (key, value) => {
@@ -213,6 +224,14 @@ export default function MedicalReportFormScreen({ route }) {
   const handleSubmit = async () => {
     if (!visitDate) {
       Alert.alert('Validation Error', 'Please enter visit date.');
+      return;
+    }
+
+    if (!visitTime || !String(visitTime).trim()) {
+      Alert.alert(
+        t('common.error') || 'Validation Error',
+        t('medicalReport.visitTimeRequired') || 'Please select visit time.'
+      );
       return;
     }
 
@@ -407,6 +426,7 @@ export default function MedicalReportFormScreen({ route }) {
         providerName: providerName.trim() || null,
         reportData: reportDataWithContact,
         visitDate: visitDateISO,
+        visitTime: reportDataWithContact.visit_time || visitTime,
       });
 
       if (syncResult?.cleared && syncResult.table && syncResult.appointmentId == null) {
@@ -441,6 +461,7 @@ export default function MedicalReportFormScreen({ route }) {
       const reportDataWithContact = {
         ...formData,
         provider_contact: resolveProviderContact(providerContact),
+        visit_time: String(visitTime || '').trim(),
       };
 
       if (isEditing) {
@@ -1074,6 +1095,16 @@ export default function MedicalReportFormScreen({ route }) {
               onChange={setVisitDate}
               format="MM-DD-YYYY"
               placeholder="e.g. 12-01-2025"
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t('medicalReport.visitTime')} *</Text>
+            <TimePickerField
+              style={styles.input}
+              value={visitTime}
+              onChange={setVisitTime}
+              placeholder={t('medicalReport.visitTimePlaceholder') || 'Select visit time'}
             />
           </View>
 

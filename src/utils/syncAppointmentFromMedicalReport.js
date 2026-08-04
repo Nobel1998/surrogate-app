@@ -153,6 +153,7 @@ export async function syncAppointmentFromMedicalReport({
   providerName,
   reportData,
   visitDate,
+  visitTime,
 }) {
   if (!reportId || !userId || !stage) {
     return { ok: false, skipped: true, reason: 'missing_args' };
@@ -200,7 +201,7 @@ export async function syncAppointmentFromMedicalReport({
       payload: {
         ...basePayload,
         appointment_date: visitDateISO,
-        appointment_time: '09:00:00',
+        appointment_time: normalizeAppointmentTime(visitTime || reportData?.visit_time),
         notes: `Medical check-in visit (${stage})`,
         status: 'completed',
       },

@@ -2911,6 +2911,12 @@ export default function HomeScreen() {
                 <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.visitDate')}</Text>
                 <Text style={styles.medicalReportDetailValue}>{formattedDate}</Text>
               </View>
+              {reportData.visit_time ? (
+                <View style={styles.medicalReportDetailSection}>
+                  <Text style={styles.medicalReportDetailSectionTitle}>{t('medicalReport.visitTime')}</Text>
+                  <Text style={styles.medicalReportDetailValue}>{formatValue(reportData.visit_time)}</Text>
+                </View>
+              ) : null}
               {pregnancyWeeks && (
                 <View style={styles.medicalReportDetailSection}>
                   <Text style={styles.medicalReportDetailSectionTitle}>{t('home.weeks')} / {t('home.days')}</Text>
@@ -2951,7 +2957,7 @@ export default function HomeScreen() {
                 </View>
               </View>
               {Object.entries(reportData)
-                .filter(([k]) => k !== 'provider_contact')
+                .filter(([k]) => k !== 'provider_contact' && k !== 'visit_time')
                 .map(([key, value]) => {
                   if (value == null || value === '') return null;
                   const label = reportDataLabelMap[key] || key.replace(/_/g, ' ');

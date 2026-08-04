@@ -124,6 +124,7 @@ export default function StepStatusPage() {
   const [updateTab, setUpdateTab] = useState<'note' | 'medical'>('note');
   const [medicalStage, setMedicalStage] = useState('Pre-Transfer');
   const [medicalVisitDate, setMedicalVisitDate] = useState('');
+  const [medicalVisitTime, setMedicalVisitTime] = useState('');
   const [medicalProviderName, setMedicalProviderName] = useState('');
   const [medicalProviderContact, setMedicalProviderContact] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
@@ -508,6 +509,7 @@ export default function StepStatusPage() {
   const resetMedicalCheckInForm = () => {
     setEditingMedicalReportId(null);
     setMedicalVisitDate('');
+    setMedicalVisitTime('');
     setMedicalProviderName('');
     setMedicalProviderContact('');
     setMedicalReportData({});
@@ -519,14 +521,17 @@ export default function StepStatusPage() {
     if (!report?.id) return;
     const reportData = parseMedicalReportData(report.report_data);
     const contact = reportData.provider_contact || '';
+    const visitTime = reportData.visit_time || '';
     const rest = { ...reportData };
     delete rest.provider_contact;
+    delete rest.visit_time;
 
     setEditingMedicalReportId(String(report.id));
     setMedicalStage(report.stage || 'Pre-Transfer');
     setMedicalVisitDate(String(report.visit_date || '').slice(0, 10));
+    setMedicalVisitTime(String(visitTime).slice(0, 5));
     setMedicalProviderName(report.provider_name || '');
-    setMedicalProviderContact(contact);
+    setMedicalProviderContact(contact === '888888' ? '' : contact);
     setMedicalReportData(rest);
     setExistingMedicalProofUrl(report.proof_image_url || null);
     clearPendingMedicalProofImage();
@@ -676,12 +681,17 @@ export default function StepStatusPage() {
       alert('Please select a visit date');
       return;
     }
+    if (!medicalVisitTime.trim()) {
+      alert('Please select a visit time');
+      return;
+    }
 
     setSavingMedical(true);
     try {
       const reportData = {
         ...medicalReportData,
         provider_contact: medicalProviderContact.trim() || '888888',
+        visit_time: medicalVisitTime.trim(),
       };
       if (reportData.next_appointment_date) {
         const next = String(reportData.next_appointment_date).trim();
@@ -1487,6 +1497,15 @@ export default function StepStatusPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visit Time</label>
+                  <input
+                    type="time"
+                    value={medicalVisitTime}
+                    onChange={(e) => setMedicalVisitTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Provider Name (Optional)</label>
                   <input
                     type="text"
@@ -2264,7 +2283,7 @@ const renderMedicalReportDetailModal = (
   });
 
   const dataKeys = Object.keys(reportData).filter((key) => {
-    if (key === 'provider_contact' || noteKeys.includes(key)) return false;
+    if (key === 'provider_contact' || key === 'visit_time' || noteKeys.includes(key)) return false;
     return hasMedicalReportValue(reportData[key]);
   });
 
@@ -2299,6 +2318,12 @@ const renderMedicalReportDetailModal = (
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Visit Date</span>
                 <span className="block text-sm font-medium text-gray-900 mt-1">{formatDateOnly(report.visit_date)}</span>
               </div>
+              {hasMedicalReportValue(reportData.visit_time) && (
+                <div>
+                  <span className="block text-xs font-semibold text-gray-500 uppercase">Visit Time</span>
+                  <span className="block text-sm font-medium text-gray-900 mt-1">{String(reportData.visit_time)}</span>
+                </div>
+              )}
               <div>
                 <span className="block text-xs font-semibold text-gray-500 uppercase">Uploaded By</span>
                 <span className="block text-sm font-medium text-gray-900 mt-1">
