@@ -55,15 +55,17 @@ export function parseDateOnlyToLocalDate(value) {
 
 /**
  * Format a date-only DB value for UI without timezone day-shift.
- * Default: "Aug 10, 2026"
+ * Default (en-US): "Aug 10, 2026"
+ * zh-CN: "2026年8月10日"
  */
 export function formatDateOnlyDisplay(
   value,
-  options = { month: 'short', day: 'numeric', year: 'numeric' }
+  options = { month: 'short', day: 'numeric', year: 'numeric' },
+  locale = 'en-US'
 ) {
   const d = parseDateOnlyToLocalDate(value);
   if (!d) return value ? String(value) : '';
-  return d.toLocaleDateString('en-US', options);
+  return d.toLocaleDateString(locale, options);
 }
 
 /**

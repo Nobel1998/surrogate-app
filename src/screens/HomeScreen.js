@@ -23,14 +23,16 @@ const normalizeStage = (value = 'pregnancy') => {
   return String(value).toLowerCase();
 };
 
+const containsChinese = (text) => /[\u3400-\u9fff]/.test(String(text || ''));
+
 const STAGE_ORDER = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 
 // Function to get stage options with translations
 const getStageOptions = (t) => [
-  { key: 'pre', label: t('home.stagePre'), icon: 'heart', description: 'Preparation & Matching' },
-  { key: 'pregnancy', label: t('home.stagePost'), icon: 'heart', description: 'Updates & Checkups' },
-  { key: 'ob_visit', label: t('home.stageOB'), icon: 'user', description: 'OB/GYN Care' },
-  { key: 'delivery', label: t('home.stageDelivery'), icon: 'gift', description: 'Birth & Post-birth' },
+  { key: 'pre', label: t('home.stagePre'), icon: 'heart', description: t('home.stagePreDescription') },
+  { key: 'pregnancy', label: t('home.stagePost'), icon: 'heart', description: t('home.stagePostDescription') },
+  { key: 'ob_visit', label: t('home.stageOB'), icon: 'user', description: t('home.stageOBDescription') },
+  { key: 'delivery', label: t('home.stageDelivery'), icon: 'gift', description: t('home.stageDeliveryDescription') },
 ];
 
 // Function to get embryo day options with translations
@@ -125,7 +127,7 @@ export default function HomeScreen() {
   const { posts, likedPosts, likedComments, addPost, deletePost, handleLike, handleCommentLike, addComment, deleteComment, getComments, setCurrentUser, currentUserId, isLoading, isSyncing, refreshData, forceCompleteLoading, hasInitiallyLoaded } = useAppContext();
   const { user, isLoading: authLoading, updateProfile } = useAuth();
   const parentMatch = useParentMatch();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { sendSurrogateProgressUpdate } = useNotifications();
   const STAGE_OPTIONS = getStageOptions(t);
   const EMBRYO_DAY_OPTIONS = getEmbryoDayOptions(t);
@@ -160,6 +162,11 @@ export default function HomeScreen() {
   });
   const adminNoteGalleryScrollRef = useRef(null);
   const [selectedAdminNote, setSelectedAdminNote] = useState(null);
+  const [translatedAdminNoteContent, setTranslatedAdminNoteContent] = useState('');
+  const [translatingAdminNote, setTranslatingAdminNote] = useState(false);
+  const translatedAdminNoteCacheRef = useRef(new Map());
+  const [adminNoteTranslations, setAdminNoteTranslations] = useState({});
+  const adminNoteTranslateInFlightRef = useRef(new Set());
   const [isEditingAdminNote, setIsEditingAdminNote] = useState(false);
   const [editAdminNoteContent, setEditAdminNoteContent] = useState('');
   const [editAdminNoteStage, setEditAdminNoteStage] = useState('pre_transfer');
@@ -169,8 +176,12 @@ export default function HomeScreen() {
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [matchCheckInProgress, setMatchCheckInProgress] = useState(false);
   const [medicalReports, setMedicalReports] = useState([]);
+  const [translatedMedicalReportPreviewNotes, setTranslatedMedicalReportPreviewNotes] = useState({});
+  const medicalReportPreviewTranslateInFlightRef = useRef(new Set());
+  const medicalReportPreviewNoteSourceRef = useRef({});
   const [loadingReports, setLoadingReports] = useState(false);
   const [selectedMedicalReport, setSelectedMedicalReport] = useState(null);
+  const [translatedMedicalReportNotes, setTranslatedMedicalReportNotes] = useState({});
   const [stageUpdateLoading, setStageUpdateLoading] = useState(false);
   const roleLower = (user?.role || '').toLowerCase();
   const isSurrogateRole = roleLower === 'surrogate';
@@ -559,7 +570,10 @@ export default function HomeScreen() {
     // Parse MM/DD/YY format
     const parsed = parseMMDDYYToISO(v);
     if (!parsed) {
-      Alert.alert('Invalid Format', 'Please enter transfer date in format: MM/DD/YY (e.g., 12/01/25).');
+      Alert.alert(
+        t('myMatch.pregnancyHistoryInvalidTitle') || 'Invalid Format',
+        t('home.transferDateInvalidFormat') || 'Please enter transfer date in format: MM/DD/YY (e.g., 12/01/25).'
+      );
       return;
     }
     // Convert to ISO format (YYYY-MM-DD) for storage
@@ -641,12 +655,12 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>Transfer Date (MM/DD/YY)</Text>
+          <Text style={styles.sectionLabel}>{t('home.transferDateWithFormat')}</Text>
           <DatePickerField
             value={transferDateDraft}
             onChange={setTransferDateDraft}
             format="MM/DD/YY"
-            placeholder="e.g. 12/01/25"
+            placeholder={t('home.transferDatePlaceholder')}
           />
           <Text style={styles.helperText}>
             Enter the date when the transfer procedure took place.
@@ -728,12 +742,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionLabel}>{t('home.transferDate')} (MM/DD/YY)</Text>
+            <Text style={styles.sectionLabel}>{t('home.transferDateWithFormat')}</Text>
             <DatePickerField
               value={transferDateDraft}
               onChange={setTransferDateDraft}
               format="MM/DD/YY"
-              placeholder="e.g. 12/01/25"
+              placeholder={t('home.transferDatePlaceholder')}
             />
 
             <View style={styles.editButtonRow}>
@@ -1414,6 +1428,8 @@ export default function HomeScreen() {
       }
       
       setMedicalReports(data || []);
+      setTranslatedMedicalReportPreviewNotes({});
+      medicalReportPreviewNoteSourceRef.current = {};
       console.log('✅ Fetched medical reports:', data?.length || 0);
     } catch (error) {
       console.error('Error in fetchMedicalReports:', error);
@@ -1421,6 +1437,109 @@ export default function HomeScreen() {
       setLoadingReports(false);
     }
   }, [user?.id, isParentRole, matchedSurrogateId]);
+
+  const translateAdminNoteText = useCallback(async (noteId, rawText, targetLanguage) => {
+    const text = String(rawText || '').trim();
+    if (!text || targetLanguage === 'en') return text;
+    if (String(targetLanguage || '').toLowerCase().startsWith('zh') && containsChinese(text)) return text;
+    const cacheKey = `${noteId || 'note'}:${targetLanguage}:${text}`;
+    const cached = translatedAdminNoteCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (sessionError || !accessToken) {
+      throw new Error(sessionError?.message || 'Please sign in again');
+    }
+
+    const res = await fetchWithTimeout(
+      `${APP_API_BASE_URL}/api/app/translate`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          text,
+          targetLanguage,
+        }),
+      },
+      8000
+    );
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload?.error || `Translate API failed (${res.status})`);
+    }
+    const translated = String(payload?.translatedText || '').trim() || text;
+    translatedAdminNoteCacheRef.current.set(cacheKey, translated);
+    return translated;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const translateMedicalReportNotes = async () => {
+      if (!selectedMedicalReport) {
+        setTranslatedMedicalReportNotes({});
+        return;
+      }
+      let reportData = selectedMedicalReport.report_data || {};
+      if (typeof reportData === 'string') {
+        try {
+          const parsed = JSON.parse(reportData);
+          reportData = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch {
+          reportData = {};
+        }
+      }
+      const noteKeys = ['notes', 'note', 'additional_notes', 'questions_for_team', 'other_concerns'];
+      const noteEntries = noteKeys
+        .map((key) => {
+          const raw = reportData[key];
+          if (raw == null || raw === '') return null;
+          const text = String(raw).trim();
+          return text ? { key, value: text } : null;
+        })
+        .filter(Boolean);
+
+      if (noteEntries.length === 0 || language === 'en') {
+        setTranslatedMedicalReportNotes({});
+        return;
+      }
+
+      const translatedPairs = await Promise.all(
+        noteEntries.map(async (entry) => {
+          try {
+            const translated = await translateAdminNoteText(
+              `medical-report-${selectedMedicalReport.id || 'new'}-${entry.key}`,
+              entry.value,
+              language
+            );
+            return [entry.key, translated];
+          } catch {
+            return [entry.key, entry.value];
+          }
+        })
+      );
+      if (cancelled) return;
+      setTranslatedMedicalReportNotes(Object.fromEntries(translatedPairs));
+    };
+
+    translateMedicalReportNotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMedicalReport, language, translateAdminNoteText]);
 
   // Fetch admin notes (match_updates with update_type = admin_note) for View Detail
   const fetchAdminNotes = useCallback(async () => {
@@ -1469,6 +1588,93 @@ export default function HomeScreen() {
   }, [matchId]);
 
   useEffect(() => {
+    if (language === 'en' || !Array.isArray(adminNotes) || adminNotes.length === 0) return;
+    let cancelled = false;
+
+    const preTranslate = async () => {
+      for (const note of adminNotes) {
+        const noteId = note?.id;
+        const raw = String(note?.content || '').trim();
+        if (!noteId || !raw || adminNoteTranslations[noteId]) continue;
+        const inFlightKey = `${noteId}:${language}:${raw}`;
+        if (adminNoteTranslateInFlightRef.current.has(inFlightKey)) continue;
+        adminNoteTranslateInFlightRef.current.add(inFlightKey);
+        try {
+          const translated = await translateAdminNoteText(noteId, raw, language);
+          if (cancelled) return;
+          setAdminNoteTranslations((prev) =>
+            prev[noteId] === translated ? prev : { ...prev, [noteId]: translated }
+          );
+        } catch (error) {
+          console.warn('Pre-translate admin note failed:', error);
+        } finally {
+          adminNoteTranslateInFlightRef.current.delete(inFlightKey);
+        }
+      }
+    };
+
+    preTranslate();
+    return () => {
+      cancelled = true;
+    };
+  }, [adminNotes, language, adminNoteTranslations, translateAdminNoteText]);
+
+  useEffect(() => {
+    if (language === 'en' || !Array.isArray(medicalReports) || medicalReports.length === 0) return;
+    let cancelled = false;
+
+    const preTranslateMedicalReportNotes = async () => {
+      for (const report of medicalReports) {
+        const reportData =
+          report?.report_data && typeof report.report_data === 'object' ? report.report_data : {};
+        const raw = String(
+          reportData.notes || reportData.note || reportData.additional_notes || ''
+        ).trim();
+        if (!report?.id || !raw) continue;
+        if (String(language || '').toLowerCase().startsWith('zh') && containsChinese(raw)) {
+          setTranslatedMedicalReportPreviewNotes((prev) =>
+            prev[report.id] === raw ? prev : { ...prev, [report.id]: raw }
+          );
+          continue;
+        }
+        const cached = translatedMedicalReportPreviewNotes[report.id];
+        if (cached && cached === raw) continue;
+        // If we already have a translation entry that isn't the raw Chinese skip path,
+        // still allow re-translate when source notes change by including raw in inFlight key only.
+        const inFlightKey = `${report.id}:${language}:${raw}`;
+        if (medicalReportPreviewTranslateInFlightRef.current.has(inFlightKey)) continue;
+        if (
+          translatedMedicalReportPreviewNotes[report.id] &&
+          medicalReportPreviewNoteSourceRef.current?.[report.id] === raw
+        ) {
+          continue;
+        }
+        medicalReportPreviewTranslateInFlightRef.current.add(inFlightKey);
+        try {
+          const translated = await translateAdminNoteText(`preview-${report.id}`, raw, language);
+          if (cancelled) return;
+          medicalReportPreviewNoteSourceRef.current = {
+            ...(medicalReportPreviewNoteSourceRef.current || {}),
+            [report.id]: raw,
+          };
+          setTranslatedMedicalReportPreviewNotes((prev) =>
+            prev[report.id] === translated ? prev : { ...prev, [report.id]: translated }
+          );
+        } catch (error) {
+          console.warn('Pre-translate medical report note failed:', error);
+        } finally {
+          medicalReportPreviewTranslateInFlightRef.current.delete(inFlightKey);
+        }
+      }
+    };
+
+    preTranslateMedicalReportNotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [medicalReports, language, translatedMedicalReportPreviewNotes, translateAdminNoteText]);
+
+  useEffect(() => {
     if (!adminNoteImageViewer.visible || !adminNoteGalleryScrollRef.current || !adminNoteImageViewer.urls.length)
       return;
     const w = Dimensions.get('window').width;
@@ -1510,6 +1716,13 @@ export default function HomeScreen() {
     if (stage === 'delivery') return t('home.stageDelivery') || 'Delivery';
     return stage;
   };
+
+  const getAdminNoteTitleDisplay = useCallback((title) => {
+    const normalized = String(title || '').trim();
+    if (!normalized) return '';
+    if (normalized === 'Admin Update') return t('home.adminUpdateTitle');
+    return normalized;
+  }, [t]);
 
   const resetAdminNoteEditState = useCallback(() => {
     setIsEditingAdminNote(false);
@@ -1675,6 +1888,58 @@ export default function HomeScreen() {
     t,
     matchId,
   ]);
+
+  useEffect(() => {
+    const translateAdminNoteIfNeeded = async () => {
+      if (!selectedAdminNote || isEditingAdminNote) {
+        setTranslatedAdminNoteContent('');
+        setTranslatingAdminNote(false);
+        return;
+      }
+      const raw = String(selectedAdminNote.content || '').trim();
+      if (!raw) {
+        setTranslatedAdminNoteContent('');
+        setTranslatingAdminNote(false);
+        return;
+      }
+      if (language === 'en') {
+        setTranslatedAdminNoteContent(raw);
+        setTranslatingAdminNote(false);
+        return;
+      }
+      if (adminNoteTranslations[selectedAdminNote.id]) {
+        setTranslatedAdminNoteContent(adminNoteTranslations[selectedAdminNote.id]);
+        setTranslatingAdminNote(false);
+        return;
+      }
+      const cacheKey = `${selectedAdminNote.id || 'note'}:${language}:${raw}`;
+      const cached = translatedAdminNoteCacheRef.current.get(cacheKey);
+      if (cached) {
+        setTranslatedAdminNoteContent(cached);
+        setTranslatingAdminNote(false);
+        return;
+      }
+
+      setTranslatingAdminNote(true);
+      try {
+        const translated = await translateAdminNoteText(selectedAdminNote.id, raw, language);
+        setAdminNoteTranslations((prev) =>
+          prev[selectedAdminNote.id] === translated
+            ? prev
+            : { ...prev, [selectedAdminNote.id]: translated }
+        );
+        translatedAdminNoteCacheRef.current.set(cacheKey, translated);
+        setTranslatedAdminNoteContent(translated);
+      } catch (error) {
+        console.warn('Admin note translation failed:', error);
+        setTranslatedAdminNoteContent(raw);
+      } finally {
+        setTranslatingAdminNote(false);
+      }
+    };
+
+    translateAdminNoteIfNeeded();
+  }, [selectedAdminNote, isEditingAdminNote, language, adminNoteTranslations, translateAdminNoteText]);
 
   const renderAdminNoteImages = (note) => {
     const sorted = (note.images || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -2742,6 +3007,10 @@ export default function HomeScreen() {
     const noteText = String(
       reportData.notes || reportData.note || reportData.additional_notes || ''
     ).trim();
+    const previewNoteText =
+      language === 'en'
+        ? noteText
+        : (translatedMedicalReportPreviewNotes[report.id] || noteText);
 
     return (
       <TouchableOpacity
@@ -2800,7 +3069,7 @@ export default function HomeScreen() {
         {noteText ? (
           <View style={styles.medicalReportNotesBox}>
             <Text style={styles.medicalReportNotesLabel}>{t('medicalReport.notes')}</Text>
-            <Text style={styles.medicalReportNotesText}>{noteText}</Text>
+            <Text style={styles.medicalReportNotesText}>{previewNoteText}</Text>
           </View>
         ) : null}
 {report.proof_image_url && (
@@ -2811,13 +3080,13 @@ export default function HomeScreen() {
               <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportImage} />
               <View style={styles.medicalReportImageOverlay}>
                 <Icon name="eye" size={16} color="#fff" />
-                <Text style={styles.medicalReportImageText}>View Proof</Text>
+                <Text style={styles.medicalReportImageText}>{t('medicalReport.viewProof')}</Text>
               </View>
             </TouchableOpacity>
           )}
       </TouchableOpacity>
     );
-  }, [transferDateStr, transferEmbryoDayStr, calculatePregnancyWeeksAtVisit, t]);
+  }, [transferDateStr, transferEmbryoDayStr, calculatePregnancyWeeksAtVisit, t, language, translatedMedicalReportPreviewNotes]);
 
   // Label map for report_data keys (snake_case) -> readable labels (medicalReport.*)
   const reportDataLabelMap = useMemo(() => ({
@@ -2828,6 +3097,10 @@ export default function HomeScreen() {
     follicle_2_mm: `${t('medicalReport.follicle')} 2 (mm)`,
     follicle_3_mm: `${t('medicalReport.follicle')} 3 (mm)`,
     follicle_4_mm: `${t('medicalReport.follicle')} 4 (mm)`,
+    follicle_1_ovary: `${t('medicalReport.follicle')} 1 ${t('medicalReport.ovary')}`,
+    follicle_2_ovary: `${t('medicalReport.follicle')} 2 ${t('medicalReport.ovary')}`,
+    follicle_3_ovary: `${t('medicalReport.follicle')} 3 ${t('medicalReport.ovary')}`,
+    follicle_4_ovary: `${t('medicalReport.follicle')} 4 ${t('medicalReport.ovary')}`,
     top_4_follicles: t('medicalReport.top4Follicles'),
     labs: t('medicalReport.labs'),
     lab_test_date: t('medicalReport.labTestDate'),
@@ -2856,7 +3129,22 @@ export default function HomeScreen() {
     glucose_screening: t('medicalReport.glucoseScreening'),
     gbs_testing: t('medicalReport.gbsTesting'),
     nipt_cvs_amniocentesis: t('medicalReport.niptCvsAmniocentesis'),
+    nt_screen_normal: t('medicalReport.ntScreen'),
+    nt_screen_test_date: `${t('medicalReport.ntScreen')} ${t('medicalReport.testDate')}`,
+    quad_screen_normal: t('medicalReport.quadScreen'),
+    quad_screen_test_date: `${t('medicalReport.quadScreen')} ${t('medicalReport.testDate')}`,
+    anatomy_scan_normal: t('medicalReport.anatomyScan'),
+    anatomy_scan_test_date: `${t('medicalReport.anatomyScan')} ${t('medicalReport.testDate')}`,
+    glucose_screening_normal: t('medicalReport.glucoseScreening'),
+    glucose_screening_test_date: `${t('medicalReport.glucoseScreening')} ${t('medicalReport.testDate')}`,
+    gbs_testing_normal: t('medicalReport.gbsTesting'),
+    gbs_testing_test_date: `${t('medicalReport.gbsTesting')} ${t('medicalReport.testDate')}`,
+    nipt_cvs_amniocentesis_normal: t('medicalReport.niptCvsAmniocentesis'),
+    nipt_cvs_amniocentesis_test_date: `${t('medicalReport.niptCvsAmniocentesis')} ${t('medicalReport.testDate')}`,
     test_date: t('medicalReport.testDate'),
+    test_site: t('medicalReport.testSite'),
+    effacement: t('medicalReport.effacement'),
+    dilation: t('medicalReport.dilation'),
   }), [t]);
 
   const renderMedicalReportDetailModal = () => {
@@ -2900,6 +3188,16 @@ export default function HomeScreen() {
       if (Array.isArray(v)) return v.join(', ');
       if (typeof v === 'object') return JSON.stringify(v);
       return String(v);
+    };
+
+    const formatLocalizedValue = (v) => {
+      if (v == null || v === '') return '—';
+      const normalized = typeof v === 'string' ? v.trim().toLowerCase() : v;
+      if (normalized === 'yes') return t('medicalReport.yes');
+      if (normalized === 'no') return t('medicalReport.no');
+      if (normalized === 'l' || normalized === 'left') return t('medicalReport.ovaryLeft');
+      if (normalized === 'r' || normalized === 'right') return t('medicalReport.ovaryRight');
+      return formatValue(v);
     };
 
     return (
@@ -3003,7 +3301,9 @@ export default function HomeScreen() {
                       {noteEntries.length > 1 ? (
                         <Text style={styles.medicalReportDetailNotesSubLabel}>{entry.label}</Text>
                       ) : null}
-                      <Text style={styles.medicalReportDetailNotesValue}>{entry.value}</Text>
+                      <Text style={styles.medicalReportDetailNotesValue}>
+                        {translatedMedicalReportNotes[entry.key] || entry.value}
+                      </Text>
                     </View>
                   ))
                 )}
@@ -3016,7 +3316,7 @@ export default function HomeScreen() {
                   return (
                     <View key={key} style={styles.medicalReportDetailSection}>
                       <Text style={styles.medicalReportDetailSectionTitle}>{label}</Text>
-                      <Text style={styles.medicalReportDetailValue}>{formatValue(value)}</Text>
+                      <Text style={styles.medicalReportDetailValue}>{formatLocalizedValue(value)}</Text>
                     </View>
                   );
                 })}
@@ -3030,7 +3330,7 @@ export default function HomeScreen() {
                     <Image source={{ uri: report.proof_image_url }} style={styles.medicalReportDetailImage} resizeMode="cover" />
                     <View style={styles.medicalReportImageOverlay}>
                       <Icon name="eye" size={18} color="#fff" />
-                      <Text style={styles.medicalReportImageText}>View</Text>
+                      <Text style={styles.medicalReportImageText}>{t('medicalReport.view')}</Text>
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -3581,10 +3881,11 @@ export default function HomeScreen() {
               })
               .map((report) => renderMedicalReport(report))}
             {renderMedicalReportDetailModal()}
-            {medicalReports.filter((r) => r.stage === getMedicalReportStage(stageFilter)).length === 0 && (
+            {stageFilter !== 'delivery' &&
+              medicalReports.filter((r) => r.stage === getMedicalReportStage(stageFilter)).length === 0 && (
               <View style={styles.emptyState}>
                 <Icon name="file-text" size={48} color="#ccc" />
-                <Text style={styles.emptyText}>{t('home.noMedicalCheckins') || 'No medical check-ins in this stage yet'}</Text>
+                <Text style={styles.emptyText}>{t('home.noMedicalCheckins')}</Text>
                 <Text style={styles.emptySubtext}>{t('home.addMedicalCheckin')}</Text>
               </View>
             )}
@@ -3610,7 +3911,7 @@ export default function HomeScreen() {
                     >
                       {(note.title || note.stage) ? (
                         <View style={styles.adminNoteHeaderRow}>
-                          {note.title ? <Text style={styles.adminNoteTitle}>{note.title}</Text> : null}
+                          {note.title ? <Text style={styles.adminNoteTitle}>{getAdminNoteTitleDisplay(note.title)}</Text> : null}
                           {note.stage ? (
                             <View style={styles.adminNoteStageBadge}>
                               <Text style={styles.adminNoteStageText}>
@@ -3625,7 +3926,9 @@ export default function HomeScreen() {
                         numberOfLines={4}
                         ellipsizeMode="tail"
                       >
-                        {note.content || ''}
+                        {language === 'en'
+                          ? (note.content || '')
+                          : (adminNoteTranslations[note.id] || note.content || '')}
                       </Text>
                       {imageCount > 0 ? (
                         <Text style={styles.adminNoteImageHint}>
@@ -3850,7 +4153,7 @@ export default function HomeScreen() {
                   {(selectedAdminNote.title || selectedAdminNote.stage) ? (
                     <View style={styles.adminNoteHeaderRow}>
                       {selectedAdminNote.title ? (
-                        <Text style={styles.adminNoteTitle}>{selectedAdminNote.title}</Text>
+                        <Text style={styles.adminNoteTitle}>{getAdminNoteTitleDisplay(selectedAdminNote.title)}</Text>
                       ) : null}
                       {selectedAdminNote.stage ? (
                         <View style={styles.adminNoteStageBadge}>
@@ -3862,8 +4165,15 @@ export default function HomeScreen() {
                     </View>
                   ) : null}
                   <Text style={styles.adminNoteContentDetail}>
-                    {selectedAdminNote.content || ''}
+                    {language === 'en'
+                      ? (selectedAdminNote.content || '')
+                      : (translatedAdminNoteContent || adminNoteTranslations[selectedAdminNote.id] || selectedAdminNote.content || '')}
                   </Text>
+                  {language !== 'en' && translatingAdminNote ? (
+                    <Text style={styles.adminNoteImageHint}>
+                      {t('home.translatingAdminNote')}
+                    </Text>
+                  ) : null}
                   {renderAdminNoteImages(selectedAdminNote)}
                   <Text style={styles.adminNoteDate}>
                     {selectedAdminNote.created_at

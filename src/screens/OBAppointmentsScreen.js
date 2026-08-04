@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -16,7 +16,9 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useParentMatch } from '../context/ParentMatchContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
+import { APP_API_BASE_URL } from '../constants/api';
 import { Feather as Icon } from '@expo/vector-icons';
 import MedicalReportDetailModal, {
   fetchMedicalReportForAppointment,
@@ -35,8 +37,13 @@ const STATUS_COLORS = {
   rescheduled: '#F59E0B',
 };
 
+function containsChinese(text) {
+  return /[\u3400-\u9fff]/.test(String(text || ''));
+}
+
 export default function OBAppointmentsScreen({ navigation }) {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const parentMatch = useParentMatch();
   const { scheduleMedicalAppointmentReminders, cancelMedicalAppointmentReminders } = useNotifications();
   const [appointments, setAppointments] = useState([]);
@@ -45,8 +52,115 @@ export default function OBAppointmentsScreen({ navigation }) {
   const [matchedSurrogateId, setMatchedSurrogateId] = useState(null);
   const [selectedMedicalReport, setSelectedMedicalReport] = useState(null);
   const [loadingCheckIn, setLoadingCheckIn] = useState(false);
+  const [translatedAppointmentNotes, setTranslatedAppointmentNotes] = useState({});
+  const translatedNotesRef = useRef({});
+  const translatingNotesInFlightRef = useRef(new Set());
   const isParent = (user?.role || '').toLowerCase() === 'parent';
   const isSurrogate = (user?.role || '').toLowerCase() === 'surrogate';
+
+  useEffect(() => {
+    translatedNotesRef.current = translatedAppointmentNotes;
+  }, [translatedAppointmentNotes]);
+
+  const localizeSystemAppointmentNote = useCallback(
+    (raw) => {
+      const text = String(raw || '').trim();
+      if (!text || language === 'en') return text;
+      const stageLabelMap = {
+        'Pre-Transfer': t('medicalReport.stagePreTransfer'),
+        'Post-Transfer': t('medicalReport.stagePostTransfer'),
+        OBGYN: t('medicalReport.stageOBGYN'),
+      };
+      const visitMatch = text.match(/^Medical check-in visit \((.+)\)$/i);
+      if (visitMatch) {
+        const stage = String(visitMatch[1] || '').trim();
+        return `${t('medicalReport.title')} ${t('myMatch.appointmentStatus.completed')}（${stageLabelMap[stage] || stage}）`;
+      }
+      const nextMatch = text.match(/^From medical check-in next check \((.+)\)$/i);
+      if (nextMatch) {
+        const stage = String(nextMatch[1] || '').trim();
+        return `${t('medicalReport.nextCheckDate')}（${stageLabelMap[stage] || stage}）`;
+      }
+      return null;
+    },
+    [language, t]
+  );
+
+  const translateAppointmentNoteText = useCallback(
+    async (appointmentId, raw) => {
+      const text = String(raw || '').trim();
+      if (!text) return '';
+      const localizedSystem = localizeSystemAppointmentNote(text);
+      if (localizedSystem) return localizedSystem;
+      if (language === 'en') return text;
+      if (String(language || '').toLowerCase().startsWith('zh') && containsChinese(text)) return text;
+
+      const cached = translatedNotesRef.current[appointmentId];
+      if (cached && cached.source === text && cached.language === language) {
+        return cached.display;
+      }
+
+      const cacheKey = `${appointmentId || 'appointment'}:${language}:${text}`;
+      if (translatingNotesInFlightRef.current.has(cacheKey)) return text;
+      translatingNotesInFlightRef.current.add(cacheKey);
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (sessionError || !accessToken) return text;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(`${APP_API_BASE_URL}/api/app/translate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ text, targetLanguage: language }),
+          signal: controller.signal,
+        }).catch(() => null);
+        clearTimeout(timeoutId);
+        if (!res || !res.ok) return text;
+        const payload = await res.json().catch(() => ({}));
+        return String(payload?.translatedText || '').trim() || text;
+      } catch {
+        return text;
+      } finally {
+        translatingNotesInFlightRef.current.delete(cacheKey);
+      }
+    },
+    [language, localizeSystemAppointmentNote]
+  );
+
+  useEffect(() => {
+    if (!Array.isArray(appointments) || appointments.length === 0) {
+      setTranslatedAppointmentNotes((prev) => (Object.keys(prev).length ? {} : prev));
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      const next = {};
+      for (const appointment of appointments) {
+        const id = appointment?.id;
+        const raw = String(appointment?.notes || '').trim();
+        if (!id || !raw) continue;
+        const cached = translatedNotesRef.current[id];
+        if (cached && cached.source === raw && cached.language === language) {
+          next[id] = cached;
+          continue;
+        }
+        const display = await translateAppointmentNoteText(id, raw);
+        if (cancelled) return;
+        next[id] = { source: raw, language, display };
+      }
+      if (cancelled) return;
+      setTranslatedAppointmentNotes(next);
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [appointments, language, translateAppointmentNoteText]);
 
   useEffect(() => {
     if (!user?.id || isParent) return;
@@ -125,7 +239,7 @@ export default function OBAppointmentsScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error loading appointments:', error);
-      Alert.alert('Error', 'Failed to load appointments');
+      Alert.alert(t('common.error'), t('myMatch.failedToLoadAppointments'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,22 +276,27 @@ export default function OBAppointmentsScreen({ navigation }) {
     }
   };
 
-  const formatDate = (date) => formatDateOnlyDisplay(date);
+  const formatDate = (date) =>
+    formatDateOnlyDisplay(
+      date,
+      { month: 'short', day: 'numeric', year: 'numeric' },
+      language === 'zh' ? 'zh-CN' : language === 'es' ? 'es-ES' : 'en-US'
+    );
 
   const formatTime = (time) => {
     if (!time) return '';
     const t = new Date(`2000-01-01T${time}`);
-    return t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return t.toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const handleDelete = async (appointmentId) => {
     Alert.alert(
-      'Delete Appointment',
-      'Are you sure you want to delete this appointment?',
+      t('myMatch.deleteAppointmentTitle'),
+      t('myMatch.deleteAppointmentConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -189,11 +308,11 @@ export default function OBAppointmentsScreen({ navigation }) {
               if (error) throw error;
 
               await cancelMedicalAppointmentReminders(`ob_${appointmentId}`);
-              Alert.alert('Success', 'Appointment deleted');
+              Alert.alert(t('common.success'), t('myMatch.appointmentDeleted'));
               loadAppointments();
             } catch (error) {
               console.error('Error deleting appointment:', error);
-              Alert.alert('Error', 'Failed to delete appointment');
+              Alert.alert(t('common.error'), t('myMatch.failedToDeleteAppointment'));
             }
           },
         },
@@ -206,7 +325,7 @@ export default function OBAppointmentsScreen({ navigation }) {
     if (!appointment || effectiveStatus !== 'completed') return;
     const ownerId = isParent ? matchedSurrogateId : user?.id;
     if (!ownerId) {
-      Alert.alert('Check-in', 'Unable to load linked medical check-in.');
+      Alert.alert(t('myMatch.checkInTitle'), t('myMatch.unableToLoadCheckIn'));
       return;
     }
     setLoadingCheckIn(true);
@@ -216,7 +335,7 @@ export default function OBAppointmentsScreen({ navigation }) {
       setSelectedMedicalReport(report || buildEmptyCheckInForAppointment(appointment));
     } catch (e) {
       console.error('Error loading linked check-in:', e);
-      Alert.alert('Error', 'Failed to load medical check-in');
+      Alert.alert(t('common.error'), t('myMatch.failedToLoadCheckIn'));
     } finally {
       setLoadingCheckIn(false);
     }
@@ -230,7 +349,7 @@ export default function OBAppointmentsScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Icon name="arrow-left" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>OB Appointments</Text>
+          <Text style={styles.headerTitle}>{t('myMatch.obAppointments')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
@@ -247,7 +366,7 @@ export default function OBAppointmentsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>OB Appointments</Text>
+          <Text style={styles.headerTitle}>{t('myMatch.obAppointments')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -259,12 +378,11 @@ export default function OBAppointmentsScreen({ navigation }) {
           <View style={styles.emptyContainer}>
             <Icon name="calendar" size={48} color="#CCC" />
             <Text style={styles.emptyText}>
-              {isParent ? 'No surrogate appointments yet' : 'No appointments yet'}
+              {isParent ? t('myMatch.noSurrogateAppointmentsYet') : t('myMatch.noAppointmentsYet')}
             </Text>
             {!isParent && (
               <Text style={styles.emptySubtext}>
-                Next checks from OBGYN medical check-ins appear here automatically.
-                Each check-in visit is also listed as completed.
+                {t('myMatch.obAppointmentHint')}
               </Text>
             )}
           </View>
@@ -297,7 +415,7 @@ export default function OBAppointmentsScreen({ navigation }) {
                     { backgroundColor: STATUS_COLORS[effectiveStatus] || '#999' },
                   ]}
                 >
-                  <Text style={styles.statusText}>{effectiveStatus}</Text>
+                  <Text style={styles.statusText}>{t(`myMatch.appointmentStatus.${effectiveStatus}`)}</Text>
                 </View>
               </View>
 
@@ -332,11 +450,13 @@ export default function OBAppointmentsScreen({ navigation }) {
                 })()}
                 {appointment.notes ? (
                   <View style={styles.notesContainer}>
-                    <Text style={styles.notesText}>{appointment.notes}</Text>
+                    <Text style={styles.notesText}>
+                      {translatedAppointmentNotes[appointment.id]?.display || localizeSystemAppointmentNote(appointment.notes) || appointment.notes}
+                    </Text>
                   </View>
                 ) : null}
                 {isCompleted ? (
-                  <Text style={styles.tapHint}>Tap to view My Journey check-in</Text>
+                  <Text style={styles.tapHint}>{t('myMatch.tapToViewCheckIn')}</Text>
                 ) : null}
               </View>
 

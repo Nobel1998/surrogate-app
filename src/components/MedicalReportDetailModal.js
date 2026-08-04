@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../lib/supabase';
+import { APP_API_BASE_URL } from '../constants/api';
 
 function formatVisitDate(visitDate) {
   if (!visitDate) return 'N/A';
@@ -24,6 +26,36 @@ function formatValue(v) {
   if (Array.isArray(v)) return v.join(', ');
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v);
+}
+
+function containsChinese(text) {
+  return /[\u3400-\u9fff]/.test(String(text || ''));
+}
+
+function localizeMedicalStage(stage, t) {
+  const raw = String(stage || '').trim();
+  if (!raw) return '';
+  const map = {
+    'Pre-Transfer': t('medicalReport.stagePreTransfer'),
+    'Post-Transfer': t('medicalReport.stagePostTransfer'),
+    OBGYN: t('medicalReport.stageOBGYN'),
+    pre_transfer: t('medicalReport.stagePreTransfer'),
+    post_transfer: t('medicalReport.stagePostTransfer'),
+    obgyn: t('medicalReport.stageOBGYN'),
+  };
+  return map[raw] || map[raw.replace(/\s+/g, '_').toLowerCase()] || raw;
+}
+
+function formatLocalizedValue(key, value, t) {
+  if (value == null || value === '') return '—';
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : value;
+  if (typeof normalized === 'string') {
+    if (normalized === 'yes') return t('medicalReport.yes');
+    if (normalized === 'no') return t('medicalReport.no');
+    if (normalized === 'l' || normalized === 'left') return t('medicalReport.ovaryLeft');
+    if (normalized === 'r' || normalized === 'right') return t('medicalReport.ovaryRight');
+  }
+  return formatValue(value);
 }
 
 function parseReportData(raw) {
@@ -69,7 +101,9 @@ export default function MedicalReportDetailModal({
   onClose,
   onEdit,
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [translatedNoteValues, setTranslatedNoteValues] = useState({});
+  const activeReport = report || {};
 
   const reportDataLabelMap = useMemo(
     () => ({
@@ -81,6 +115,10 @@ export default function MedicalReportDetailModal({
       follicle_2_mm: `${t('medicalReport.follicle')} 2 (mm)`,
       follicle_3_mm: `${t('medicalReport.follicle')} 3 (mm)`,
       follicle_4_mm: `${t('medicalReport.follicle')} 4 (mm)`,
+      follicle_1_ovary: `${t('medicalReport.follicle')} 1 ${t('medicalReport.ovary')}`,
+      follicle_2_ovary: `${t('medicalReport.follicle')} 2 ${t('medicalReport.ovary')}`,
+      follicle_3_ovary: `${t('medicalReport.follicle')} 3 ${t('medicalReport.ovary')}`,
+      follicle_4_ovary: `${t('medicalReport.follicle')} 4 ${t('medicalReport.ovary')}`,
       labs: t('medicalReport.labs'),
       lab_test_date: t('medicalReport.labTestDate'),
       ultrasound_test_date: t('medicalReport.ultrasoundTestDate'),
@@ -115,18 +153,93 @@ export default function MedicalReportDetailModal({
       nipt_cvs_amniocentesis_normal: t('medicalReport.niptCvsAmniocentesis'),
       nipt_cvs_amniocentesis_test_date: `${t('medicalReport.niptCvsAmniocentesis')} ${t('medicalReport.testDate')}`,
       test_site: t('medicalReport.testSite'),
-      effacement: 'Effacement',
-      dilation: 'Dilation',
+      effacement: t('medicalReport.effacement'),
+      dilation: t('medicalReport.dilation'),
     }),
     [t]
   );
 
-  if (!visible || !report) return null;
+  const reportData = useMemo(() => parseReportData(activeReport.report_data), [activeReport.report_data]);
+  const noteEntries = useMemo(
+    () => extractNoteEntries(reportData, reportDataLabelMap),
+    [reportData, reportDataLabelMap]
+  );
+  const uploadedByAdmin = activeReport.uploaded_by === 'admin';
+  const isEmptyPlaceholder = !!activeReport._emptyPlaceholder;
 
-  const reportData = parseReportData(report.report_data);
-  const noteEntries = extractNoteEntries(reportData, reportDataLabelMap);
-  const uploadedByAdmin = report.uploaded_by === 'admin';
-  const isEmptyPlaceholder = !!report._emptyPlaceholder;
+  useEffect(() => {
+    let cancelled = false;
+    const translateNotes = async () => {
+      if (!visible || noteEntries.length === 0) {
+        setTranslatedNoteValues((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+        return;
+      }
+      if (language === 'en') {
+        setTranslatedNoteValues((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+        return;
+      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (sessionError || !accessToken) {
+        setTranslatedNoteValues((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+        return;
+      }
+
+      const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      };
+
+      const translatedPairs = await Promise.all(
+        noteEntries.map(async (entry) => {
+          if (String(language || '').toLowerCase().startsWith('zh') && containsChinese(entry.value)) {
+            return [entry.key, entry.value];
+          }
+          try {
+            const res = await fetchWithTimeout(
+              `${APP_API_BASE_URL}/api/app/translate`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  text: entry.value,
+                  targetLanguage: language,
+                }),
+              },
+              8000
+            );
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) return [entry.key, entry.value];
+            return [entry.key, String(payload?.translatedText || '').trim() || entry.value];
+          } catch {
+            return [entry.key, entry.value];
+          }
+        })
+      );
+
+      if (cancelled) return;
+      setTranslatedNoteValues((prev) => {
+        const next = Object.fromEntries(translatedPairs);
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
+      });
+    };
+
+    translateNotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, noteEntries, language]);
+
+  if (!visible || !report) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -135,8 +248,8 @@ export default function MedicalReportDetailModal({
           <View style={styles.header}>
             <View style={styles.headerTitles}>
               <Text style={styles.title}>{t('medicalReport.title')}</Text>
-              {report.stage ? (
-                <Text style={styles.stage}>{report.stage}</Text>
+              {activeReport.stage ? (
+                <Text style={styles.stage}>{localizeMedicalStage(activeReport.stage, t)}</Text>
               ) : null}
             </View>
             <View style={styles.headerActions}>
@@ -160,14 +273,14 @@ export default function MedicalReportDetailModal({
             {isEmptyPlaceholder ? (
               <View style={styles.emptyHintBox}>
                 <Text style={styles.emptyHintText}>
-                  No medical check-in for this appointment yet.
+                  {t('medicalReport.noCheckInForAppointment')}
                 </Text>
               </View>
             ) : null}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('medicalReport.visitDate')}</Text>
-              <Text style={styles.sectionValue}>{formatVisitDate(report.visit_date)}</Text>
+              <Text style={styles.sectionValue}>{formatVisitDate(activeReport.visit_date)}</Text>
             </View>
             {reportData.visit_time ? (
               <View style={styles.section}>
@@ -176,10 +289,10 @@ export default function MedicalReportDetailModal({
               </View>
             ) : null}
 
-            {report.provider_name ? (
+            {activeReport.provider_name ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.providerName')}</Text>
-                <Text style={styles.sectionValue}>{report.provider_name}</Text>
+                <Text style={styles.sectionValue}>{activeReport.provider_name}</Text>
               </View>
             ) : null}
 
@@ -205,7 +318,7 @@ export default function MedicalReportDetailModal({
                     {noteEntries.length > 1 ? (
                       <Text style={styles.notesSubLabel}>{entry.label}</Text>
                     ) : null}
-                    <Text style={styles.notesValue}>{entry.value}</Text>
+                    <Text style={styles.notesValue}>{translatedNoteValues[entry.key] || entry.value}</Text>
                   </View>
                 ))
               )}
@@ -225,7 +338,7 @@ export default function MedicalReportDetailModal({
                 return (
                   <View key={key} style={styles.section}>
                     <Text style={styles.sectionTitle}>{label}</Text>
-                    <Text style={styles.sectionValue}>{formatValue(value)}</Text>
+                    <Text style={styles.sectionValue}>{formatLocalizedValue(key, value, t)}</Text>
                   </View>
                 );
               })}
@@ -257,11 +370,11 @@ export default function MedicalReportDetailModal({
               </View>
             )}
 
-            {report.proof_image_url ? (
+            {activeReport.proof_image_url ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('medicalReport.uploadProof')}</Text>
                 <Image
-                  source={{ uri: report.proof_image_url }}
+                  source={{ uri: activeReport.proof_image_url }}
                   style={styles.proofImage}
                   resizeMode="cover"
                 />

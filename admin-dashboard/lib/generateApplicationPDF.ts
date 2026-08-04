@@ -119,9 +119,34 @@ export const generateApplicationPDF = async (app: ApplicationData) => {
       ['Country/State of Residence', formatValue(app.parent1CountryState)],
       ['Occupation', formatValue(app.parent1Occupation)],
       ['Languages', formatValue(app.parent1Languages)],
-      ['Phone', app.parent1PhoneCountryCode && app.parent1PhoneAreaCode && app.parent1PhoneNumber
-        ? `+${app.parent1PhoneCountryCode} (${app.parent1PhoneAreaCode}) ${app.parent1PhoneNumber}`
-        : formatValue(app.parent1PhoneNumber)],
+      ['Phone', (() => {
+        const cc = String(app.parent1PhoneCountryCode || '').replace(/\D/g, '');
+        const area = String(app.parent1PhoneAreaCode || '').replace(/\D/g, '');
+        const local = String(app.parent1PhoneNumber || '').replace(/\D/g, '');
+        let all = `${cc}${area}${local}`;
+        if (!all) return formatValue(app.parent1PhoneNumber);
+        let country = '';
+        if (all.length >= 11 && all.startsWith('1')) {
+          country = '1';
+          all = all.slice(1);
+        } else if (all.length === 10) {
+          country = cc || '1';
+        } else {
+          country = cc;
+        }
+        if (all.length >= 11 && all.startsWith('1')) {
+          if (!country) country = '1';
+          all = all.slice(1);
+        }
+        if (country === '1' && all.length === 10) {
+          const a = all.slice(0, 3);
+          const rest = all.slice(3);
+          return `+1(${a})${rest.slice(0, 3)}-${rest.slice(3)}`;
+        }
+        return app.parent1PhoneCountryCode && app.parent1PhoneAreaCode && app.parent1PhoneNumber
+          ? `+${app.parent1PhoneCountryCode}(${app.parent1PhoneAreaCode})${app.parent1PhoneNumber}`
+          : formatValue(app.parent1PhoneNumber);
+      })()],
       ['Email', formatValue(app.parent1Email)],
       ['Emergency Contact', formatValue(app.parent1EmergencyContact)],
       ['Address', [

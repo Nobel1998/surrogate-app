@@ -12,6 +12,10 @@ import { translateFormUi } from '../i18n/formUiStrings';
 import { getClientIpInfo } from '../utils/getClientIp';
 import DatePickerField from '../components/DatePickerField';
 import {
+  formatParentPhoneForProfile as formatParentPhoneForProfileUtil,
+  parseParentPhoneParts,
+} from '../utils/parentPhone';
+import {
   getParentDraftKey,
   buildDraftEnvelope,
   saveApplicationDraft,
@@ -58,49 +62,85 @@ function formatDateFromParts(month, day, year) {
   return '';
 }
 
+function splitFullName(fullName) {
+  const parts = String(fullName || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+/**
+ * Prefill empty Parent 1 fields from signup / profile (same idea as surrogate application).
+ * Never overwrites values the user (or a draft) already filled in.
+ */
+function fillParent1FromUserProfile(prev, user) {
+  if (!user || !prev) return prev;
+  const meta = user.user_metadata || {};
+  const profileName = user.name || meta.name || '';
+  const nameParts = splitFullName(profileName);
+  const dobRaw = user.dateOfBirth || meta.date_of_birth || '';
+  const dobParts = parseDateOfBirthParts(dobRaw);
+  const phoneRaw = user.phone || meta.phone || '';
+  const phoneParts = splitPhoneForParentForm(phoneRaw);
+  const location = String(user.address || user.location || meta.location || '').trim();
+  const race = String(user.race || meta.race || '').trim();
+  const email = String(user.email || meta.email || '').trim();
+
+  const hasPhone =
+    String(prev.parent1PhoneCountryCode || '').trim() ||
+    String(prev.parent1PhoneAreaCode || '').trim() ||
+    String(prev.parent1PhoneNumber || '').trim();
+
+  return normalizeParent1PhoneFields({
+    ...prev,
+    parent1FirstName: String(prev.parent1FirstName || '').trim() || nameParts.firstName,
+    parent1LastName: String(prev.parent1LastName || '').trim() || nameParts.lastName,
+    parent1Email: String(prev.parent1Email || '').trim() || email,
+    parent1PhoneCountryCode: hasPhone ? prev.parent1PhoneCountryCode : phoneParts.countryCode,
+    parent1PhoneAreaCode: hasPhone ? prev.parent1PhoneAreaCode : phoneParts.areaCode,
+    parent1PhoneNumber: hasPhone ? prev.parent1PhoneNumber : phoneParts.phoneNumber,
+    parent1DateOfBirthMonth: String(prev.parent1DateOfBirthMonth || '').trim() || dobParts.month,
+    parent1DateOfBirthDay: String(prev.parent1DateOfBirthDay || '').trim() || dobParts.day,
+    parent1DateOfBirthYear: String(prev.parent1DateOfBirthYear || '').trim() || dobParts.year,
+    parent1Race: String(prev.parent1Race || '').trim() || race,
+    parent1AddressCity: String(prev.parent1AddressCity || '').trim() || location,
+  });
+}
+
 /**
  * Split a signup/profile phone into Country Code / Area Code / local Phone Number.
  * Local number must not include country or area code.
  */
 function splitPhoneForParentForm(raw) {
-  let digits = String(raw || '').replace(/\D/g, '');
-  if (!digits) {
-    return { countryCode: '', areaCode: '', phoneNumber: '' };
-  }
-
-  let countryCode = '';
-  // US/NANP: leading 1 + 10-digit national number
-  if (digits.length >= 11 && digits.startsWith('1')) {
-    countryCode = '1';
-    digits = digits.slice(1);
-  }
-
-  let areaCode = '';
-  let phoneNumber = digits;
-  if (digits.length >= 10) {
-    areaCode = digits.slice(0, 3);
-    phoneNumber = digits.slice(3);
-  }
-
-  return { countryCode, areaCode, phoneNumber };
+  const parts = parseParentPhoneParts({ raw });
+  return {
+    countryCode: parts.countryCode,
+    areaCode: parts.areaCode,
+    phoneNumber: parts.phoneNumber,
+  };
 }
 
-/** If Phone Number still holds a full number (10+ digits), re-split into the three fields. */
+/** Re-merge country/area/local so country code is never duplicated into area. */
 function normalizeParent1PhoneFields(data) {
   if (!data) return data;
-  const phoneDigits = String(data.parent1PhoneNumber || '').replace(/\D/g, '');
-  if (phoneDigits.length < 10) {
-    return data;
-  }
-  const combined = [data.parent1PhoneCountryCode, data.parent1PhoneAreaCode, data.parent1PhoneNumber]
-    .filter((v) => String(v || '').trim())
-    .join(' ');
-  const parts = splitPhoneForParentForm(combined || data.parent1PhoneNumber);
+  const parts = parseParentPhoneParts({
+    countryCode: data.parent1PhoneCountryCode,
+    areaCode: data.parent1PhoneAreaCode,
+    phoneNumber: data.parent1PhoneNumber,
+  });
+  if (!parts.countryCode && !parts.areaCode && !parts.phoneNumber) return data;
   return {
     ...data,
-    parent1PhoneCountryCode: parts.countryCode || data.parent1PhoneCountryCode || '',
-    parent1PhoneAreaCode: parts.areaCode || data.parent1PhoneAreaCode || '',
-    parent1PhoneNumber: parts.phoneNumber,
+    parent1PhoneCountryCode: parts.countryCode || '',
+    parent1PhoneAreaCode: parts.areaCode || '',
+    parent1PhoneNumber: parts.phoneNumber || '',
   };
 }
 
@@ -154,18 +194,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
   };
 
   /** Map parent application form fields → profiles columns used by My Info */
-  const formatParentPhoneForProfile = (data) => {
-    const cc = String(data.parent1PhoneCountryCode || '')
-      .trim()
-      .replace(/^\+/, '');
-    const area = String(data.parent1PhoneAreaCode || '').trim();
-    const num = String(data.parent1PhoneNumber || '').trim();
-    const parts = [];
-    if (cc) parts.push(`(+${cc})`);
-    if (area) parts.push(area);
-    if (num) parts.push(num);
-    return parts.join(' ').trim();
-  };
+  const formatParentPhoneForProfile = (data) => formatParentPhoneForProfileUtil(data);
 
   const buildParentProfileFromApplication = (data, { userId, email, inviteCode, signupIp, signupIpRegion } = {}) => {
     const first = (data.parent1FirstName || '').trim();
@@ -249,7 +278,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     return { error: new Error('Failed to sync profile') };
   };
   
-  const [applicationData, setApplicationData] = useState({
+  const [applicationData, setApplicationData] = useState(() =>
+    fillParent1FromUserProfile(
+      {
     // Step 1: Family Structure & Basic Information
     familyStructure: '', // married, domestic_partners, same_sex_couple, single_father, single_mother
     hearAboutUs: '', // google_search, youtube, online_resources, facebook, friend, other_agency, ai, clinic_referral
@@ -270,7 +301,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     parent1PhoneCountryCode: '',
     parent1PhoneAreaCode: '',
     parent1PhoneNumber: '',
-    parent1Email: user?.email || '',
+    parent1Email: '',
     parent1EmergencyContact: '',
     parent1AddressStreet: '',
     parent1AddressStreet2: '',
@@ -362,7 +393,10 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     // Photos (up to 4)
     photos: [], // Array of photo URLs
     photoUrl: '', // Backward compatibility: single photo
-  });
+  },
+      user
+    )
+  );
 
   // Draft storage helpers
   const getDraftKey = () => getParentDraftKey(user?.id);
@@ -398,7 +432,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       if (!String(merged.parent1Email || '').trim()) {
         merged.parent1Email = prev.parent1Email || user?.email || '';
       }
-      return merged;
+      return fillParent1FromUserProfile(merged, user);
     });
     if (Array.isArray(parsed.photos) && parsed.photos.length > 0) {
       applyPhotosFromUrls(parsed.photos);
@@ -462,6 +496,7 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
 
       if (!uid) {
         draftHydratedRef.current = true;
+        setApplicationData((prev) => fillParent1FromUserProfile(prev, user));
         return;
       }
 
@@ -489,9 +524,11 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       }
 
       draftHydratedRef.current = true;
+      setApplicationData((prev) => fillParent1FromUserProfile(prev, user));
     } catch (error) {
       console.error('Error loading draft:', error);
       draftHydratedRef.current = true;
+      setApplicationData((prev) => fillParent1FromUserProfile(prev, user));
     }
   };
 
@@ -629,7 +666,9 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
     if (editMode && existingData) {
       draftHydratedRef.current = true;
       const dataToSet = normalizeMultiSelectFields({ ...existingData });
-      setApplicationData(normalizeParent1PhoneFields(dataToSet));
+      setApplicationData(
+        fillParent1FromUserProfile(normalizeParent1PhoneFields(dataToSet), user)
+      );
       if (dataToSet.photos && Array.isArray(dataToSet.photos) && dataToSet.photos.length > 0) {
         applyPhotosFromUrls(dataToSet.photos);
       } else if (dataToSet.photoUrl) {
@@ -639,22 +678,27 @@ export default function IntendedParentApplicationScreen({ navigation, route }) {
       draftHydratedRef.current = true;
       loadExistingApplication();
     } else {
-      if (user) {
-        const phoneParts = splitPhoneForParentForm(user.phone || user.user_metadata?.phone || '');
-        const profileEmail = user.email || user.user_metadata?.email || '';
-        setApplicationData((prev) =>
-          normalizeParent1PhoneFields({
-            ...prev,
-            parent1Email: profileEmail || prev.parent1Email || '',
-            parent1PhoneCountryCode: phoneParts.countryCode,
-            parent1PhoneAreaCode: phoneParts.areaCode,
-            parent1PhoneNumber: phoneParts.phoneNumber,
-          })
-        );
-      }
       loadDraft();
     }
   }, [editMode, existingData, applicationId, user?.id]);
+
+  // After draft hydrate / login: fill empty Parent 1 fields from signup profile
+  useEffect(() => {
+    if (!user || editMode) return;
+    if (!draftHydratedRef.current) return;
+    setApplicationData((prev) => fillParent1FromUserProfile(prev, user));
+  }, [
+    editMode,
+    user?.id,
+    user?.name,
+    user?.email,
+    user?.phone,
+    user?.dateOfBirth,
+    user?.race,
+    user?.address,
+    user?.location,
+    user?.user_metadata,
+  ]);
 
   useFocusEffect(
     React.useCallback(() => {

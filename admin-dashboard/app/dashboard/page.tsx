@@ -198,15 +198,38 @@ export default function Home() {
       ? `${formData.parent1FirstName} ${formData.parent1LastName}`
       : formData.parent1FirstName || formData.parent1LastName || 'Unknown';
     
-    // Format phone number: +{countryCode} ({areaCode}) {phoneNumber}
+    // Format phone number: +1(123)456-7890 (avoid duplicating country into area)
     const formatPhone = () => {
-      if (formData.parent1PhoneCountryCode && formData.parent1PhoneAreaCode && formData.parent1PhoneNumber) {
-        return `+${formData.parent1PhoneCountryCode} (${formData.parent1PhoneAreaCode}) ${formData.parent1PhoneNumber}`;
-      } else if (formData.parent1PhoneNumber) {
-        return formData.parent1PhoneNumber;
-      } else if (formData.parent1PhoneCountryCode) {
-        return `+${formData.parent1PhoneCountryCode}`;
+      const cc = String(formData.parent1PhoneCountryCode || '').replace(/\D/g, '');
+      const area = String(formData.parent1PhoneAreaCode || '').replace(/\D/g, '');
+      const local = String(formData.parent1PhoneNumber || '').replace(/\D/g, '');
+      let all = `${cc}${area}${local}`;
+      if (!all) return formData.parent1PhoneNumber || 'N/A';
+
+      let country = '';
+      if (all.length >= 11 && all.startsWith('1')) {
+        country = '1';
+        all = all.slice(1);
+      } else if (all.length === 10) {
+        country = cc || '1';
+      } else {
+        country = cc;
       }
+      if (all.length >= 11 && all.startsWith('1')) {
+        if (!country) country = '1';
+        all = all.slice(1);
+      }
+
+      if (country === '1' && all.length === 10) {
+        const a = all.slice(0, 3);
+        const rest = all.slice(3);
+        return `+1(${a})${rest.slice(0, 3)}-${rest.slice(3)}`;
+      }
+      if (formData.parent1PhoneCountryCode && formData.parent1PhoneAreaCode && formData.parent1PhoneNumber) {
+        return `+${formData.parent1PhoneCountryCode}(${formData.parent1PhoneAreaCode})${formData.parent1PhoneNumber}`;
+      }
+      if (formData.parent1PhoneNumber) return formData.parent1PhoneNumber;
+      if (formData.parent1PhoneCountryCode) return `+${formData.parent1PhoneCountryCode}`;
       return 'N/A';
     };
     

@@ -65,8 +65,19 @@ function parseFlexible(value, formatKey) {
     const parsed = FORMATS[key].parse(value);
     if (parsed) return parsed;
   }
-  const native = new Date(value);
-  return Number.isNaN(native.getTime()) ? null : native;
+  // Avoid `new Date('...')` for free text — locale parsing is unreliable.
+  return null;
+}
+
+function isValidDate(d) {
+  return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
+function clampDate(date, min, max) {
+  let d = isValidDate(date) ? new Date(date.getTime()) : new Date();
+  if (isValidDate(min) && d.getTime() < min.getTime()) d = new Date(min.getTime());
+  if (isValidDate(max) && d.getTime() > max.getTime()) d = new Date(max.getTime());
+  return d;
 }
 
 /**
@@ -95,32 +106,60 @@ export default function DatePickerField({
   const [open, setOpen] = useState(false);
   const [draftDate, setDraftDate] = useState(null);
   const formatter = FORMATS[format] || FORMATS['MM/DD/YYYY'];
-  const parsed = useMemo(() => parseFlexible(value, format), [value, format]);
+  const parsed = useMemo(() => {
+    const d = parseFlexible(value, format);
+    // Native picker treats Unix epoch specially; ignore it as a real selection.
+    if (d && d.getTime() === 0) return null;
+    return d;
+  }, [value, format]);
+
+  // Always pass concrete min/max — undefined bounds make some RN DateTimePicker
+  // builds (new arch) lock the spinner on the Unix epoch (1970-01-01).
+  const resolvedMinimumDate = useMemo(() => {
+    if (isValidDate(minimumDate)) return minimumDate;
+    return new Date(1900, 0, 1);
+  }, [minimumDate]);
+
+  const resolvedMaximumDate = useMemo(() => {
+    if (isValidDate(maximumDate)) return maximumDate;
+    if (variant === 'dob') {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return today;
+    }
+    return new Date(2100, 11, 31);
+  }, [maximumDate, variant]);
 
   const fallbackDate = useMemo(() => {
-    if (initialDate instanceof Date && !Number.isNaN(initialDate.getTime())) {
-      return initialDate;
+    let base;
+    if (isValidDate(initialDate)) {
+      base = initialDate;
+    } else if (variant === 'dob') {
+      base = new Date();
+      base.setFullYear(base.getFullYear() - 25);
+    } else {
+      base = new Date();
     }
-    if (variant === 'dob') {
-      const d = new Date();
-      d.setFullYear(d.getFullYear() - 25);
-      return d;
-    }
-    return new Date();
-  }, [initialDate, variant]);
+    return clampDate(base, resolvedMinimumDate, resolvedMaximumDate);
+  }, [initialDate, variant, resolvedMinimumDate, resolvedMaximumDate]);
 
-  const pickerValue = draftDate || parsed || fallbackDate;
+  const pickerValue = clampDate(
+    draftDate || parsed || fallbackDate,
+    resolvedMinimumDate,
+    resolvedMaximumDate
+  );
   const display = value ? String(value) : '';
 
   const openPicker = () => {
     if (!editable) return;
-    setDraftDate(parsed || fallbackDate);
+    setDraftDate(clampDate(parsed || fallbackDate, resolvedMinimumDate, resolvedMaximumDate));
     setOpen(true);
   };
 
   const commit = (date) => {
-    if (!date || Number.isNaN(date.getTime())) return;
-    onChange?.(formatter.format(date));
+    if (!isValidDate(date)) return;
+    const safe = clampDate(date, resolvedMinimumDate, resolvedMaximumDate);
+    onChange?.(formatter.format(safe));
   };
 
   const onPickerChange = (event, selected) => {
@@ -130,7 +169,8 @@ export default function DatePickerField({
       if (selected) commit(selected);
       return;
     }
-    if (selected) setDraftDate(selected);
+    // iOS: selected can be undefined at epoch (1970-01-01); ignore invalid.
+    if (selected && isValidDate(selected)) setDraftDate(selected);
   };
 
   const confirmIos = () => {
@@ -166,8 +206,8 @@ export default function DatePickerField({
           mode="date"
           display="default"
           onChange={onPickerChange}
-          maximumDate={maximumDate}
-          minimumDate={minimumDate}
+          maximumDate={resolvedMaximumDate}
+          minimumDate={resolvedMinimumDate}
         />
       )}
 
@@ -195,8 +235,8 @@ export default function DatePickerField({
                 themeVariant="light"
                 textColor="#0F172A"
                 onChange={onPickerChange}
-                maximumDate={maximumDate}
-                minimumDate={minimumDate}
+                maximumDate={resolvedMaximumDate}
+                minimumDate={resolvedMinimumDate}
                 style={styles.iosPicker}
               />
             </View>

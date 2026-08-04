@@ -29,7 +29,8 @@ function parseDateOfBirthParts(raw) {
   const s = String(raw || '').trim();
   if (!s) return { month: '', day: '', year: '' };
 
-  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss...
+  let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s].*)?$/);
   if (m) {
     return {
       month: String(parseInt(m[2], 10)),
@@ -60,30 +61,42 @@ function applyAirportFields(data) {
   };
 }
 
+function formatDobMMDDYYYY(month, day, year) {
+  const m = String(month || '').trim();
+  const d = String(day || '').trim();
+  const y = String(year || '').trim();
+  if (!m || !d || !y) return '';
+  return `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
+}
+
 function applyDateOfBirthParts(data) {
   if (!data) return data;
-  const hasParts =
-    String(data.dateOfBirthMonth || '').trim() &&
-    String(data.dateOfBirthDay || '').trim() &&
-    String(data.dateOfBirthYear || '').trim();
-  if (hasParts) return data;
+  const partsFromValue = parseDateOfBirthParts(data.dateOfBirth);
+  const month =
+    String(data.dateOfBirthMonth || '').trim() || partsFromValue.month || '';
+  const day =
+    String(data.dateOfBirthDay || '').trim() || partsFromValue.day || '';
+  const year =
+    String(data.dateOfBirthYear || '').trim() || partsFromValue.year || '';
 
-  const parts = parseDateOfBirthParts(data.dateOfBirth);
-  if (!parts.year) return data;
+  if (!month || !day || !year) return data;
 
-  const month = String(data.dateOfBirthMonth || parts.month || '').trim() || parts.month;
-  const day = String(data.dateOfBirthDay || parts.day || '').trim() || parts.day;
-  const year = String(data.dateOfBirthYear || parts.year || '').trim() || parts.year;
+  const formatted = formatDobMMDDYYYY(month, day, year);
+  if (
+    String(data.dateOfBirthMonth || '').trim() === month &&
+    String(data.dateOfBirthDay || '').trim() === day &&
+    String(data.dateOfBirthYear || '').trim() === year &&
+    String(data.dateOfBirth || '').trim() === formatted
+  ) {
+    return data;
+  }
 
   return {
     ...data,
     dateOfBirthMonth: month,
     dateOfBirthDay: day,
     dateOfBirthYear: year,
-    dateOfBirth:
-      month && day && year
-        ? `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`
-        : data.dateOfBirth,
+    dateOfBirth: formatted,
   };
 }
 
@@ -136,6 +149,11 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     const initialDob =
       user?.user_metadata?.date_of_birth || user?.dateOfBirth || '';
     const dobParts = parseDateOfBirthParts(initialDob);
+    const initialDobFormatted = formatDobMMDDYYYY(
+      dobParts.month,
+      dobParts.day,
+      dobParts.year
+    );
     return {
     // Step 1: Personal Information (Extended)
     firstName: nameParts.firstName,
@@ -143,7 +161,7 @@ export default function SurrogateApplicationScreen({ navigation, route }) {
     lastName: nameParts.lastName,
     fullName: profileName,
     age: user?.user_metadata?.age || '',
-    dateOfBirth: initialDob,
+    dateOfBirth: initialDobFormatted || initialDob,
     dateOfBirthMonth: dobParts.month,
     dateOfBirthDay: dobParts.day,
     dateOfBirthYear: dobParts.year,

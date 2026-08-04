@@ -11,7 +11,7 @@ import {
   Share,
   ActivityIndicator 
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import * as Clipboard from 'expo-clipboard';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,10 @@ export default function EventDetailScreen({ route, navigation }) {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+
+  const videoPlayer = useVideoPlayer(event?.videoUrl ? { uri: event.videoUrl } : null, (player) => {
+    player.loop = false;
+  });
 
   useEffect(() => {
     // 查找事件
@@ -249,12 +253,12 @@ export default function EventDetailScreen({ route, navigation }) {
 
         {/* Event Video */}
         {event.videoUrl && (
-          <Video
-            source={{ uri: event.videoUrl }}
+          <VideoView
             style={styles.eventVideo}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-            isLooping={false}
+            player={videoPlayer}
+            contentFit="contain"
+            allowsFullscreen
+            allowsPictureInPicture
           />
         )}
 

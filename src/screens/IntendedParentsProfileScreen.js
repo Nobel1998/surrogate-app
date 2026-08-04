@@ -12,6 +12,7 @@ import {
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
 import { useLanguage } from '../context/LanguageContext';
+import { formatPhoneForDisplay, formatPhoneForTel } from '../utils/parentPhone';
 
 export default function IntendedParentsProfileScreen({ route, navigation }) {
   const { profile, application } = route?.params || {};
@@ -231,9 +232,14 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
             
             {renderInfoRow(
               t('profileDetail.phone'),
-              profile.phone,
+              formatPhoneForDisplay(profile.phone) || profile.phone,
               'phone',
-              profile.phone ? () => Linking.openURL(`tel:${profile.phone}`) : null
+              profile.phone
+                ? () => {
+                    const tel = formatPhoneForTel(profile.phone);
+                    if (tel) Linking.openURL(`tel:${tel}`);
+                  }
+                : null
             )}
             
             {renderInfoRow(
@@ -501,7 +507,10 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
               {profile.phone && (
                 <TouchableOpacity
                   style={styles.quickActionButton}
-                  onPress={() => Linking.openURL(`tel:${profile.phone}`)}
+                  onPress={() => {
+                    const tel = formatPhoneForTel(profile.phone);
+                    if (tel) Linking.openURL(`tel:${tel}`);
+                  }}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
                     <Icon name="phone" size={24} color="#00B894" />

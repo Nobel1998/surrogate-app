@@ -116,7 +116,7 @@ export default function MedicalReportFormScreen({ route }) {
           value={formData.next_appointment_date || ''}
           onChange={(value) => handleFieldChange('next_appointment_date', value)}
           format="MM-DD-YYYY"
-          placeholder="e.g. 01-15-2026"
+          placeholder={t('medicalReport.datePlaceholder')}
           minimumDate={new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())}
         />
       </View>
@@ -221,7 +221,10 @@ export default function MedicalReportFormScreen({ route }) {
 
   const handleSubmit = async () => {
     if (!visitDate) {
-      Alert.alert('Validation Error', 'Please enter visit date.');
+      Alert.alert(
+        t('common.error') || 'Validation Error',
+        t('medicalReport.visitDateRequired') || 'Please enter visit date.'
+      );
       return;
     }
 
@@ -235,7 +238,10 @@ export default function MedicalReportFormScreen({ route }) {
 
     const parsedDate = parseMMDDYYYYToISO(visitDate);
     if (!parsedDate) {
-      Alert.alert('Validation Error', 'Please enter a valid visit date in MM-DD-YYYY format.');
+      Alert.alert(
+        t('common.error') || 'Validation Error',
+        t('medicalReport.visitDateInvalid') || 'Please enter a valid visit date in MM-DD-YYYY format.'
+      );
       return;
     }
 
@@ -686,7 +692,7 @@ export default function MedicalReportFormScreen({ route }) {
           value={formData.lab_test_date || ''}
           onChange={(value) => handleFieldChange('lab_test_date', value)}
           format="MM-DD-YYYY"
-          placeholder="e.g. 12-01-2025"
+          placeholder={t('medicalReport.datePlaceholder')}
         />
       </View>
 
@@ -709,13 +715,17 @@ export default function MedicalReportFormScreen({ route }) {
                 style={[styles.radioButton, formData[`follicle_${num}_ovary`] === 'L' && styles.radioButtonSelected]}
                 onPress={() => handleFieldChange(`follicle_${num}_ovary`, 'L')}
               >
-                <Text style={[styles.radioText, formData[`follicle_${num}_ovary`] === 'L' && styles.radioTextSelected]}>L</Text>
+                <Text style={[styles.radioText, formData[`follicle_${num}_ovary`] === 'L' && styles.radioTextSelected]}>
+                  {t('medicalReport.ovaryLeft')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.radioButton, formData[`follicle_${num}_ovary`] === 'R' && styles.radioButtonSelected]}
                 onPress={() => handleFieldChange(`follicle_${num}_ovary`, 'R')}
               >
-                <Text style={[styles.radioText, formData[`follicle_${num}_ovary`] === 'R' && styles.radioTextSelected]}>R</Text>
+                <Text style={[styles.radioText, formData[`follicle_${num}_ovary`] === 'R' && styles.radioTextSelected]}>
+                  {t('medicalReport.ovaryRight')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -727,7 +737,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.endometrial_thickness || ''}
             onChangeText={(value) => handleFieldChange('endometrial_thickness', value)}
-            placeholder="e.g. 8.5"
+            placeholder={t('medicalReport.endometrialThicknessPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -739,7 +749,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.endometrial_type || ''}
             onChangeText={(value) => handleFieldChange('endometrial_type', value)}
-            placeholder="e.g. Triple line"
+            placeholder={t('medicalReport.endometrialTypePlaceholder')}
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -751,19 +761,19 @@ export default function MedicalReportFormScreen({ route }) {
             value={formData.ultrasound_test_date || ''}
             onChange={(value) => handleFieldChange('ultrasound_test_date', value)}
             format="MM-DD-YYYY"
-            placeholder="e.g. 12-01-2025"
+            placeholder={t('medicalReport.datePlaceholder')}
           />
         </View>
 
         {renderNextCheckFields()}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Notes</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.notes')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.notes || ''}
             onChangeText={(value) => handleFieldChange('notes', value)}
-            placeholder="Additional notes..."
+            placeholder={t('medicalReport.additionalNotes')}
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={4}
@@ -801,7 +811,7 @@ export default function MedicalReportFormScreen({ route }) {
           value={formData.lab_test_date || ''}
           onChange={(value) => handleFieldChange('lab_test_date', value)}
           format="MM-DD-YYYY"
-          placeholder="e.g. 12-01-2025"
+          placeholder={t('medicalReport.datePlaceholder')}
         />
       </View>
 
@@ -814,7 +824,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.gestational_sac_diameter || ''}
             onChangeText={(value) => handleFieldChange('gestational_sac_diameter', value)}
-            placeholder="e.g. 15.2"
+            placeholder={t('medicalReport.gestationalSacPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -826,7 +836,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.yolk_sac_diameter || ''}
             onChangeText={(value) => handleFieldChange('yolk_sac_diameter', value)}
-            placeholder="e.g. 3.5"
+            placeholder={t('medicalReport.yolkSacPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -838,7 +848,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.crown_rump_length || ''}
             onChangeText={(value) => handleFieldChange('crown_rump_length', value)}
-            placeholder="e.g. 5.2"
+            placeholder={t('medicalReport.crownRumpPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -850,7 +860,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.fetal_heart_rate || ''}
             onChangeText={(value) => handleFieldChange('fetal_heart_rate', value)}
-            placeholder="e.g. 150"
+            placeholder={t('medicalReport.heartRatePlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -862,7 +872,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.gestational_age || ''}
             onChangeText={(value) => handleFieldChange('gestational_age', value)}
-            placeholder="e.g. 6 weeks 3 days"
+            placeholder={t('medicalReport.gestationalAgePlaceholderPostTransfer')}
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -874,7 +884,7 @@ export default function MedicalReportFormScreen({ route }) {
             value={formData.edd || ''}
             onChange={(value) => handleFieldChange('edd', value)}
             format="MM-DD-YYYY"
-            placeholder="e.g. 08-15-2026"
+            placeholder={t('medicalReport.datePlaceholder')}
           />
         </View>
 
@@ -885,7 +895,7 @@ export default function MedicalReportFormScreen({ route }) {
             value={formData.ultrasound_test_date || ''}
             onChange={(value) => handleFieldChange('ultrasound_test_date', value)}
             format="MM-DD-YYYY"
-            placeholder="e.g. 12-01-2025"
+            placeholder={t('medicalReport.datePlaceholder')}
           />
         </View>
 
@@ -925,7 +935,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.weight || ''}
             onChangeText={(value) => handleFieldChange('weight', value)}
-            placeholder="e.g. 145"
+            placeholder={t('medicalReport.weightPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -937,7 +947,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.blood_pressure || ''}
             onChangeText={(value) => handleFieldChange('blood_pressure', value)}
-            placeholder="e.g. 120/80"
+            placeholder={t('medicalReport.bloodPressurePlaceholder')}
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -948,42 +958,42 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.stomach_measurement || ''}
             onChangeText={(value) => handleFieldChange('stomach_measurement', value)}
-            placeholder="e.g. 32"
+            placeholder={t('medicalReport.stomachMeasurementPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Fetal Heartbeats (bpm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.fetalHeartbeats')}</Text>
           <TextInput
             style={styles.input}
             value={formData.fetal_heartbeats || ''}
             onChangeText={(value) => handleFieldChange('fetal_heartbeats', value)}
-            placeholder="e.g. 150"
+            placeholder={t('medicalReport.fetalHeartbeatsPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Effacement</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.effacement')}</Text>
           <TextInput
             style={styles.input}
             value={formData.effacement || ''}
             onChangeText={(value) => handleFieldChange('effacement', value)}
-            placeholder="e.g. 50% or 2cm"
+            placeholder={t('medicalReport.effacementPlaceholder')}
             placeholderTextColor="#94A3B8"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Dilation (cm)</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.dilation')}</Text>
           <TextInput
             style={styles.input}
             value={formData.dilation || ''}
             onChangeText={(value) => handleFieldChange('dilation', value)}
-            placeholder="e.g. 2"
+            placeholder={t('medicalReport.dilationPlaceholder')}
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
           />
@@ -1039,7 +1049,7 @@ export default function MedicalReportFormScreen({ route }) {
             style={styles.input}
             value={formData.gestational_age || ''}
             onChangeText={(value) => handleFieldChange('gestational_age', value)}
-            placeholder="e.g. 28 weeks 3 days"
+            placeholder={t('medicalReport.gestationalAgePlaceholderObgyn')}
             placeholderTextColor="#94A3B8"
           />
         </View>
@@ -1047,12 +1057,12 @@ export default function MedicalReportFormScreen({ route }) {
         {renderNextCheckFields()}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Notes</Text>
+          <Text style={styles.sectionLabel}>{t('medicalReport.notes')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.notes || ''}
             onChangeText={(value) => handleFieldChange('notes', value)}
-            placeholder="Additional notes..."
+            placeholder={t('medicalReport.additionalNotes')}
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={4}
@@ -1094,13 +1104,13 @@ export default function MedicalReportFormScreen({ route }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t('medicalReport.visitDate')} (MM-DD-YYYY) *</Text>
+            <Text style={styles.sectionLabel}>{t('medicalReport.visitDateWithFormat')} *</Text>
             <DatePickerField
               style={styles.input}
               value={visitDate}
               onChange={setVisitDate}
               format="MM-DD-YYYY"
-              placeholder="e.g. 12-01-2025"
+              placeholder={t('medicalReport.datePlaceholder')}
             />
           </View>
 
@@ -1119,14 +1129,14 @@ export default function MedicalReportFormScreen({ route }) {
           {currentStage === 'OBGYN' && renderOBGYNForm()}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Medical Provider Information</Text>
+            <Text style={styles.sectionTitle}>{t('medicalReport.medicalProviderInfo')}</Text>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>{t('medicalReport.providerName')}</Text>
               <TextInput
                 style={styles.input}
                 value={providerName}
                 onChangeText={setProviderName}
-                placeholder="e.g. Dr. Smith"
+                placeholder={t('medicalReport.providerNamePlaceholder')}
                 placeholderTextColor="#94A3B8"
               />
             </View>
@@ -1136,7 +1146,7 @@ export default function MedicalReportFormScreen({ route }) {
                 style={styles.input}
                 value={providerContact}
                 onChangeText={setProviderContact}
-                placeholder={`e.g. phone, email (empty → ${EMPTY_PROVIDER_CONTACT})`}
+                placeholder={t('medicalReport.providerContactPlaceholder', { fallback: EMPTY_PROVIDER_CONTACT })}
                 placeholderTextColor="#94A3B8"
               />
             </View>
@@ -1317,8 +1327,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   radioButton: {
-    width: 40,
+    minWidth: 40,
     height: 40,
+    paddingHorizontal: 10,
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#E2E8F0',

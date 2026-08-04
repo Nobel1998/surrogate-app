@@ -27,6 +27,7 @@ import DatePickerField from '../components/DatePickerField';
 import { TextInput } from 'react-native';
 import { SURROGATE_APPLICATION_STEPS } from '../constants/surrogateApplicationOrder';
 import { resolveDisplayLocation, sanitizeAddressText } from '../utils/extractLocationFromAddress';
+import { formatPhoneForDisplay, formatPhoneForTel } from '../utils/parentPhone';
 import {
   getPreviewStepTitle,
   getPreviewFieldLabel,
@@ -734,11 +735,11 @@ export default function MyMatchScreen({ navigation }) {
 
   const maskPhone = (phone, shouldMask = true) => {
     if (!phone) return 'N/A';
-    const raw = String(phone).trim();
-    if (!raw) return 'N/A';
-    if (!shouldMask) return raw;
+    const display = formatPhoneForDisplay(phone) || String(phone).trim();
+    if (!display) return 'N/A';
+    if (!shouldMask) return display;
 
-    const digits = raw.replace(/\D/g, '');
+    const digits = display.replace(/\D/g, '');
     if (digits.length >= 7) {
       return `${digits.substring(0, 3)}***${digits.substring(digits.length - 4)}`;
     }
@@ -1110,7 +1111,7 @@ export default function MyMatchScreen({ navigation }) {
 
         <TouchableOpacity 
           style={styles.contactButton}
-          onPress={() => Linking.openURL('mailto:support@agency.com')}
+          onPress={() => Linking.openURL('mailto:info@usababytree.com')}
         >
           <Text style={styles.contactButtonText}>{t('myMatch.contactAgency')}</Text>
         </TouchableOpacity>
@@ -1547,7 +1548,10 @@ export default function MyMatchScreen({ navigation }) {
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => partnerProfile?.phone && Linking.openURL(`tel:${partnerProfile.phone}`)}
+              onPress={() => {
+                const tel = formatPhoneForTel(partnerProfile?.phone);
+                if (tel) Linking.openURL(`tel:${tel}`);
+              }}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
                 <Icon name="phone" size={24} color="#00B894" />

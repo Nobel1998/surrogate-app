@@ -22,6 +22,7 @@ import {
 } from '../utils/applicationStatus';
 import { translateViewLabel } from '../i18n/viewApplicationLabels';
 import { translateFormUi } from '../i18n/formUiStrings';
+import { splitAirportFields } from '../utils/splitAirportFields';
 
 export default function ViewApplicationScreen({ navigation }) {
   const { user } = useAuth();
@@ -96,7 +97,13 @@ export default function ViewApplicationScreen({ navigation }) {
         // Parse form_data JSON
         try {
           const parsed = applicationData.form_data ? (typeof applicationData.form_data === 'string' ? JSON.parse(applicationData.form_data) : applicationData.form_data) : {};
-          setFormData({ ...parsed, applicationType });
+          const airportFields = splitAirportFields(parsed.nearestAirport, parsed.airportDistance);
+          setFormData({
+            ...parsed,
+            nearestAirport: airportFields.nearestAirport,
+            airportDistance: airportFields.airportDistance,
+            applicationType,
+          });
         } catch (e) {
           console.error('Error parsing form_data:', e);
           setFormData({ applicationType });

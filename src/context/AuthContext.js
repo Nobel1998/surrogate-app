@@ -6,6 +6,21 @@ import { getClientIpInfo } from '../utils/getClientIp';
 
 const AuthContext = createContext();
 
+/** Convert MM/DD/YYYY (or similar) signup DOB into YYYY-MM-DD for Postgres DATE. */
+function normalizeDateOfBirthForDb(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const mdy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (mdy) {
+    const mm = String(Number(mdy[1])).padStart(2, '0');
+    const dd = String(Number(mdy[2])).padStart(2, '0');
+    return `${mdy[3]}-${mm}-${dd}`;
+  }
+  return null;
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -879,7 +894,7 @@ export const AuthProvider = ({ children }) => {
             phone: userData.phone,
             referral_code: userData.referralCode || null,
             role, // 写入 auth metadata
-            date_of_birth: userData.dateOfBirth || null,
+            date_of_birth: normalizeDateOfBirthForDb(userData.dateOfBirth) || userData.dateOfBirth || null,
             race: userData.emergencyContact || null,
             location: userData.address || null,
           }
@@ -958,7 +973,7 @@ export const AuthProvider = ({ children }) => {
             name: userData.name,
             email: userData.email,
             phone: userData.phone || '',
-            date_of_birth: userData.dateOfBirth || null,
+            date_of_birth: normalizeDateOfBirthForDb(userData.dateOfBirth),
             race: userData.emergencyContact || null,
             location: userData.address || '',
             invite_code: inviteCode,
