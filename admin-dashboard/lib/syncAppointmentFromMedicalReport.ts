@@ -306,28 +306,10 @@ export async function syncAppointmentFromMedicalReport(
   let clinicPhone: string | null = EMPTY_PROVIDER_CONTACT;
   let clinicEmail: string | null = null;
 
-  const { data: medInfo } = await supabase
-    .from('surrogate_medical_info')
-    .select(
-      'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, ivf_clinic_email, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_clinic_email, obgyn_doctor_name'
-    )
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (stage === 'OBGYN') {
-    clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
-    clinicEmail = String(medInfo?.obgyn_clinic_email || '').trim() || null;
-    if (!providerName && medInfo?.obgyn_doctor_name) {
-      providerName = medInfo.obgyn_doctor_name;
-    }
-  } else {
-    clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
-    clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
-  }
-
+  // Contact + location from check-in only — never medical info.
   const location = resolveAppointmentLocationFromTestSite(reportData?.test_site);
   const clinicName = location.clinicName;
-  const clinicAddress = location.clinicAddress;
+  const clinicAddress = null;
 
   const fromReport = splitProviderContact(reportData.provider_contact);
   if (fromReport.phone) clinicPhone = fromReport.phone;
@@ -338,7 +320,7 @@ export async function syncAppointmentFromMedicalReport(
     match_id: matchRow?.id || null,
     provider_name: providerName || null,
     clinic_name: clinicName || null,
-    clinic_address: clinicAddress || null,
+    clinic_address: clinicAddress,
     clinic_phone: clinicPhone || EMPTY_PROVIDER_CONTACT,
     clinic_email: clinicEmail,
     medical_stage: stage,
