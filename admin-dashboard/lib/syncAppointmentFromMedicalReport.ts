@@ -89,48 +89,25 @@ export function normalizeTestSites(testSite: unknown): string[] {
 /**
  * Appointment location from medical check-in test_site:
  * 1) none selected → hide location (null)
- * 2) labcorp / ivf_clinic → store keys (UI translates)
- * 3) others → medical clinic name if filled, else key "others"
+ * 2) selected sites → store keys (UI translates); legacy "others" maps to local_monitor_clinic
+ * No medical-info clinic name fallback.
  */
 export function resolveAppointmentLocationFromTestSite(
-  testSite: unknown,
-  medInfo: Record<string, any> | null | undefined,
-  stage: string
-): { clinicName: string | null; clinicAddress: string | null; usedMedicalClinic: boolean } {
-  const sites = normalizeTestSites(testSite);
-  if (sites.length === 0) {
-    return { clinicName: null, clinicAddress: null, usedMedicalClinic: false };
+  testSite: unknown
+): { clinicName: string | null; clinicAddress: string | null } {
+  const sites = normalizeTestSites(testSite).map((s) =>
+    s === 'others' ? 'local_monitor_clinic' : s
+  );
+  const unique: string[] = [];
+  for (const s of sites) {
+    if (!unique.includes(s)) unique.push(s);
   }
-
-  const hasOthers = sites.includes('others');
-  const specific = sites.filter((s) => s !== 'others');
-
-  if (hasOthers) {
-    const clinicName =
-      stage === 'OBGYN'
-        ? String(medInfo?.obgyn_clinic_name || '').trim()
-        : String(medInfo?.ivf_clinic_name || '').trim();
-    const clinicAddress =
-      stage === 'OBGYN'
-        ? String(medInfo?.obgyn_clinic_address || '').trim() || null
-        : String(medInfo?.ivf_clinic_address || '').trim() || null;
-
-    if (clinicName) {
-      return { clinicName, clinicAddress, usedMedicalClinic: true };
-    }
-
-    const keys = [...specific, 'others'];
-    return {
-      clinicName: keys.join(','),
-      clinicAddress: null,
-      usedMedicalClinic: false,
-    };
+  if (unique.length === 0) {
+    return { clinicName: null, clinicAddress: null };
   }
-
   return {
-    clinicName: specific.join(','),
+    clinicName: unique.join(','),
     clinicAddress: null,
-    usedMedicalClinic: false,
   };
 }
 
@@ -348,11 +325,7 @@ export async function syncAppointmentFromMedicalReport(
     clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
   }
 
-  const location = resolveAppointmentLocationFromTestSite(
-    reportData?.test_site,
-    medInfo,
-    stage
-  );
+  const location = resolveAppointmentLocationFromTestSite(reportData?.test_site);
   const clinicName = location.clinicName;
   const clinicAddress = location.clinicAddress;
 

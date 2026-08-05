@@ -33,6 +33,7 @@ export default function BranchManagersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFinanceAddModal, setShowFinanceAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingFinanceId, setEditingFinanceId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showFinancePassword, setShowFinancePassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -170,6 +171,41 @@ export default function BranchManagersPage() {
     }
   };
 
+  const handleEditFinanceManager = (manager: BranchManager) => {
+    setFinanceFormData({
+      name: manager.name,
+      username: manager.username,
+      email: manager.email || '',
+      password: '',
+      branch_id: manager.branch_id,
+    });
+    setEditingFinanceId(manager.id);
+    setShowFinancePassword(false);
+    setShowFinanceAddModal(true);
+  };
+
+  const handleDeleteFinanceManager = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete finance manager "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/finance-managers/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to delete finance manager');
+      }
+
+      alert('Finance manager deleted successfully');
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete finance manager');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -238,6 +274,7 @@ export default function BranchManagersPage() {
       password: '',
       branch_id: '',
     });
+    setEditingFinanceId(null);
     setShowFinancePassword(false);
     setShowFinanceAddModal(true);
   };
@@ -245,37 +282,55 @@ export default function BranchManagersPage() {
   const handleFinanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!financeFormData.name || !financeFormData.username || !financeFormData.password || !financeFormData.branch_id) {
+    if (!financeFormData.name || !financeFormData.username || !financeFormData.branch_id) {
       alert('Please fill in all required fields');
       return;
     }
 
-    if (financeFormData.password.length < 6) {
+    if (!editingFinanceId && !financeFormData.password) {
+      alert('Password is required for new finance managers');
+      return;
+    }
+
+    if (financeFormData.password && financeFormData.password.length < 6) {
       alert('Password must be at least 6 characters');
       return;
     }
 
     try {
-      const res = await fetch('/api/admin/finance-managers', {
-        method: 'POST',
+      const url = editingFinanceId
+        ? `/api/admin/finance-managers/${editingFinanceId}`
+        : '/api/admin/finance-managers';
+      const method = editingFinanceId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: financeFormData.name,
           username: financeFormData.username,
           email: financeFormData.email || null,
-          password: financeFormData.password,
+          password: financeFormData.password || undefined,
           branch_id: financeFormData.branch_id,
         }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to create finance manager');
+        throw new Error(
+          errData.error ||
+            (editingFinanceId ? 'Failed to update finance manager' : 'Failed to create finance manager')
+        );
       }
 
-      alert('Finance manager created successfully');
+      alert(
+        editingFinanceId
+          ? 'Finance manager updated successfully'
+          : 'Finance manager created successfully'
+      );
       setShowFinanceAddModal(false);
       setShowFinancePassword(false);
+      setEditingFinanceId(null);
       setFinanceFormData({
         name: '',
         username: '',
@@ -285,7 +340,7 @@ export default function BranchManagersPage() {
       });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to create finance manager');
+      alert(err.message || 'Failed to save finance manager');
     }
   };
 
@@ -503,7 +558,7 @@ export default function BranchManagersPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {financeManagers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
                     No finance managers found. Click &quot;+ Add Finance Manager&quot; to create one.
                   </td>
                 </tr>
@@ -570,7 +625,13 @@ export default function BranchManagersPage() {
                         </>
                       )}
                       <button
-                        onClick={() => handleDelete(manager.id, manager.name)}
+                        onClick={() => handleEditFinanceManager(manager)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFinanceManager(manager.id, manager.name)}
                         className="text-red-600 hover:text-red-900"
                       >
                         Delete
@@ -583,17 +644,18 @@ export default function BranchManagersPage() {
           </table>
         </div>
 
-        {/* Add Finance Manager Modal */}
+        {/* Add/Edit Finance Manager Modal */}
         {showFinanceAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Add Finance Manager
+                  {editingFinanceId ? 'Edit Finance Manager' : 'Add Finance Manager'}
                 </h2>
                 <button
                   onClick={() => {
                     setShowFinanceAddModal(false);
+                    setEditingFinanceId(null);
                     setFinanceFormData({
                       name: '',
                       username: '',
@@ -650,7 +712,7 @@ export default function BranchManagersPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password *
+                    Password {editingFinanceId ? '(leave blank to keep)' : '*'}
                   </label>
                   <div className="relative">
                     <input
@@ -658,7 +720,7 @@ export default function BranchManagersPage() {
                       value={financeFormData.password}
                       onChange={(e) => setFinanceFormData({ ...financeFormData, password: e.target.value })}
                       className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
+                      required={!editingFinanceId}
                     />
                     <button
                       type="button"
@@ -704,6 +766,7 @@ export default function BranchManagersPage() {
                     type="button"
                     onClick={() => {
                       setShowFinanceAddModal(false);
+                      setEditingFinanceId(null);
                       setFinanceFormData({
                         name: '',
                         username: '',
@@ -721,7 +784,7 @@ export default function BranchManagersPage() {
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md"
                   >
-                    Create
+                    {editingFinanceId ? 'Save' : 'Create'}
                   </button>
                 </div>
               </form>

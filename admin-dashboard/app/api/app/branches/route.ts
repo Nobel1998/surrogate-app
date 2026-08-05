@@ -20,15 +20,25 @@ export async function GET() {
   });
 
   try {
-    const { data: branches, error } = await supabase
+    const { data, error } = await supabase
       .from('branches')
       .select('id, name, code, address, phone, email')
       .order('name', { ascending: true });
 
     if (error) throw error;
 
+    const branches = (data || []).filter((branch: { code?: string | null; name?: string | null }) => {
+      const code = String(branch?.code || '').trim().toLowerCase();
+      const name = String(branch?.name || '').trim().toLowerCase();
+      if (code === 'agency' || code === 'finance') return false;
+      if (code.includes('agency') || code.includes('finance')) return false;
+      if (name === 'agency' || name === 'finance') return false;
+      if (/\bagency\b/.test(name) || /\bfinance\b/.test(name)) return false;
+      return true;
+    });
+
     return NextResponse.json(
-      { branches: branches || [] },
+      { branches },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',

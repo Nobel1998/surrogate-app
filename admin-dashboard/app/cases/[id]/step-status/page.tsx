@@ -151,7 +151,13 @@ export default function StepStatusPage() {
 
   const isMedicalCheckboxChecked = (groupKey: string, value: string) => {
     const arr = medicalReportData[groupKey] || [];
-    return Array.isArray(arr) && arr.includes(value);
+    if (!Array.isArray(arr)) return false;
+    if (arr.includes(value)) return true;
+    // Legacy "others" maps to local_monitor_clinic in the UI
+    if (groupKey === 'test_site' && value === 'local_monitor_clinic' && arr.includes('others')) {
+      return true;
+    }
+    return false;
   };
 
   useEffect(() => {
@@ -1570,9 +1576,9 @@ export default function StepStatusPage() {
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Test Site</label>
                         <div className="flex flex-wrap gap-4 mt-1">
-                          {['labcorp', 'ivf_clinic', 'others'].map((site) => {
+                          {['labcorp', 'ivf_clinic', 'local_monitor_clinic'].map((site) => {
                             const labels: Record<string, string> = {
-                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
+                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', local_monitor_clinic: 'Local monitor clinic'
                             };
                             return (
                               <label key={site} className="inline-flex items-center">
@@ -1702,9 +1708,9 @@ export default function StepStatusPage() {
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Test Site</label>
                         <div className="flex flex-wrap gap-4 mt-1">
-                          {['labcorp', 'ivf_clinic', 'others'].map((site) => {
+                          {['labcorp', 'ivf_clinic', 'local_monitor_clinic'].map((site) => {
                             const labels: Record<string, string> = {
-                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', others: 'Others'
+                              labcorp: 'Labcorp', ivf_clinic: 'IVF clinic', local_monitor_clinic: 'Local monitor clinic'
                             };
                             return (
                               <label key={site} className="inline-flex items-center">
@@ -2205,7 +2211,8 @@ function formatMedicalReportValue(value: any): string {
       tsh: 'TSH',
       labcorp: 'Labcorp',
       ivf_clinic: 'IVF clinic',
-      others: 'Others',
+      local_monitor_clinic: 'Local monitor clinic',
+      others: 'Local monitor clinic',
     };
     return value.map((v) => valLabels[String(v)] || String(v)).join(', ');
   }
