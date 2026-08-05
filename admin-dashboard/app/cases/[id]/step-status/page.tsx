@@ -1556,7 +1556,7 @@ export default function StepStatusPage() {
                         <div className="flex flex-wrap gap-4 mt-1">
                           {['estradiol', 'progesterone', 'fsh', 'lh', 'beta_hgc'].map((lab) => {
                             const labels: Record<string, string> = {
-                              estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'β-hCG test'
+                              estradiol: 'Estradiol', progesterone: 'Progesterone', fsh: 'FSH', lh: 'LH', beta_hgc: 'Beta hGC'
                             };
                             return (
                               <label key={lab} className="inline-flex items-center">
@@ -1688,7 +1688,7 @@ export default function StepStatusPage() {
                         <div className="flex flex-wrap gap-4 mt-1">
                           {['beta_hgc', 'progesterone', 'estradiol', 'tsh'].map((lab) => {
                             const labels: Record<string, string> = {
-                              beta_hgc: 'β-hCG test', progesterone: 'Progesterone', estradiol: 'Estradiol', tsh: 'TSH'
+                              beta_hgc: 'Beta hGC', progesterone: 'Progesterone', estradiol: 'Estradiol', tsh: 'TSH'
                             };
                             return (
                               <label key={lab} className="inline-flex items-center">
@@ -2207,7 +2207,7 @@ function formatMedicalReportValue(value: any): string {
       progesterone: 'Progesterone',
       fsh: 'FSH',
       lh: 'LH',
-      beta_hgc: 'β-hCG test',
+      beta_hgc: 'Beta hGC',
       tsh: 'TSH',
       labcorp: 'Labcorp',
       ivf_clinic: 'IVF clinic',
