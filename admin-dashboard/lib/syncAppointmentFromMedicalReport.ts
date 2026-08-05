@@ -75,6 +75,65 @@ export function otherAppointmentTableForMedicalStage(
   return stage === 'OBGYN' ? 'ivf_appointments' : 'ob_appointments';
 }
 
+/** Normalize medical check-in test_site checkbox values to a string array. */
+export function normalizeTestSites(testSite: unknown): string[] {
+  if (Array.isArray(testSite)) {
+    return testSite.map((s) => String(s || '').trim()).filter(Boolean);
+  }
+  if (typeof testSite === 'string' && testSite.trim()) {
+    return [testSite.trim()];
+  }
+  return [];
+}
+
+/**
+ * Appointment location from medical check-in test_site:
+ * 1) none selected → hide location (null)
+ * 2) labcorp / ivf_clinic → store keys (UI translates)
+ * 3) others → medical clinic name if filled, else key "others"
+ */
+export function resolveAppointmentLocationFromTestSite(
+  testSite: unknown,
+  medInfo: Record<string, any> | null | undefined,
+  stage: string
+): { clinicName: string | null; clinicAddress: string | null; usedMedicalClinic: boolean } {
+  const sites = normalizeTestSites(testSite);
+  if (sites.length === 0) {
+    return { clinicName: null, clinicAddress: null, usedMedicalClinic: false };
+  }
+
+  const hasOthers = sites.includes('others');
+  const specific = sites.filter((s) => s !== 'others');
+
+  if (hasOthers) {
+    const clinicName =
+      stage === 'OBGYN'
+        ? String(medInfo?.obgyn_clinic_name || '').trim()
+        : String(medInfo?.ivf_clinic_name || '').trim();
+    const clinicAddress =
+      stage === 'OBGYN'
+        ? String(medInfo?.obgyn_clinic_address || '').trim() || null
+        : String(medInfo?.ivf_clinic_address || '').trim() || null;
+
+    if (clinicName) {
+      return { clinicName, clinicAddress, usedMedicalClinic: true };
+    }
+
+    const keys = [...specific, 'others'];
+    return {
+      clinicName: keys.join(','),
+      clinicAddress: null,
+      usedMedicalClinic: false,
+    };
+  }
+
+  return {
+    clinicName: specific.join(','),
+    clinicAddress: null,
+    usedMedicalClinic: false,
+  };
+}
+
 async function writeAppointmentRow(
   supabase: any,
   table: string,
@@ -267,8 +326,6 @@ export async function syncAppointmentFromMedicalReport(
     .limit(1)
     .maybeSingle();
 
-  let clinicName: string | null = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
-  let clinicAddress: string | null = null;
   let clinicPhone: string | null = EMPTY_PROVIDER_CONTACT;
   let clinicEmail: string | null = null;
 
@@ -281,19 +338,23 @@ export async function syncAppointmentFromMedicalReport(
     .maybeSingle();
 
   if (stage === 'OBGYN') {
-    clinicName = medInfo?.obgyn_clinic_name || 'OB Clinic';
-    clinicAddress = medInfo?.obgyn_clinic_address || null;
     clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
     clinicEmail = String(medInfo?.obgyn_clinic_email || '').trim() || null;
     if (!providerName && medInfo?.obgyn_doctor_name) {
       providerName = medInfo.obgyn_doctor_name;
     }
   } else {
-    clinicName = medInfo?.ivf_clinic_name || 'IVF Clinic';
-    clinicAddress = medInfo?.ivf_clinic_address || null;
     clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
     clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
   }
+
+  const location = resolveAppointmentLocationFromTestSite(
+    reportData?.test_site,
+    medInfo,
+    stage
+  );
+  const clinicName = location.clinicName;
+  const clinicAddress = location.clinicAddress;
 
   const fromReport = splitProviderContact(reportData.provider_contact);
   if (fromReport.phone) clinicPhone = fromReport.phone;
@@ -303,8 +364,8 @@ export async function syncAppointmentFromMedicalReport(
     user_id: userId,
     match_id: matchRow?.id || null,
     provider_name: providerName || null,
-    clinic_name: clinicName,
-    clinic_address: clinicAddress,
+    clinic_name: clinicName || null,
+    clinic_address: clinicAddress || null,
     clinic_phone: clinicPhone || EMPTY_PROVIDER_CONTACT,
     clinic_email: clinicEmail,
     medical_stage: stage,
