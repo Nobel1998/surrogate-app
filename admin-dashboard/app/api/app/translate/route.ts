@@ -27,18 +27,18 @@ async function getAuthedUser(req: NextRequest) {
   return { user: data.user };
 }
 
-function normalizeTargetLang(language: string) {
+function normalizeTargetLang(language: string): 'ZH' | 'ES' | 'EN' | null {
   const value = String(language || '').toLowerCase();
   if (value.startsWith('zh')) return 'ZH';
   if (value.startsWith('es')) return 'ES';
+  if (value.startsWith('en')) return 'EN';
   return null;
 }
 
-async function deeplTranslate(text: string, targetLang: 'ZH' | 'ES'): Promise<string> {
+async function deeplTranslate(text: string, targetLang: 'ZH' | 'ES' | 'EN'): Promise<string> {
   const body = new URLSearchParams();
   body.append('text', text);
-  // Keep consistent with blog translate route.
-  body.append('source_lang', 'EN');
+  // Auto-detect source so ZH→EN and EN→ZH both work.
   body.append('target_lang', targetLang);
 
   const resp = await fetch(translateApiUrl, {
@@ -92,4 +92,3 @@ export async function POST(req: NextRequest) {
     return jsonError(error?.message || 'DeepL translate failed', 500);
   }
 }
-
