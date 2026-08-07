@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { isReadOnlyBranchManager } from '@/lib/checkReadOnly';
 import { resolveDisplayLocation, sanitizeAddressText } from '@/lib/extractLocationFromAddress';
+import { refreshMatchClaimIdIfStale } from '@/lib/matchClaimId';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -226,8 +227,20 @@ export async function GET(req: NextRequest) {
     if (profilesError) throw profilesError;
     if (matchesError) throw matchesError;
 
+    // Keep claim_id (Peng--Jiahao) aligned with live profile first names after rename
+    const profileNameById: Record<string, string | null | undefined> = {};
+    for (const p of profiles || []) {
+      if (p?.id) profileNameById[p.id] = p.name;
+    }
+    const matchesWithFreshClaimIds = await Promise.all(
+      (matches || []).map(async (m: any) => {
+        const claimId = await refreshMatchClaimIdIfStale(supabase, m, profileNameById);
+        return claimId && claimId !== m.claim_id ? { ...m, claim_id: claimId } : m;
+      })
+    );
+
     // Fetch managers for matches
-    const matchIds = matches?.map((m: any) => m.id).filter(Boolean) || [];
+    const matchIds = matchesWithFreshClaimIds.map((m: any) => m.id).filter(Boolean) || [];
     const matchManagers: Record<string, any[]> = {};
     let matchManagersData: any[] | null = null;
     
@@ -317,7 +330,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Also fetch legacy manager_id for backward compatibility
-    const managerIds = [...new Set(matches?.map((m: any) => m.manager_id).filter(Boolean) || [])];
+    const managerIds = [...new Set(matchesWithFreshClaimIds?.map((m: any) => m.manager_id).filter(Boolean) || [])];
     const managers: Record<string, any> = {};
 
     if (managerIds.length > 0) {
@@ -334,7 +347,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Enrich matches with managers
-    const enrichedMatches = matches?.map((m: any) => {
+    const enrichedMatches = matchesWithFreshClaimIds?.map((m: any) => {
       const managersList = matchManagers[m.id] || [];
       // If no managers from match_managers table, fall back to legacy manager_id
       if (managersList.length === 0 && m.manager_id && managers[m.manager_id]) {
