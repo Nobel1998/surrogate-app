@@ -138,11 +138,11 @@ export async function GET(
         surrogate: matchData.surrogate_id ? profiles[matchData.surrogate_id] : null,
         first_parent: firstParent ? {
           ...firstParent,
-          display_name: matchData.first_parent_name || firstParent.name
+          display_name: firstParent.name || matchData.first_parent_name
         } : (matchData.first_parent_name ? { name: matchData.first_parent_name, display_name: matchData.first_parent_name } : null),
         second_parent: secondParent ? {
           ...secondParent,
-          display_name: matchData.second_parent_name || secondParent.name
+          display_name: secondParent.name || matchData.second_parent_name
         } : (matchData.second_parent_name ? { name: matchData.second_parent_name, display_name: matchData.second_parent_name } : null),
         manager,
         managers, // Include all managers array

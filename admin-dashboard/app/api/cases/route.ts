@@ -244,9 +244,9 @@ export async function GET(req: NextRequest) {
         managersList.push(managers[c.manager_id]);
       }
       
-      // Use manually entered name if available, otherwise use linked profile name
-      const firstParentName = c.first_parent_name || (c.first_parent_id ? profiles[c.first_parent_id]?.name : null);
-      const secondParentName = c.second_parent_name || (c.second_parent_id ? profiles[c.second_parent_id]?.name : null);
+      // Prefer live profile name when linked; fall back to manually entered denormalized name
+      const firstParentName = (c.first_parent_id ? profiles[c.first_parent_id]?.name : null) || c.first_parent_name;
+      const secondParentName = (c.second_parent_id ? profiles[c.second_parent_id]?.name : null) || c.second_parent_name;
       
       return {
         ...c,

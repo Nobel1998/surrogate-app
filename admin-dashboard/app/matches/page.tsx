@@ -2932,7 +2932,7 @@ export default function MatchesPage() {
                           </div>
                           <div>
                             <div className={FIELD_LABEL_CLASS}>Parent</div>
-                            <div className="text-sm font-medium text-gray-900">{m.first_parent_name || parent?.name || m.parent_id}</div>
+                            <div className="text-sm font-medium text-gray-900">{parent?.name || m.first_parent_name || m.parent_id}</div>
                             <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
                             <div className="mt-1">
                               <div className={FIELD_LABEL_CLASS}>Blood Type</div>
