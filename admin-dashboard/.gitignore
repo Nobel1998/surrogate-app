@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Large Android APK (served via /downloads redirect, not committed)
+/public/downloads/*.apk
+
 # vercel
 .vercel
 

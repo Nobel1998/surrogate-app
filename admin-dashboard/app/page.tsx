@@ -312,6 +312,15 @@ export default function LandingPage() {
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0004.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.4162.4162 0 00-.5676.1521l-2.0218 3.503C15.5902 8.244 13.8533 7.851 12 7.851c-1.8533 0-3.5902.393-5.1373 1.0997L4.841 5.4477a.4162.4162 0 00-.5676-.1521.4159.4159 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
                   Google Play
                 </a>
+                <a
+                  href="/downloads/mysurro-android.apk"
+                  className="mt-3 w-full border-2 border-green-600 text-green-700 px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-green-50 transition-colors"
+                >
+                  直接下载 APK
+                </a>
+                <p className="mt-2 text-xs text-gray-500 text-center leading-relaxed">
+                  中国用户如无法打开 Google Play，可点上方按钮直接下载安装
+                </p>
               </div>
             </div>
           </div>
