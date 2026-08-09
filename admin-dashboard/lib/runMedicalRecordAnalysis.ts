@@ -4,6 +4,7 @@ import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   analyzeMedicalRecordPdf,
+  isExtractComplete,
   parseFactsCheckpoint,
   serializeFactsCheckpoint,
   synthesizeReportsFromFacts,
@@ -245,6 +246,7 @@ export async function runExtractPhase(
   if (
     existingCheckpoint &&
     existingCheckpoint.facts.length > 0 &&
+    isExtractComplete(existingCheckpoint) &&
     !existing.clinic_report &&
     !existing.staff_report
   ) {
@@ -253,8 +255,22 @@ export async function runExtractPhase(
       reviewId,
       '1.checkpoint_exists',
       `facts=${existingCheckpoint.facts.length} — skip extract`);
+    // #region agent log
+    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H3',location:'runMedicalRecordAnalysis.ts:runExtractPhase',message:'skip extract complete checkpoint',data:{reviewId,facts:existingCheckpoint.facts.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return { checkpoint: existingCheckpoint, skippedExtract: true as const };
   }
+
+  const resumePartial =
+    existingCheckpoint &&
+    existingCheckpoint.facts.length > 0 &&
+    !isExtractComplete(existingCheckpoint)
+      ? existingCheckpoint
+      : null;
+
+  // #region agent log
+  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'runMedicalRecordAnalysis.ts:runExtractPhase',message:'extract phase path',data:{reviewId,resumePartial:!!resumePartial,priorFacts:resumePartial?.facts?.length||0,completedBatches:resumePartial?.completedBatches?.length||0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   let patientName: string | null = null;
   if (existing.surrogate_user_id) {
@@ -272,7 +288,9 @@ export async function runExtractPhase(
     supabase,
     reviewId,
     '5.ai_extract',
-    `pdfBytes=${pdfBytes.byteLength}`);
+    resumePartial
+      ? `resume facts=${resumePartial.facts.length} batches=${resumePartial.completedBatches?.length || 0}`
+      : `pdfBytes=${pdfBytes.byteLength}`);
 
   const savedHolder: { checkpoint: MedicalRecordFactsCheckpoint | null } = {
     checkpoint: null,
@@ -282,6 +300,7 @@ export async function runExtractPhase(
     fileName: existing.file_name || 'medical-record.pdf',
     patientName,
     extractOnly: true,
+    priorCheckpoint: resumePartial,
     onProgress: async (step, detail) => {
       await setAnalysisProgress(supabase, reviewId, `5.ai:${step}`, detail);
     },
@@ -291,13 +310,18 @@ export async function runExtractPhase(
       await setAnalysisProgress(
         supabase,
         reviewId,
-        '5.facts_saved',
-        `facts=${checkpoint.facts.length} checkpoint persisted`);
+        checkpoint.extractComplete === false ? '5.facts_partial' : '5.facts_saved',
+        `facts=${checkpoint.facts.length} complete=${checkpoint.extractComplete !== false} batches=${checkpoint.completedBatches?.length || 0}`
+      );
     },
   });
 
-  if (!savedHolder.checkpoint) {
-    throw new Error('Extract finished but facts checkpoint was not saved');
+  if (!savedHolder.checkpoint || !isExtractComplete(savedHolder.checkpoint)) {
+    throw new Error(
+      savedHolder.checkpoint
+        ? `Extract incomplete — saved ${savedHolder.checkpoint.facts.length} facts. Click Resume Review to continue.`
+        : 'Extract finished but facts checkpoint was not saved'
+    );
   }
 
   await setAnalysisProgress(

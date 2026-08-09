@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { MedicalComplication } from '@/lib/medicalRecordReviews';
+import { ensureClinicReportPreamble } from '@/lib/medicalRecordReviewConstants';
 import {
   CLINIC_REPORT_SYSTEM_PROMPT,
   FACT_EXTRACTION_SYSTEM_PROMPT,
@@ -31,9 +32,16 @@ export type MedicalRecordFactsCheckpoint = {
   pageCount: number;
   patientName: string | null;
   extractRaw: string;
+  /** false while mid-extract; undefined/true means extract finished (legacy checkpoints = complete). */
+  extractComplete?: boolean;
+  completedBatches?: Array<{ startPage: number; endPage: number }>;
 };
 
 export const MRR_FACTS_CHECKPOINT_PREFIX = '__MRR_FACTS_V1__';
+
+export function isExtractComplete(checkpoint: MedicalRecordFactsCheckpoint): boolean {
+  return checkpoint.extractComplete !== false;
+}
 
 export function serializeFactsCheckpoint(checkpoint: MedicalRecordFactsCheckpoint): string {
   return `${MRR_FACTS_CHECKPOINT_PREFIX}${JSON.stringify(checkpoint)}`;
@@ -52,6 +60,10 @@ export function parseFactsCheckpoint(raw: string | null | undefined): MedicalRec
   } catch {
     return null;
   }
+}
+
+function batchKey(startPage: number, endPage: number) {
+  return `${startPage}-${endPage}`;
 }
 
 function getApiKey() {
@@ -637,7 +649,7 @@ export async function synthesizeReportsFromFacts(
   ]);
 
   if (clinicResult.status === 'fulfilled') {
-    clinicReport = clinicResult.value.report;
+    clinicReport = ensureClinicReportPreamble(clinicResult.value.report);
     rawParts.push(JSON.stringify({ clinicReport: clinicResult.value.raw }));
     await report('clinic_report_ok', `len=${clinicReport.length}`);
   } else {
@@ -672,10 +684,12 @@ export async function analyzeMedicalRecordPdf(
     fileName?: string;
     patientName?: string | null;
     onProgress?: (step: string, detail?: string) => void | Promise<void>;
-    /** Called after facts are extracted so the caller can checkpoint before report synthesis. */
+    /** Called after each fact batch (and once when extract completes) for durable resume. */
     onFactsReady?: (checkpoint: MedicalRecordFactsCheckpoint) => void | Promise<void>;
     /** Stop after extracting facts (phase 1). Do not generate clinic/staff reports. */
     extractOnly?: boolean;
+    /** Resume fact batches from a prior incomplete checkpoint. */
+    priorCheckpoint?: MedicalRecordFactsCheckpoint | null;
   }
 ): Promise<{
   complications: MedicalComplication[];
@@ -697,8 +711,24 @@ export async function analyzeMedicalRecordPdf(
 
   const pageCount = await countPdfPages(pdfBytes);
   const fileName = options?.fileName || 'medical-record.pdf';
+  const prior = options?.priorCheckpoint || null;
+  const completedBatchMap = new Map<string, { startPage: number; endPage: number }>();
+  for (const b of prior?.completedBatches || []) {
+    if (b && Number.isFinite(b.startPage) && Number.isFinite(b.endPage)) {
+      completedBatchMap.set(batchKey(b.startPage, b.endPage), {
+        startPage: b.startPage,
+        endPage: b.endPage,
+      });
+    }
+  }
 
-  await report('split_pdf', `pages=${pageCount}`);
+  await report(
+    'split_pdf',
+    `pages=${pageCount} resumeBatches=${completedBatchMap.size} priorFacts=${prior?.facts?.length || 0}`
+  );
+  // #region agent log
+  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'kimiMedicalReview.ts:analyzeMedicalRecordPdf',message:'extract start',data:{pageCount,priorFacts:prior?.facts?.length||0,resumeBatches:completedBatchMap.size,extractComplete:prior?.extractComplete??null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const chunks = await splitPdfIntoPageChunks(pdfBytes, PAGES_PER_CHUNK);
 
   const extractedParts: Array<{ startPage: number; endPage: number; text: string }> = [];
@@ -743,13 +773,53 @@ export async function analyzeMedicalRecordPdf(
 
   const chatBatches = buildExtractBatches(extractedParts);
 
-  const allFacts: ExtractedFact[] = [];
+  const allFacts: ExtractedFact[] = [...(prior?.facts || [])];
   const rawParts: string[] = [];
   const chatErrors: string[] = [];
-  let recordPatientName: string | null = null;
+  let recordPatientName: string | null = cleanPatientName(prior?.patientName);
+
+  const persistIncremental = async (extractComplete: boolean) => {
+    const facts = dedupeFacts(allFacts);
+    if (facts.length === 0 && !extractComplete) return;
+    const resolvedPatientName =
+      cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
+    const checkpoint: MedicalRecordFactsCheckpoint = {
+      v: 1,
+      facts,
+      pageCount,
+      patientName: resolvedPatientName,
+      extractComplete,
+      completedBatches: Array.from(completedBatchMap.values()),
+      extractRaw: JSON.stringify({
+        batchesDone: completedBatchMap.size,
+        batchesTotal: chatBatches.length,
+        extractErrors: extractErrors.slice(0, 20),
+        chatErrors: chatErrors.slice(0, 20),
+      }),
+    };
+    await report(
+      extractComplete ? 'facts_checkpoint' : 'facts_checkpoint_partial',
+      `facts=${facts.length} batches=${completedBatchMap.size}/${chatBatches.length}`
+    );
+    // #region agent log
+    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'kimiMedicalReview.ts:persistIncremental',message:'checkpoint persist',data:{extractComplete,facts:facts.length,batchesDone:completedBatchMap.size,batchesTotal:chatBatches.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (options?.onFactsReady) {
+      await options.onFactsReady(checkpoint);
+    }
+    return checkpoint;
+  };
 
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
+    const key = batchKey(batch.startPage, batch.endPage);
+    if (completedBatchMap.has(key)) {
+      await report(
+        'fact_batch_skip',
+        `${i + 1}/${chatBatches.length} pages ${batch.startPage}-${batch.endPage} (resumed)`
+      );
+      continue;
+    }
     await report(
       'fact_batch',
       `${i + 1}/${chatBatches.length} pages ${batch.startPage}-${batch.endPage}`
@@ -789,6 +859,8 @@ export async function analyzeMedicalRecordPdf(
           raw,
         })
       );
+      completedBatchMap.set(key, { startPage: batch.startPage, endPage: batch.endPage });
+      await persistIncremental(false);
     } catch (error: any) {
       const message = error?.message || 'chat failed';
       chatErrors.push(`pages ${batch.startPage}-${batch.endPage}: ${message}`);
@@ -815,22 +887,20 @@ export async function analyzeMedicalRecordPdf(
     cleanPatientName(recordPatientName) || cleanPatientName(options?.patientName);
 
   // Keep checkpoint small so Supabase update always succeeds (raw chat dumps were too large).
-  const checkpoint: MedicalRecordFactsCheckpoint = {
-    v: 1,
-    facts,
-    pageCount,
-    patientName: resolvedPatientName,
-    extractRaw: JSON.stringify({
-      batches: rawParts.length,
-      extractErrors: extractErrors.slice(0, 20),
-      chatErrors: chatErrors.slice(0, 20),
-    }),
-  };
-
-  await report('facts_checkpoint', `facts=${facts.length}`);
-  if (options?.onFactsReady) {
-    await options.onFactsReady(checkpoint);
-  }
+  const checkpoint: MedicalRecordFactsCheckpoint =
+    (await persistIncremental(true)) || {
+      v: 1,
+      facts,
+      pageCount,
+      patientName: resolvedPatientName,
+      extractComplete: true,
+      completedBatches: Array.from(completedBatchMap.values()),
+      extractRaw: JSON.stringify({
+        batches: rawParts.length,
+        extractErrors: extractErrors.slice(0, 20),
+        chatErrors: chatErrors.slice(0, 20),
+      }),
+    };
 
   if (options?.extractOnly) {
     await report('extract_phase_done', `facts=${facts.length} — reports will run in phase 2`);

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             setTimeout(() => {
               reject(
                 new Error(
-                  `Report phase timed out after ${Math.round(budgetMs / 1000)}s. Facts are saved — click Retry Review to resume reports only.`
+                  `Report phase timed out after ${Math.round(budgetMs / 1000)}s. Facts are saved — click Resume Review to continue reports only.`
                 )
               );
             }, budgetMs);

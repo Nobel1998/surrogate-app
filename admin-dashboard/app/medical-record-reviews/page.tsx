@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { uploadMedicalRecordPdfToSignedUrl } from '@/lib/uploadMedicalRecordPdf';
 import MedicalReportMarkdown from '@/components/MedicalReportMarkdown';
 import { generateMedicalRecordReviewPDF } from '@/lib/generateMedicalRecordReviewPDF';
+import { ensureClinicReportPreamble, hasFactsCheckpointRaw } from '@/lib/medicalRecordReviewConstants';
 
 type Complication = {
   complication: string;
@@ -302,6 +303,10 @@ export default function MedicalRecordReviewsPage() {
   const handleAnalyze = async (id: string) => {
     try {
       setAnalyzingId(id);
+      const current = reviews.find((r) => r.id === id) || null;
+      // #region agent log
+      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H4',location:'medical-record-reviews/page.tsx:handleAnalyze',message:'analyze click',data:{id,status:current?.status||null,hasCheckpoint:hasFactsCheckpointRaw(current?.raw_ai_response),buttonWouldBe:current?.status==='failed'&&hasFactsCheckpointRaw(current?.raw_ai_response)?'Resume Review':current?.status==='failed'?'Retry Review':'Run Review'},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       // Never send the PDF in this request: serverless payloads are capped and
       // large records fail with 413. The server reads the PDF from storage.
@@ -677,7 +682,9 @@ export default function MedicalRecordReviewsPage() {
                       : selected.status === 'analyzing'
                         ? 'Check Analysis Status'
                         : selected.status === 'failed'
-                          ? 'Retry Review'
+                          ? hasFactsCheckpointRaw(selected.raw_ai_response)
+                            ? 'Resume Review'
+                            : 'Retry Review'
                           : 'Run Review'}
                   </button>
                   {(selected.status === 'analyzed' || selected.status === 'reviewed') && (
@@ -738,7 +745,10 @@ export default function MedicalRecordReviewsPage() {
                   <div className="bg-white border rounded-lg p-4">
                     <h3 className="font-medium mb-3 text-gray-900">Clinic Report (non-clinical)</h3>
                     {selected.clinic_report ? (
-                      <MedicalReportMarkdown markdown={selected.clinic_report} variant="clinic" />
+                      <MedicalReportMarkdown
+                        markdown={ensureClinicReportPreamble(selected.clinic_report)}
+                        variant="clinic"
+                      />
                     ) : (
                       <p className="text-sm text-gray-500">No clinic report yet.</p>
                     )}

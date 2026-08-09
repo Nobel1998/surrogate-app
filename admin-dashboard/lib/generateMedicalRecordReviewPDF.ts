@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { MEDICAL_RECORD_REVIEW_DISCLAIMER } from './medicalRecordReviewConstants';
+import { MEDICAL_RECORD_REVIEW_DISCLAIMER, ensureClinicReportPreamble } from './medicalRecordReviewConstants';
 import {
   parseMedicalReportMarkdown,
   stripInlineMarkdown,
@@ -169,7 +169,7 @@ export const generateMedicalRecordReviewPDF = (
     kind === 'staff'
       ? review.staff_report
       : kind === 'clinic'
-        ? review.clinic_report
+        ? ensureClinicReportPreamble(review.clinic_report || '')
         : null;
 
   if (reportText && String(reportText).trim()) {
