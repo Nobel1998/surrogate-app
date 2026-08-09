@@ -18,7 +18,9 @@ export function middleware(request: NextRequest) {
     pathname === '/reset-password' ||
     pathname.startsWith('/api/auth/') ||
     pathname === '/mysurro-logo.png' ||
-    pathname.startsWith('/screenshots/')
+    pathname.startsWith('/screenshots/') ||
+    pathname.startsWith('/qr/') ||
+    pathname.startsWith('/downloads/')
   ) {
     return NextResponse.next();
   }
@@ -43,7 +45,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public marketing assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|mysurro-logo.png).*)',
+    '/((?!_next/static|_next/image|favicon.ico|mysurro-logo.png|qr/|screenshots/|downloads/).*)',
   ],
 };
