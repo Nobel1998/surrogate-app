@@ -247,30 +247,71 @@ export default function LandingPage() {
         {/* Download Section */}
         <div id="download" className="py-20 bg-rose-400">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-8">
+            <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-4">
               Ready to start your journey?
             </h2>
+            <p className="text-rose-50 text-lg mb-10 max-w-2xl mx-auto">
+              Scan the QR code with your phone, or tap the store button below.
+            </p>
             <div className="flex flex-col md:flex-row justify-center items-center gap-12">
               {/* iOS Download */}
               <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center w-72">
-                <div className="w-40 h-40 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center mb-6">
-                  <span className="text-gray-400 text-sm">iOS QR Code</span>
-                </div>
-                <button className="w-full bg-black text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-1.226 1.76-2.505 3.51-4.458 3.51-1.894 0-2.522-1.15-4.67-1.15-2.147 0-2.844 1.12-4.613 1.15-1.948.03-3.41-1.96-4.646-3.75C3.333 16.11 1.5 11.23 1.5 8.09c0-3.3 2.055-5.06 3.99-5.06 1.83 0 3.22 1.25 4.5 1.25 1.225 0 2.92-1.34 5.06-1.34 1.74 0 3.32.68 4.4 1.94-3.66 1.96-3.08 6.94.71 8.52-.16.45-.33.91-.53 1.34z"/></svg>
+                <a
+                  href="https://apps.apple.com/app/id1492213410"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-6 block"
+                  aria-label="Scan or open MySurro on the App Store"
+                >
+                  <img
+                    src="/qr/app-store-ios.png"
+                    alt="QR code to download MySurro on the App Store"
+                    width={160}
+                    height={160}
+                    className="w-40 h-40 object-contain"
+                    loading="lazy"
+                  />
+                </a>
+                <p className="text-sm font-medium text-gray-500 mb-3">iPhone / iPad</p>
+                <a
+                  href="https://apps.apple.com/app/id1492213410"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-black text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-1.226 1.76-2.505 3.51-4.458 3.51-1.894 0-2.522-1.15-4.67-1.15-2.147 0-2.844 1.12-4.613 1.15-1.948.03-3.41-1.96-4.646-3.75C3.333 16.11 1.5 11.23 1.5 8.09c0-3.3 2.055-5.06 3.99-5.06 1.83 0 3.22 1.25 4.5 1.25 1.225 0 2.92-1.34 5.06-1.34 1.74 0 3.32.68 4.4 1.94-3.66 1.96-3.08 6.94.71 8.52-.16.45-.33.91-.53 1.34z"/></svg>
                   App Store
-                </button>
+                </a>
               </div>
 
               {/* Android Download */}
               <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center w-72">
-                <div className="w-40 h-40 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center mb-6">
-                  <span className="text-gray-400 text-sm">Android QR Code</span>
-                </div>
-                <button className="w-full bg-green-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-green-700 transition-colors">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0004.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.4162.4162 0 00-.5676.1521l-2.0218 3.503C15.5902 8.244 13.8533 7.851 12 7.851c-1.8533 0-3.5902.393-5.1373 1.0997L4.841 5.4477a.4162.4162 0 00-.5676-.1521.4159.4159 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.surrogateagencyusa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-6 block"
+                  aria-label="Scan or open MySurro on Google Play"
+                >
+                  <img
+                    src="/qr/google-play-android.png"
+                    alt="QR code to download MySurro on Google Play"
+                    width={160}
+                    height={160}
+                    className="w-40 h-40 object-contain"
+                    loading="lazy"
+                  />
+                </a>
+                <p className="text-sm font-medium text-gray-500 mb-3">Android</p>
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.surrogateagencyusa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-green-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0004.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.4162.4162 0 00-.5676.1521l-2.0218 3.503C15.5902 8.244 13.8533 7.851 12 7.851c-1.8533 0-3.5902.393-5.1373 1.0997L4.841 5.4477a.4162.4162 0 00-.5676-.1521.4159.4159 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
                   Google Play
-                </button>
+                </a>
               </div>
             </div>
           </div>
