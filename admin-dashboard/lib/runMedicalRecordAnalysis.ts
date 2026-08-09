@@ -84,7 +84,7 @@ export function getMrrInternalSecret() {
   );
 }
 
-/** Fire phase-2 report synthesis as a NEW serverless invocation (fresh 300s budget). */
+/** Fire phase-2 report synthesis as a NEW serverless invocation (fresh duration budget). */
 export async function triggerSynthesizePhase(reviewId: string) {
   const secret = getMrrInternalSecret();
   if (!secret) {
