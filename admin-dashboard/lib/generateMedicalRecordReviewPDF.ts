@@ -125,8 +125,8 @@ export const generateMedicalRecordReviewPDF = (
   );
   yPosition += 12;
 
-  // Disclaimer box (clinic + legacy; staff has its own section 6)
-  if (kind !== 'staff') {
+  // Disclaimer box only for legacy downloads (clinic PDF: no front disclaimer)
+  if (kind === 'legacy') {
     const disclaimerLines = doc.splitTextToSize(MEDICAL_RECORD_REVIEW_DISCLAIMER, maxWidth - 8);
     const boxHeight = disclaimerLines.length * 4.2 + 8;
     ensureSpace(boxHeight + 6);
