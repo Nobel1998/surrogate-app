@@ -726,9 +726,6 @@ export async function analyzeMedicalRecordPdf(
     'split_pdf',
     `pages=${pageCount} resumeBatches=${completedBatchMap.size} priorFacts=${prior?.facts?.length || 0}`
   );
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'kimiMedicalReview.ts:analyzeMedicalRecordPdf',message:'extract start',data:{pageCount,priorFacts:prior?.facts?.length||0,resumeBatches:completedBatchMap.size,extractComplete:prior?.extractComplete??null},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   const chunks = await splitPdfIntoPageChunks(pdfBytes, PAGES_PER_CHUNK);
 
   const extractedParts: Array<{ startPage: number; endPage: number; text: string }> = [];
@@ -801,9 +798,6 @@ export async function analyzeMedicalRecordPdf(
       extractComplete ? 'facts_checkpoint' : 'facts_checkpoint_partial',
       `facts=${facts.length} batches=${completedBatchMap.size}/${chatBatches.length}`
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'kimiMedicalReview.ts:persistIncremental',message:'checkpoint persist',data:{extractComplete,facts:facts.length,batchesDone:completedBatchMap.size,batchesTotal:chatBatches.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (options?.onFactsReady) {
       await options.onFactsReady(checkpoint);
     }

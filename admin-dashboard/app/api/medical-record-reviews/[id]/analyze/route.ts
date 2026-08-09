@@ -70,10 +70,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-A',location:'analyze/route.ts:existing',message:'analyze start record state',data:{id,status:existing.status,storagePath:existing.storage_path?String(existing.storage_path).slice(0,80):null,fileDeleted:!!existing.file_deleted_at,hasFileUrl:!!existing.file_url,prevError:String(existing.error_message||'').slice(0,200),hasClinic:!!existing.clinic_report,hasStaff:!!existing.staff_report,hasRaw:!!existing.raw_ai_response},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-
     if (existing.status === 'analyzing') {
       const updatedAt = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
       const staleMs = 2 * 60 * 1000;
@@ -92,10 +88,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       isExtractComplete(checkpoint) &&
       !existing.clinic_report &&
       !existing.staff_report;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H3',location:'analyze/route.ts:checkpoint-gate',message:'analyze checkpoint gate',data:{id,hasCompleteCheckpoint,facts:checkpoint?.facts?.length||0,extractComplete:checkpoint?.extractComplete??null,completedBatches:checkpoint?.completedBatches?.length||0,hasClinic:!!existing.clinic_report,hasStaff:!!existing.staff_report},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     // If facts already fully extracted, skip extract and only start phase 2.
     if (hasCompleteCheckpoint) {
@@ -181,9 +173,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/analyze] phase1 error:', error);
         const message = error?.message || 'Failed to extract medical record';
-        // #region agent log
-        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-C',location:'analyze/route.ts:phase1-catch',message:'phase1 error catch',data:{id,errorMessage:String(message).slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
 
         // If checkpoint was saved before timeout, still try to start phase 2.
         try {
@@ -208,9 +197,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
             await triggerSynthesizePhase(id);
             return;
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'analyze/route.ts:timeout-no-phase2',message:'timeout without complete checkpoint',data:{id,facts:cp?.facts?.length||0,extractComplete:cp?.extractComplete??null,batches:cp?.completedBatches?.length||0},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         } catch (resumeErr) {
           console.error('[analyze] failed to auto-start phase2 after extract error:', resumeErr);
         }

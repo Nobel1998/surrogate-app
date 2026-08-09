@@ -303,10 +303,6 @@ export default function MedicalRecordReviewsPage() {
   const handleAnalyze = async (id: string) => {
     try {
       setAnalyzingId(id);
-      const current = reviews.find((r) => r.id === id) || null;
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H4',location:'medical-record-reviews/page.tsx:handleAnalyze',message:'analyze click',data:{id,status:current?.status||null,hasCheckpoint:hasFactsCheckpointRaw(current?.raw_ai_response),buttonWouldBe:current?.status==='failed'&&hasFactsCheckpointRaw(current?.raw_ai_response)?'Resume Review':current?.status==='failed'?'Retry Review':'Run Review'},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       // Never send the PDF in this request: serverless payloads are capped and
       // large records fail with 413. The server reads the PDF from storage.
@@ -320,10 +316,6 @@ export default function MedicalRecordReviewsPage() {
       } catch {
         data = {};
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-E',location:'medical-record-reviews/page.tsx:analyze-response',message:'analyze POST response',data:{id,httpStatus:res.status,ok:res.ok,bodyPreview:String(bodyText||'').slice(0,300),phase:data?.phase,alreadyRunning:data?.alreadyRunning,error:data?.error||null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       if (!res.ok && res.status !== 202) {
         throw new Error(
@@ -357,29 +349,17 @@ export default function MedicalRecordReviewsPage() {
 
         patchReviewInList(review);
 
-        // #region agent log
-        if (review.status === 'failed' || String(review.error_message || '').includes('PROGRESS:')) {
-          fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-A-D',location:'medical-record-reviews/page.tsx:poll-status',message:'analyze poll status',data:{id,status:review.status,errorMessage:String(review.error_message||'').slice(0,500),hasClinic:!!review.clinic_report,hasStaff:!!review.staff_report,fileDeleted:!!review.file_deleted_at},timestamp:Date.now()})}).catch(()=>{});
-        }
-        // #endregion
-
         if (review.status === 'analyzed' || review.status === 'reviewed') {
           setSelectedId(id);
           return;
         }
         if (review.status === 'failed') {
-          // #region agent log
-          fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-A-D',location:'medical-record-reviews/page.tsx:failed',message:'review marked failed',data:{id,errorMessage:String(review.error_message||'').slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
           throw new Error(review.error_message || 'Analysis failed');
         }
       }
 
       throw new Error('Analysis is taking longer than expected. Please refresh the page in a few minutes.');
     } catch (error: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-E',location:'medical-record-reviews/page.tsx:catch',message:'handleAnalyze catch',data:{id,error:String(error?.message||error).slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       alert(`Review failed: ${error.message}`);
       // Soft refresh only the single review; avoid full-page load flicker.
       try {

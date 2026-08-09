@@ -255,9 +255,6 @@ export async function runExtractPhase(
       reviewId,
       '1.checkpoint_exists',
       `facts=${existingCheckpoint.facts.length} — skip extract`);
-    // #region agent log
-    fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H3',location:'runMedicalRecordAnalysis.ts:runExtractPhase',message:'skip extract complete checkpoint',data:{reviewId,facts:existingCheckpoint.facts.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return { checkpoint: existingCheckpoint, skippedExtract: true as const };
   }
 
@@ -267,10 +264,6 @@ export async function runExtractPhase(
     !isExtractComplete(existingCheckpoint)
       ? existingCheckpoint
       : null;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'post-fix',hypothesisId:'H1',location:'runMedicalRecordAnalysis.ts:runExtractPhase',message:'extract phase path',data:{reviewId,resumePartial:!!resumePartial,priorFacts:resumePartial?.facts?.length||0,completedBatches:resumePartial?.completedBatches?.length||0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   let patientName: string | null = null;
   if (existing.surrogate_user_id) {
@@ -462,9 +455,6 @@ export async function markMedicalRecordAnalysisFailed(
   reviewId: string,
   message: string
 ) {
-  // #region agent log
-  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-A-D',location:'runMedicalRecordAnalysis.ts:markFailed',message:'mark analysis failed',data:{reviewId,errorMessage:String(message||'').slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   // Preserve raw_ai_response / facts checkpoint so Retry / phase2 can resume.
   await supabase
     .from('medical_record_reviews')
