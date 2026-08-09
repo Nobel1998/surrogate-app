@@ -10,7 +10,8 @@ import {
 import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+/** Vercel Pro allows up to 800s for long clinic/staff report generation. */
+export const maxDuration = 800;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .eq('id', id);
 
     after(async () => {
-      const budgetMs = 270_000;
+      const budgetMs = 780_000;
       try {
         await setAnalysisProgress(supabase, id, 'phase2_started', 'generating clinic+staff reports');
         await Promise.race([

@@ -11,7 +11,8 @@ import { requireMedicalRecordAccess } from '@/lib/medicalRecordReviews';
 import { parseFactsCheckpoint } from '@/lib/kimiMedicalReview';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // Hobby max is 300s; phase2 runs in a separate invocation
+/** Vercel Pro allows up to 800s — keep analysis in fewer phases without a 270s cut-off. */
+export const maxDuration = 800;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -149,7 +150,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const supabase = auth.supabase;
     after(async () => {
-      const budgetMs = 270_000;
+      // Leave ~20s headroom under maxDuration=800 for cleanup / phase-2 trigger.
+      const budgetMs = 780_000;
       try {
         await setAnalysisProgress(supabase, id, 'phase1_started', 'extracting medical record');
         await Promise.race([
@@ -165,7 +167,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           }),
         ]);
 
-        // Fresh serverless invocation for reports (new 300s budget).
+        // Fresh serverless invocation for reports (new duration budget).
         await triggerSynthesizePhase(id);
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/analyze] phase1 error:', error);

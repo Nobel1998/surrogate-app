@@ -319,7 +319,9 @@ export default function LandingPage() {
                   直接下载 APK
                 </a>
                 <p className="mt-2 text-xs text-gray-500 text-center leading-relaxed">
-                  中国用户如无法打开 Google Play，可点上方按钮直接下载安装
+                  用户如无法打开 Google Play，可点上方按钮直接下载安装
+                  <br />
+                  If Google Play is unavailable, tap above to download the APK directly.
                 </p>
               </div>
             </div>

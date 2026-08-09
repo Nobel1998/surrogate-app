@@ -11,10 +11,10 @@ const DEFAULT_MODEL = 'kimi-k3';
 const PAGES_PER_CHUNK = 8;
 const UPLOAD_MAX_ATTEMPTS = 3;
 const CHAT_MAX_ATTEMPTS = 2;
-/** Fact-extraction chats (longer OK). Must stay under Vercel maxDuration budget. */
-const CHAT_TIMEOUT_MS = 4 * 60 * 1000;
-/** Clinic/staff synthesis — keep short so we fail before the serverless kill. */
-const REPORT_CHAT_TIMEOUT_MS = 120 * 1000;
+/** Fact-extraction chats — Pro plan allows longer serverless runs. */
+const CHAT_TIMEOUT_MS = 8 * 60 * 1000;
+/** Clinic/staff synthesis chats. */
+const REPORT_CHAT_TIMEOUT_MS = 5 * 60 * 1000;
 const CHAT_BATCH_CHAR_LIMIT = 60000;
 
 export type ExtractedFact = {
