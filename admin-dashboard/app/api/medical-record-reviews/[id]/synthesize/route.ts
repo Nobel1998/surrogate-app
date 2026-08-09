@@ -67,6 +67,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       } catch (error: any) {
         console.error('[medical-record-reviews/:id/synthesize] error:', error);
         const message = error?.message || 'Failed to generate reports';
+        // #region agent log
+        fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-D',location:'synthesize/route.ts:catch',message:'phase2 synthesize error',data:{id,errorMessage:String(message).slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         await markMedicalRecordAnalysisFailed(supabase, id, message);
       }
     });

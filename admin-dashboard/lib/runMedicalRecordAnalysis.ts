@@ -438,6 +438,9 @@ export async function markMedicalRecordAnalysisFailed(
   reviewId: string,
   message: string
 ) {
+  // #region agent log
+  fetch('http://127.0.0.1:7292/ingest/ae0d1be9-2477-4454-828d-6c03ee3b2577',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5244e3'},body:JSON.stringify({sessionId:'5244e3',runId:'pre-fix',hypothesisId:'H-A-D',location:'runMedicalRecordAnalysis.ts:markFailed',message:'mark analysis failed',data:{reviewId,errorMessage:String(message||'').slice(0,800)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   // Preserve raw_ai_response / facts checkpoint so Retry / phase2 can resume.
   await supabase
     .from('medical_record_reviews')
