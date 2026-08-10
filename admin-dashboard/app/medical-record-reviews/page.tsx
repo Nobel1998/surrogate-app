@@ -476,16 +476,16 @@ export default function MedicalRecordReviewsPage() {
         <div className="text-gray-600">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-white rounded shadow overflow-hidden">
-            <table className="min-w-full text-sm">
+          <div className="bg-white rounded shadow overflow-x-auto">
+            <table className="min-w-full text-sm table-fixed">
               <thead className="bg-gray-50 text-left">
                 <tr>
-                  <th className="px-4 py-3">File</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Events</th>
-                  <th className="px-4 py-3">Tier</th>
-                  <th className="px-4 py-3">Uploaded</th>
-                  <th className="px-4 py-3">Download</th>
+                  <th className="px-4 py-3 w-[38%]">File</th>
+                  <th className="px-4 py-3 w-[12%]">Status</th>
+                  <th className="px-4 py-3 w-[10%]">Events</th>
+                  <th className="px-4 py-3 w-[8%]">Tier</th>
+                  <th className="px-4 py-3 w-[16%]">Uploaded</th>
+                  <th className="px-4 py-3 w-[16%]">Download</th>
                 </tr>
               </thead>
               <tbody>
@@ -496,7 +496,9 @@ export default function MedicalRecordReviewsPage() {
                     </td>
                   </tr>
                 ) : (
-                  reviews.map((review) => (
+                  reviews.map((review) => {
+                    const fileLabel = review.title || review.file_name || 'Untitled';
+                    return (
                     <tr
                       key={review.id}
                       onClick={() => {
@@ -513,9 +515,14 @@ export default function MedicalRecordReviewsPage() {
                         selectedId === review.id ? 'bg-blue-50' : ''
                       }`}
                     >
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{review.title || review.file_name || 'Untitled'}</div>
-                        <div className="text-xs text-gray-500">
+                      <td className="px-4 py-3 align-top">
+                        <div
+                          className="font-medium break-all whitespace-normal"
+                          title={fileLabel}
+                        >
+                          {fileLabel}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
                           {getSurrogateName(review.surrogate_user_id)}
                         </div>
                       </td>
@@ -554,7 +561,8 @@ export default function MedicalRecordReviewsPage() {
                         </button>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -569,7 +577,7 @@ export default function MedicalRecordReviewsPage() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">
+                    <h2 className="text-lg font-semibold break-all">
                       {selected.title || selected.file_name || 'Medical Record'}
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
