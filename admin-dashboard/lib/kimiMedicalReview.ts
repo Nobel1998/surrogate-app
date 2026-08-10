@@ -66,6 +66,41 @@ function batchKey(startPage: number, endPage: number) {
   return `${startPage}-${endPage}`;
 }
 
+/** Pages already extracted in a prior (possibly incomplete) run — used to avoid duplicate events on Resume. */
+function buildCoveredPages(
+  completedBatches?: Array<{ startPage: number; endPage: number }> | null
+): Set<number> {
+  const covered = new Set<number>();
+  for (const b of completedBatches || []) {
+    if (!b || !Number.isFinite(b.startPage) || !Number.isFinite(b.endPage)) continue;
+    const start = Math.max(1, Math.round(b.startPage));
+    const end = Math.max(start, Math.round(b.endPage));
+    for (let p = start; p <= end; p++) covered.add(p);
+  }
+  return covered;
+}
+
+function markPagesCovered(covered: Set<number>, startPage: number, endPage: number) {
+  const start = Math.max(1, Math.round(startPage));
+  const end = Math.max(start, Math.round(endPage));
+  for (let p = start; p <= end; p++) covered.add(p);
+}
+
+function isBatchFullyCovered(covered: Set<number>, startPage: number, endPage: number) {
+  if (covered.size === 0) return false;
+  const start = Math.max(1, Math.round(startPage));
+  const end = Math.max(start, Math.round(endPage));
+  for (let p = start; p <= end; p++) {
+    if (!covered.has(p)) return false;
+  }
+  return true;
+}
+
+function normalizeFactDedupeKey(item: ExtractedFact) {
+  const finding = item.finding.toLowerCase().replace(/\s+/g, ' ').trim();
+  return `${item.page}::${finding}::${item.category}`;
+}
+
 function getApiKey() {
   return process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || '';
 }
@@ -136,7 +171,7 @@ function dedupeFacts(items: ExtractedFact[]): ExtractedFact[] {
   const seen = new Set<string>();
   const out: ExtractedFact[] = [];
   for (const item of items) {
-    const key = `${item.page}::${item.finding.toLowerCase()}::${item.category}`;
+    const key = normalizeFactDedupeKey(item);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(item);
@@ -721,10 +756,12 @@ export async function analyzeMedicalRecordPdf(
       });
     }
   }
+  // Page-level coverage survives batch-boundary shifts between Resume runs.
+  const coveredPages = buildCoveredPages(prior?.completedBatches);
 
   await report(
     'split_pdf',
-    `pages=${pageCount} resumeBatches=${completedBatchMap.size} priorFacts=${prior?.facts?.length || 0}`
+    `pages=${pageCount} resumeBatches=${completedBatchMap.size} coveredPages=${coveredPages.size} priorFacts=${prior?.facts?.length || 0}`
   );
   const chunks = await splitPdfIntoPageChunks(pdfBytes, PAGES_PER_CHUNK);
 
@@ -807,7 +844,13 @@ export async function analyzeMedicalRecordPdf(
   for (let i = 0; i < chatBatches.length; i++) {
     const batch = chatBatches[i];
     const key = batchKey(batch.startPage, batch.endPage);
-    if (completedBatchMap.has(key)) {
+    // Skip by exact batch key OR by page coverage (batch splits can change on Resume).
+    if (
+      completedBatchMap.has(key) ||
+      isBatchFullyCovered(coveredPages, batch.startPage, batch.endPage)
+    ) {
+      completedBatchMap.set(key, { startPage: batch.startPage, endPage: batch.endPage });
+      markPagesCovered(coveredPages, batch.startPage, batch.endPage);
       await report(
         'fact_batch_skip',
         `${i + 1}/${chatBatches.length} pages ${batch.startPage}-${batch.endPage} (resumed)`
@@ -844,7 +887,10 @@ export async function analyzeMedicalRecordPdf(
       if (!recordPatientName && /\[\[PAGE\s*1\s*START\]\]/i.test(batch.text)) {
         recordPatientName = extractPatientNameFromPage1Text(batch.text);
       }
-      allFacts.push(...remapFactPages(normalizeFacts(parsed), batch.startPage, batch.endPage));
+      const remapped = remapFactPages(normalizeFacts(parsed), batch.startPage, batch.endPage);
+      // Drop facts from pages already covered so Resume cannot double-count Events.
+      const fresh = remapped.filter((f) => !coveredPages.has(f.page));
+      allFacts.push(...fresh);
       rawParts.push(
         JSON.stringify({
           batch: i + 1,
@@ -854,6 +900,7 @@ export async function analyzeMedicalRecordPdf(
         })
       );
       completedBatchMap.set(key, { startPage: batch.startPage, endPage: batch.endPage });
+      markPagesCovered(coveredPages, batch.startPage, batch.endPage);
       await persistIncremental(false);
     } catch (error: any) {
       const message = error?.message || 'chat failed';

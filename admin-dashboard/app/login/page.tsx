@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -148,6 +149,15 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/"
+              className="text-sm font-medium text-blue-600 hover:text-blue-500"
+            >
+              ← Back to homepage
+            </Link>
           </div>
         </form>
       </div>
