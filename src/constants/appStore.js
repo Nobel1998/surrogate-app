@@ -6,8 +6,8 @@ export const IOS_APP_STORE_REVIEW_URL = `${IOS_APP_STORE_URL}?action=write-revie
 
 export const IOS_APP_STORE_REVIEW_ITMS_URL = `itms-apps://itunes.apple.com/app/id${IOS_APP_STORE_ID}?action=write-review`;
 
-// Set to true after Google Play listing goes live.
-export const ANDROID_PLAY_STORE_PUBLISHED = false;
+// Google Play listing is live.
+export const ANDROID_PLAY_STORE_PUBLISHED = true;
 
 export const ANDROID_PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.surrogateagencyusa';

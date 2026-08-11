@@ -36,11 +36,16 @@ const openIosReviewPage = (storeUrl, t) =>
   openUrl(IOS_APP_STORE_REVIEW_ITMS_URL, t, resolveIosReviewUrl(storeUrl));
 
 const promptOpenStore = (url, t, { ios = false } = {}) => {
-  Alert.alert(t('profile.rateApp'), t('profile.rateAppOpenStore'), [
+  const message = ios ? t('profile.rateAppOpenStore') : t('profile.rateAppOpenPlayStore');
+  const confirmLabel = ios ? t('profile.openStore') : t('profile.openPlayStore');
+  Alert.alert(t('profile.rateApp'), message, [
     { text: t('common.cancel'), style: 'cancel' },
     {
-      text: t('profile.openStore'),
-      onPress: () => (ios ? openIosReviewPage(url, t) : openUrl(url, t)),
+      text: confirmLabel,
+      onPress: () =>
+        ios
+          ? openIosReviewPage(url, t)
+          : openUrl(url, t, ANDROID_PLAY_STORE_URL, 'profile.rateAppPlayError'),
     },
   ]);
 };
@@ -99,15 +104,17 @@ const handleAndroidRateApp = async (t) => {
     storeUrl = ANDROID_PLAY_STORE_URL;
   }
 
-  if (typeof StoreReview.hasAction === 'function' && (await StoreReview.hasAction())) {
+  if (await canRequestInAppReview()) {
     try {
       await StoreReview.requestReview();
     } catch {
       // Fall through to Play Store link.
     }
+    setTimeout(() => promptOpenStore(storeUrl, t, { ios: false }), 600);
+    return;
   }
 
-  promptOpenStore(storeUrl, t);
+  promptOpenStore(storeUrl, t, { ios: false });
 };
 
 export const handleRateApp = async (t) => {
