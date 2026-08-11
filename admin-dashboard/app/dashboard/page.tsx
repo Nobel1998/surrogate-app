@@ -1225,7 +1225,36 @@ export default function Home() {
                       <h3 className="text-lg font-medium text-blue-900 mb-4">👨‍👩‍👧 Step 1: Family Structure & Basic Information</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {renderTextField('Family Structure', 'familyStructure')}
-                        {renderTextField('How Did You Hear About Us', 'hearAboutUs')}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">How Did You Hear About Us</label>
+                          {isEditingApplication ? (
+                            <select
+                              value={
+                                ['google_search', 'youtube', 'online_resources', 'facebook', 'friend', 'other_agency', 'ai', 'clinic_referral'].includes(
+                                  String(editFormData.hearAboutUs ?? selectedApp.hearAboutUs ?? '')
+                                )
+                                  ? String(editFormData.hearAboutUs ?? selectedApp.hearAboutUs)
+                                  : ''
+                              }
+                              onChange={(e) => updateEditField('hearAboutUs', e.target.value || null)}
+                              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                            >
+                              <option value="">N/A</option>
+                              <option value="google_search">Google Search</option>
+                              <option value="youtube">Youtube</option>
+                              <option value="online_resources">Online resources, etc</option>
+                              <option value="facebook">Facebook, X</option>
+                              <option value="friend">Friend</option>
+                              <option value="other_agency">Other Agency</option>
+                              <option value="ai">AI</option>
+                              <option value="clinic_referral">Clinic Referral</option>
+                            </select>
+                          ) : (
+                            <p className="text-sm text-gray-900">
+                              {labelParentApplicationOption(selectedApp.hearAboutUs) || 'N/A'}
+                            </p>
+                          )}
+                        </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Applicant IP Region (Province/State)</label>
                           <p className="text-sm text-gray-900">
