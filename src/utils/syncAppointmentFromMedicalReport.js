@@ -80,42 +80,99 @@ export function resolveProviderContact(value) {
   return trimmed || EMPTY_PROVIDER_CONTACT;
 }
 
-async function loadClinicContext(userId, stage, providerName) {
-  let clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
-  let clinicAddress = null;
-  let clinicPhone = EMPTY_PROVIDER_CONTACT;
-  let clinicEmail = null;
-  let resolvedProvider = providerName || null;
-
-  try {
-    const { data: medInfo } = await supabase
-      .from('surrogate_medical_info')
-      .select(
-        'ivf_clinic_name, ivf_clinic_address, ivf_clinic_phone, ivf_clinic_email, obgyn_clinic_name, obgyn_clinic_address, obgyn_clinic_phone, obgyn_clinic_email, obgyn_doctor_name'
-      )
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (stage === 'OBGYN') {
-      clinicName = medInfo?.obgyn_clinic_name || 'OB Clinic';
-      clinicAddress = medInfo?.obgyn_clinic_address || null;
-      clinicPhone = resolveProviderContact(medInfo?.obgyn_clinic_phone);
-      clinicEmail = String(medInfo?.obgyn_clinic_email || '').trim() || null;
-      if (!resolvedProvider && medInfo?.obgyn_doctor_name) {
-        resolvedProvider = medInfo.obgyn_doctor_name;
-      }
-    } else {
-      clinicName = medInfo?.ivf_clinic_name || 'IVF Clinic';
-      clinicAddress = medInfo?.ivf_clinic_address || null;
-      clinicPhone = resolveProviderContact(medInfo?.ivf_clinic_phone);
-      clinicEmail = String(medInfo?.ivf_clinic_email || '').trim() || null;
-    }
-  } catch {
-    clinicName = stage === 'OBGYN' ? 'OB Clinic' : 'IVF Clinic';
-    clinicPhone = EMPTY_PROVIDER_CONTACT;
-    clinicEmail = null;
+/** Normalize medical check-in test_site checkbox values to a string array. */
+export function normalizeTestSites(testSite) {
+  if (Array.isArray(testSite)) {
+    return testSite.map((s) => String(s || '').trim()).filter(Boolean);
   }
+  if (typeof testSite === 'string' && testSite.trim()) {
+    return [testSite.trim()];
+  }
+  return [];
+}
 
-  return { clinicName, clinicAddress, clinicPhone, clinicEmail, providerName: resolvedProvider };
+/**
+ * Appointment location from medical check-in test_site:
+ * 1) none selected → hide location (null)
+ * 2) selected sites → store keys (UI translates); legacy "others" maps to local_monitor_clinic
+ * No medical-info clinic name fallback.
+ */
+export function resolveAppointmentLocationFromTestSite(testSite) {
+  const sites = normalizeTestSites(testSite).map((s) =>
+    s === 'others' ? 'local_monitor_clinic' : s
+  );
+  // de-dupe while preserving order
+  const unique = [];
+  for (const s of sites) {
+    if (!unique.includes(s)) unique.push(s);
+  }
+  if (unique.length === 0) {
+    return { clinicName: null, clinicAddress: null };
+  }
+  return {
+    clinicName: unique.join(','),
+    clinicAddress: null,
+  };
+}
+
+const TEST_SITE_KEYS = new Set(['labcorp', 'ivf_clinic', 'local_monitor_clinic', 'others']);
+
+/** True when clinic_name is only check-in test_site key(s). */
+export function isTestSiteClinicName(clinicName) {
+  const raw = String(clinicName || '').trim();
+  if (!raw) return false;
+  const parts = raw.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
+  if (parts.length === 0) return false;
+  return parts.every((p) => TEST_SITE_KEYS.has(p));
+}
+
+/**
+ * Translate a single test_site key (or pass-through unknown values).
+ */
+export function translateTestSiteKey(key, t) {
+  const k = String(key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  if (k === 'labcorp') return t?.('medicalReport.labcorp') || 'Labcorp';
+  if (k === 'ivf_clinic') return t?.('medicalReport.ivfClinic') || 'IVF clinic';
+  if (k === 'local_monitor_clinic' || k === 'others') {
+    return t?.('medicalReport.localMonitorClinic') || 'Local monitor clinic';
+  }
+  return String(key || '').trim();
+}
+
+/**
+ * Human-readable appointment location. Returns null when the row should hide location.
+ */
+export function formatAppointmentLocationLabel(clinicName, t) {
+  const raw = String(clinicName || '').trim();
+  if (!raw) return null;
+  // Legacy sync defaults when test_site was ignored
+  if (raw === 'IVF Clinic' || raw === 'OB Clinic') return null;
+
+  return raw
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => translateTestSiteKey(p, t))
+    .join(', ');
+}
+
+/**
+ * Contact + location for appointments come only from check-in fields
+ * (test_site, provider_name, provider_contact) — never medical info.
+ */
+function loadCheckInClinicContext(providerName, reportData) {
+  const location = resolveAppointmentLocationFromTestSite(reportData?.test_site);
+  const fromReport = splitProviderContact(reportData?.provider_contact);
+  return {
+    clinicName: location.clinicName,
+    clinicAddress: null,
+    clinicPhone: fromReport.phone || EMPTY_PROVIDER_CONTACT,
+    clinicEmail: fromReport.email || null,
+    providerName: providerName || null,
+  };
 }
 
 async function writeAppointmentRow(table, existingId, row) {
@@ -315,20 +372,16 @@ export async function syncAppointmentFromMedicalReport({
     .limit(1)
     .maybeSingle();
 
-  const clinic = await loadClinicContext(userId, stage, providerName);
-  const fromReport = splitProviderContact(reportData?.provider_contact);
-  const clinicPhone =
-    fromReport.phone || clinic.clinicPhone || EMPTY_PROVIDER_CONTACT;
-  const clinicEmail = fromReport.email || clinic.clinicEmail || null;
+  const clinic = loadCheckInClinicContext(providerName, reportData);
 
   const basePayload = {
     user_id: userId,
     match_id: matchRow?.id || null,
     provider_name: clinic.providerName || null,
-    clinic_name: clinic.clinicName,
-    clinic_address: clinic.clinicAddress,
-    clinic_phone: clinicPhone,
-    clinic_email: clinicEmail,
+    clinic_name: clinic.clinicName || null,
+    clinic_address: null,
+    clinic_phone: clinic.clinicPhone,
+    clinic_email: clinic.clinicEmail,
     medical_stage: stage,
   };
 

@@ -9,6 +9,7 @@ import React, {
 import AsyncStorageLib from '../utils/Storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { ACTIVE_MATCH_STATUSES } from '../utils/matchStatus';
 
 const STORAGE_KEY = (userId) => `parent_active_match_id:${userId}`;
 
@@ -89,7 +90,7 @@ export function ParentMatchProvider({ children }) {
         .from('surrogate_matches')
         .select('*')
         .eq('parent_id', user.id)
-        .in('status', ['matched', 'active']);
+        .in('status', ACTIVE_MATCH_STATUSES);
 
       if (error && error.code !== 'PGRST116') {
         console.error('[ParentMatch] refreshMatches error:', error);

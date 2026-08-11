@@ -1244,10 +1244,19 @@ export default function Home() {
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Phone</label>
                           {isEditingApplication ? (
-                            <div className="grid grid-cols-3 gap-1 mt-1">
-                              <input type="text" placeholder="+Code" value={editFormData.parent1PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent1PhoneCountryCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
-                              <input type="text" placeholder="Area" value={editFormData.parent1PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent1PhoneAreaCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
-                              <input type="text" placeholder="Number" value={editFormData.parent1PhoneNumber ?? ''} onChange={(e) => updateEditField('parent1PhoneNumber', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                            <div className="grid grid-cols-3 gap-2 mt-1">
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-0.5">Country code</label>
+                                <input type="text" placeholder="+1" value={editFormData.parent1PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent1PhoneCountryCode', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-0.5">Area code</label>
+                                <input type="text" placeholder="Area code" value={editFormData.parent1PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent1PhoneAreaCode', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-0.5">Phone number</label>
+                                <input type="text" placeholder="Phone number" value={editFormData.parent1PhoneNumber ?? ''} onChange={(e) => updateEditField('parent1PhoneNumber', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              </div>
                             </div>
                           ) : (
                             <p className="text-sm text-gray-900">
@@ -1313,10 +1322,19 @@ export default function Home() {
                           <div>
                             <label className="block text-sm font-medium text-gray-500">Phone</label>
                             {isEditingApplication ? (
-                              <div className="grid grid-cols-3 gap-1 mt-1">
-                                <input type="text" placeholder="+Code" value={editFormData.parent2PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent2PhoneCountryCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
-                                <input type="text" placeholder="Area" value={editFormData.parent2PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent2PhoneAreaCode', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
-                                <input type="text" placeholder="Number" value={editFormData.parent2PhoneNumber ?? ''} onChange={(e) => updateEditField('parent2PhoneNumber', e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                              <div className="grid grid-cols-3 gap-2 mt-1">
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-0.5">Country code</label>
+                                  <input type="text" placeholder="+1" value={editFormData.parent2PhoneCountryCode ?? ''} onChange={(e) => updateEditField('parent2PhoneCountryCode', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-0.5">Area code</label>
+                                  <input type="text" placeholder="Area code" value={editFormData.parent2PhoneAreaCode ?? ''} onChange={(e) => updateEditField('parent2PhoneAreaCode', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-0.5">Phone number</label>
+                                  <input type="text" placeholder="Phone number" value={editFormData.parent2PhoneNumber ?? ''} onChange={(e) => updateEditField('parent2PhoneNumber', e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white" />
+                                </div>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-900">

@@ -64,9 +64,9 @@ export async function GET(
       }
     }
 
-    // Get surrogate's progress_stage as current_step and transfer_date
+    // Prefer live profiles.progress_stage (Matches Stage dropdown) over stale match.current_step
     const surrogateProfile = matchData.surrogate_id ? profiles[matchData.surrogate_id] : null;
-    const currentStep = matchData.current_step || surrogateProfile?.progress_stage || null;
+    const currentStep = surrogateProfile?.progress_stage || matchData.current_step || null;
     const transferDate = matchData.transfer_date || surrogateProfile?.transfer_date || null;
 
     // Fetch all managers assigned to this match (from match_managers table)

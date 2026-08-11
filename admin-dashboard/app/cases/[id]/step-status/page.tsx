@@ -5,17 +5,21 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import DateInput from '@/components/DateInput';
 
-// Stage labels for displaying friendly names
+// Stage labels — align with Matches Stage dropdown (profiles.progress_stage)
 const STAGE_LABELS: Record<string, string> = {
-  'pre': 'Pre-Screening',
-  'match': 'Matching',
-  'medical': 'Medical Screening',
-  'legal': 'Legal Process',
-  'transfer': 'Embryo Transfer',
-  'pregnancy': 'Pregnancy',
-  'delivery': 'Delivery',
-  'postpartum': 'Postpartum',
-  'complete': 'Complete',
+  pre: 'Pre-Transfer',
+  pregnancy: 'Pregnancy',
+  ob_visit: 'OB Office Visit',
+  delivery: 'Delivery',
+  // legacy / unused keys (keep readable if present in old rows)
+  match: 'Matching',
+  medical: 'Medical Screening',
+  legal: 'Legal Process',
+  transfer: 'Embryo Transfer',
+  postpartum: 'Postpartum',
+  complete: 'Complete',
+  pre_transfer: 'Pre-Transfer',
+  post_transfer: 'Post-Transfer',
 };
 
 // Admin note stage options (for Add Admin Note) — stage is required
@@ -121,6 +125,8 @@ export default function StepStatusPage() {
   const [error, setError] = useState<string | null>(null);
   const [surrogateApp, setSurrogateApp] = useState<SurrogateApplication | null>(null);
   const [formData, setFormData] = useState<any>({});
+  /** Intended-parent application form_data (has parent1 + parent2 details). */
+  const [parentFormData, setParentFormData] = useState<any>({});
   const [medicalInfo, setMedicalInfo] = useState<MedicalInfo | null>(null);
 
   const [updateTab, setUpdateTab] = useState<'note' | 'medical'>('note');
@@ -201,6 +207,36 @@ export default function StepStatusPage() {
 
       setCaseData(caseDataRes.case);
       setUpdates(updatesData.updates || []);
+      setParentFormData({});
+
+      // Load intended-parent application (both parents live in form_data)
+      const parentUserId =
+        caseDataRes.case?.first_parent_id || caseDataRes.case?.parent_id || null;
+      if (parentUserId) {
+        try {
+          const ipRes = await fetch(
+            `/api/intended-parent-applications?user_id=${parentUserId}`
+          );
+          if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            const rows = ipData.data || ipData.applications || [];
+            const latest = Array.isArray(rows) ? rows[0] : null;
+            if (latest?.form_data) {
+              try {
+                const parsed =
+                  typeof latest.form_data === 'string'
+                    ? JSON.parse(latest.form_data)
+                    : latest.form_data;
+                setParentFormData(parsed || {});
+              } catch (e) {
+                console.error('Error parsing intended parent form_data:', e);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error loading intended parent application:', e);
+        }
+      }
 
       // Load surrogate application if surrogate exists
       if (caseDataRes.case?.surrogate_id) {
@@ -263,6 +299,21 @@ export default function StepStatusPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatParentAppName = (prefix: 'parent1' | 'parent2') => {
+    const first = String(parentFormData?.[`${prefix}FirstName`] || '').trim();
+    const last = String(parentFormData?.[`${prefix}LastName`] || '').trim();
+    return [first, last].filter(Boolean).join(' ') || undefined;
+  };
+
+  const formatParentAppPhone = (prefix: 'parent1' | 'parent2') => {
+    const cc = String(parentFormData?.[`${prefix}PhoneCountryCode`] || '').trim();
+    const area = String(parentFormData?.[`${prefix}PhoneAreaCode`] || '').trim();
+    const num = String(parentFormData?.[`${prefix}PhoneNumber`] || '').trim();
+    if (cc && area && num) return `+${cc.replace(/^\+/, '')} (${area}) ${num}`;
+    if (num) return num;
+    return undefined;
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -957,22 +1008,54 @@ export default function StepStatusPage() {
               )
             )}
 
-            {/* Parent Information */}
+            {/* Parent Information — prefer application form (both parents) over linked profiles */}
             {renderDocumentSection('Intended Parents', '👨‍👩‍👧',
               <div className="grid grid-cols-2 gap-8">
                 <div className="bg-blue-50 p-4 rounded">
                   <h4 className="font-medium text-blue-800 mb-3">Parent 1</h4>
-                  {renderField('Name', caseData?.first_parent?.name)}
-                  {renderField('Phone', caseData?.first_parent?.phone)}
-                  {renderField('Email', caseData?.first_parent?.email)}
-                  {renderField('Location', caseData?.first_parent?.location)}
+                  {renderField(
+                    'Name',
+                    formatParentAppName('parent1') ||
+                      caseData?.first_parent?.display_name ||
+                      caseData?.first_parent?.name
+                  )}
+                  {renderField(
+                    'Phone',
+                    formatParentAppPhone('parent1') || caseData?.first_parent?.phone
+                  )}
+                  {renderField(
+                    'Email',
+                    parentFormData?.parent1Email || caseData?.first_parent?.email
+                  )}
+                  {renderField(
+                    'Location',
+                    parentFormData?.parent1CountryState || caseData?.first_parent?.location
+                  )}
+                  {renderField('Occupation', parentFormData?.parent1Occupation)}
+                  {renderField('Citizenship', parentFormData?.parent1Citizenship)}
                 </div>
                 <div className="bg-pink-50 p-4 rounded">
                   <h4 className="font-medium text-pink-800 mb-3">Parent 2</h4>
-                  {renderField('Name', caseData?.second_parent?.name)}
-                  {renderField('Phone', caseData?.second_parent?.phone)}
-                  {renderField('Email', caseData?.second_parent?.email)}
-                  {renderField('Location', caseData?.second_parent?.location)}
+                  {renderField(
+                    'Name',
+                    formatParentAppName('parent2') ||
+                      caseData?.second_parent?.display_name ||
+                      caseData?.second_parent?.name
+                  )}
+                  {renderField(
+                    'Phone',
+                    formatParentAppPhone('parent2') || caseData?.second_parent?.phone
+                  )}
+                  {renderField(
+                    'Email',
+                    parentFormData?.parent2Email || caseData?.second_parent?.email
+                  )}
+                  {renderField(
+                    'Location',
+                    parentFormData?.parent2CountryState || caseData?.second_parent?.location
+                  )}
+                  {renderField('Occupation', parentFormData?.parent2Occupation)}
+                  {renderField('Citizenship', parentFormData?.parent2Citizenship)}
                 </div>
               </div>
             )}

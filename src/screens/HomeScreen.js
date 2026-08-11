@@ -16,14 +16,16 @@ import {
 } from '../utils/applicationStatus';
 import DatePickerField from '../components/DatePickerField';
 import { APP_API_BASE_URL } from '../constants/api';
+import { translateTestSiteKey } from '../utils/syncAppointmentFromMedicalReport';
+import { containsChinese, noteAlreadyInTargetLanguage } from '../utils/noteTranslation';
+import { formatLabsList } from '../utils/medicalReportLabels';
+import { isActiveMatchStatus } from '../utils/matchStatus';
 
 // Normalize stage values to lowercase for consistent filtering
 const normalizeStage = (value = 'pregnancy') => {
   if (!value) return 'pregnancy';
   return String(value).toLowerCase();
 };
-
-const containsChinese = (text) => /[\u3400-\u9fff]/.test(String(text || ''));
 
 const STAGE_ORDER = ['pre', 'pregnancy', 'ob_visit', 'delivery'];
 
@@ -161,6 +163,11 @@ export default function HomeScreen() {
     index: 0,
   });
   const adminNoteGalleryScrollRef = useRef(null);
+  const timelineScrollRef = useRef(null);
+  const timelineScrollYRef = useRef(0);
+  const shouldRestoreTimelineScrollRef = useRef(false);
+  const stageDetailScrollRef = useRef(null);
+  const pinStageDetailToTopRef = useRef(false);
   const [selectedAdminNote, setSelectedAdminNote] = useState(null);
   const [translatedAdminNoteContent, setTranslatedAdminNoteContent] = useState('');
   const [translatingAdminNote, setTranslatingAdminNote] = useState(false);
@@ -975,8 +982,8 @@ export default function HomeScreen() {
               console.log('Error loading match (surrogate):', matchError.message);
             }
             
-            // Find matched match (status can be 'matched' or 'active')
-            const matchedMatch = surrogateMatches?.find(m => m.status === 'matched' || m.status === 'active');
+            // Find active match (matched / active / pregnant / pending)
+            const matchedMatch = surrogateMatches?.find((m) => isActiveMatchStatus(m.status));
             const hasMatch = !!matchedMatch;
             
             console.log('[HomeScreen] fetchMatchAndStage - Match status check:', { 
@@ -1354,8 +1361,8 @@ export default function HomeScreen() {
             console.log('Error loading match in refreshStageData (surrogate):', matchError.message);
           }
           
-          // Find matched match (status can be 'matched' or 'active')
-          const matchedMatch = surrogateMatches?.find(m => m.status === 'matched' || m.status === 'active');
+          // Find active match (matched / active / pregnant / pending)
+          const matchedMatch = surrogateMatches?.find((m) => isActiveMatchStatus(m.status));
           const hasMatch = !!matchedMatch;
           
           console.log('[HomeScreen] refreshStageData - Match status check:', { 
@@ -1440,8 +1447,8 @@ export default function HomeScreen() {
 
   const translateAdminNoteText = useCallback(async (noteId, rawText, targetLanguage) => {
     const text = String(rawText || '').trim();
-    if (!text || targetLanguage === 'en') return text;
-    if (String(targetLanguage || '').toLowerCase().startsWith('zh') && containsChinese(text)) return text;
+    if (!text) return text;
+    if (noteAlreadyInTargetLanguage(text, targetLanguage)) return text;
     const cacheKey = `${noteId || 'note'}:${targetLanguage}:${text}`;
     const cached = translatedAdminNoteCacheRef.current.get(cacheKey);
     if (cached) return cached;
@@ -1512,7 +1519,7 @@ export default function HomeScreen() {
         })
         .filter(Boolean);
 
-      if (noteEntries.length === 0 || language === 'en') {
+      if (noteEntries.length === 0) {
         setTranslatedMedicalReportNotes({});
         return;
       }
@@ -1588,14 +1595,20 @@ export default function HomeScreen() {
   }, [matchId]);
 
   useEffect(() => {
-    if (language === 'en' || !Array.isArray(adminNotes) || adminNotes.length === 0) return;
+    if (!Array.isArray(adminNotes) || adminNotes.length === 0) return;
     let cancelled = false;
 
     const preTranslate = async () => {
       for (const note of adminNotes) {
         const noteId = note?.id;
         const raw = String(note?.content || '').trim();
-        if (!noteId || !raw || adminNoteTranslations[noteId]) continue;
+        if (!noteId || !raw) continue;
+        if (noteAlreadyInTargetLanguage(raw, language)) {
+          setAdminNoteTranslations((prev) =>
+            prev[noteId] === raw ? prev : { ...prev, [noteId]: raw }
+          );
+          continue;
+        }
         const inFlightKey = `${noteId}:${language}:${raw}`;
         if (adminNoteTranslateInFlightRef.current.has(inFlightKey)) continue;
         adminNoteTranslateInFlightRef.current.add(inFlightKey);
@@ -1617,10 +1630,10 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [adminNotes, language, adminNoteTranslations, translateAdminNoteText]);
+  }, [adminNotes, language, translateAdminNoteText]);
 
   useEffect(() => {
-    if (language === 'en' || !Array.isArray(medicalReports) || medicalReports.length === 0) return;
+    if (!Array.isArray(medicalReports) || medicalReports.length === 0) return;
     let cancelled = false;
 
     const preTranslateMedicalReportNotes = async () => {
@@ -1631,21 +1644,24 @@ export default function HomeScreen() {
           reportData.notes || reportData.note || reportData.additional_notes || ''
         ).trim();
         if (!report?.id || !raw) continue;
-        if (String(language || '').toLowerCase().startsWith('zh') && containsChinese(raw)) {
+        if (noteAlreadyInTargetLanguage(raw, language)) {
+          medicalReportPreviewNoteSourceRef.current = {
+            ...(medicalReportPreviewNoteSourceRef.current || {}),
+            [report.id]: raw,
+          };
           setTranslatedMedicalReportPreviewNotes((prev) =>
             prev[report.id] === raw ? prev : { ...prev, [report.id]: raw }
           );
           continue;
         }
-        const cached = translatedMedicalReportPreviewNotes[report.id];
-        if (cached && cached === raw) continue;
-        // If we already have a translation entry that isn't the raw Chinese skip path,
-        // still allow re-translate when source notes change by including raw in inFlight key only.
         const inFlightKey = `${report.id}:${language}:${raw}`;
         if (medicalReportPreviewTranslateInFlightRef.current.has(inFlightKey)) continue;
+        const existing = translatedMedicalReportPreviewNotes[report.id];
         if (
-          translatedMedicalReportPreviewNotes[report.id] &&
-          medicalReportPreviewNoteSourceRef.current?.[report.id] === raw
+          existing &&
+          medicalReportPreviewNoteSourceRef.current?.[report.id] === raw &&
+          existing !== raw &&
+          noteAlreadyInTargetLanguage(existing, language)
         ) {
           continue;
         }
@@ -1683,6 +1699,49 @@ export default function HomeScreen() {
       adminNoteGalleryScrollRef.current?.scrollTo?.({ x: idx * w, animated: false });
     });
   }, [adminNoteImageViewer.visible, adminNoteImageViewer.index, adminNoteImageViewer.urls]);
+
+  // Stage detail must open at top (timeline/detail ScrollViews share tree position and would otherwise reuse offset).
+  useEffect(() => {
+    if (viewMode !== 'stageDetail') {
+      pinStageDetailToTopRef.current = false;
+      return;
+    }
+    pinStageDetailToTopRef.current = true;
+    const scrollTop = () => {
+      stageDetailScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    };
+    scrollTop();
+    const t1 = setTimeout(scrollTop, 0);
+    const t2 = setTimeout(() => {
+      scrollTop();
+      // Stop pinning after images/layout settle so user scroll is not yanked.
+      pinStageDetailToTopRef.current = false;
+    }, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [viewMode, stageFilter]);
+
+  // Restore timeline scroll after returning from stage detail / feed.
+  useEffect(() => {
+    if (viewMode !== 'timeline' || !shouldRestoreTimelineScrollRef.current) return;
+    const y = timelineScrollYRef.current;
+    const restore = () => {
+      timelineScrollRef.current?.scrollTo?.({ y, animated: false });
+    };
+    restore();
+    const t1 = requestAnimationFrame(restore);
+    // Keep restoring through late layout (dashboard images) then release the flag.
+    const t2 = setTimeout(() => {
+      restore();
+      shouldRestoreTimelineScrollRef.current = false;
+    }, 400);
+    return () => {
+      cancelAnimationFrame(t1);
+      clearTimeout(t2);
+    };
+  }, [viewMode]);
 
   const openAdminNoteGallery = useCallback((urls, startIndex) => {
     if (!urls?.length) return;
@@ -1756,11 +1815,7 @@ export default function HomeScreen() {
       Alert.alert('', t('home.adminNoteMaxImages', { count: MAX_ADMIN_NOTE_IMAGES }));
       return;
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(t('medicalReport.permissionRequired') || 'Permission Required');
-      return;
-    }
+    // System photo picker — no READ_MEDIA_* / library permission needed
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
@@ -1902,12 +1957,12 @@ export default function HomeScreen() {
         setTranslatingAdminNote(false);
         return;
       }
-      if (language === 'en') {
+      if (noteAlreadyInTargetLanguage(raw, language)) {
         setTranslatedAdminNoteContent(raw);
         setTranslatingAdminNote(false);
         return;
       }
-      if (adminNoteTranslations[selectedAdminNote.id]) {
+      if (adminNoteTranslations[selectedAdminNote.id] && noteAlreadyInTargetLanguage(adminNoteTranslations[selectedAdminNote.id], language)) {
         setTranslatedAdminNoteContent(adminNoteTranslations[selectedAdminNote.id]);
         setTranslatingAdminNote(false);
         return;
@@ -2209,7 +2264,7 @@ export default function HomeScreen() {
         return;
       }
 
-      const matchData = allMatches?.find(m => m.status === 'matched' || m.status === 'active');
+      const matchData = allMatches?.find((m) => isActiveMatchStatus(m.status));
       setHasSurrogateMatch(!!matchData);
     } catch (error) {
       console.error('Error checking surrogate match:', error);
@@ -2279,8 +2334,8 @@ export default function HomeScreen() {
             userId: user.id 
           });
           
-          // Only process matched matches (status can be 'matched' or 'active')
-          if (payload.new && (payload.new.status === 'matched' || payload.new.status === 'active')) {
+          // Active match statuses (matched / active / pregnant / pending)
+          if (payload.new && isActiveMatchStatus(payload.new.status)) {
             console.log('[HomeScreen] ✅ Matched match detected, refreshing data...');
             
             // Update match state immediately for surrogate
@@ -2301,7 +2356,7 @@ export default function HomeScreen() {
             if (isParent) {
               await parentMatch.refreshMatches();
             }
-          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
+          } else if (payload.eventType === 'DELETE' || (payload.new && !isActiveMatchStatus(payload.new.status))) {
             console.log('[HomeScreen] ⚠️ Match removed or deactivated, clearing match state...');
             
             // Clear match state
@@ -2373,21 +2428,17 @@ export default function HomeScreen() {
     }
   }, [user?.id]);
 
-  const requestPermissions = async () => {
+  const requestCameraPermission = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-      Alert.alert('Permission Required', 'We need camera and photo library permissions to share photos and videos.');
+    if (cameraStatus !== 'granted') {
+      Alert.alert('Permission Required', 'We need camera permission to take photos and videos.');
       return false;
     }
     return true;
   };
 
   const pickImage = async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
+    // System photo picker — no READ_MEDIA_* / library permission needed
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
@@ -2402,7 +2453,7 @@ export default function HomeScreen() {
   };
 
   const takePhoto = async () => {
-    const hasPermission = await requestPermissions();
+    const hasPermission = await requestCameraPermission();
     if (!hasPermission) return;
 
     const result = await ImagePicker.launchCameraAsync({
@@ -2419,7 +2470,7 @@ export default function HomeScreen() {
   };
 
   const recordVideo = async () => {
-    const hasPermission = await requestPermissions();
+    const hasPermission = await requestCameraPermission();
     if (!hasPermission) return;
 
     const result = await ImagePicker.launchCameraAsync({
@@ -2983,16 +3034,15 @@ export default function HomeScreen() {
 
     // Extract key metrics based on stage
     let keyMetrics = [];
+    if (report.stage === 'Pre-Transfer' || report.stage === 'Post-Transfer') {
+      if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
+        keyMetrics.push(`${t('medicalReport.labs')}: ${formatLabsList(reportData.labs, t)}`);
+      }
+    }
     if (report.stage === 'Pre-Transfer') {
       if (reportData.endometrial_thickness) keyMetrics.push(`${t('medicalReport.endometrial')}: ${reportData.endometrial_thickness} mm`);
       if (reportData.follicle_1_mm) keyMetrics.push(`${t('medicalReport.follicle')} 1: ${reportData.follicle_1_mm}mm`);
-      if (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.length > 0) {
-        keyMetrics.push(`${t('medicalReport.labs')}: ${reportData.labs.join(', ')}`);
-      }
     } else if (report.stage === 'Post-Transfer') {
-      if (reportData.beta_hcg || (reportData.labs && Array.isArray(reportData.labs) && reportData.labs.includes('beta_hgc'))) {
-        keyMetrics.push(`${t('medicalReport.betaHcg')}: ${reportData.beta_hcg || t('medicalReport.tested')}`);
-      }
       if (reportData.fetal_heart_rate) keyMetrics.push(`${t('medicalReport.heartRate')}: ${reportData.fetal_heart_rate} bpm`);
       if (reportData.gestational_sac_diameter) keyMetrics.push(`${t('medicalReport.sac')}: ${reportData.gestational_sac_diameter} mm`);
       if (reportData.gestational_age) keyMetrics.push(`${t('medicalReport.ga')}: ${reportData.gestational_age}`);
@@ -3007,10 +3057,7 @@ export default function HomeScreen() {
     const noteText = String(
       reportData.notes || reportData.note || reportData.additional_notes || ''
     ).trim();
-    const previewNoteText =
-      language === 'en'
-        ? noteText
-        : (translatedMedicalReportPreviewNotes[report.id] || noteText);
+    const previewNoteText = translatedMedicalReportPreviewNotes[report.id] || noteText;
 
     return (
       <TouchableOpacity
@@ -3190,8 +3237,16 @@ export default function HomeScreen() {
       return String(v);
     };
 
-    const formatLocalizedValue = (v) => {
+    const formatLocalizedValue = (key, v) => {
       if (v == null || v === '') return '—';
+      if (key === 'test_site') {
+        const sites = Array.isArray(v) ? v : [v];
+        const labels = sites.map((s) => translateTestSiteKey(s, t)).filter(Boolean);
+        return labels.length ? labels.join(', ') : '—';
+      }
+      if (key === 'labs') {
+        return formatLabsList(v, t) || '—';
+      }
       const normalized = typeof v === 'string' ? v.trim().toLowerCase() : v;
       if (normalized === 'yes') return t('medicalReport.yes');
       if (normalized === 'no') return t('medicalReport.no');
@@ -3316,7 +3371,7 @@ export default function HomeScreen() {
                   return (
                     <View key={key} style={styles.medicalReportDetailSection}>
                       <Text style={styles.medicalReportDetailSectionTitle}>{label}</Text>
-                      <Text style={styles.medicalReportDetailValue}>{formatLocalizedValue(value)}</Text>
+                      <Text style={styles.medicalReportDetailValue}>{formatLocalizedValue(key, value)}</Text>
                     </View>
                   );
                 })}
@@ -3345,8 +3400,21 @@ export default function HomeScreen() {
   const renderTimelineView = () => {
     return (
       <ScrollView
+        key="journey-timeline-scroll"
+        ref={timelineScrollRef}
         style={styles.timelineContainer}
         contentContainerStyle={{ paddingBottom: 100 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          timelineScrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        onContentSizeChange={() => {
+          if (!shouldRestoreTimelineScrollRef.current) return;
+          timelineScrollRef.current?.scrollTo?.({
+            y: timelineScrollYRef.current,
+            animated: false,
+          });
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -3508,6 +3576,7 @@ export default function HomeScreen() {
                   <View style={styles.cardFooter}>
                     <TouchableOpacity
                       onPress={() => {
+                        // Keep current timeline Y so back can restore it.
                         setStageFilter(stage.key);
                         setViewMode('stageDetail');
                       }}
@@ -3834,7 +3903,13 @@ export default function HomeScreen() {
       ) : viewMode === 'stageDetail' ? (
         <>
           <View style={styles.feedHeader}>
-            <TouchableOpacity onPress={() => setViewMode('timeline')} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => {
+                shouldRestoreTimelineScrollRef.current = true;
+                setViewMode('timeline');
+              }}
+              style={styles.backButton}
+            >
               <Icon name="chevron-left" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.feedTitle}>
@@ -3843,8 +3918,14 @@ export default function HomeScreen() {
             <View style={{ width: 24 }} />
           </View>
           <ScrollView
+            key={`journey-stage-detail-scroll-${stageFilter}`}
+            ref={stageDetailScrollRef}
             style={styles.feedContainer}
             contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+            onContentSizeChange={() => {
+              if (!pinStageDetailToTopRef.current) return;
+              stageDetailScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+            }}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -3926,9 +4007,7 @@ export default function HomeScreen() {
                         numberOfLines={4}
                         ellipsizeMode="tail"
                       >
-                        {language === 'en'
-                          ? (note.content || '')
-                          : (adminNoteTranslations[note.id] || note.content || '')}
+                        {adminNoteTranslations[note.id] || note.content || ''}
                       </Text>
                       {imageCount > 0 ? (
                         <Text style={styles.adminNoteImageHint}>
@@ -3953,7 +4032,13 @@ export default function HomeScreen() {
       ) : (
         <>
           <View style={styles.feedHeader}>
-            <TouchableOpacity onPress={() => setViewMode('timeline')} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => {
+                shouldRestoreTimelineScrollRef.current = true;
+                setViewMode('timeline');
+              }}
+              style={styles.backButton}
+            >
               <Icon name="chevron-left" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.feedTitle}>
@@ -4165,11 +4250,12 @@ export default function HomeScreen() {
                     </View>
                   ) : null}
                   <Text style={styles.adminNoteContentDetail}>
-                    {language === 'en'
-                      ? (selectedAdminNote.content || '')
-                      : (translatedAdminNoteContent || adminNoteTranslations[selectedAdminNote.id] || selectedAdminNote.content || '')}
+                    {translatedAdminNoteContent ||
+                      adminNoteTranslations[selectedAdminNote.id] ||
+                      selectedAdminNote.content ||
+                      ''}
                   </Text>
-                  {language !== 'en' && translatingAdminNote ? (
+                  {translatingAdminNote ? (
                     <Text style={styles.adminNoteImageHint}>
                       {t('home.translatingAdminNote')}
                     </Text>

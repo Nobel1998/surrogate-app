@@ -684,10 +684,10 @@ export async function POST(req: Request) {
 
     // Auto-populate case fields if match was created and doesn't have claim_id yet
     if (matchId && !existing) {
-      // Get surrogate and parent profiles to extract first names
+      // Get surrogate and parent profiles to extract first names + stage
       const { data: surrogateProfile } = await supabase
         .from('profiles')
-        .select('name')
+        .select('name, progress_stage')
         .eq('id', surrogateId)
         .single();
       
@@ -748,6 +748,7 @@ export async function POST(req: Request) {
           branch_id: effectiveBranchId,
           status: status || 'matched',
           created_by: adminUserId || null,
+          current_step: surrogateProfile?.progress_stage || 'pre',
         })
         .eq('id', matchId);
 
@@ -811,6 +812,16 @@ export async function PATCH(req: Request) {
         .update({ progress_stage: body.progress_stage, stage_updated_by: updater })
         .eq('id', body.surrogate_id);
       if (error) throw error;
+
+      // Keep Case Document current_step in sync with the live stage
+      await supabase
+        .from('surrogate_matches')
+        .update({
+          current_step: body.progress_stage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('surrogate_id', body.surrogate_id)
+        .in('status', ['matched', 'active', 'pregnant', 'pending']);
 
       // Send notification to matched parent if stage changed
       if (oldStage !== body.progress_stage) {

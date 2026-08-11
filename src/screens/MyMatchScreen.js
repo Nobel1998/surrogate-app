@@ -20,7 +20,6 @@ import { useParentMatch } from '../context/ParentMatchContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Feather as Icon } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import Avatar from '../components/Avatar';
 import ParentMatchSwitcher from '../components/ParentMatchSwitcher';
 import DatePickerField from '../components/DatePickerField';
@@ -39,6 +38,7 @@ import {
   getApplicationStatusCopy,
   normalizeApplicationStatus,
 } from '../utils/applicationStatus';
+import { ACTIVE_MATCH_STATUSES, isActiveMatchStatus } from '../utils/matchStatus';
 
 function formatApplicationFieldKeyLabel(key) {
   if (!key) return '';
@@ -86,14 +86,6 @@ export default function MyMatchScreen({ navigation }) {
     loadMatchData();
   }, [user, parentMatch.activeMatch?.id, parentMatch.initialSyncDone]);
 
-  // Re-check application whenever My Match tab is focused (stale after submit otherwise)
-  useFocusEffect(
-    React.useCallback(() => {
-      checkUserApplication();
-      loadMatchData();
-    }, [user?.id])
-  );
-
   // Listen for match creation/updates in surrogate_matches table
   useEffect(() => {
     if (!user?.id) {
@@ -130,8 +122,8 @@ export default function MyMatchScreen({ navigation }) {
         async (payload) => {
           console.log('[MyMatch] ✅ Match updated via Realtime:', payload);
           
-          // Reload match data when match is created or updated (status can be 'matched' or 'active')
-          if (payload.new && (payload.new.status === 'matched' || payload.new.status === 'active')) {
+          // Reload match data when match is created or updated
+          if (payload.new && isActiveMatchStatus(payload.new.status)) {
             console.log('[MyMatch] ✅ Matched match detected, reloading match data...');
             if (isParent) await parentMatch.refreshMatches();
             await loadMatchData();
@@ -140,7 +132,7 @@ export default function MyMatchScreen({ navigation }) {
             if (isParent && !matchData) {
               await loadAvailableSurrogates();
             }
-          } else if (payload.eventType === 'DELETE' || (payload.new && payload.new.status !== 'matched' && payload.new.status !== 'active')) {
+          } else if (payload.eventType === 'DELETE' || (payload.new && !isActiveMatchStatus(payload.new.status))) {
             console.log('[MyMatch] ⚠️ Match removed or deactivated, reloading...');
             if (isParent) await parentMatch.refreshMatches();
             await loadMatchData();
@@ -240,7 +232,7 @@ export default function MyMatchScreen({ navigation }) {
           .from('surrogate_matches')
           .select('*')
           .eq('surrogate_id', user.id)
-          .in('status', ['matched', 'active'])
+          .in('status', ACTIVE_MATCH_STATUSES)
           .order('created_at', { ascending: false })
           .limit(1);
         match = data?.[0];
@@ -444,7 +436,7 @@ export default function MyMatchScreen({ navigation }) {
       }
 
       // Active match statuses (exclude cancelled/completed)
-      const activeStatuses = ['matched', 'pending', 'pregnant', 'active'];
+      const activeStatuses = ACTIVE_MATCH_STATUSES;
 
       // Try to query all active matches at once
       // If RLS blocks this, we'll get an error and handle it
@@ -1973,7 +1965,7 @@ export default function MyMatchScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.mainContainer} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F7F9FC" />
       {matchData ? renderMatchedState() : renderUnmatchedState()}
       {renderSurrogateDetailsModal()}
       <ParentMatchSwitcher
