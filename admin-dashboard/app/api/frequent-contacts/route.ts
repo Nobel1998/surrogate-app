@@ -10,6 +10,7 @@ const ALLOWED_ROLES = new Set(['admin', 'finance_manager', 'branch_manager']);
 
 const VALID_CATEGORIES = new Set([
   'ivf_clinic',
+  'local_monitor_clinic',
   'attorney_escrow',
   'insurance_broker',
   'therapist',

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 type ContactCategory =
   | 'ivf_clinic'
+  | 'local_monitor_clinic'
   | 'attorney_escrow'
   | 'insurance_broker'
   | 'therapist'
@@ -29,6 +30,7 @@ interface FrequentContact {
 
 const CATEGORIES: { value: ContactCategory; label: string }[] = [
   { value: 'ivf_clinic', label: 'IVF Clinic' },
+  { value: 'local_monitor_clinic', label: 'Local Monitor Clinic' },
   { value: 'attorney_escrow', label: 'Attorney / Escrow' },
   { value: 'insurance_broker', label: 'Insurance Broker' },
   { value: 'therapist', label: 'Therapist' },

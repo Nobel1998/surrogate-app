@@ -1119,29 +1119,57 @@ export default function Home() {
       {/* Application Details Modal */}
       {selectedApp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
-                <div>
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="flex-shrink-0 flex justify-between items-start gap-3 px-6 pt-6 pb-4 border-b bg-white">
+                <div className="min-w-0">
                   <h2 className="text-2xl font-bold text-gray-900">
                     {isEditingApplication ? 'Edit Application' : 'Application Details'} - {selectedApp.full_name}
                   </h2>
                   {isEditingApplication && (
                     <p className="mt-1 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1 inline-block">
-                      ✏️ Editing — only admins can save changes
+                      ✏️ Editing — scroll to review fields, then Save below
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => { setSelectedApp(null); setIsEditingApplication(false); setEditFormData({}); setEditJsonDrafts({}); setEditingApp(null); }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isEditingApplication && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingApplication(false);
+                          setEditFormData({});
+                          setEditJsonDrafts({});
+                          setEditingApp(null);
+                        }}
+                        disabled={savingEdit}
+                        className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEdit}
+                        disabled={savingEdit}
+                        className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {savingEdit ? 'Saving...' : 'Save'}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setSelectedApp(null); setIsEditingApplication(false); setEditFormData({}); setEditJsonDrafts({}); setEditingApp(null); }}
+                    className="text-gray-400 hover:text-gray-600"
+                    aria-label="Close"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
+              <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="space-y-6">
                 {selectedApp.applicationType === 'signup' ? (
                   <div className="bg-indigo-50 rounded-lg p-4">
@@ -1833,9 +1861,13 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
+                  </>
+                )}
+              </div>
+              </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-4 border-t sticky bottom-0 bg-white py-4">
+                {/* Action Buttons — shared for all application types; always visible */}
+                <div className="flex-shrink-0 flex justify-end flex-wrap gap-3 px-6 py-4 border-t bg-white">
                   {isEditingApplication ? (
                     <>
                       <button
@@ -1857,7 +1889,7 @@ export default function Home() {
                         disabled={savingEdit}
                         className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
                       >
-                        {savingEdit ? 'Saving...' : '💾 Save All'}
+                        {savingEdit ? 'Saving...' : 'Save'}
                       </button>
                     </>
                   ) : (
@@ -1934,10 +1966,6 @@ export default function Home() {
                     </>
                   )}
                 </div>
-                  </>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       )}
