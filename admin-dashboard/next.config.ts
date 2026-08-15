@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 /** Direct APK for users who cannot open Google Play (e.g. China). */
 const ANDROID_APK_URL =
   process.env.ANDROID_APK_URL ||
-  'https://expo.dev/artifacts/eas/zJ9vLdqrPZBz4NwfA8NK7aRZsBDtXe050gEY86-4Gik.apk';
+  'https://expo.dev/artifacts/eas/IPuCWdAjHiSocXU6hHhCr6k8kfyAKZ-VN1uEy-iRD7M.apk';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
