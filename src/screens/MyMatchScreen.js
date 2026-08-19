@@ -288,6 +288,38 @@ export default function MyMatchScreen({ navigation }) {
                 : parentProfile
             );
           }
+
+          // Load intended-parent application (Parent 1 + Parent 2 form fields)
+          const { data: ipApplication, error: ipError } = await supabase
+            .from('intended_parent_applications')
+            .select('*')
+            .eq('user_id', match.parent_id)
+            .order('submitted_at', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (ipError && ipError.code !== 'PGRST116') {
+            console.error('Error loading intended parent application:', ipError);
+          } else if (ipApplication) {
+            let parsedFormData = {};
+            try {
+              if (ipApplication.form_data) {
+                parsedFormData =
+                  typeof ipApplication.form_data === 'string'
+                    ? JSON.parse(ipApplication.form_data)
+                    : ipApplication.form_data;
+              }
+            } catch (e) {
+              console.error('Error parsing intended parent form_data:', e);
+            }
+            setPartnerApplication({
+              ...ipApplication,
+              parsedFormData,
+            });
+          } else {
+            setPartnerApplication(null);
+          }
         } else if (!isSurrogate && match.surrogate_id) {
           const { data: surrogateProfile, error: surrogateError } = await supabase
             .from('profiles')
@@ -935,6 +967,44 @@ export default function MyMatchScreen({ navigation }) {
             parsedFormData,
           };
           setPartnerApplication(targetApplication);
+        }
+      }
+
+      if (userRole === 'surrogate') {
+        const hasIpForm =
+          !!(targetApplication?.parsedFormData?.parent1FirstName ||
+            targetApplication?.parsedFormData?.parent1LastName ||
+            targetApplication?.parsedFormData?.parent1Email);
+        if (!hasIpForm) {
+          const { data: ipApplication, error: ipError } = await supabase
+            .from('intended_parent_applications')
+            .select('*')
+            .eq('user_id', targetId)
+            .order('submitted_at', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (ipError && ipError.code !== 'PGRST116') {
+            console.error('[MyMatch] Failed to fetch intended parent application:', ipError);
+          } else if (ipApplication) {
+            let parsedFormData = {};
+            try {
+              if (ipApplication.form_data) {
+                parsedFormData =
+                  typeof ipApplication.form_data === 'string'
+                    ? JSON.parse(ipApplication.form_data)
+                    : ipApplication.form_data;
+              }
+            } catch (parseError) {
+              console.error('[MyMatch] Failed to parse intended parent form_data:', parseError);
+            }
+            targetApplication = {
+              ...ipApplication,
+              parsedFormData,
+            };
+            setPartnerApplication(targetApplication);
+          }
         }
       }
     } catch (error) {

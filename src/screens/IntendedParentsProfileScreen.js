@@ -12,7 +12,7 @@ import {
 import { Feather as Icon } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
 import { useLanguage } from '../context/LanguageContext';
-import { formatPhoneForDisplay, formatPhoneForTel } from '../utils/parentPhone';
+import { formatPhoneForDisplay, formatPhoneForTel, parseParentPhoneParts } from '../utils/parentPhone';
 
 export default function IntendedParentsProfileScreen({ route, navigation }) {
   const { profile, application } = route?.params || {};
@@ -27,6 +27,58 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
   
   // Get parsed application data
   const appData = application?.parsedFormData || {};
+  const isIntendedParentForm =
+    isParent &&
+    (appData.applicationType === 'intended_parent' ||
+      !!(appData.parent1FirstName || appData.parent1LastName || appData.parent1Email));
+
+  const joinName = (...parts) =>
+    parts
+      .map((p) => String(p || '').trim())
+      .filter(Boolean)
+      .join(' ');
+
+  const formatParentDob = (prefix) => {
+    const m = appData[`${prefix}DateOfBirthMonth`];
+    const d = appData[`${prefix}DateOfBirthDay`];
+    const y = appData[`${prefix}DateOfBirthYear`];
+    if (m && d && y) return `${m}/${d}/${y}`;
+    return appData[`${prefix}DateOfBirth`] || '';
+  };
+
+  const formatParentPhone = (prefix) => {
+    const parts = parseParentPhoneParts({
+      countryCode: appData[`${prefix}PhoneCountryCode`],
+      areaCode: appData[`${prefix}PhoneAreaCode`],
+      phoneNumber: appData[`${prefix}PhoneNumber`],
+    });
+    return parts.display || parts.e164 || '';
+  };
+
+  const formatParentAddress = (prefix) => {
+    const parts = [
+      appData[`${prefix}AddressStreet`],
+      appData[`${prefix}AddressStreet2`],
+      appData[`${prefix}AddressCity`],
+      appData[`${prefix}AddressState`],
+      appData[`${prefix}AddressZip`],
+    ]
+      .map((p) => String(p || '').trim())
+      .filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const parent1FullName = joinName(appData.parent1FirstName, appData.parent1LastName);
+  const parent2FullName = joinName(appData.parent2FirstName, appData.parent2LastName);
+  const hasParent2 = !!(
+    appData.parent2FirstName ||
+    appData.parent2LastName ||
+    appData.parent2Email ||
+    appData.parent2PhoneNumber
+  );
+  const displayName = isIntendedParentForm
+    ? parent1FullName || profile?.name || t('profileDetail.intendedParent')
+    : profile?.name || (isSurrogate ? t('profileDetail.surrogate') : t('profileDetail.intendedParent'));
 
   // Function to translate English option values to current language
   const translateValue = (value, fieldType) => {
@@ -195,7 +247,7 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F7F9FC" />
       
       {/* Header */}
       <View style={styles.headerGradient}>
@@ -213,12 +265,139 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
-              <Avatar name={profile.name || (isSurrogate ? t('profileDetail.surrogate') : t('profileDetail.intendedParent'))} size={100} />
+              <Avatar name={displayName} size={100} />
             </View>
-            <Text style={styles.profileName}>{profile.name || (isSurrogate ? t('profileDetail.surrogate') : t('profileDetail.intendedParent'))}</Text>
+            <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileRole}>{profileRoleLabel}</Text>
           </View>
 
+          {isIntendedParentForm ? (
+            <>
+              {(appData.familyStructure || appData.hearAboutUs) && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{t('profileDetail.personalInformation')}</Text>
+                  {renderInfoRow(
+                    t('profileDetail.familyStructure'),
+                    translateValue(appData.familyStructure, 'familyStructure'),
+                    'users',
+                    null
+                  )}
+                  {renderInfoRow(
+                    t('profileDetail.howDidYouHearAboutUs'),
+                    appData.hearAboutUs,
+                    'info',
+                    null
+                  )}
+                </View>
+              )}
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('profileDetail.intendedParent1')}</Text>
+                {renderInfoRow(t('profileDetail.fullLegalName'), parent1FullName, 'user', null)}
+                {renderInfoRow(t('profileDetail.dateOfBirth'), formatParentDob('parent1'), 'calendar', null)}
+                {renderInfoRow(t('profileDetail.gender'), appData.parent1Gender, 'user', null)}
+                {renderInfoRow(t('profileDetail.bloodType'), appData.parent1BloodType, 'droplet', null)}
+                {renderInfoRow(
+                  t('profileDetail.raceEthnicity'),
+                  translateValue(appData.parent1Race, 'race'),
+                  'user',
+                  null
+                )}
+                {renderInfoRow(t('profileDetail.citizenship'), appData.parent1Citizenship, 'globe', null)}
+                {renderInfoRow(
+                  t('profileDetail.countryStateOfResidence'),
+                  appData.parent1CountryState,
+                  'map-pin',
+                  null
+                )}
+                {renderInfoRow(t('profileDetail.occupation'), appData.parent1Occupation, 'briefcase', null)}
+                {renderInfoRow(t('profileDetail.languages'), appData.parent1Languages, 'message-circle', null)}
+                {renderInfoRow(
+                  t('profileDetail.phone'),
+                  formatParentPhone('parent1') || formatPhoneForDisplay(profile.phone) || profile.phone,
+                  'phone',
+                  (() => {
+                    const tel =
+                      formatPhoneForTel({
+                        countryCode: appData.parent1PhoneCountryCode,
+                        areaCode: appData.parent1PhoneAreaCode,
+                        phoneNumber: appData.parent1PhoneNumber,
+                      }) || formatPhoneForTel(profile.phone);
+                    const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
+                    return cleanTel ? () => Linking.openURL(`tel:${cleanTel}`) : null;
+                  })()
+                )}
+                {renderInfoRow(
+                  t('profileDetail.email'),
+                  appData.parent1Email || profile.email,
+                  'mail',
+                  (appData.parent1Email || profile.email)
+                    ? () => Linking.openURL(`mailto:${appData.parent1Email || profile.email}`)
+                    : null
+                )}
+                {renderInfoRow(
+                  t('profileDetail.emergencyContact'),
+                  appData.parent1EmergencyContact,
+                  'phone-call',
+                  null
+                )}
+                {renderInfoRow(
+                  t('profileDetail.address'),
+                  formatParentAddress('parent1') || profile.address,
+                  'home',
+                  null
+                )}
+              </View>
+
+              {hasParent2 ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{t('profileDetail.intendedParent2')}</Text>
+                  {renderInfoRow(t('profileDetail.fullLegalName'), parent2FullName, 'user', null)}
+                  {renderInfoRow(t('profileDetail.dateOfBirth'), formatParentDob('parent2'), 'calendar', null)}
+                  {renderInfoRow(t('profileDetail.gender'), appData.parent2Gender, 'user', null)}
+                  {renderInfoRow(t('profileDetail.bloodType'), appData.parent2BloodType, 'droplet', null)}
+                  {renderInfoRow(
+                    t('profileDetail.raceEthnicity'),
+                    translateValue(appData.parent2Race, 'race'),
+                    'user',
+                    null
+                  )}
+                  {renderInfoRow(t('profileDetail.citizenship'), appData.parent2Citizenship, 'globe', null)}
+                  {renderInfoRow(
+                    t('profileDetail.countryStateOfResidence'),
+                    appData.parent2CountryState,
+                    'map-pin',
+                    null
+                  )}
+                  {renderInfoRow(t('profileDetail.occupation'), appData.parent2Occupation, 'briefcase', null)}
+                  {renderInfoRow(t('profileDetail.languages'), appData.parent2Languages, 'message-circle', null)}
+                  {renderInfoRow(
+                    t('profileDetail.phone'),
+                    formatParentPhone('parent2'),
+                    'phone',
+                    (() => {
+                      const tel = formatPhoneForTel({
+                        countryCode: appData.parent2PhoneCountryCode,
+                        areaCode: appData.parent2PhoneAreaCode,
+                        phoneNumber: appData.parent2PhoneNumber,
+                      });
+                      const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
+                      return cleanTel ? () => Linking.openURL(`tel:${cleanTel}`) : null;
+                    })()
+                  )}
+                  {renderInfoRow(
+                    t('profileDetail.email'),
+                    appData.parent2Email,
+                    'mail',
+                    appData.parent2Email
+                      ? () => Linking.openURL(`mailto:${appData.parent2Email}`)
+                      : null
+                  )}
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <>
           {/* Contact Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('profileDetail.contactInformation')}</Text>
@@ -500,16 +679,25 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
               )}
             </View>
           )}
+            </>
+          )}
 
           {/* Quick Actions */}
           <View style={styles.quickActionsSection}>
             <Text style={styles.sectionTitle}>{t('profileDetail.quickActions')}</Text>
             <View style={styles.quickActionsGrid}>
-              {profile.phone && (
+              {(formatParentPhone('parent1') || profile.phone) && (
                 <TouchableOpacity
                   style={styles.quickActionButton}
                   onPress={() => {
-                    const tel = formatPhoneForTel(profile.phone);
+                    const tel =
+                      (isIntendedParentForm &&
+                        formatPhoneForTel({
+                          countryCode: appData.parent1PhoneCountryCode,
+                          areaCode: appData.parent1PhoneAreaCode,
+                          phoneNumber: appData.parent1PhoneNumber,
+                        })) ||
+                      formatPhoneForTel(profile.phone);
                     const cleanTel = String(tel || '').replace(/[^\d+\-]/g, '');
                     if (cleanTel) Linking.openURL(`tel:${cleanTel}`);
                   }}
@@ -521,10 +709,12 @@ export default function IntendedParentsProfileScreen({ route, navigation }) {
                 </TouchableOpacity>
               )}
 
-              {profile.email && (
+              {(appData.parent1Email || profile.email) && (
                 <TouchableOpacity
                   style={styles.quickActionButton}
-                  onPress={() => Linking.openURL(`mailto:${profile.email}`)}
+                  onPress={() =>
+                    Linking.openURL(`mailto:${appData.parent1Email || profile.email}`)
+                  }
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: '#FFF3E0' }]}>
                     <Icon name="mail" size={24} color="#FF8EA4" />

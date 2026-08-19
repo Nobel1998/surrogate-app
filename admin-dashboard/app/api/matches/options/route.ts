@@ -347,7 +347,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Enrich matches with managers
-    const enrichedMatches = matchesWithFreshClaimIds?.map((m: any) => {
+    const enrichedMatchesBase = matchesWithFreshClaimIds?.map((m: any) => {
       const managersList = matchManagers[m.id] || [];
       // If no managers from match_managers table, fall back to legacy manager_id
       if (managersList.length === 0 && m.manager_id && managers[m.manager_id]) {
@@ -386,6 +386,98 @@ export async function GET(req: NextRequest) {
         manager_name: finalManagers.length > 0 ? finalManagers.map((mg: any) => mg.name).join(', ') : null,
       };
     }) || [];
+
+    // Load intended-parent applications so Matches can show Parent 1 + Parent 2 from form_data
+    const parentIdsForApps = [
+      ...new Set(
+        enrichedMatchesBase
+          .map((m: any) => m.parent_id || m.first_parent_id)
+          .filter(Boolean)
+      ),
+    ] as string[];
+
+    const parentAppByUserId: Record<
+      string,
+      {
+        parent1Name: string | null;
+        parent2Name: string | null;
+        parent1Phone: string | null;
+        parent2Phone: string | null;
+        parent1BloodType: string | null;
+        parent2BloodType: string | null;
+      }
+    > = {};
+
+    const joinParentName = (first?: string | null, last?: string | null) => {
+      const name = [first, last]
+        .map((p) => String(p || '').trim())
+        .filter(Boolean)
+        .join(' ');
+      return name || null;
+    };
+
+    const formatAppPhone = (fd: any, prefix: string) => {
+      const cc = String(fd?.[`${prefix}PhoneCountryCode`] || '').trim();
+      const area = String(fd?.[`${prefix}PhoneAreaCode`] || '').trim();
+      const num = String(fd?.[`${prefix}PhoneNumber`] || '').trim();
+      if (cc && area && num) return `+${cc} (${area}) ${num}`;
+      if (num) return num;
+      return null;
+    };
+
+    if (parentIdsForApps.length > 0) {
+      const { data: ipApps, error: ipAppsError } = await supabase
+        .from('intended_parent_applications')
+        .select('user_id, form_data, submitted_at, created_at')
+        .in('user_id', parentIdsForApps)
+        .order('submitted_at', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (ipAppsError) {
+        console.warn('[matches/options] intended_parent_applications lookup failed:', ipAppsError.message);
+      } else if (ipApps) {
+        for (const row of ipApps) {
+          const uid = row.user_id;
+          if (!uid || parentAppByUserId[uid]) continue; // keep newest per user
+          let fd: any = {};
+          try {
+            fd =
+              typeof row.form_data === 'string'
+                ? JSON.parse(row.form_data)
+                : row.form_data || {};
+          } catch {
+            fd = {};
+          }
+          parentAppByUserId[uid] = {
+            parent1Name: joinParentName(fd.parent1FirstName, fd.parent1LastName),
+            parent2Name: joinParentName(fd.parent2FirstName, fd.parent2LastName),
+            parent1Phone: formatAppPhone(fd, 'parent1'),
+            parent2Phone: formatAppPhone(fd, 'parent2'),
+            parent1BloodType: fd.parent1BloodType || null,
+            parent2BloodType: fd.parent2BloodType || null,
+          };
+        }
+      }
+    }
+
+    const enrichedMatches = enrichedMatchesBase.map((m: any) => {
+      const parentUid = m.parent_id || m.first_parent_id;
+      const appInfo = parentUid ? parentAppByUserId[parentUid] : null;
+      return {
+        ...m,
+        parent1_name_from_application: appInfo?.parent1Name || null,
+        parent2_name_from_application: appInfo?.parent2Name || null,
+        parent1_phone_from_application: appInfo?.parent1Phone || null,
+        parent2_phone_from_application: appInfo?.parent2Phone || null,
+        // Prefer application Parent 2 name when match.second_parent_name is empty
+        second_parent_name:
+          m.second_parent_name || appInfo?.parent2Name || null,
+        first_parent_blood_type:
+          m.first_parent_blood_type || appInfo?.parent1BloodType || null,
+        second_parent_blood_type:
+          m.second_parent_blood_type || appInfo?.parent2BloodType || null,
+      };
+    });
 
     const partyIdSet = new Set<string>();
     if (!isSuperAdmin) {

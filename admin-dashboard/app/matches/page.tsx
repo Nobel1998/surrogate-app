@@ -45,6 +45,10 @@ type Match = {
   second_parent_id?: string | null;
   second_parent_name?: string | null;
   second_parent_blood_type?: string | null;
+  parent1_name_from_application?: string | null;
+  parent2_name_from_application?: string | null;
+  parent1_phone_from_application?: string | null;
+  parent2_phone_from_application?: string | null;
   manager_id?: string | null;
   branch_id?: string | null;
   current_step?: string | null;
@@ -2686,7 +2690,15 @@ export default function MatchesPage() {
                       
                       // Get names from multiple sources
                       const surrogateName = surrogate?.name?.toLowerCase() || '';
-                      const parentName = parent?.name?.toLowerCase() || m.first_parent_name?.toLowerCase() || '';
+                      const parentName =
+                        parent?.name?.toLowerCase() ||
+                        m.parent1_name_from_application?.toLowerCase() ||
+                        m.first_parent_name?.toLowerCase() ||
+                        '';
+                      const parent2Name =
+                        m.second_parent_name?.toLowerCase() ||
+                        m.parent2_name_from_application?.toLowerCase() ||
+                        '';
                       const claimId = (m.claim_id || '').toLowerCase();
                       
                       // Normalize search term: remove spaces for flexible matching
@@ -2695,6 +2707,7 @@ export default function MatchesPage() {
                       // Normalize names: remove spaces for flexible matching
                       const normalizedSurrogateName = surrogateName.replace(/\s+/g, '');
                       const normalizedParentName = parentName.replace(/\s+/g, '');
+                      const normalizedParent2Name = parent2Name.replace(/\s+/g, '');
                       const normalizedClaimId = claimId.replace(/\s+/g, '');
                       
                       
@@ -2704,9 +2717,10 @@ export default function MatchesPage() {
                       // 3. Claim ID (which may contain names)
                       const matchesSurrogate = surrogateName.includes(searchTerm) || normalizedSurrogateName.includes(normalizedSearchTerm);
                       const matchesParent = parentName.includes(searchTerm) || normalizedParentName.includes(normalizedSearchTerm);
+                      const matchesParent2 = parent2Name.includes(searchTerm) || normalizedParent2Name.includes(normalizedSearchTerm);
                       const matchesClaimId = claimId.includes(searchTerm) || normalizedClaimId.includes(normalizedSearchTerm);
                       
-                      if (!matchesSurrogate && !matchesParent && !matchesClaimId) {
+                      if (!matchesSurrogate && !matchesParent && !matchesParent2 && !matchesClaimId) {
                         return false;
                       }
                     }
@@ -2931,9 +2945,16 @@ export default function MatchesPage() {
                             <div className="text-xs text-gray-500">{surrogate?.phone || '—'}</div>
                           </div>
                           <div>
-                            <div className={FIELD_LABEL_CLASS}>Parent</div>
-                            <div className="text-sm font-medium text-gray-900">{parent?.name || m.first_parent_name || m.parent_id}</div>
-                            <div className="text-xs text-gray-500">{parent?.phone || '—'}</div>
+                            <div className={FIELD_LABEL_CLASS}>Parent 1</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {m.parent1_name_from_application ||
+                                parent?.name ||
+                                m.first_parent_name ||
+                                m.parent_id}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {m.parent1_phone_from_application || parent?.phone || '—'}
+                            </div>
                             <div className="mt-1">
                               <div className={FIELD_LABEL_CLASS}>Blood Type</div>
                               {editingFirstParentBloodType === m.id ? (
@@ -3094,15 +3115,25 @@ export default function MatchesPage() {
                                 className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded text-sm text-gray-900"
                                 onClick={() => {
                                   setEditingParent2(m.id);
-                                  setParent2Name(m.second_parent_name || '');
+                                  setParent2Name(
+                                    m.second_parent_name ||
+                                      m.parent2_name_from_application ||
+                                      ''
+                                  );
                                 }}
                                 title="Click to edit Parent 2 name"
                               >
-                                {m.second_parent_name || (
+                                {m.second_parent_name ||
+                                  m.parent2_name_from_application || (
                                   <span className="text-gray-400 italic">Click to add</span>
                                 )}
                               </div>
                             )}
+                            {m.parent2_phone_from_application ? (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {m.parent2_phone_from_application}
+                              </div>
+                            ) : null}
                             <div className="mt-1">
                               <div className={FIELD_LABEL_CLASS}>Blood Type</div>
                               {editingSecondParentBloodType === m.id ? (
