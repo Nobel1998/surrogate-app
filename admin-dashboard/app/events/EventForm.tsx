@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { uploadFileToSignedUrl } from '../../lib/uploadToSignedUrl';
 
 interface Event {
   id?: string;
@@ -48,6 +49,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
   const [translationNotice, setTranslationNotice] = useState<string | null>(null);
 
@@ -332,23 +334,41 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
   const handleVideoUpload = async () => {
     if (!selectedVideoFile) return;
     setUploadingVideo(true);
+    setVideoUploadProgress(0);
     setError(null);
     try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', selectedVideoFile);
-
-      const res = await fetch('/api/events/upload-video', {
+      // 1) Ask API for a signed upload URL (tiny JSON — avoids Vercel body limits)
+      const initRes = await fetch('/api/events/upload-video', {
         method: 'POST',
-        body: uploadFormData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: selectedVideoFile.name,
+          content_type: selectedVideoFile.type || '',
+          file_size: selectedVideoFile.size,
+        }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to upload video');
+      const initRaw = await initRes.text();
+      let initData: any = null;
+      try {
+        initData = initRaw ? JSON.parse(initRaw) : null;
+      } catch {
+        throw new Error(`Upload init failed (${initRes.status}): ${initRaw.slice(0, 180)}`);
       }
 
-      handleInputChange('video_url', data.url);
+      if (!initRes.ok) {
+        throw new Error(initData?.error || `Upload init failed (${initRes.status})`);
+      }
+      if (!initData?.signedUrl || !initData?.url) {
+        throw new Error('Upload init missing signed URL');
+      }
+
+      // 2) Browser uploads directly to Supabase Storage
+      await uploadFileToSignedUrl(initData.signedUrl, selectedVideoFile, (progress) => {
+        setVideoUploadProgress(progress.percentage);
+      });
+
+      handleInputChange('video_url', initData.url);
       setVideoUploadSuccess(true);
       setSelectedVideoFile(null);
       setTimeout(() => setVideoUploadSuccess(false), 3000);
@@ -356,6 +376,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       setError(err.message || 'Failed to upload video');
     } finally {
       setUploadingVideo(false);
+      setVideoUploadProgress(0);
     }
   };
 
@@ -596,12 +617,27 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
                       type="button"
                       onClick={handleVideoUpload}
                       disabled={uploadingVideo}
-                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
-                      {uploadingVideo ? 'Uploading...' : 'Upload Video'}
+                      {uploadingVideo
+                        ? `Uploading… ${Math.round(videoUploadProgress)}%`
+                        : 'Upload Video'}
                     </button>
                   )}
                 </div>
+                {uploadingVideo && (
+                  <div className="mt-2">
+                    <div className="h-2 w-full rounded bg-gray-200 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 transition-all duration-150"
+                        style={{ width: `${Math.max(2, Math.round(videoUploadProgress))}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Uploading directly to storage… {Math.round(videoUploadProgress)}%
+                    </p>
+                  </div>
+                )}
                 {videoUploadSuccess && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
                     ✓ Video uploaded successfully! URL has been set.
